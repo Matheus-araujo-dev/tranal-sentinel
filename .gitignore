@@ -6,6 +6,8 @@ ResetExplode-dist/
 *.exe
 *.dll
 *.pdb
+dist/
+*.zip
 
 # IDE
 .vs/
