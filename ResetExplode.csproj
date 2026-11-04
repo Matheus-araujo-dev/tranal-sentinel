@@ -17,6 +17,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- O projeto de testes fica dentro da pasta do app: precisa ficar de fora do glob de compilação. -->
+    <Compile Remove="ResetExplode.Tests\**" />
+    <None Remove="ResetExplode.Tests\**" />
+    <EmbeddedResource Remove="ResetExplode.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Assets\logo.png" />
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\logo-badge.png" />

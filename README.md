@@ -1,3 +1,66 @@
+<!-- ================= INICIO DO AVISO DO FORK ================= -->
+
+# 🔎 RESET EXPLODE — fork local com a aba **RESET SAÚDE**
+
+> ⚠️ **Fork não oficial.** Esta é uma cópia modificada de
+> [GustavoReset/ResetExplode](https://github.com/GustavoReset/ResetExplode),
+> Copyright (c) 2026 Gustavo (GustavoReset), sob licença [MIT](LICENSE).
+> Todo o código original, o nome "RESET" e a identidade do projeto pertencem ao autor original;
+> este fork não é afiliado, não é endossado e não substitui o app oficial.
+> Download oficial: [github.com/GustavoReset/ResetExplode/releases](https://github.com/GustavoReset/ResetExplode/releases).
+>
+> O aviso de copyright e a licença MIT foram mantidos, como a licença exige.
+
+## O que este fork acrescenta
+
+**RESET SAÚDE** — nova aba no grupo "RESET SAÚDE", ao lado de "Visão geral".
+Ela responde a pergunta que o RESET EXPLODE original não responde: **"por que meu PC trava e o que está deixando ele lento?"**
+
+O app original mede o hardware em tempo real (sensores, SMART, benchmarks). O RESET SAÚDE olha
+para o **histórico** do Windows e aponta as causas prováveis, cada uma com a ação sugerida:
+
+- **Travamentos**: eventos Kernel-Power 41 (boot depois de desligamento não limpo) nos últimos 90 dias,
+  com data, bugcheck e se o botão de energia foi apertado. Sem bugcheck e sem minidump = congelamento
+  total, que aponta hardware/firmware em vez de programa.
+- **Erros de hardware**: eventos WHEA, telas azuis (minidumps) e resets de driver de vídeo.
+- **PCIe / ASPM**: gerenciamento de energia do link PCIe (a causa clássica de NVMe que não volta
+  depois de reiniciar) e se o NVMe está atrás de um adaptador M.2→PCIe.
+- **Discos**: NVMe fora do ar e dispositivos de armazenamento órfãos (sobras de troca de SSD).
+- **Segurança**: estado real do antivírus (o Defender "parado" pode ser normal quando outro produto
+  assumiu), filtro de kernel de terceiros, idade das definições e consumo de RAM.
+- **Lentidão**: compressão de memória, RAM acima do spec, inicialização automática, serviços de
+  terceiros e Hyper-V/VBS.
+
+**É somente leitura:** a aba não instala, não altera e não reinicia nada. Se preferir rodar pela
+linha de comando, há o script equivalente `diagnostico-resetexplode.ps1` (modo `Coletar`/`Comparar`),
+que gera um snapshot JSON/TXT e compara duas execuções campo a campo.
+
+### Como o código está organizado
+
+| Arquivo | O que faz |
+|---|---|
+| `SaudeModelos.cs` | Modelo de dados: `Achado`, `TravamentoInfo`, `RelatorioSaude`, `ColetaSaude`. |
+| `SaudeRegras.cs` | As regras do diagnóstico. Funções puras: recebem a foto do sistema e devolvem achados. É o único lugar com a lógica de decisão — e é o que os testes cobrem. |
+| `SaudeColeta.cs` | Coleta os dados (log de eventos, WMI, registro, processos). Cada bloco é isolado: uma falha aqui não derruba a análise inteira. |
+| `SaudeEventos.cs` | Leitura do log de eventos do Windows. |
+| `SaudePnp.cs` | Detecção de dispositivos órfãos (SetupAPI + cfgmgr32 + registro). |
+| `SaudeDiagnostico.cs` | Orquestrador: coleta → regras → relatório. |
+| `MainWindow.Saude.cs` | A aba na interface (partial class, mesmo padrão das outras). |
+
+### Testes
+
+O núcleo de diagnóstico tem testes automatizados (xUnit) em `ResetExplode.Tests/`:
+
+```powershell
+dotnet test ResetExplode.Tests\ResetExplode.Tests.csproj -c Release
+```
+
+Os testes cobrem só as regras (que são puras) — nenhum Windows é tocado por eles.
+
+<!-- ================= FIM DO AVISO DO FORK ================= -->
+
+---
+
 # RESET EXPLODE — v0.16
 
 > **Download oficial:** apenas em [github.com/GustavoReset/ResetExplode/releases](https://github.com/GustavoReset/ResetExplode/releases).

@@ -222,6 +222,15 @@
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
+                            <ToggleButton x:Name="GrpSaude" Style="{StaticResource NavGroup}" Content="RESET SAÚDE"/>
+                            <StackPanel x:Name="GrpSaudeItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpSaude, Converter={StaticResource BoolVis}}">
+                            <RadioButton x:Name="NavSaude" Style="{StaticResource NavItem}" Tag="PageSaude" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE7BA;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Diagnóstico" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            </StackPanel>
                             <ToggleButton x:Name="GrpGames" Style="{StaticResource NavGroup}" Content="RESET JOGOS"/>
                             <StackPanel x:Name="GrpGamesItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpGames, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavLauncher" Style="{StaticResource NavItem}" Tag="PageLauncher" Checked="Nav_Checked">
@@ -885,6 +894,118 @@
                                 </ItemsControl>
                             </StackPanel>
                         </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== RESET SAÚDE (diagnóstico de travamentos e lentidão) ===== -->
+                <ScrollViewer x:Name="PageSaude" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Margin="0,0,190,0">
+                                <TextBlock Text="RESET SAÚDE" Style="{StaticResource H1}"/>
+                                <TextBlock Text="Por que o PC trava e o que está deixando o sistema lento. Leitura do histórico do Windows, sem alterar nada." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button x:Name="BtnSaudeScan" Style="{StaticResource PrimaryButton}" Content="ANALISAR" Padding="20,9"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnSaudeScan_Click"/>
+                        </Grid>
+                        <Grid Height="3" Margin="0,0,0,8" Background="{DynamicResource Line}">
+                            <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
+                                <Border.RenderTransform><ScaleTransform x:Name="SaudeProgress" ScaleX="0"/></Border.RenderTransform>
+                            </Border>
+                        </Grid>
+                        <TextBlock x:Name="SaudeStatus" Text="Clique em ANALISAR para varrer o histórico do sistema. Nada é alterado." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="RESUMO DO SISTEMA" Style="{StaticResource Label}"/>
+                                <ItemsControl x:Name="SaudeResumo" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,8,16,8">
+                                                <TextBlock Text="{Binding Display}" TextWrapping="Wrap"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="PROBLEMAS ENCONTRADOS" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="SaudeAchadosVazio" Text="Nenhum problema encontrado." Foreground="{DynamicResource Muted}" Margin="0,12,0,0" Visibility="Collapsed"/>
+                                <ItemsControl x:Name="SaudeAchados" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,12,0,12">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <TextBlock Text="{Binding Area}" Foreground="{DynamicResource Muted}" FontSize="11" VerticalAlignment="Center"/>
+                                                        <Border HorizontalAlignment="Right" VerticalAlignment="Top" BorderBrush="{DynamicResource Fg}" BorderThickness="1" Padding="12,4">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="Transparent"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsAlerta}" Value="True">
+                                                                            <Setter Property="Background" Value="{DynamicResource Fg}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="{Binding Selo}" FontSize="11" FontWeight="SemiBold">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsAlerta}" Value="True">
+                                                                                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Mensagem}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                                    <TextBlock Text="{Binding Acao}" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="TRAVAMENTOS (BOOT APÓS DESLIGAMENTO NÃO LIMPO)" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="SaudeTravamentosVazio" Text="Nenhum travamento registrado nos últimos 90 dias." Foreground="{DynamicResource Muted}" Margin="0,12,0,0" Visibility="Collapsed"/>
+                                <ItemsControl x:Name="SaudeTravamentos" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,10,16,10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DataFormatada}" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Detalhe}" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Foreground="{DynamicResource Muted}" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"
+                                                               Text="{Binding Bugcheck, StringFormat='bugcheck {0}'}"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
+                            A análise é somente leitura: nada é instalado, alterado ou reiniciado. Os dados vêm do log de eventos do Windows, do WMI, do registro e da lista de inicialização automática.
+                        </TextBlock>
                     </StackPanel>
                 </ScrollViewer>
 
