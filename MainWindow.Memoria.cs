@@ -92,7 +92,9 @@ public partial class MainWindow
                 : "Intel ICH/PCH (SMBus do processador)"
         });
 
-        SpdModulo? primeiro = resultado.Modulos.FirstOrDefault()?.Modulo;
+        // Quem manda é o módulo mais fraco (o que limita o clock do sistema):
+        // a decisão mora em MemoriaRegras, e o TRANAL SAÚDE consome a mesma.
+        SpdModulo? primeiro = MemoriaRegras.ModuloQueManda(resultado.Modulos.Select(m => m.Modulo));
         if (primeiro != null)
         {
             resumo.Add(new InfoNode

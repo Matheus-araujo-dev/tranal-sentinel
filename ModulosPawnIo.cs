@@ -88,7 +88,10 @@ public static class ModulosPawnIo
                 if (lido != null && lido.Length > 0) doDisco = lido;
             }
         }
-        catch { }
+        catch
+        {
+            // Arquivo trancado pelo antivírus ou sem permissão: segue com o embutido.
+        }
 
         string? hashRegistrado = LerHashRegistrado(nomeArquivo);
 
@@ -200,7 +203,11 @@ public static class ModulosPawnIo
             Directory.CreateDirectory(pasta);
             GravarArquivo(destino, dados);
         }
-        catch { }
+        catch
+        {
+            // A licença e o aviso não atrapalham a leitura do SPD: se não der para
+            // gravar, o app segue funcionando.
+        }
     }
 
     /// <summary>Hash registrado do que foi extraído para um módulo (null se não houver).</summary>
@@ -232,7 +239,11 @@ public static class ModulosPawnIo
                 mapa[linha[..separador].Trim()] = linha[(separador + 1)..].Trim();
             }
         }
-        catch { }
+        catch
+        {
+            // Registro ilegível: fica como se não houvesse hash, e o módulo do
+            // disco passa a valer (nada é sobrescrito).
+        }
 
         return mapa;
     }
@@ -254,6 +265,10 @@ public static class ModulosPawnIo
             File.WriteAllText(caminho, string.Join(Environment.NewLine, linhas) + Environment.NewLine,
                               new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         }
-        catch { }
+        catch
+        {
+            // Sem registro gravado: da próxima vez o módulo do disco vale como
+            // arquivo do usuário (não é sobrescrito).
+        }
     }
 }

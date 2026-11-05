@@ -45,6 +45,35 @@ public class SpdTestes
     }
 
     [Fact]
+    public void ModuloQueManda_EscolheOMaisFraco()
+    {
+        // Com módulos diferentes, quem manda é o mais fraco: é ele que limita
+        // o clock do sistema. A tela e o TRANAL SAÚDE usam a mesma regra.
+        var forte = new SpdModulo
+        {
+            PartNumber = "FORTE",
+            Jedec = new SpdTiming { VelocidadeMts = 2400 },
+            Perfis = { new SpdPerfil { Nome = "XMP 2.0", Timing = new SpdTiming { VelocidadeMts = 3200 } } }
+        };
+
+        var fraco = new SpdModulo
+        {
+            PartNumber = "FRACO",
+            Jedec = new SpdTiming { VelocidadeMts = 2400 }
+        };
+
+        SpdModulo? escolhido = MemoriaRegras.ModuloQueManda(new[] { forte, fraco });
+
+        Assert.Same(fraco, escolhido);
+    }
+
+    [Fact]
+    public void ModuloQueManda_SemListaDevolveNulo()
+    {
+        Assert.Null(MemoriaRegras.ModuloQueManda(Array.Empty<SpdModulo>()));
+    }
+
+    [Fact]
     public void SpdReal_OsDoisModulosSaoIguais()
     {
         var primeiro = DecodificadorSpd.Decodificar(SpdReal.Dimm1);

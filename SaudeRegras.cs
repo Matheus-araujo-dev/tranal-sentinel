@@ -320,7 +320,10 @@ public static class SaudeRegras
         // Com o SPD em mãos, a memória é comparada com o que o próprio módulo
         // oferece. A regra do "acima de 3200" do Ryzen 5000 só vale como
         // reserva, para quando não sabemos o que o módulo tem gravado.
-        SpdModulo? modulo = c.ModulosSpd.FirstOrDefault()?.Modulo;
+        //
+        // Quem manda é o módulo mais fraco: com módulos diferentes é ele que
+        // limita o clock do sistema (a escolha mora em MemoriaRegras).
+        SpdModulo? modulo = MemoriaRegras.ModuloQueManda(c.ModulosSpd.Select(m => m.Modulo));
         if (modulo != null)
         {
             int configurada = c.ModulosMemoria.Where(m => m.VelocidadeConfigMHz > 0)

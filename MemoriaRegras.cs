@@ -31,6 +31,38 @@ public enum ModoMemoria
 public static class MemoriaRegras
 {
     /// <summary>
+    /// Escolhe o módulo que manda na classificação: o que oferece a menor
+    /// velocidade. Com módulos diferentes é o mais fraco que limita o clock do
+    /// sistema — e é ele que a tela e o TRANAL SAÚDE precisam descrever.
+    /// </summary>
+    /// <param name="modulos">Os módulos lidos no SPD.</param>
+    public static SpdModulo? ModuloQueManda(IEnumerable<SpdModulo> modulos)
+    {
+        ArgumentNullException.ThrowIfNull(modulos);
+
+        SpdModulo? escolhido = null;
+        int menor = int.MaxValue;
+
+        foreach (SpdModulo modulo in modulos)
+        {
+            // O que o módulo consegue fazer: o perfil gravado nele, quando
+            // existe; senão, o padrão JEDEC.
+            int jedec = modulo.Jedec.VelocidadeMts;
+            int perfil = modulo.MelhorPerfil?.Timing.VelocidadeMts ?? 0;
+            int oferece = Math.Max(jedec, perfil);
+            if (oferece <= 0) continue;
+
+            if (oferece < menor)
+            {
+                menor = oferece;
+                escolhido = modulo;
+            }
+        }
+
+        return escolhido;
+    }
+
+    /// <summary>
     /// Classifica a memória configurada. <paramref name="velocidadeConfigMts"/> é
     /// o clock configurado na BIOS, em megatransferências por segundo.
     /// </summary>
