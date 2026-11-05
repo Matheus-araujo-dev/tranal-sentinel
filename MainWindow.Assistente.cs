@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 
 namespace TranalSentinel;
@@ -209,4 +210,87 @@ public partial class MainWindow
     /// <summary>Versão do app, para o log.</summary>
     private string VersaoAtual =>
         System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
+
+    // ---------------------------------------------------------------- aba do assistente
+
+    /// <summary>Prepara a aba do assistente quando ela é aberta.</summary>
+    public void InitTimeline()
+    {
+        if (TimelineItens != null && TimelineItens.ItemsSource == null)
+        {
+            TimelineItens.ItemsSource = ListaMudancas;
+            ListaMudancas.CollectionChanged += (_, _) => AtualizarEstadoTimeline();
+        }
+
+        AtualizarEstadoTimeline();
+        AtualizarBotoesPerfil();
+        CarregarDiario();
+    }
+
+    private void AtualizarEstadoTimeline()
+    {
+        if (TimelineVazio == null) return;
+        TimelineVazio.Visibility = ListaMudancas.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Tira um retrato do PC na hora, sem esperar o horário do perfil.</summary>
+    private async void BtnRetrato_Click(object sender, RoutedEventArgs e)
+    {
+        if (BtnRetrato == null) return;
+        BtnRetrato.IsEnabled = false;
+        BtnRetrato.Content = "RETIRANDO…";
+        try
+        {
+            _ultimoInstantaneo = DateTime.MinValue;   // força o retrato mesmo com o intervalo em cima
+            await TirarInstantaneoAsync();
+            RegistroDiario.Registrar("Retrato do PC tirado a pedido do usuário.", "ASSISTENTE");
+        }
+        finally
+        {
+            if (BtnRetrato != null)
+            {
+                BtnRetrato.IsEnabled = true;
+                BtnRetrato.Content = "TIRAR RETRATO AGORA";
+            }
+            CarregarDiario();
+        }
+    }
+
+    /// <summary>Troca o perfil de recursos.</summary>
+    private void BtnPerfil_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement elemento) return;
+        if (!int.TryParse(elemento.Tag?.ToString(), out int valor)) return;
+
+        _settings.Perfil = (PerfilRecursos)valor;
+        _settings.Save();
+        AplicarPerfilRecursos();
+        AtualizarBotoesPerfil();
+        CarregarDiario();
+        RegistroDiario.Registrar($"Perfil de recursos alterado para {PoliticaRecursos.Descricao(_settings.Perfil).Split('.')[0]}.", "ASSISTENTE");
+    }
+
+    private void AtualizarBotoesPerfil()
+    {
+        if (PerfilDescricao != null) PerfilDescricao.Text = PoliticaRecursos.Descricao(_settings.Perfil);
+
+        MarcarPerfil(BtnPerfilCompleto, _settings.Perfil == PerfilRecursos.Completo);
+        MarcarPerfil(BtnPerfilEquilibrado, _settings.Perfil == PerfilRecursos.Equilibrado);
+        MarcarPerfil(BtnPerfilEconomia, _settings.Perfil == PerfilRecursos.Economia);
+    }
+
+    private static void MarcarPerfil(Button? botao, bool ativo)
+    {
+        if (botao == null) return;
+        botao.Opacity = ativo ? 1.0 : 0.55;
+        botao.FontWeight = ativo ? FontWeights.SemiBold : FontWeights.Normal;
+    }
+
+    /// <summary>Mostra o registro do dia (o que o app fez).</summary>
+    private void CarregarDiario()
+    {
+        if (DiarioTexto == null) return;
+        string texto = RegistroDiario.Ler(DateTime.Now).Trim();
+        DiarioTexto.Text = texto.Length > 0 ? texto : "Nada registrado ainda hoje.";
+    }
 }

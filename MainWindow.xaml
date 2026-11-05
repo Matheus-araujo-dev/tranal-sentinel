@@ -269,6 +269,15 @@
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
+                            <ToggleButton x:Name="GrpAssistente" Style="{StaticResource NavGroup}" Content="TRANAL ASSISTENTE"/>
+                            <StackPanel x:Name="GrpAssistenteItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpAssistente, Converter={StaticResource BoolVis}}">
+                            <RadioButton x:Name="NavTimeline" Style="{StaticResource NavItem}" Tag="PageTimeline" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE823;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Linha do tempo" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            </StackPanel>
                             <ToggleButton x:Name="GrpGames" Style="{StaticResource NavGroup}" Content="TRANAL JOGOS"/>
                             <StackPanel x:Name="GrpGamesItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpGames, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavLauncher" Style="{StaticResource NavItem}" Tag="PageLauncher" Checked="Nav_Checked">
@@ -1044,6 +1053,71 @@
                         <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
                             A análise é somente leitura: nada é instalado, alterado ou reiniciado. Os dados vêm do log de eventos do Windows, do WMI, do registro e da lista de inicialização automática.
                         </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== TRANAL ASSISTENTE (linha do tempo, diario e perfil de recursos) ===== -->
+                <ScrollViewer x:Name="PageTimeline" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Margin="0,0,210,0">
+                                <TextBlock Text="TRANAL ASSISTENTE" Style="{StaticResource H1}"/>
+                                <TextBlock Text="O que mudou no seu PC desde a última vez que olhei, o que o app fez hoje e quanto ele está gastando de máquina." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button x:Name="BtnRetrato" Style="{StaticResource PrimaryButton}" Content="TIRAR RETRATO AGORA" Padding="20,9"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnRetrato_Click"/>
+                        </Grid>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="PERFIL DE RECURSOS" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="PerfilDescricao" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <Button x:Name="BtnPerfilCompleto" Style="{StaticResource OutlineButton}" Content="COMPLETO" Padding="16,7" Tag="0" Click="BtnPerfil_Click" Margin="0,0,8,0"/>
+                                    <Button x:Name="BtnPerfilEquilibrado" Style="{StaticResource OutlineButton}" Content="EQUILIBRADO" Padding="16,7" Tag="1" Click="BtnPerfil_Click" Margin="0,0,8,0"/>
+                                    <Button x:Name="BtnPerfilEconomia" Style="{StaticResource OutlineButton}" Content="ECONOMIA" Padding="16,7" Tag="2" Click="BtnPerfil_Click"/>
+                                </StackPanel>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0">
+                                    O perfil muda o intervalo da leitura dos sensores (o que pesa é interrogar a placa, não o Windows) e o que roda sozinho. Em economia os sensores são lidos a cada 5 s em vez de 1 s, e a análise de saúde não roda sozinha ao abrir.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="LINHA DO TEMPO DO PC" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="TimelineVazio" Text="Nada mudou desde o último retrato. O app tira um retrato de tempos em tempos e anota a diferença: driver novo, programa instalado, plano de energia trocado."
+                                           Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+                                <ItemsControl x:Name="TimelineItens" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,12,0,12">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="120"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Quando, StringFormat=dd/MM HH:mm}" FontFamily="{StaticResource Mono}"
+                                                               FontSize="11.5" Foreground="{DynamicResource Muted}" VerticalAlignment="Top"/>
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding Item}" TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding Resumo}" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="DIÁRIO DE HOJE" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="DiarioTexto" Foreground="{DynamicResource Muted}" FontFamily="{StaticResource Mono}" FontSize="11.5"
+                                           TextWrapping="Wrap" Margin="0,10,0,0" Text="Nada registrado ainda hoje."/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
 
