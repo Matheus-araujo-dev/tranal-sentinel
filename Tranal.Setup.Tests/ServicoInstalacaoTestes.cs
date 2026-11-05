@@ -319,6 +319,58 @@ public class ServicoInstalacaoTestes
     }
 
     [Fact]
+    public void Instalar_NaMesmaPasta_ComIniciarComWindowsDesligado_RemoveATarefa()
+    {
+        using var ambiente = new AmbienteTeste();
+        ambiente.CriarPayload();
+        var (servico, _, _, _, tarefa) = Montar(ambiente);
+
+        string pasta = Path.Combine(ambiente.Raiz, "Um lugar", "Tranal Sentinel");
+
+        Assert.True(servico.Instalar(ambiente.Opcoes(pasta), ambiente.PastaPayload).Sucesso);
+        Assert.True(tarefa.Existe(TarefaInicializacao.NomeTarefa));
+
+        // reinstalar com a opção desligada: a opção tem efeito
+        var opcoes = new OpcoesInstalacao
+        {
+            Destino = DestinoInstalacao.DaEscolha(pasta),
+            IniciarComWindows = false,
+        };
+        ResultadoOperacao segunda = servico.Instalar(opcoes, ambiente.PastaPayload);
+
+        Assert.True(segunda.Sucesso, segunda.Mensagem);
+        Assert.Empty(tarefa.Tarefas);
+    }
+
+    [Fact]
+    public void Instalar_QueFalha_NoMeio_DeixaATarefaApontandoParaAInstalacaoAntiga()
+    {
+        using var ambiente = new AmbienteTeste();
+        ambiente.CriarPayload();
+        var (servico, registro, _, _, tarefa) = Montar(ambiente);
+
+        string pastaAntiga = Path.Combine(ambiente.Raiz, "Lugar antigo", "Tranal Sentinel");
+        string pastaNova = Path.Combine(ambiente.Raiz, "Lugar novo", "Tranal Sentinel");
+
+        Assert.True(servico.Instalar(ambiente.Opcoes(pastaAntiga), ambiente.PastaPayload).Sucesso);
+
+        // a gravação no registro falha no meio da segunda instalação
+        registro.FalharAoGravarNestaChave = "Uninstall";
+        ResultadoOperacao resultado = servico.Instalar(ambiente.Opcoes(pastaNova), ambiente.PastaPayload);
+
+        Assert.False(resultado.Sucesso);
+
+        // a instalação antiga continua inteira...
+        Assert.True(File.Exists(Path.Combine(pastaAntiga, "TranalSentinel.exe")));
+
+        // ...e a tarefa agendada voltou a apontar para ela (e não para o
+        // executável novo, que o rollback apagou)
+        Assert.Equal(Path.Combine(pastaAntiga, "TranalSentinel.exe"),
+            tarefa.Tarefas[TarefaInicializacao.NomeTarefa].Caminho);
+        Assert.False(File.Exists(Path.Combine(pastaNova, "TranalSentinel.exe")));
+    }
+
+    [Fact]
     public void Desinstalar_SemInstalacaoNaoFalha()
     {
         using var ambiente = new AmbienteTeste();

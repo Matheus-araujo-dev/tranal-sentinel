@@ -80,7 +80,7 @@ public sealed class ConstrutorPlano
                 ? TarefaInicializacao.Descrever(executavel, CaminhosInstalacao.ArgumentoIniciarComoSistema)
                 : null,
             EntradaDesinstalacao = CaminhosInstalacao.CriarEntradaDesinstalacao(executavel, instalador, versao),
-            InstalacaoExistente = File.Exists(executavel),
+            InstalacaoExistente = InstalacaoExisteNaPasta(pasta),
             PastaInstalacaoAnterior = PastaDeInstalacaoAnterior(pasta),
             PayloadCompleto = arquivos.All(a => a.Situacao != SituacaoArquivo.AusenteNoPayload),
             VersaoPayload = versao,
@@ -160,6 +160,15 @@ public sealed class ConstrutorPlano
             PastaConfiguracoesPreservada = CaminhosInstalacao.PastaConfiguracoes(contexto),
         };
     }
+
+    /// <summary>
+    /// Se já tem o TRANAL SENTINEL instalado na pasta informada.
+    ///
+    /// A janela e o plano consultam esta mesma regra: um lugar só decide o que
+    /// conta como "instalação existente".
+    /// </summary>
+    public static bool InstalacaoExisteNaPasta(string pasta)
+        => File.Exists(CaminhosInstalacao.ExecutavelInstalado(pasta));
 
     /// <summary>
     /// Onde o TRANAL SENTINEL foi instalado da última vez, conforme a entrada

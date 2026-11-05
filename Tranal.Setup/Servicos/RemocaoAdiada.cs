@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 
 namespace TranalSetup.Servicos;
@@ -20,6 +21,10 @@ public static class RemocaoAdiada
     /// A tentativa é repetida por um tempo: quem costuma segurar o arquivo não é
     /// só o instalador, é o TRANAL SENTINEL aberto. Uma tentativa única
     /// deixaria o app antigo órfão quando ele estivesse aberto.
+    ///
+    /// O laço só apaga o arquivo QUE FOI AGENDADO: ele compara a data e o
+    /// tamanho com os do momento do agendamento. Se o lugar foi preenchido de
+    /// novo (reinstalação), o arquivo novo é deixado intacto.
     /// </remarks>
     public static bool Agendar(string caminhoArquivo, string? pastaParaRemover = null)
     {
@@ -29,14 +34,7 @@ public static class RemocaoAdiada
                 Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
             if (!File.Exists(powershell)) powershell = "powershell.exe";
 
-            string comando =
-                "$arquivo='" + Escapar(caminhoArquivo) + "'"
-                + "; for($i=0;$i -lt 40;$i++){"
-                + " if(-not (Test-Path -LiteralPath $arquivo)){break};"
-                + " Start-Sleep -Seconds 3;"
-                + " Remove-Item -LiteralPath $arquivo -Force -ErrorAction SilentlyContinue }";
-            if (!string.IsNullOrWhiteSpace(pastaParaRemover))
-                comando += "; Remove-Item -LiteralPath '" + Escapar(pastaParaRemover) + "' -Force -ErrorAction SilentlyContinue";
+            string comando = GerarComando(caminhoArquivo, pastaParaRemover);
 
             var inicio = new ProcessStartInfo(powershell)
             {
@@ -58,6 +56,47 @@ public static class RemocaoAdiada
             Debug.WriteLine($"[instalador] não foi possível agendar a remoção de {caminhoArquivo}: {ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Monta o comando PowerShell que faz a remoção adiada.
+    ///
+    /// O laço só apaga o arquivo QUE FOI AGENDADO: ele compara a data e o
+    /// tamanho com os do momento do agendamento. Se o lugar foi preenchido de
+    /// novo (reinstalação), o arquivo novo é deixado intacto.
+    /// </summary>
+    public static string GerarComando(string caminhoArquivo, string? pastaParaRemover = null)
+    {
+        long ticks = 0;
+        long tamanho = 0;
+        try
+        {
+            var info = new FileInfo(caminhoArquivo);
+            if (info.Exists)
+            {
+                ticks = info.LastWriteTimeUtc.Ticks;
+                tamanho = info.Length;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[instalador] não foi possível ler {caminhoArquivo}: {ex.Message}");
+        }
+
+        string comando =
+            "$arquivo='" + Escapar(caminhoArquivo) + "'"
+            + ";$ticks=" + ticks.ToString(CultureInfo.InvariantCulture)
+            + ";$tamanho=" + tamanho.ToString(CultureInfo.InvariantCulture)
+            + "; for($i=0;$i -lt 40;$i++){"
+            + " if(-not (Test-Path -LiteralPath $arquivo)){break};"
+            + " $item=Get-Item -LiteralPath $arquivo;"
+            + " if($item.LastWriteTimeUtc.Ticks -ne $ticks -or $item.Length -ne $tamanho){break};"
+            + " Start-Sleep -Seconds 3;"
+            + " Remove-Item -LiteralPath $arquivo -Force -ErrorAction SilentlyContinue }";
+        if (!string.IsNullOrWhiteSpace(pastaParaRemover))
+            comando += "; Remove-Item -LiteralPath '" + Escapar(pastaParaRemover) + "' -Force -ErrorAction SilentlyContinue";
+
+        return comando;
     }
 
     // O comando do PowerShell usa aspas simples: um apóstrofo no caminho

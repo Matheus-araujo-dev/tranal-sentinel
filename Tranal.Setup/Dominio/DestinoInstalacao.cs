@@ -72,6 +72,10 @@ public sealed record DestinoInstalacao
         string? raiz = Path.GetPathRoot(pasta);
         if (!string.IsNullOrEmpty(raiz) && raiz.StartsWith(@"\\", StringComparison.Ordinal))
         {
+            // "\\?\UNC\server\pasta" e "\\.\UNC\..." também são rede.
+            if (raiz.Contains("UNC", StringComparison.OrdinalIgnoreCase))
+                return "Não dá para instalar numa pasta de rede. Escolha uma pasta deste computador.";
+
             // "\\?\C:\..." e "\\.\C:\..." são prefixos do Windows (caminho
             // estendido e device), não pastas de rede — mas também não são
             // pastas onde se instala um app.
@@ -88,10 +92,11 @@ public sealed record DestinoInstalacao
 
         // O Windows ainda tem o limite de 260 caracteres (MAX_PATH) para a
         // maioria das APIs: um caminho mais longo passa na tela e só falha na
-        // hora de criar a pasta.
+        // hora de criar a pasta. O que conta é o caminho do executável, não o
+        // da pasta.
         string caminhoCompleto = Path.Combine(pasta, CaminhosInstalacao.NomeExecutavel);
         if (caminhoCompleto.Length > 259)
-            return "O caminho é longo demais para o Windows (máximo de 259 caracteres).";
+            return "O caminho é longo demais para o Windows: o executável passaria de 259 caracteres.";
 
         // Cada parte do caminho tem que ser um nome de pasta válido. A raiz da
         // unidade fica de fora: o "C:" dela é nome de unidade, não nome de pasta.

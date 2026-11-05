@@ -162,6 +162,8 @@ public sealed class ServicoInstalacao
             CaminhosInstalacao.InstaladorInstalado(pastaAntiga),
         };
 
+        var pendentes = new List<string>();
+
         foreach (string arquivo in arquivos)
         {
             if (!File.Exists(arquivo)) continue;
@@ -174,30 +176,43 @@ public sealed class ServicoInstalacao
             }
             catch (IOException ex)
             {
-                // O instalador pode estar rodando de dentro da pasta antiga:
-                // a remoção fica para quando o processo terminar.
+                // O app antigo pode estar aberto: a remoção fica para quando o
+                // processo segurar o arquivo for encerrado.
                 string? agendado = AgendarRemocao(arquivo, pastaAntiga);
                 if (agendado is null)
                 {
                     _log.Registrar($"Falha ao remover {arquivo}: {ex.Message}");
                     detalhes.Add($"não foi possível remover {arquivo}: {ex.Message}");
+                    pendentes.Add(arquivo);
                 }
                 else
                 {
                     _log.Registrar($"Remoção agendada (arquivo em uso): {arquivo}");
-                    detalhes.Add($"removido assim que o app for fechado (a remoção é tentada por até 2 minutos): {arquivo}");
+                    detalhes.Add($"removido quando o app for fechado (a remoção espera até 2 minutos): {arquivo}");
+                    pendentes.Add(arquivo);
                 }
             }
             catch (Exception ex)
             {
                 _log.Registrar($"Falha ao remover {arquivo}: {ex.Message}");
                 detalhes.Add($"não foi possível remover {arquivo}: {ex.Message}");
+                pendentes.Add(arquivo);
             }
         }
 
         TentarRemoverPastaVazia(pastaAntiga);
-        _log.Registrar($"Instalação anterior removida de {pastaAntiga}.");
-        detalhes.Add($"instalação anterior removida de {pastaAntiga}");
+
+        // O sumário só é escrito quando tudo saiu. Um arquivo que ficou para
+        // trás (app aberto, sem permissão) é o que o pendente guarda.
+        if (pendentes.Count == 0)
+        {
+            _log.Registrar($"Instalação anterior removida de {pastaAntiga}.");
+            detalhes.Add($"instalação anterior removida de {pastaAntiga}");
+        }
+        else
+        {
+            _log.Registrar($"A instalação anterior em {pastaAntiga} ficou parcialmente: {string.Join(", ", pendentes)}");
+        }
     }
 
     /// <summary>
@@ -275,8 +290,24 @@ public sealed class ServicoInstalacao
         _tarefa.Criar(nome, plano.CaminhoExecutavel, CaminhosInstalacao.ArgumentoIniciarComoSistema);
         reversao.Add(() =>
         {
-            if (existia) _tarefa.Criar(nome, plano.CaminhoExecutavel, CaminhosInstalacao.ArgumentoIniciarComoSistema);
-            else _tarefa.Remover(nome);
+            if (!existia)
+            {
+                _tarefa.Remover(nome);
+                return;
+            }
+
+            // A tarefa existia antes: ela pointed to the previous installation,
+            // which pode estar em outra pasta. Repontar para o executável novo
+            // (que o rollback apaga) deixaria a tarefa apontando para o nada.
+            string? anterior = plano.PastaInstalacaoAnterior;
+            string caminhoAnterior = anterior is null
+                ? plano.CaminhoExecutavel
+                : CaminhosInstalacao.ExecutavelInstalado(anterior);
+
+            if (File.Exists(caminhoAnterior))
+                _tarefa.Criar(nome, caminhoAnterior, CaminhosInstalacao.ArgumentoIniciarComoSistema);
+            else
+                _tarefa.Remover(nome);
         });
 
         detalhes.Add($"inicialização automática: {plano.DescricaoTarefaIniciar}");

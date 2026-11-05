@@ -18,9 +18,12 @@
   está pronta. Sem isso, o app antigo ficaria órfão, fora do alcance do botão
   Desinstalar.
 - Se algo falhar no meio, a instalação antiga continua intacta: a remoção vem
-  por último.
+  por último. A tarefa agendada também volta a apontar para a instalação
+  antiga, e não para o executável novo que o rollback apagou.
 - Se o executável antigo estiver aberto (é o TRANAL SENTINEL rodando), a remoção
-  é tentada por até 2 minutos, até o app ser fechado.
+  espera o app ser fechado (até 2 minutos). O laço só apaga o arquivo que foi
+  agendado: se o lugar for preenchido de novo (reinstalação), o arquivo novo
+  fica intacto.
 - A tarefa agendada e o atalho da área de trabalho não ficam órfãos: com a
   opção desligada, a instalação nova não os recria, então eles são removidos
   em vez de continuarem apontando para o executável antigo.
@@ -32,7 +35,8 @@
   normal.
 - Caminho do Windows (`\\?\C:\...`, `\\.\C:\...`).
 - Raiz da unidade (`C:\`), caminho incompleto, caractere que o Windows não
-  aceita e caminho acima de 259 caracteres (o limite do MAX_PATH).
+  aceita e caminho cujo executável passaria de 259 caracteres (o limite do
+  MAX_PATH).
 
 **A desinstalação acha o app onde ele está**
 - O local instalado fica gravado na entrada de desinstalação (`InstallLocation`) e

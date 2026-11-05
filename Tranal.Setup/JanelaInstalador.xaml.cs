@@ -111,7 +111,7 @@ public partial class JanelaInstalador : Window
         string pasta = DestinoInstalacao.DaEscolha(TxtDestino.Text).Pasta;
         var avisos = new List<string>();
 
-        if (File.Exists(CaminhosInstalacao.ExecutavelInstalado(pasta)))
+        if (ConstrutorPlano.InstalacaoExisteNaPasta(pasta))
         {
             avisos.Add("Já existe uma instalação nesta pasta: ela será substituída "
                 + "(o executável atual é salvo como .bak antes de ser trocado).");
