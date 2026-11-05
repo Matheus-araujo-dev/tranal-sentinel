@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Xunit;
 
 namespace TranalSentinel.Tests;
@@ -49,12 +50,47 @@ public class SaudeColetaTestes
     public void Desligamento_DataAmbiguaSegueOPadraoDoWindows()
     {
         // 05/06/2026: dia e mês são dois números pequenos. Quem decide é o
-        // padrão curto da configuração regional (aqui, dd/MM/yyyy).
-        DateTime? instante = SaudeColeta.LerInstanteDesligamento(Evento6008("10:00:00", "05/06/2026"));
+        // padrão curto da configuração regional (aqui, forçado para dd/MM/yyyy,
+        // como o Windows brasileiro escreve o evento).
+        var cultura = CultureInfo.CurrentCulture;
 
-        Assert.NotNull(instante);
-        Assert.Equal(5, instante!.Value.Day);
-        Assert.Equal(6, instante!.Value.Month);
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("pt-BR");
+
+            DateTime? instante = SaudeColeta.LerInstanteDesligamento(Evento6008("10:00:00", "05/06/2026"));
+
+            Assert.NotNull(instante);
+            Assert.Equal(5, instante!.Value.Day);
+            Assert.Equal(6, instante.Value.Month);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = cultura;
+        }
+    }
+
+    [Fact]
+    public void Desligamento_DataAmbiguaNoPadraoAmericano()
+    {
+        // O mesmo evento num Windows americano: o texto vem mm/dd/aaaa e o
+        // app tem que ler do mesmo jeito (o texto é do Windows, não nosso).
+        var cultura = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("en-US");
+
+            DateTime? instante = SaudeColeta.LerInstanteDesligamento(Evento6008("10:00:00", "05/06/2026"));
+
+            Assert.NotNull(instante);
+            Assert.Equal(5, instante!.Value.Month);
+            Assert.Equal(6, instante.Value.Day);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = cultura;
+        }
     }
 
     [Fact]
