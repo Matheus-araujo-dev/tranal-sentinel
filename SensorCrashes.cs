@@ -1,6 +1,6 @@
 using System.Diagnostics.Eventing.Reader;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Lê os crashes do próprio app que o Windows registrou no log "Application".

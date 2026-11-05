@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>Transporte HID nativo do Windows para o visor Kalkan (linha Alpha Rev.1).</summary>
 /// <remarks>
 /// Não depende do <c>hidapi.dll</c> do app oficial nem de nenhuma biblioteca de
 /// terceiros: só SetupAPI (para achar o dispositivo), hid.pd (para ler a página
-/// de uso) e o kernel32 (para o I/O). Assim o RESET EXPLODE fala com o visor
+/// de uso) e o kernel32 (para o I/O). Assim o TRANAL SENTINEL fala com o visor
 /// mesmo com o software da Kalkan desinstalado.
 ///
 /// O identificador do visor é fixo no firmware 1.2 (VID 0416 / PID 1100), mas a

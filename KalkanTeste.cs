@@ -4,15 +4,15 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Teste de linha de comando do visor Kalkan.
 ///
 /// Serve para conferir o hardware sem depender da interface:
-/// <c>ResetExplode.exe --kalkan-teste</c> conecta no visor, manda um quadro
+/// <c>TranalSentinel.exe --kalkan-teste</c> conecta no visor, manda um quadro
 /// com a temperatura do CPU e grava o resultado em
-/// <c>%AppData%\ResetExplode\kalkan-teste.txt</c>.
+/// <c>%AppData%\TranalSentinel\kalkan-teste.txt</c>.
 /// </summary>
 internal static class KalkanTeste
 {
@@ -21,7 +21,7 @@ internal static class KalkanTeste
         get
         {
             string pasta = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ResetExplode");
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TranalSentinel");
             Directory.CreateDirectory(pasta);
             return Path.Combine(pasta, "kalkan-teste.txt");
         }

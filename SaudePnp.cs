@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Detecção de dispositivos órfãos (fantasma).

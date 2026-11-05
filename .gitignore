@@ -2,7 +2,7 @@
 bin/
 obj/
 publish/
-ResetExplode-dist/
+TranalSentinel-dist/
 *.exe
 *.dll
 *.pdb
@@ -19,5 +19,5 @@ dist-novo/
 # Local
 *.log
 
-# Drivers seriais embutidos (RESET MAKER): as DLLs fazem parte dos pacotes assinados
+# Drivers seriais embutidos (TRANAL MAKER): as DLLs fazem parte dos pacotes assinados
 !Drivers/**

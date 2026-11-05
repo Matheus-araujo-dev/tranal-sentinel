@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Declarações P/Invoke do transporte HID do visor Kalkan.

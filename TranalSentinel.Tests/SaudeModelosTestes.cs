@@ -1,8 +1,8 @@
 using Xunit;
 
-namespace ResetExplode.Tests;
+namespace TranalSentinel.Tests;
 
-/// <summary>Testes dos modelos usados pela aba RESET SAÚDE.</summary>
+/// <summary>Testes dos modelos usados pela aba TRANAL SAÚDE.</summary>
 public class SaudeModelosTestes
 {
     [Theory]

@@ -4,7 +4,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using LibreHardwareMonitor.Hardware;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Visão geral: painel de blocos com gráfico de área (CPU × GPU), desempenho, tabela de componentes, anéis de
@@ -61,8 +61,8 @@ public partial class MainWindow
     {
         foreach (var r in _settings.BenchRuns)
         {
-            if (r.Multi is double m) yield return new DashEvent("", "RESET BENCH", "Render · multi-core", $"{m:N0} pts", r.Date);
-            else if (r.Single is double s) yield return new DashEvent("", "RESET BENCH", "Render · single-core", $"{s:N0} pts", r.Date);
+            if (r.Multi is double m) yield return new DashEvent("", "TRANAL BENCH", "Render · multi-core", $"{m:N0} pts", r.Date);
+            else if (r.Single is double s) yield return new DashEvent("", "TRANAL BENCH", "Render · single-core", $"{s:N0} pts", r.Date);
         }
         foreach (var r in _settings.BenchRecords)
         {
@@ -159,7 +159,7 @@ public partial class MainWindow
             }
             else DashScoreDelta.Text = "";
         }
-        else { DashScore.Text = "—"; DashScoreDelta.Text = ""; DashScoreSub.Text = "rode o RESET BENCH para ter uma nota"; }
+        else { DashScore.Text = "—"; DashScoreDelta.Text = ""; DashScoreSub.Text = "rode o TRANAL BENCH para ter uma nota"; }
 
         string Last(string test) => _settings.BenchRecords.FirstOrDefault(r => r.Test == test)?.Summary.Split('·')[0].Trim() ?? "—";
         var single = _settings.BenchRuns.FirstOrDefault(r => r.Single != null)?.Single;
@@ -355,7 +355,7 @@ public partial class MainWindow
         var gm = _tweaks.FirstOrDefault(t => t.Id == "gamemode");
         var dvr = _tweaks.FirstOrDefault(t => t.Id == "gamedvr");
         try { gm?.Refresh(); dvr?.Refresh(); } catch { }
-        if (gm != null) list.Add(Item(gm.IsOn, "Modo de Jogo ligado", "O Windows prioriza o jogo.", "Desligado: ligue em RESET OTIMIZA."));
+        if (gm != null) list.Add(Item(gm.IsOn, "Modo de Jogo ligado", "O Windows prioriza o jogo.", "Desligado: ligue em TRANAL OTIMIZA."));
         if (dvr != null) list.Add(Item(dvr.IsOn, "Gravação em segundo plano desligada", "O Game Bar não grava o tempo todo.",
                                        "O Game DVR está gravando: custa FPS."));
 

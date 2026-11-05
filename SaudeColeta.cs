@@ -4,7 +4,7 @@ using System.Management;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Coleta de dados do sistema para o diagnóstico de saúde.

@@ -1,13 +1,14 @@
-RESET EXPLODE
-=============
+TRANAL SENTINEL — assistente de performance do PC
+================================================
 
 Ferramenta de diagnóstico de hardware: informações do sistema, sensores, placa de vídeo,
-FPS estimado em jogos, detector de gargalo, overlay de FPS, RESET BENCH (benchmarks de CPU, GPU, memória e disco)
-RESET OTIMIZA (limpeza de memória e ajustes para jogos), stress test de CPU / RAM / GPU
-e RESET SAÚDE (diagnóstico de travamentos e lentidão).
+FPS estimado em jogos, detector de gargalo, overlay de FPS, TRANAL BENCH (benchmarks de CPU, GPU, memória e disco)
+TRANAL OTIMIZA (limpeza de memória e ajustes para jogos), stress test de CPU / RAM / GPU
+e TRANAL SAÚDE (diagnóstico de travamentos e lentidão).
 
-Fork não oficial do RESET EXPLODE de GustavoReset (licença MIT). Download oficial do app
+Fork não oficial do RESET EXPLODE de GustavoReset (licença MIT). Download do app
 original: https://github.com/GustavoReset/ResetExplode/releases
+Download do TRANAL SENTINEL: https://github.com/Matheus-araujo-dev/tranal-sentinel/releases
 
 REQUISITOS
 - Windows 10 ou 11, 64 bits. Não precisa instalar o .NET (já vem dentro do .exe).
@@ -19,20 +20,20 @@ REQUISITOS
   Se instalou o PawnIO e mesmo assim não aparecer, reinicie o PC.
 
 COMO USAR
-- Abra o ResetExplode.exe. Na primeira vez ele demora alguns segundos para iniciar.
+- Abra o TranalSentinel.exe. Na primeira vez ele demora alguns segundos para iniciar.
 - Se o Windows mostrar "O Windows protegeu o computador", clique em "Mais informações"
   e depois em "Executar assim mesmo" (o programa não tem assinatura digital paga).
 - Overlay: Ctrl + Shift + O liga e desliga.
 
-RESET SAÚDE
-- No menu lateral, grupo "RESET SAÚDE" -> aba "Diagnóstico". Clique em ANALISAR.
+TRANAL SAÚDE
+- No menu lateral, grupo "TRANAL SAÚDE" -> aba "Diagnóstico". Clique em ANALISAR.
 - A aba olha o histórico do Windows (últimos 90 dias) e aponta o que está causando
   travamento ou lentidão, com a ação sugerida para cada problema.
 - Ela não instala, não altera e não reinicia nada: é somente leitura.
 - Leva alguns segundos na primeira análise (lê o log de eventos do Windows inteiro).
 
 VISOR KALKAN (SmartMonitor)
-- No menu lateral, grupo "RESET FERRAMENTAS" -> "Integração", no cartão
+- No menu lateral, grupo "TRANAL FERRAMENTAS" -> "Integração", no cartão
   VISOR KALKAN: clique em CONECTAR.
   O programa fala direto com o visor do cooler Kalkan pela USB e mostra nele a
   temperatura do CPU, a rotação da ventoinha e a carga da CPU.
@@ -45,21 +46,21 @@ VISOR KALKAN (SmartMonitor)
 - O visor tem dois campos: DEV TEMP (°C) e FAN SPEED (RPM). No cartão você escolhe
   de qual sensor vem cada um (CPU, núcleos, GPU, placa-mãe, discos, memória) e de
   qual ventoinha. A escolha fica salva para a próxima vez.
-- Para conferir o visor sem abrir a janela:  ResetExplode.exe --kalkan-teste
-  O resultado fica em %AppData%\ResetExplode\kalkan-teste.txt
+- Para conferir o visor sem abrir a janela:  TranalSentinel.exe --kalkan-teste
+  O resultado fica em %AppData%\TranalSentinel\kalkan-teste.txt
 - Protocolo conferido contra a análise aberta do projeto kalkan-monitor-rs (MIT).
 
 SENSORES (POR QUE O APP NÃO MORRE)
 - A leitura de temperatura, consumo e clocks roda num processo separado do
   programa. Se o driver da placa de vídeo travar (já aconteceu nesta máquina),
-  morre só esse processo: o RESET EXPLODE o reinicia sozinho e continua
+  morre só esse processo: o TRANAL SENTINEL o reinicia sozinho e continua
   funcionando, sem os sensores da GPU.
 - Quando isso acontece, a lateral mostra "Sensores reduzidos" com um botão
   para religar os sensores da GPU.
-- Para conferir sem abrir a janela:  ResetExplode.exe --sensores
-  O resultado fica em %AppData%\ResetExplode\sensores.txt
+- Para conferir sem abrir a janela:  TranalSentinel.exe --sensores
+  O resultado fica em %AppData%\TranalSentinel\sensores.txt
 
 OBSERVAÇÕES
 - Placas NVIDIA mostram mais detalhes (VBIOS, limites de energia, CUDA).
-- Configurações e histórico ficam em %AppData%\ResetExplode (não vão junto com o .exe).
+- Configurações e histórico ficam em %AppData%\TranalSentinel (não vão junto com o .exe).
 - Use os stress tests com o limite de temperatura ligado e boa ventilação.

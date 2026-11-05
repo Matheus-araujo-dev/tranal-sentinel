@@ -1,6 +1,6 @@
 using System.Management;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>Coleta informações estáticas do sistema via WMI.</summary>
 public static class SystemInfoCollector

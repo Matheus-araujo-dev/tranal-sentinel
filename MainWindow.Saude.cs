@@ -1,9 +1,9 @@
 using System.Windows;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
-/// Aba RESET SAÚDE: diagnóstico de travamentos e lentidão.
+/// Aba TRANAL SAÚDE: diagnóstico de travamentos e lentidão.
 ///
 /// Lê o histórico do Windows (log de eventos, WMI, registro, serviços) e mostra
 /// o que está causando problema, com a ação sugerida para cada achado.

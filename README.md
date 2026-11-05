@@ -1,22 +1,23 @@
 <!-- ================= INICIO DO AVISO DO FORK ================= -->
 
-# 🔎 RESET EXPLODE — fork local com a aba **RESET SAÚDE**
+# 🔎 TRANAL SENTINEL — fork local com a aba **TRANAL SAÚDE**
 
 > ⚠️ **Fork não oficial.** Esta é uma cópia modificada de
 > [GustavoReset/ResetExplode](https://github.com/GustavoReset/ResetExplode),
 > Copyright (c) 2026 Gustavo (GustavoReset), sob licença [MIT](LICENSE).
-> Todo o código original, o nome "RESET" e a identidade do projeto pertencem ao autor original;
+> Todo o código original, o nome "RESET EXPLODE" e a identidade do projeto pertencem ao autor original;
 > este fork não é afiliado, não é endossado e não substitui o app oficial.
-> Download oficial: [github.com/GustavoReset/ResetExplode/releases](https://github.com/GustavoReset/ResetExplode/releases).
+> Download oficial do app original: [github.com/GustavoReset/ResetExplode/releases](https://github.com/GustavoReset/ResetExplode/releases).
 >
 > O aviso de copyright e a licença MIT foram mantidos, como a licença exige.
+> O binário deste repositório é o **TRANAL SENTINEL**, com identidade e código próprios.
 
 ## O que este fork acrescenta
 
-**RESET SAÚDE** — nova aba no grupo "RESET SAÚDE", ao lado de "Visão geral".
-Ela responde a pergunta que o RESET EXPLODE original não responde: **"por que meu PC trava e o que está deixando ele lento?"**
+**TRANAL SAÚDE** — nova aba no grupo "TRANAL SAÚDE", ao lado de "Visão geral".
+Ela responde a pergunta que o TRANAL SENTINEL original não responde: **"por que meu PC trava e o que está deixando ele lento?"**
 
-O app original mede o hardware em tempo real (sensores, SMART, benchmarks). O RESET SAÚDE olha
+O app original mede o hardware em tempo real (sensores, SMART, benchmarks). O TRANAL SAÚDE olha
 para o **histórico** do Windows e aponta as causas prováveis, cada uma com a ação sugerida:
 
 - **Travamentos**: eventos Kernel-Power 41 (boot depois de desligamento não limpo) nos últimos 90 dias,
@@ -49,7 +50,7 @@ que gera um snapshot JSON/TXT e compara duas execuções campo a campo.
 
 ### Sensores: por que a coleta roda num processo separado
 
-O RESET EXPLODE mede temperatura, consumo e clocks de tudo. Para isso ele usa o
+O TRANAL SENTINEL mede temperatura, consumo e clocks de tudo. Para isso ele usa o
 LibreHardwareMonitor, que chama **código nativo do driver** — no caso da GPU
 AMD, a ADL (AMD Display Library).
 
@@ -64,7 +65,7 @@ C#**: o processo inteiro morre. Nenhum `try/catch` resolve isso.
 1. **Isolamento em processo.** A coleta roda no mesmo executável, chamado com
    `--sensores-worker`, num processo separado. Se a ADL devolver lixo, morre
    **só esse processo** — o app percebe a morte e reinicia o coletor na hora.
-   (O RESET EXPLODE nunca morre por causa do driver da GPU.)
+   (O TRANAL SENTINEL nunca morre por causa do driver da GPU.)
 2. **Disjuntro.** Na primeira morte, o coletor é reiniciado **sem a GPU** — é o
    caminho nativo suspeito. CPU, memória, discos e rede continuam funcionando, e
    a lateral mostra um aviso com botão para religar a GPU à mão.
@@ -79,10 +80,10 @@ um `try/catch`: um placa com problema é desligada e as outras continuam.
 **Comandos para conferir (sem abrir a janela):**
 
 ```powershell
-ResetExplode.exe --sensores
+TranalSentinel.exe --sensores
 ```
 
-Grava em `%AppData%\ResetExplode\sensores.txt`: quantos crashes o Windows
+Grava em `%AppData%\TranalSentinel\sensores.txt`: quantos crashes o Windows
 registrou, qual nível foi escolhido e se a coleta abre. O mesmo relatório
 tenta matar o processo de coleta de propósito e confere que o app o reinicia
 sozinho — é a prova de que o isolamento funciona.
@@ -94,17 +95,17 @@ sozinho — é a prova de que o isolamento funciona.
 
 ### Testes
 
-O núcleo de diagnóstico tem testes automatizados (xUnit) em `ResetExplode.Tests/`:
+O núcleo de diagnóstico tem testes automatizados (xUnit) em `TranalSentinel.Tests/`:
 
 ```powershell
-dotnet test ResetExplode.Tests\ResetExplode.Tests.csproj -c Release
+dotnet test TranalSentinel.Tests\TranalSentinel.Tests.csproj -c Release
 ```
 
 Os testes cobrem só as regras (que são puras) — nenhum Windows é tocado por eles.
 
 ### Visor Kalkan (SmartMonitor)
 
-Na aba **RESET INTEGRAÇÃO** (junto com iCUE, OpenRGB e Chroma) há o cartão
+Na aba **TRANAL INTEGRAÇÃO** (junto com iCUE, OpenRGB e Chroma) há o cartão
 **VISOR KALKAN**, que mostra no visor do cooler Kalkan (linha Alpha Rev.1,
 firmware 1.2) a temperatura do CPU, a rotação da ventoinha e a carga da
 processor — sem o software da Kalkan instalado e sem a DLL dele.
@@ -129,9 +130,9 @@ aplicativo acha o visor pelo VID/PID `0416:1100` e escolhe a coleção do fabric
 | `KalkanNative.cs` | P/Invoke de SetupAPI, hid.pd e kernel32. |
 | `KalkanHid.cs` | Transporte: enumeração do device, abertura, escrita e leitura com timeout. |
 | `KalkanDisplay.cs` | Sessão: handshake, envio de quadros e leitura de conferência. |
-| `MainWindow.Kalkan.cs` | A interface (cartão "VISOR KALKAN" na aba RESET INTEGRAÇÃO). |
+| `MainWindow.Kalkan.cs` | A interface (cartão "VISOR KALKAN" na aba TRANAL INTEGRAÇÃO). |
 
-**Uso:** abra o menu lateral → **RESET FERRAMENTAS → Integração** → cartão
+**Uso:** abra o menu lateral → **TRANAL FERRAMENTAS → Integração** → cartão
 **VISOR KALKAN** → `CONECTAR`. Marque "atualizar o visor todo segundo" para ele
 acompanhar a temperatura em tempo real (ou `ENVIAR AGORA` para um envio só).
 
@@ -143,17 +144,17 @@ também, com duas listas no cartão:
   (pacote e núcleos da CPU, GPU, placa-mãe, discos, memória).
 - **VENTOINHA DO VISOR** — qualquer ventoinha (CPU, placa-mãe, GPU).
 
-As escolhas ficam gravadas em `%AppData%\ResetExplode\settings.json` e voltam
+As escolhas ficam gravadas em `%AppData%\TranalSentinel\settings.json` e voltam
 prontas na próxima vez que abrir.
 
 Para conferir o visor sem abrir a janela:
 
 ```powershell
-ResetExplode.exe --kalkan-teste
+TranalSentinel.exe --kalkan-teste
 ```
 
 O teste conecta no visor, manda um quadro e grava o resultado em
-`%AppData%\ResetExplode\kalkan-teste.txt` (inclui a resposta bruta do aparelho,
+`%AppData%\TranalSentinel\kalkan-teste.txt` (inclui a resposta bruta do aparelho,
 que vem decodificada: `01 e0 <índice>`). Rodando como administrador, ele manda a
 temperatura real do CPU; sem permissão, manda um quadro de teste de 99 °C para
 dar para ver no visor.
@@ -183,25 +184,25 @@ documentado.
 
 ---
 
-# RESET EXPLODE — v0.16
+# TRANAL SENTINEL — v0.16
 
-> **Download oficial:** apenas em [github.com/GustavoReset/ResetExplode/releases](https://github.com/GustavoReset/ResetExplode/releases).
+> **Download:** apenas nas [releases deste repositório](https://github.com/Matheus-araujo-dev/tranal-sentinel/releases).
 > O app roda como administrador; não use versões baixadas de outros lugares.
 >
 > **Contribuições:** este projeto não aceita pull requests. Fique à vontade para fazer um *fork* e modificar a sua própria cópia
 > (licença [MIT](LICENSE): mantenha o aviso de copyright).
 
 ## Novidades da v0.16
-- **Inicialização** (RESET FERRAMENTAS): veja, desative ou remova os programas que abrem junto com o Windows, com opção de desfazer.
-- **Instalar apps** (RESET FERRAMENTAS): Steam, Chrome, Discord, Lightshot, 7-Zip, WinRAR e VLC de uma vez depois de formatar, pelo winget.
-- **RESET MAKER** (nova categoria): Portas COM (fantasmas e números COM presos, que saiu de Otimização) e Drivers seriais
+- **Inicialização** (TRANAL FERRAMENTAS): veja, desative ou remova os programas que abrem junto com o Windows, com opção de desfazer.
+- **Instalar apps** (TRANAL FERRAMENTAS): Steam, Chrome, Discord, Lightshot, 7-Zip, WinRAR e VLC de uma vez depois de formatar, pelo winget.
+- **TRANAL MAKER** (nova categoria): Portas COM (fantasmas e números COM presos, que saiu de Otimização) e Drivers seriais
   (CH340, CP2102, FTDI, Prolific e Arduino: diagnóstico, reinstalar, trocar ou remover versão do driver, Arduino IDE).
 - **Abertura mais rápida**: a janela aparece em ~0,5 s (antes ~4,6 s); o hardware é lido em paralelo, em segundo plano.
 - **Overlay corrigido**: fica por cima de jogos em janela sem borda como GTA V e Cyberpunk 2077 e segue o monitor do jogo.
 
 Detalhes em [NOVIDADES.md](NOVIDADES.md) (o mesmo texto vai nas notas da release).
 
-App WPF (.NET 8) com:
+App WPF (.NET 10) com:
 - **Informações do sistema** (categorias + detalhes): SO, placa-mãe/BIOS, CPU, RAM (por módulo), GPU, discos — via WMI.
   Em Armazenamento, cartões por unidade (C:, pendrive, HD externo, rede) com anel de cheio/vazio, tipo e disco físico (`DriveMap.cs`).
 - **Avisos de dispositivo** (`ToastWindow.xaml`): ao conectar/remover pendrive, HD externo ou qualquer dispositivo USB (ex.: Arduino),
@@ -221,7 +222,7 @@ App WPF (.NET 8) com:
   Medido numa RTX 5070 (1080p, 4x MSAA, Alta): ~99% de uso e 220–232 W de 250 W.
 - **Jogos**: FPS esperado em 32 jogos populares para a sua GPU + CPU, por resolução (1080p/1440p/4K), gráficos e upscaling (DLSS/FSR).
   Com chave da [HowManyFPS API](https://howmanyfps.com/developer-api) (pedida em info@howmanyfps.com) mostra FPS médio e 1% low medidos em sessões reais;
-  sem chave, usa uma estimativa local aproximada (`GameCatalog.cs`). A chave fica cifrada com DPAPI em `%AppData%\ResetExplode` e as respostas em cache por 7 dias.
+  sem chave, usa uma estimativa local aproximada (`GameCatalog.cs`). A chave fica cifrada com DPAPI em `%AppData%\TranalSentinel` e as respostas em cache por 7 dias.
 - **Detector de gargalo**: equilíbrio teórico GPU × CPU; leitura ao vivo (carga da GPU, CPU total, núcleo mais ocupado, VRAM, RAM,
   temperaturas, limitador térmico) com veredito; e análise de sessão (1/3/5 min) com % do tempo limitado por GPU, CPU, VRAM, RAM,
   temperatura ou trava de FPS, mais recomendações (`BottleneckAnalyzer.cs`).
@@ -231,12 +232,12 @@ App WPF (.NET 8) com:
   ventoinha, PerfCap), VRAM, CPU (uso, núcleo mais ocupado, temperatura, clock médio e máximo, consumo), RAM, nome do jogo e hora. Volta para o topo a cada troca de janela ativa
   (jogos em janela sem borda também se marcam como "sempre no topo") e fica no monitor do jogo. Não aparece em tela cheia exclusiva. O FPS de qualquer jogo é medido via ETW
   (eventos Present de DXGI/D3D9, como o PresentMon, `FrameMonitor.cs`), sem injetar nada no jogo.
-- **RESET BENCH** (`BenchRenderer.cs`): benchmark de CPU no princípio do Cinebench, com renderizador próprio. Path tracer monocromático
+- **TRANAL BENCH** (`BenchRenderer.cs`): benchmark de CPU no princípio do Cinebench, com renderizador próprio. Path tracer monocromático
   (iluminação global, sombras suaves, metal e vidro com refração), 960×540 a 1024 amostras/pixel, imagem em blocos de 32 px
   distribuídos entre threads do centro para fora. Multi-core (todas as threads) e single-core (1 thread, imagem inteira, ~1min40s num 7700X),
   1 passada ou mínimo de 10 min. Nota = amostras/s ÷ 10.000, determinística (sementes fixas por pixel). Histórico dos últimos 10 resultados.
   Referência: Ryzen 7 7700X ≈ 4.500 multi / 530 single.
-- **RESET BENCH · benchmarks de jogo**:
+- **TRANAL BENCH · benchmarks de jogo**:
   - *Cena de jogo (GPU)* (`GpuGameBench.cs`): vale em Direct3D 11 com terreno fractal, 40 mil árvores por instancing, sombras 4096² com PCF,
     água, neblina e pós HDR; câmera em trajeto fixo por tempo, 1080p/1440p/4K, 30/60 s. Nota = FPS médio × 10. RTX 5070 em 1080p ≈ 680 FPS.
     Os sensores ficam pausados durante o teste (consultas ao driver geravam engasgos no 1% low).
@@ -251,14 +252,14 @@ App WPF (.NET 8) com:
     lido sem cache do Windows, com passada prévia para o antivírus e 8 threads. Arquivos temporários apagados no final.
   - *Disco* (`DiskBench.cs`): leitura e escrita sequencial (1 MB) e aleatória 4K (QD1 e QD32), sem cache do Windows
     (`FILE_FLAG_NO_BUFFERING`), em arquivo temporário de 512 MB / 1 GB / 4 GB na unidade escolhida; apagado no final. Histórico dos últimos resultados.
-- **RESET OC** (`MainWindow.Oc.cs`, `OcCheck.cs`): ajuste de limite de energia e travamento de clock da GPU NVIDIA (via NVML) com botão de restaurar,
+- **TRANAL OC** (`MainWindow.Oc.cs`, `OcCheck.cs`): ajuste de limite de energia e travamento de clock da GPU NVIDIA (via NVML) com botão de restaurar,
   e **verificação de estabilidade** de overclock (CPU, GPU ou ambos; 5/15/30 min) com limites de segurança de temperatura, leitura de erros
   de hardware (WHEA, reset de driver de vídeo), veredito, histórico e guia de BIOS conforme a placa-mãe e a CPU.
-- **RESET OTIMIZA** (`Optimizer.cs`, `WindowsTweaks.cs`): um botão que limpa a memória em espera (como o ISLC) e enxuga a RAM dos
+- **TRANAL OTIMIZA** (`Optimizer.cs`, `WindowsTweaks.cs`): um botão que limpa a memória em espera (como o ISLC) e enxuga a RAM dos
   processos, e fecha os programas marcados (pré-marca só os seguros: OneDrive, Teams, Widgets, Adobe...; programas com janela são
   fechados sem forçar). Ajustes do Windows com interruptor e "Restaurar originais": plano Alto desempenho, Modo de Jogo, desativar
   Game DVR, HAGS, otimizações para jogos em janela, aceleração do mouse. Nada que reduza a segurança (Defender, VBS, UAC, Update).
-- **RESET MAKER** (Arduino, ESP32 e conversores USB-serial):
+- **TRANAL MAKER** (Arduino, ESP32 e conversores USB-serial):
   - *Portas COM* (`UsbCleaner.cs`): lista e remove registros de dispositivos USB/seriais ausentes ("fantasmas" de Arduino,
     ESP32, CH340, FTDI, CP210x...) e libera os números COM presos no ComDB, com backup para desfazer. Resolve a IDE do Arduino
     não achar a placa ou a porta ir para COM20+.
@@ -270,7 +271,7 @@ App WPF (.NET 8) com:
     fechar programas que prendem a porta (monitor serial, PuTTY, Cura...) e limpar o cache de índices quando a IDE trava em "Downloading index".
 - **Inicialização** (`StartupManager.cs`, `MainWindow.Startup.cs`): lista os programas que abrem com o Windows (chaves Run do usuário e
   de todos os usuários, 32 e 64 bits, e pastas Inicializar) com descrição e fabricante. Interruptor para ativar/desativar igual ao
-  Gerenciador de Tarefas (chaves StartupApproved) e botão REMOVER, com cópia em `%AppData%\ResetExplode` para "Restaurar removidos".
+  Gerenciador de Tarefas (chaves StartupApproved) e botão REMOVER, com cópia em `%AppData%\TranalSentinel` para "Restaurar removidos".
 - **Instalar apps** (`AppInstaller.cs`, `MainWindow.Apps.cs`): instala os essenciais pós-formatação (Steam, Google Chrome, Discord,
   Lightshot, 7-Zip, WinRAR, VLC) pelo **winget**, em silêncio e um de cada vez, mostrando o resultado de cada um. Detecta o que já está
   instalado (Aplicativos instalados do Windows). Para incluir outro app, acrescente uma linha em `AppInstaller.Catalog()` com o ID do winget.
@@ -287,13 +288,13 @@ App WPF (.NET 8) com:
 - **Rede** (`NetworkTest.cs`): diagnóstico de lag em ~30 s — latência, jitter e perda de pacotes até o roteador e até a internet (1.1.1.1 e 8.8.8.8),
   tempo de DNS, velocidade de download/upload (servidor público speed.cloudflare.com) e latência sob carga (bufferbloat). O veredito aponta se o
   problema está na rede local (Wi-Fi/cabo/roteador), no provedor ou se a conexão está estável.
-- **RESET INTEGRAÇÃO** (`LightBackends.cs`, `CorsairSdk.cs`, `CorsairSdkInstaller.cs`, `MainWindow.Integ.cs`): controle de iluminação e efeitos
+- **TRANAL INTEGRAÇÃO** (`LightBackends.cs`, `CorsairSdk.cs`, `CorsairSdkInstaller.cs`, `MainWindow.Integ.cs`): controle de iluminação e efeitos
   de todo o PC numa tela só (em teste). Pontes: **Corsair iCUE / iCUE LINK** (iCUE SDK v4; a DLL é baixada pelo programa, com confirmação e
   verificação de assinatura), **OpenRGB** (servidor SDK local; é o caminho para **MSI Mystic Light, Gigabyte RGB Fusion, ASUS Aura**, RAM, Razer,
   Logitech e outras, já que essas marcas não têm SDK público) e **Razer Chroma** (API REST do Synapse). Efeitos: cor fixa, respiração, arco-íris em onda,
   e cores que seguem a **temperatura da CPU/GPU** ou a **carga da CPU**, com brilho e velocidade. Ao devolver ou fechar, cada fabricante reassume as luzes.
   Para MSI/Gigabyte/ASUS: abra o OpenRGB com o servidor ligado e feche MSI Center, Armoury Crate e RGB Fusion.
-- **RESET JOGOS** (`GameLibrary.cs`, `GameLauncher.cs`, `Vdf.cs`, `MainWindow.Launcher.cs`): inicializador que **detecta os jogos instalados** (Steam, Epic Games, GOG,
+- **TRANAL JOGOS** (`GameLibrary.cs`, `GameLauncher.cs`, `Vdf.cs`, `MainWindow.Launcher.cs`): inicializador que **detecta os jogos instalados** (Steam, Epic Games, GOG,
   Ubisoft Connect e `.exe` adicionados à mão) e guarda um **perfil por jogo**: prioridade do processo, plano de energia Alto desempenho só durante o jogo,
   GPU dedicada e sem otimizações de tela cheia (por `.exe`, no registro do usuário), **menu de gráficos** (modo de janela, resolução, taxa de atualização e extras
   convertidos em argumentos de inicialização no estilo Source/CS2, Unity ou Unreal) e **programas auxiliares** (ferramentas de terceiros que abrem antes do jogo
@@ -304,12 +305,12 @@ App WPF (.NET 8) com:
 - Visual preto e branco minimalista em **blocos** (cartões arredondados, inspirado em painéis de dashboard). Um único menu lateral
   com *Visão geral* no topo e categorias **RESET** recolhíveis (começam fechadas; clique para ver as sub-abas):
   - *Visão geral* (`MainWindow.Dash.cs`): gráfico de área CPU × GPU (temperatura, carga ou consumo; 1/5/15 min),
-    desempenho do RESET BENCH, tabela de componentes, anéis de RAM/VRAM/disco, eventos recentes e saúde do PC.
-  - **RESET EXPLODE** · Sistema, Sensores, Placa de vídeo, Discos, Energia, Rede.
-  - **RESET JOGOS** · Biblioteca, FPS estimado, Gargalo, Overlay.
-  - **RESET DESEMPENHO** · Benchmark, Stress test, Overclock.
-  - **RESET FERRAMENTAS** · Otimização, Inicialização, Instalar apps, Drivers, Integração.
-  - **RESET MAKER** · Portas COM, Drivers seriais.
+    desempenho do TRANAL BENCH, tabela de componentes, anéis de RAM/VRAM/disco, eventos recentes e saúde do PC.
+  - **TRANAL SENTINEL** · Sistema, Sensores, Placa de vídeo, Discos, Energia, Rede.
+  - **TRANAL JOGOS** · Biblioteca, FPS estimado, Gargalo, Overlay.
+  - **TRANAL DESEMPENHO** · Benchmark, Stress test, Overclock.
+  - **TRANAL FERRAMENTAS** · Otimização, Inicialização, Instalar apps, Drivers, Integração.
+  - **TRANAL MAKER** · Portas COM, Drivers seriais.
 - Botão de **modo escuro/claro** no canto superior direito (`ThemeManager.cs`); a escolha fica salva. O overlay de jogos e os avisos de dispositivo ficam sempre escuros.
 - Leitura ao vivo de temperatura e carga da CPU e da GPU sempre visível no rodapé do menu.
 - Sensores com busca e filtros por tipo (chips); tema em `Theme.xaml`.
@@ -323,21 +324,21 @@ App WPF (.NET 8) com:
 
 ## Requisitos
 - Windows 10/11
-- .NET 8 SDK (https://dotnet.microsoft.com/download)
+- .NET 10 SDK (https://dotnet.microsoft.com/download)
 - Driver **PawnIO** (temperatura/consumo da CPU): `winget install namazso.PawnIO`
   A LibreHardwareMonitorLib 0.9.6+ usa o PawnIO no lugar do antigo WinRing0, que o Windows Defender bloqueia.
 
 ## Como rodar
 ```
-cd ResetExplode
+cd tranal-sentinel
 dotnet run
 ```
 O app pede privilégio de administrador (necessário para sensores de baixo nível).
-Para levar a outro PC: dê dois cliques em `publicar.bat`. Ele gera `..\ResetExplode-dist\ResetExplode.exe` (arquivo único, com o .NET embutido,
+Para levar a outro PC: dê dois cliques em `publicar.bat`. Ele gera `..\TranalSentinel-dist\TranalSentinel.exe` (arquivo único, com o .NET embutido,
 sem caminhos do seu usuário) + `LEIA-ME.txt`. No outro PC só é preciso instalar o PawnIO. Rode de novo após cada alteração no código.
 
 ### Baixar a versão mais recente
-A cada push na `main`, o GitHub Actions (`.github/workflows/publicar.yml`) gera o `ResetExplode.exe` e atualiza a release
+A cada push na `main`, o GitHub Actions (`.github/workflows/publicar.yml`) gera o `TranalSentinel.exe` e atualiza a release
 **latest** (aba *Releases* do repositório), com o `.exe` e um `.zip`. É só baixar de lá, sem compilar.
 Ao criar uma tag (`git tag v0.12` e `git push --tags`), também sai uma release fixa dessa versão.
 
@@ -350,21 +351,21 @@ Ao criar uma tag (`git tag v0.12` e `git push --tags`), também sai uma release 
 - ✔ Benchmarks: CPU, GPU, simulação, memória e **disco**
 - ✔ Saúde dos discos (S.M.A.R.T.)
 - ✔ Relatório exportável (HTML/JSON)
-- ✔ RESET OC (limite de energia, clock e verificação de estabilidade)
+- ✔ TRANAL OC (limite de energia, clock e verificação de estabilidade)
 - ✔ Energia (bateria e fonte) e Rede (latência, perda e velocidade)
-- ✔ RESET INTEGRAÇÃO: iluminação Corsair iCUE, OpenRGB (MSI/Gigabyte/ASUS) e Razer Chroma (primeira versão, em teste)
-- ✔ RESET DRIVER: inventário de drivers, NVIDIA (verifica a versão, baixa, confere a assinatura e abre o instalador), AMD/ASUS/MSI/Gigabyte pela página oficial, Windows Update e backup (`DriverManager.cs`, primeira versão, em teste)
-- ✔ RESET JOGOS: inicializador com detecção de jogos, perfil por jogo e opções de inicialização da Steam (primeira versão, em teste)
+- ✔ TRANAL INTEGRAÇÃO: iluminação Corsair iCUE, OpenRGB (MSI/Gigabyte/ASUS) e Razer Chroma (primeira versão, em teste)
+- ✔ TRANAL DRIVER: inventário de drivers, NVIDIA (verifica a versão, baixa, confere a assinatura e abre o instalador), AMD/ASUS/MSI/Gigabyte pela página oficial, Windows Update e backup (`DriverManager.cs`, primeira versão, em teste)
+- ✔ TRANAL JOGOS: inicializador com detecção de jogos, perfil por jogo e opções de inicialização da Steam (primeira versão, em teste)
 - ✔ Inicialização do Windows: ativar, desativar e remover programas, com desfazer (v0.16)
 - ✔ Abertura rápida: janela na hora, hardware carregado em paralelo (v0.16)
 - ✔ Instalar apps essenciais pós-formatação pelo winget (v0.16)
-- ✔ RESET MAKER: portas COM e drivers seriais CH340/CP210x/FTDI/Prolific/Arduino (v0.16)
+- ✔ TRANAL MAKER: portas COM e drivers seriais CH340/CP210x/FTDI/Prolific/Arduino (v0.16)
 
 ## Próximas ideias
 - Relatório em CSV e com gráficos
 - Comparar resultados de benchmark entre PCs / histórico de relatórios
 - Leitura direta de SPD / Super I/O
-- RESET INTEGRAÇÃO: perfis salvos, efeitos por jogo, SDKs nativos da MSI/ASUS/Gigabyte se forem liberados
+- TRANAL INTEGRAÇÃO: perfis salvos, efeitos por jogo, SDKs nativos da MSI/ASUS/Gigabyte se forem liberados
 - Alertas de temperatura, bateria e saúde de disco em segundo plano
 - Versão com instalador e assinatura digital
 

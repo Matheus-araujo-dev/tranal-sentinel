@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Testes do núcleo puro do diagnóstico (RESET SAÚDE).
+  <!-- Testes do núcleo puro do diagnóstico (TRANAL SAÚDE).
        Não faz parte do executável: o app continua sem nenhuma dependência nova. -->
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
-    <AssemblyName>ResetExplode.Tests</AssemblyName>
-    <RootNamespace>ResetExplode.Tests</RootNamespace>
+    <AssemblyName>TranalSentinel.Tests</AssemblyName>
+    <RootNamespace>TranalSentinel.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ResetExplode.csproj" />
+    <ProjectReference Include="..\TranalSentinel.csproj" />
   </ItemGroup>
 
 </Project>

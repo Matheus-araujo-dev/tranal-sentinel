@@ -1,4 +1,4 @@
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>Gravidade de um achado do diagnóstico.</summary>
 public enum Severidade { Informativo, Baixo, Medio, Alto, Critico }

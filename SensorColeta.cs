@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using LibreHardwareMonitor.Hardware;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// A coleta de verdade: é isto que roda dentro do processo filho.

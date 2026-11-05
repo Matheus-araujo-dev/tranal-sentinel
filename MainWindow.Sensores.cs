@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Guarda dos sensores: decide quanto do LibreHardwareMonitor pode ser usado
@@ -97,7 +97,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Não foi possível religar os sensores: " + ex.Message, "RESET EXPLODE",
+            MessageBox.Show("Não foi possível religar os sensores: " + ex.Message, "TRANAL SENTINEL",
                             MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }

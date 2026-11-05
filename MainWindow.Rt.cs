@@ -1,9 +1,9 @@
 using System.Windows;
 using System.Windows.Threading;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
-/// <summary>RESET BENCH · Ray tracing (DXR 1.1): aquecimento + 3 passadas, nota pela mediana e variação entre passadas.</summary>
+/// <summary>TRANAL BENCH · Ray tracing (DXR 1.1): aquecimento + 3 passadas, nota pela mediana e variação entre passadas.</summary>
 public partial class MainWindow
 {
     private GpuRtBench? _rtBench;

@@ -1,4 +1,4 @@
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Regras do diagnóstico de saúde.
@@ -336,7 +336,7 @@ public static class SaudeRegras
                 Severidade = Severidade.Medio,
                 Area = "Lentidão",
                 Mensagem = $"{c.AutostartAtivos} programas na inicialização automática",
-                Acao = "Desative o que não usa no boot (RESET FERRAMENTAS ou Gerenciador de Tarefas)"
+                Acao = "Desative o que não usa no boot (TRANAL FERRAMENTAS ou Gerenciador de Tarefas)"
             });
         }
 

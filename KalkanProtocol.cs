@@ -1,4 +1,4 @@
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Protocolo do visor Kalkan SmartMonitor (firmware 1.2 — linha Alpha Rev.1).

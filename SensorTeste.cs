@@ -1,15 +1,15 @@
 using System.IO;
 using System.Text;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Teste de linha de comando da guarda dos sensores.
 ///
-/// <c>ResetExplode.exe --sensores</c> mostra o que o app decidiu fazer com os
+/// <c>TranalSentinel.exe --sensores</c> mostra o que o app decidiu fazer com os
 /// sensores depois dos crashes: quantos crashes o Windows registrou, qual
 /// caminho foi desligado e se a coleta abre sem morrer. O resultado fica em
-/// <c>%AppData%\ResetExplode\sensores.txt</c>.
+/// <c>%AppData%\TranalSentinel\sensores.txt</c>.
 ///
 /// Serve para conferir a decisão sem depender da janela — e para provar que
 /// abrir a coleta sem a GPU é seguro na máquina que crashou.
@@ -21,7 +21,7 @@ internal static class SensorTeste
         get
         {
             string pasta = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ResetExplode");
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TranalSentinel");
             Directory.CreateDirectory(pasta);
             return Path.Combine(pasta, "sensores.txt");
         }

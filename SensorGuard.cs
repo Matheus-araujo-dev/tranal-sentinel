@@ -1,4 +1,4 @@
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>Um crash do próprio app registrado pelo Windows no log de eventos.</summary>
 public sealed record CrashDoApp(DateTime Momento, string CodigoExcecao, string Aplicativo, string Modulo);
@@ -141,7 +141,7 @@ public static class SensorGuard
         {
             NivelSensor.SemSensores =>
                 $"O app travou {crashes}× por falha nativa nos sensores. Os sensores foram desligados " +
-                "para o programa não morrer de novo — o resto do RESET EXPLODE continua normal.",
+                "para o programa não morrer de novo — o resto do TRANAL SENTINEL continua normal.",
             NivelSensor.SemSensoresGpu when crashes > 0 =>
                 $"O app travou {crashes}× por falha nativa nos sensores da GPU (driver da AMD). " +
                 "Os sensores da GPU foram desligados; CPU, memória e discos continuam funcionando.",

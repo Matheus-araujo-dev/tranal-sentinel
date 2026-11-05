@@ -3,7 +3,7 @@ using System.IO;
 using System.Text.Json;
 using Microsoft.Win32;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>Jogo instalado (de qualquer loja) ou adicionado à mão.</summary>
 public sealed class LibGame

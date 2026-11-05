@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Sessão com o visor Kalkan: abre a coleção HID certa, faz o handshake e envia

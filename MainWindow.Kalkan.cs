@@ -7,12 +7,12 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using LibreHardwareMonitor.Hardware;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Integração com o visor do cooler Kalkan SmartMonitor (linha Alpha Rev.1).
 ///
-/// O RESET EXPLODE fala direto com o visor por USB HID — sem o software da
+/// O TRANAL SENTINEL fala direto com o visor por USB HID — sem o software da
 /// Kalkan e sem a DLL dele. O app faz o handshake, embaralha os quadros do
 /// firmware 1.2 e manda a leitura dos sensores do PC a cada segundo, como o
 /// programa original faz.
@@ -20,10 +20,10 @@ namespace ResetExplode;
 /// O visor do Kalkan mostra duas coisas: a temperatura ("DEV TEMP") e a rotação
 /// da ventoinha ("FAN SPEED"). No app oficial você escolhe de qual sensor vem
 /// cada uma; aqui dá para escolher a mesma coisa, com a lista completa de
-/// sensores que o RESET EXPLODE já coleta (CPU, núcleos, GPU, placa-mãe,
+/// sensores que o TRANAL SENTINEL já coleta (CPU, núcleos, GPU, placa-mãe,
 /// armazenamento, memória).
 ///
-/// Fica na aba RESET INTEGRAÇÃO, junto com iCUE, OpenRGB e Chroma: são as
+/// Fica na aba TRANAL INTEGRAÇÃO, junto com iCUE, OpenRGB e Chroma: são as
 /// integrações do app com periféricos — e, ao contrário do diagnóstico, aqui o
 /// app escreve no dispositivo (no visor), não só lê o sistema.
 /// </summary>

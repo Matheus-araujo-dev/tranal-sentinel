@@ -1,6 +1,6 @@
 using System.Diagnostics.Eventing.Reader;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>Um evento lido do log do Windows.</summary>
 public sealed class EventoWindows

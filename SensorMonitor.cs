@@ -4,7 +4,7 @@ using System.IO;
 using System.Text.Json;
 using LibreHardwareMonitor.Hardware;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>Uma leitura de sensor como veio da coleta — sem nenhum vínculo com a interface.</summary>
 public sealed record SensorReading(
@@ -22,7 +22,7 @@ public sealed record SensorReading(
 public sealed record SensorSnapshot(IReadOnlyList<SensorReading> Leituras, IReadOnlyList<string> Falhas, DateTime Momento);
 
 /// <summary>
-/// Os sensores do RESET EXPLODE.
+/// Os sensores do TRANAL SENTINEL.
 ///
 /// <para>
 /// A coleta roda num <b>processo separado</b> (o mesmo executável, chamado com
@@ -110,7 +110,7 @@ public sealed class SensorMonitor : IDisposable
     {
         _pasta = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ResetExplode", "sensores", Guid.NewGuid().ToString("N"));
+            "TranalSentinel", "sensores", Guid.NewGuid().ToString("N"));
         _arquivoLeituras = Path.Combine(_pasta, "leituras.json");
         _arquivoPausa = Path.Combine(_pasta, "pausa.flag");
         try { Directory.CreateDirectory(_pasta); } catch { }
@@ -245,11 +245,11 @@ public sealed class SensorMonitor : IDisposable
     public static string Explain(CpuSensorProblem p) => p switch
     {
         CpuSensorProblem.NotElevated =>
-            "O RESET EXPLODE não está rodando como administrador, e o Windows só libera os sensores internos da CPU " +
+            "O TRANAL SENTINEL não está rodando como administrador, e o Windows só libera os sensores internos da CPU " +
             "nesse modo. Feche e abra de novo aceitando o pedido de administrador.",
         CpuSensorProblem.PawnIOMissing =>
             "Falta o driver PawnIO, que lê a temperatura e o consumo da CPU. Ele é gratuito, assinado e usado também " +
-            "pelo LibreHardwareMonitor e pelo FanControl. Depois de instalar, feche e abra o RESET EXPLODE.",
+            "pelo LibreHardwareMonitor e pelo FanControl. Depois de instalar, feche e abra o TRANAL SENTINEL.",
         CpuSensorProblem.ReadFailed =>
             "O PawnIO está instalado, mas a leitura falhou. Se acabou de instalar, reinicie o PC. Se continuar, " +
             "confira se o antivírus não bloqueou o driver ou se a CPU é muito antiga/recente para a biblioteca de sensores.",

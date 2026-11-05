@@ -1,9 +1,9 @@
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
-/// RESET SAÚDE: diagnóstico de travamentos e lentidão.
+/// TRANAL SAÚDE: diagnóstico de travamentos e lentidão.
 ///
-/// Complementa o RESET EXPLODE, que mede o hardware em tempo real (sensores,
+/// Complementa o TRANAL SENTINEL, que mede o hardware em tempo real (sensores,
 /// SMART, benchmarks) mas não responde "por que meu PC trava?". Aqui a análise
 /// é feita sobre o histórico do Windows: travamentos totais (Kernel-Power 41),
 /// erros de hardware (WHEA), o estado real do antivírus, o gerenciamento de

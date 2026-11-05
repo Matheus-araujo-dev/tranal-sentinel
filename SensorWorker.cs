@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 /// <summary>
 /// Processo filho da coleta de sensores (<c>--sensores-worker</c>).

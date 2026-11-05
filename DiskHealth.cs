@@ -2,7 +2,7 @@
 using System.Text.RegularExpressions;
 using LibreHardwareMonitor.Hardware;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 public enum DiskVerdict { Good, Warning, Critical, Unknown }
 

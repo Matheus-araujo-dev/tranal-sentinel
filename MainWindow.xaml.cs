@@ -9,7 +9,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using LibreHardwareMonitor.Hardware;
 
-namespace ResetExplode;
+namespace TranalSentinel;
 
 public partial class MainWindow : Window
 {
@@ -51,7 +51,7 @@ public partial class MainWindow : Window
     private bool _overlayReady;
     private const int HotkeyId = 0x5245; // "RE"
 
-    // RESET BENCH
+    // TRANAL BENCH
     private readonly BenchRenderer _bench = new();
     private System.Windows.Media.Imaging.WriteableBitmap? _benchBitmap;
     private CancellationTokenSource? _benchCts;
@@ -60,7 +60,7 @@ public partial class MainWindow : Window
     private string _benchPhase = "";
     private DateTime _benchPhaseStart;
 
-    // RESET OTIMIZA
+    // TRANAL OTIMIZA
     private List<BackgroundApp> _apps = new();
     private readonly List<Tweak> _tweaks = WindowsTweaks.All(); // só as definições; o estado é lido ao abrir a página
     private bool _optInit;
@@ -232,7 +232,7 @@ public partial class MainWindow : Window
         string why = SensorMonitor.Explain(p);
         if (p != SensorMonitor.CpuSensorProblem.PawnIOMissing)
         {
-            MessageBox.Show(why, "RESET EXPLODE", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(why, "TRANAL SENTINEL", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -244,17 +244,17 @@ public partial class MainWindow : Window
             MessageBox.Show(why + "\n\nO instalador de pacotes do Windows (winget) não foi encontrado neste PC. " +
                             "Atualize o \"Instalador de Aplicativo\" pela Microsoft Store e use o botão de novo, " +
                             "ou instale o PawnIO (autor: namazso) manualmente.",
-                            "RESET EXPLODE", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            "TRANAL SENTINEL", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         var r = MessageBox.Show(why + "\n\nInstalar o PawnIO agora? Vai abrir uma janela com o instalador do Windows (winget). " +
-                                "Quando terminar, feche o RESET EXPLODE e abra de novo.",
-                                "RESET EXPLODE", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                                "Quando terminar, feche o TRANAL SENTINEL e abra de novo.",
+                                "TRANAL SENTINEL", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe",
             "/k winget install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements" +
-            " && echo. && echo Pronto! Feche esta janela e reabra o RESET EXPLODE.")
+            " && echo. && echo Pronto! Feche esta janela e reabra o TRANAL SENTINEL.")
         { UseShellExecute = true });
     }
 
@@ -700,7 +700,7 @@ public partial class MainWindow : Window
         BnResult.Visibility = Visibility.Visible;
     }
 
-    // ---------------- RESET BENCH ----------------
+    // ---------------- TRANAL BENCH ----------------
 
     private void InitBench()
     {
@@ -777,7 +777,7 @@ public partial class MainWindow : Window
                               $"({Environment.ProcessorCount / 2} núcleos com SMT costumam render 8–12x).";
 
         _settings.BenchRuns.Insert(0, new BenchRun(DateTime.Now, mt, st, sustained, GameCatalog.ShortCpuName(_cpuName)));
-        AddEvent("", "RESET BENCH", "Render de CPU", mt is double mte ? $"{mte:N0} pts" : st is double ste ? $"{ste:N0} pts" : "");
+        AddEvent("", "TRANAL BENCH", "Render de CPU", mt is double mte ? $"{mte:N0} pts" : st is double ste ? $"{ste:N0} pts" : "");
         if (_settings.BenchRuns.Count > 10) _settings.BenchRuns.RemoveRange(10, _settings.BenchRuns.Count - 10);
         _settings.Save();
         UpdateBenchHistory();
@@ -843,9 +843,9 @@ public partial class MainWindow : Window
         }).ToList();
     }
 
-    // ---------------- RESET OTIMIZA ----------------
+    // ---------------- TRANAL OTIMIZA ----------------
 
-    /// <summary>Carrega a página RESET OTIMIZA quando ela é aberta (os ajustes do Windows só na primeira vez).</summary>
+    /// <summary>Carrega a página TRANAL OTIMIZA quando ela é aberta (os ajustes do Windows só na primeira vez).</summary>
     private void InitOptimize()
     {
         if (!_optInit)
@@ -881,11 +881,11 @@ public partial class MainWindow : Window
         var toClose = _apps.Where(a => a.Selected).ToList();
         string list = toClose.Count == 0 ? "nenhum programa marcado"
                                          : string.Join("\n", toClose.Select(a => $"  • {a.Title}"));
-        var r = MessageBox.Show("O RESET OTIMIZA vai:\n\n" +
+        var r = MessageBox.Show("O TRANAL OTIMIZA vai:\n\n" +
                                 "1. Limpar a memória em espera e enxugar a RAM dos programas.\n" +
                                 $"2. Fechar os programas marcados:\n{list}\n\n" +
                                 "Salve o que estiver aberto nesses programas antes. Continuar?",
-                                "RESET OTIMIZA", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                                "TRANAL OTIMIZA", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
 
         BtnOptimize.IsEnabled = false;
@@ -894,7 +894,7 @@ public partial class MainWindow : Window
         var closeResult = await Task.Run(() => Optimizer.CloseApps(toClose));
         var mem = await Task.Run(Optimizer.CleanMemory); // depois de fechar, para contar a memória liberada por eles também
         BtnOptimize.IsEnabled = true;
-        BtnOptimize.Content = "RESET OTIMIZA";
+        BtnOptimize.Content = "TRANAL OTIMIZA";
 
         var parts = new List<string> { $"Memória liberada: {mem.FreedBytes / 1048576.0:N0} MB" };
         parts.Add(mem.StandbyPurged ? "memória em espera limpa" : $"memória em espera não limpa ({mem.StandbyError})");
@@ -967,7 +967,7 @@ public partial class MainWindow : Window
     private bool RequireAdmin()
     {
         if (SensorMonitor.IsElevated) return true;
-        MessageBox.Show("Esta ação precisa do RESET EXPLODE aberto como administrador.", "RESET EXPLODE",
+        MessageBox.Show("Esta ação precisa do TRANAL SENTINEL aberto como administrador.", "TRANAL SENTINEL",
                         MessageBoxButton.OK, MessageBoxImage.Warning);
         return false;
     }
@@ -981,7 +981,7 @@ public partial class MainWindow : Window
                        + (sel.Count > 12 ? $"\n  … e mais {sel.Count - 12}" : "");
         var r = MessageBox.Show($"Remover {sel.Count} registros de dispositivos que não estão conectados?\n\n{names}\n\n" +
                                 "Se plugar algum deles de novo, o Windows reinstala automaticamente.",
-                                "RESET MAKER", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                                "TRANAL MAKER", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
 
         BtnUsbRemove.IsEnabled = false;
@@ -1005,7 +1005,7 @@ public partial class MainWindow : Window
                                 $"Mantidos (em uso): {(inUse.Count > 0 ? string.Join(", ", inUse.Select(n => $"COM{n}")) : "nenhum")}\n\n" +
                                 "A próxima placa plugada vai receber um número baixo (COM3, COM4…). " +
                                 "O valor atual fica guardado para \"Desfazer liberação\".",
-                                "RESET MAKER", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                                "TRANAL MAKER", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
         try
         {
@@ -1036,20 +1036,20 @@ public partial class MainWindow : Window
     {
         if (_settings.TweakBackup.Count == 0)
         {
-            MessageBox.Show("Nenhum ajuste foi alterado pelo RESET EXPLODE ainda.", "RESET OTIMIZA",
+            MessageBox.Show("Nenhum ajuste foi alterado pelo TRANAL SENTINEL ainda.", "TRANAL OTIMIZA",
                             MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
-        var r = MessageBox.Show("Voltar todos os ajustes do Windows para como estavam antes do RESET EXPLODE alterá-los?",
-                                "RESET OTIMIZA", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        var r = MessageBox.Show("Voltar todos os ajustes do Windows para como estavam antes do TRANAL SENTINEL alterá-los?",
+                                "TRANAL OTIMIZA", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
         bool restart = _tweaks.Any(t => t.NeedsRestart && _settings.TweakBackup.ContainsKey(t.Id));
         WindowsTweaks.RestoreAll(_tweaks, _settings);
         foreach (var t in _tweaks) { t.Refresh(); t.Status = "Restaurado."; }
-        if (restart) MessageBox.Show("Alguns ajustes só voltam ao original depois de reiniciar o PC.", "RESET OTIMIZA");
+        if (restart) MessageBox.Show("Alguns ajustes só voltam ao original depois de reiniciar o PC.", "TRANAL OTIMIZA");
     }
 
-    // ---------------- RESET BENCH: benchmarks de jogo ----------------
+    // ---------------- TRANAL BENCH: benchmarks de jogo ----------------
 
     public sealed record MemRow(string Label, string Value, string Hint);
     private bool _gameBenchRunning;
@@ -1465,17 +1465,17 @@ public partial class MainWindow : Window
             string why = SensorMonitor.IsPawnIOInstalled
                 ? ""
                 : "\n\nCausa provável: o driver PawnIO não está instalado. Instale com:\n" +
-                  "winget install namazso.PawnIO\ne reabra o RESET EXPLODE.";
+                  "winget install namazso.PawnIO\ne reabra o TRANAL SENTINEL.";
             var r = MessageBox.Show("Nenhum sensor de temperatura da CPU foi encontrado, então o corte automático " +
                                     "por temperatura da CPU NÃO funcionará. Continuar mesmo assim?" + why,
-                                    "RESET EXPLODE", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                                    "TRANAL SENTINEL", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (r != MessageBoxResult.Yes) return;
         }
         if (gpu && MainGpuTemp() == null)
         {
             var r = MessageBox.Show("Nenhum sensor de temperatura da GPU foi encontrado, então o corte automático " +
                                     "por temperatura da GPU NÃO funcionará. Continuar mesmo assim?",
-                                    "RESET EXPLODE", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                                    "TRANAL SENTINEL", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (r != MessageBoxResult.Yes) return;
         }
 

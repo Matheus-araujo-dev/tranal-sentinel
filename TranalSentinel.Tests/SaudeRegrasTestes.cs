@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace ResetExplode.Tests;
+namespace TranalSentinel.Tests;
 
 /// <summary>
 /// Testes das regras do diagnóstico de saúde.

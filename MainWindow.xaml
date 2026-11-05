@@ -1,8 +1,8 @@
-<Window x:Class="ResetExplode.MainWindow"
+<Window x:Class="TranalSentinel.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:ResetExplode"
-        Title="RESET EXPLODE" Icon="Assets/app.ico" Width="1320" Height="840" MinWidth="1120" MinHeight="660"
+        xmlns:local="clr-namespace:TranalSentinel"
+        Title="TRANAL SENTINEL" Icon="Assets/app.ico" Width="1320" Height="840" MinWidth="1120" MinHeight="660"
         WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize"
         Background="{DynamicResource Bg}" Foreground="{DynamicResource Fg}"
         FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
@@ -193,7 +193,7 @@
                                     <TextBlock Text="Visão geral" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <ToggleButton x:Name="GrpExplode" Style="{StaticResource NavGroup}" Content="RESET EXPLODE"/>
+                            <ToggleButton x:Name="GrpExplode" Style="{StaticResource NavGroup}" Content="TRANAL SENTINEL"/>
                             <StackPanel x:Name="GrpExplodeItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpExplode, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavSystem" Style="{StaticResource NavItem}" Tag="PageSystem" Checked="Nav_Checked">
                                 <StackPanel Orientation="Horizontal">
@@ -232,7 +232,7 @@
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpSaude" Style="{StaticResource NavGroup}" Content="RESET SAÚDE"/>
+                            <ToggleButton x:Name="GrpSaude" Style="{StaticResource NavGroup}" Content="TRANAL SAÚDE"/>
                             <StackPanel x:Name="GrpSaudeItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpSaude, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavSaude" Style="{StaticResource NavItem}" Tag="PageSaude" Checked="Nav_Checked">
                                 <StackPanel Orientation="Horizontal">
@@ -241,7 +241,7 @@
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpGames" Style="{StaticResource NavGroup}" Content="RESET JOGOS"/>
+                            <ToggleButton x:Name="GrpGames" Style="{StaticResource NavGroup}" Content="TRANAL JOGOS"/>
                             <StackPanel x:Name="GrpGamesItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpGames, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavLauncher" Style="{StaticResource NavItem}" Tag="PageLauncher" Checked="Nav_Checked">
                                 <StackPanel Orientation="Horizontal">
@@ -268,7 +268,7 @@
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpPerf" Style="{StaticResource NavGroup}" Content="RESET DESEMPENHO"/>
+                            <ToggleButton x:Name="GrpPerf" Style="{StaticResource NavGroup}" Content="TRANAL DESEMPENHO"/>
                             <StackPanel x:Name="GrpPerfItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpPerf, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavBench" Style="{StaticResource NavItem}" Tag="PageBench" Checked="Nav_Checked">
                                 <StackPanel Orientation="Horizontal">
@@ -289,7 +289,7 @@
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpTools" Style="{StaticResource NavGroup}" Content="RESET FERRAMENTAS"/>
+                            <ToggleButton x:Name="GrpTools" Style="{StaticResource NavGroup}" Content="TRANAL FERRAMENTAS"/>
                             <StackPanel x:Name="GrpToolsItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpTools, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavOptimize" Style="{StaticResource NavItem}" Tag="PageOptimize" Checked="Nav_Checked">
                                 <StackPanel Orientation="Horizontal">
@@ -322,7 +322,7 @@
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpMaker" Style="{StaticResource NavGroup}" Content="RESET MAKER"/>
+                            <ToggleButton x:Name="GrpMaker" Style="{StaticResource NavGroup}" Content="TRANAL MAKER"/>
                             <StackPanel x:Name="GrpMakerItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpMaker, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavMakerPorts" Style="{StaticResource NavItem}" Tag="PageMakerPorts" Checked="Nav_Checked">
                                 <StackPanel Orientation="Horizontal">
@@ -399,7 +399,7 @@
                                     <Button DockPanel.Dock="Bottom" Style="{StaticResource PrimaryButton}" Content="RODAR BENCHMARK" Margin="0,14,0,0"
                                             Padding="20,13" Click="DashBench_Click"/>
                                     <StackPanel>
-                                        <TextBlock Text="DESEMPENHO · RESET BENCH" Style="{StaticResource Label}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="DESEMPENHO · TRANAL BENCH" Style="{StaticResource Label}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <TextBlock x:Name="DashScore" Text="—" Style="{StaticResource Hero}" FontFamily="{StaticResource Mono}"/>
                                             <TextBlock x:Name="DashScoreDelta" Foreground="{DynamicResource Muted}" FontSize="12"
@@ -556,7 +556,7 @@
                             <!-- Saúde do PC (como "Rewards"): lista de verificação + ação -->
                             <Border Grid.Column="4" Style="{StaticResource CardBorder}" Padding="22,20">
                                 <DockPanel>
-                                    <Button DockPanel.Dock="Bottom" Style="{StaticResource PrimaryButton}" Content="RESET OTIMIZA" Padding="20,13"
+                                    <Button DockPanel.Dock="Bottom" Style="{StaticResource PrimaryButton}" Content="TRANAL OTIMIZA" Padding="20,13"
                                             Margin="0,14,0,0" Click="DashOptimize_Click"/>
                                     <StackPanel>
                                         <TextBlock Text="Saúde do PC" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,10"/>
@@ -797,12 +797,12 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== RESET DRIVER ===== -->
+                <!-- ===== TRANAL DRIVER ===== -->
                 <ScrollViewer x:Name="PageDriver" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="36,30,36,30">
                         <Grid Margin="0,0,0,20">
                             <StackPanel Margin="0,0,190,0">
-                                <TextBlock Text="RESET DRIVER" Style="{StaticResource H1}"/>
+                                <TextBlock Text="TRANAL DRIVER" Style="{StaticResource H1}"/>
                                 <TextBlock Text="Verifique, baixe e instale drivers · NVIDIA e AMD automáticos, fabricantes pela página oficial" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnDrvScan" Style="{StaticResource PrimaryButton}" Content="VERIFICAR TUDO" Padding="20,9"
@@ -872,7 +872,7 @@
                             <StackPanel>
                                 <TextBlock Text="BACKUP DOS DRIVERS" Style="{StaticResource Label}"/>
                                 <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Muted}"
-                                           Text="Exporta todos os drivers de terceiros para Documentos\ResetExplode-Drivers. Útil antes de formatar ou de trocar um driver."/>
+                                           Text="Exporta todos os drivers de terceiros para Documentos\TranalSentinel-Drivers. Útil antes de formatar ou de trocar um driver."/>
                                 <Button x:Name="BtnDrvBackup" Style="{StaticResource OutlineButton}" Content="FAZER BACKUP" Padding="18,8" Margin="0,14,0,0"
                                         HorizontalAlignment="Left" Click="BtnDrvBackup_Click"/>
                             </StackPanel>
@@ -907,12 +907,12 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== RESET SAÚDE (diagnóstico de travamentos e lentidão) ===== -->
+                <!-- ===== TRANAL SAÚDE (diagnóstico de travamentos e lentidão) ===== -->
                 <ScrollViewer x:Name="PageSaude" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="36,30,36,30">
                         <Grid Margin="0,0,0,20">
                             <StackPanel Margin="0,0,190,0">
-                                <TextBlock Text="RESET SAÚDE" Style="{StaticResource H1}"/>
+                                <TextBlock Text="TRANAL SAÚDE" Style="{StaticResource H1}"/>
                                 <TextBlock Text="Por que o PC trava e o que está deixando o sistema lento. Leitura do histórico do Windows, sem alterar nada." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnSaudeScan" Style="{StaticResource PrimaryButton}" Content="ANALISAR" Padding="20,9"
@@ -1019,12 +1019,12 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== RESET INTEGRAÇÃO (iluminação) ===== -->
+                <!-- ===== TRANAL INTEGRAÇÃO (iluminação) ===== -->
                 <ScrollViewer x:Name="PageInteg" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="36,30,36,30">
                         <Grid Margin="0,0,0,20">
                             <StackPanel Margin="0,0,190,0">
-                                <TextBlock Text="RESET INTEGRAÇÃO" Style="{StaticResource H1}"/>
+                                <TextBlock Text="TRANAL INTEGRAÇÃO" Style="{StaticResource H1}"/>
                                 <TextBlock Text="Iluminação, efeitos e o visor do cooler · Corsair iCUE, OpenRGB (MSI, Gigabyte, ASUS...), Razer Chroma (em teste) e Kalkan SmartMonitor" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnLightConnect" Style="{StaticResource OutlineButton}" Content="CONECTAR TUDO" Padding="20,9"
@@ -1095,7 +1095,7 @@
                                 </StackPanel>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0">
                                     O visor do cooler Kalkan (linha Alpha Rev.1) mostra dois campos: DEV TEMP (°C) e FAN SPEED (RPM).
-                                    Escolha de qual sensor vem cada um. Não precisa do software da Kalkan instalado — o RESET EXPLODE conversa com o visor pela USB.
+                                    Escolha de qual sensor vem cada um. Não precisa do software da Kalkan instalado — o TRANAL SENTINEL conversa com o visor pela USB.
                                     Feche o software oficial antes de usar, senão os dois programas embaralham os quadros um do outro.
                                 </TextBlock>
                             </StackPanel>
@@ -1187,7 +1187,7 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== RESET JOGOS (inicializador) ===== -->
+                <!-- ===== TRANAL JOGOS (inicializador) ===== -->
                 <Grid x:Name="PageLauncher" Margin="36,30,36,30" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="320"/>
@@ -1203,7 +1203,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Margin="0,0,0,14">
-                            <TextBlock Text="RESET JOGOS" Style="{StaticResource H1}"/>
+                            <TextBlock Text="TRANAL JOGOS" Style="{StaticResource H1}"/>
                             <TextBlock x:Name="LGameCount" Text="Procurando seus jogos…" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Margin="0,0,0,10">
@@ -1317,7 +1317,7 @@
                                 <StackPanel>
                                     <TextBlock Text="PROGRAMAS AUXILIARES" Style="{StaticResource Label}"/>
                                     <TextBlock Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,10">
-                                        Ferramentas de terceiros que abrem antes do jogo (monitoramento, comandos, mixer de áudio, script...). O RESET JOGOS as abre
+                                        Ferramentas de terceiros que abrem antes do jogo (monitoramento, comandos, mixer de áudio, script...). O TRANAL JOGOS as abre
                                         sozinho ao clicar em JOGAR e pode fechá-las junto com o jogo. Nada é escrito nas opções da Steam.
                                     </TextBlock>
                                     <ItemsControl x:Name="LHelpers">
@@ -1748,7 +1748,7 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== RESET BENCH ===== -->
+                <!-- ===== TRANAL BENCH ===== -->
                 <Grid x:Name="PageBench" Margin="36,30,36,30" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1756,7 +1756,7 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <StackPanel Margin="0,0,0,16">
-                        <TextBlock Text="RESET BENCH" Style="{StaticResource H1}"/>
+                        <TextBlock Text="TRANAL BENCH" Style="{StaticResource H1}"/>
                         <TextBlock x:Name="BenchSub" Text="Benchmark de CPU por renderização 3D (path tracing), no mesmo princípio do Cinebench" Style="{StaticResource Sub}"/>
                     </StackPanel>
 
@@ -2219,11 +2219,11 @@
                     </Grid>
                 </Grid>
 
-                <!-- ===== RESET OTIMIZA ===== -->
+                <!-- ===== TRANAL OTIMIZA ===== -->
                 <ScrollViewer x:Name="PageOptimize" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="36,30,36,30">
                         <StackPanel Margin="0,0,0,20">
-                            <TextBlock Text="RESET OTIMIZA" Style="{StaticResource H1}"/>
+                            <TextBlock Text="TRANAL OTIMIZA" Style="{StaticResource H1}"/>
                             <TextBlock Text="Libera memória, fecha o que atrapalha e ajusta o Windows para jogos" Style="{StaticResource Sub}"/>
                         </StackPanel>
 
@@ -2252,7 +2252,7 @@
                                     </TextBlock>
                                     <TextBlock x:Name="OptResult" TextWrapping="Wrap" Margin="0,10,0,0"/>
                                 </StackPanel>
-                                <Button x:Name="BtnOptimize" Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="RESET OTIMIZA"
+                                <Button x:Name="BtnOptimize" Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="TRANAL OTIMIZA"
                                         FontSize="16" Padding="34,16" VerticalAlignment="Center" Click="BtnOptimize_Click"/>
                             </Grid>
                         </Border>
@@ -2478,7 +2478,7 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== RESET MAKER · Portas COM (fantasmas e números COM presos) ===== -->
+                <!-- ===== TRANAL MAKER · Portas COM (fantasmas e números COM presos) ===== -->
                 <ScrollViewer x:Name="PageMakerPorts" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="36,30,36,30">
                         <StackPanel Margin="0,0,0,20">
@@ -2550,7 +2550,7 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== RESET MAKER · Drivers seriais (CH340, CP210x, FTDI, Prolific, Arduino) ===== -->
+                <!-- ===== TRANAL MAKER · Drivers seriais (CH340, CP210x, FTDI, Prolific, Arduino) ===== -->
                 <ScrollViewer x:Name="PageMakerDrv" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="36,30,36,30">
                         <Grid Margin="0,0,0,20">
@@ -2618,7 +2618,7 @@
                                             HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMakerBundleAll_Click"/>
                                 </Grid>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
-                                    Drivers oficiais de cada fabricante que já vêm dentro do RESET EXPLODE: instalam sem internet, ideal logo depois
+                                    Drivers oficiais de cada fabricante que já vêm dentro do TRANAL SENTINEL: instalam sem internet, ideal logo depois
                                     de formatar. Pode instalar com a placa desconectada; o Windows usa o driver quando ela for plugada.
                                     Os drivers Arduino são assinados pela Arduino (não pela Microsoft): o Windows pode pedir confirmação.
                                 </TextBlock>
@@ -2712,11 +2712,11 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== RESET OC ===== -->
+                <!-- ===== TRANAL OC ===== -->
                 <ScrollViewer x:Name="PageOc" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="36,30,36,30">
                         <StackPanel Margin="0,0,0,20">
-                            <TextBlock Text="RESET OC" Style="{StaticResource H1}"/>
+                            <TextBlock Text="TRANAL OC" Style="{StaticResource H1}"/>
                             <TextBlock Text="Ajustes da GPU, verificador de estabilidade e guia de overclock na BIOS" Style="{StaticResource Sub}"/>
                         </StackPanel>
 

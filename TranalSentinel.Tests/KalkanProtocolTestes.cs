@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace ResetExplode.Tests;
+namespace TranalSentinel.Tests;
 
 /// <summary>
 /// Testes do protocolo do visor Kalkan (firmware 1.2).
@@ -8,7 +8,7 @@ namespace ResetExplode.Tests;
 /// Os vetores dourados vêm da análise do binário oficial
 /// "Kalkan PC SmartMonitor DZ V1.2.exe", publicada no projeto aberto
 /// kalkan-monitor-rs (MIT). Se um quadro embaralhado aqui não bate byte a byte
-/// com o vetor, o visor não vai entender o que o RESET EXPLODE manda.
+/// com o vetor, o visor não vai entender o que o TRANAL SENTINEL manda.
 /// </summary>
 public class KalkanProtocolTestes
 {
