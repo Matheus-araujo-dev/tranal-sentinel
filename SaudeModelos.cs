@@ -48,7 +48,7 @@ public sealed class RelatorioSaude
     public List<TravamentoInfo> Travamentos { get; } = new();
 
     /// <summary>Apps que falharam na janela de cada travamento (contagem).</summary>
-    public Dictionary<string, int> AppsNoBoot { get; } = new();
+    public List<AppFalhouInfo> AppsNoBoot { get; } = new();
 
     /// <summary>Dados brutos coletados, para a interface mostrar o contexto.</summary>
     public ColetaSaude Dados { get; init; } = new();
@@ -115,6 +115,52 @@ public sealed class DispositivoOrfao
 }
 
 /// <summary>
+/// Um NVMe encontrado no PC, com a topologia de onde ele está pendurado.
+///
+/// A coleta traz só fatos; quem decide se o disco está num soquete da
+/// placa-mãe ou numa placa adaptadora é a regra
+/// (<see cref="SaudeRegras.NvmeEhAdaptador"/>).
+/// </summary>
+public sealed class InfoNvme
+{
+    /// <summary>Nome do disco (como o Windows mostra no Gerenciador de Dispositivos).</summary>
+    public string Nome { get; init; } = "";
+
+    /// <summary>Status do dispositivo no PnP ("OK" quando está funcionando).</summary>
+    public string Status { get; init; } = "";
+
+    /// <summary>Instance ID do controller NVMe que comanda o disco.</summary>
+    public string Controller { get; init; } = "";
+
+    /// <summary>Ponte PCIe onde o controller está pendurado (o "soquete" de fato).</summary>
+    public string PaiDoController { get; init; } = "";
+
+    /// <summary>Caminho de localização PCI do controller (ex.: PCIROOT(0)#PCI(0101)#PCI(0000)).</summary>
+    public string Localizacao { get; init; } = "";
+}
+
+/// <summary>
+/// App que falhou na janela de um travamento.
+///
+/// A contagem é por travamento (o mesmo app pode gerar 1000 e 1002 na mesma
+/// janela e contaria duas vezes).
+/// </summary>
+public sealed class AppFalhouInfo
+{
+    /// <summary>Nome do executável que falhou.</summary>
+    public string Nome { get; init; } = "";
+
+    /// <summary>Em quantos travamentos esse app falhou.</summary>
+    public int Vezes { get; init; }
+
+    /// <summary>
+    /// Se o programa ainda está instalado (procurado no registro de programas).
+    /// null = não deu para saber.
+    /// </summary>
+    public bool? AindaInstalado { get; init; }
+}
+
+/// <summary>
 /// Fotografia do estado do sistema, somente leitura.
 /// É o insumo das regras: coleta e análise ficam separadas para que as
 /// regras possam ser testadas sem tocar no Windows.
@@ -123,7 +169,7 @@ public sealed class ColetaSaude
 {
     // travamentos e histórico
     public List<TravamentoInfo> Travamentos { get; } = new();
-    public Dictionary<string, int> AppsQueFalharam { get; } = new();
+    public List<AppFalhouInfo> AppsQueFalharam { get; } = new();
     public int EventosWhea { get; set; }
     public int Minidumps { get; set; }
     public int ResetsDriverVideo { get; set; }
@@ -135,7 +181,7 @@ public sealed class ColetaSaude
     // discos
     public List<DiscoInfo> Discos { get; } = new();
     public List<DispositivoOrfao> Orfaos { get; } = new();
-    public bool NvmeEmAdaptador { get; set; }
+    public List<InfoNvme> Nvmes { get; } = new();
 
     // segurança
     public string? ModoDefender { get; set; }

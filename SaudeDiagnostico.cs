@@ -31,8 +31,7 @@ public static class SaudeDiagnostico
 
         relatorio.Travamentos.AddRange(dados.Travamentos);
 
-        foreach (var app in dados.AppsQueFalharam)
-            relatorio.AppsNoBoot[app.Key] = app.Value;
+        relatorio.AppsNoBoot.AddRange(dados.AppsQueFalharam);
 
         relatorio.Achados.AddRange(SaudeRegras.Avaliar(dados));
         return relatorio;

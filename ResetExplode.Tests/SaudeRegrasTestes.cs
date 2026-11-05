@@ -74,7 +74,7 @@ public class SaudeRegrasTestes
         var dados = Coleta();
         dados.Travamentos.Add(Travamento());
         dados.Travamentos.Add(Travamento());
-        dados.AppsQueFalharam["Kalkan.exe"] = 2;
+        dados.AppsQueFalharam.Add(new AppFalhouInfo { Nome = "Kalkan.exe", Vezes = 2 });
 
         var achados = SaudeRegras.Avaliar(dados);
         var achado = achados.FirstOrDefault(a => a.Mensagem.Contains("Kalkan.exe"));
@@ -84,13 +84,42 @@ public class SaudeRegrasTestes
     }
 
     [Fact]
+    public void AppDesinstalado_NAoMandaVerificarSeAindaCrasha()
+    {
+        var dados = Coleta();
+        dados.Travamentos.Add(Travamento());
+        dados.Travamentos.Add(Travamento());
+        dados.AppsQueFalharam.Add(new AppFalhouInfo { Nome = "Kalkan.exe", Vezes = 2, AindaInstalado = false });
+
+        var achado = SaudeRegras.Avaliar(dados).FirstOrDefault(a => a.Mensagem.Contains("Kalkan.exe"));
+
+        Assert.NotNull(achado);
+        Assert.Contains("Não encontrei mais", achado.Acao);
+        Assert.DoesNotContain("reexecuta no boot", achado.Acao);
+    }
+
+    [Fact]
+    public void AppAindaInstalado_ContinuaMandandoVerificarOBoot()
+    {
+        var dados = Coleta();
+        dados.Travamentos.Add(Travamento());
+        dados.Travamentos.Add(Travamento());
+        dados.AppsQueFalharam.Add(new AppFalhouInfo { Nome = "Kalkan.exe", Vezes = 2, AindaInstalado = true });
+
+        var achado = SaudeRegras.Avaliar(dados).FirstOrDefault(a => a.Mensagem.Contains("Kalkan.exe"));
+
+        Assert.NotNull(achado);
+        Assert.Contains("reexecuta no boot", achado.Acao);
+    }
+
+    [Fact]
     public void AppQueFalhaEmPoucosTravamentos_NaoGeraAchado()
     {
         var dados = Coleta();
         dados.Travamentos.Add(Travamento());
         dados.Travamentos.Add(Travamento());
         dados.Travamentos.Add(Travamento());
-        dados.AppsQueFalharam["Kalkan.exe"] = 1;
+        dados.AppsQueFalharam.Add(new AppFalhouInfo { Nome = "Kalkan.exe", Vezes = 1 });
 
         var achados = SaudeRegras.Avaliar(dados);
         Assert.DoesNotContain(achados, a => a.Mensagem.Contains("Kalkan.exe"));
@@ -162,10 +191,58 @@ public class SaudeRegrasTestes
     {
         var dados = Coleta();
         dados.AspmAc = 0;
-        dados.NvmeEmAdaptador = true;
+        dados.Nvmes.Add(new InfoNvme
+        {
+            Nome = "Netac NVMe SSD 1TB",
+            Controller = "PCI\\VEN_126F&DEV_2262",
+            PaiDoController = "PCI\\VEN_1B21&DEV_2262",
+            Localizacao = "PCIROOT(0)#PCI(0101)#PCI(0000)#PCI(0000)"
+        });
 
         var achados = SaudeRegras.Avaliar(dados);
-        Assert.Contains(achados, a => a.Area == "PCIe/ASPM" && a.Mensagem.Contains("adaptador"));
+        Assert.Contains(achados, a => a.Area == "PCIe/ASPM" && a.Mensagem.Contains("adaptadora"));
+    }
+
+    [Fact]
+    public void NvmeNoSoqueteDaPlacaNaoGeraAchadoDeAdaptador()
+    {
+        // Topologia real desta maquina: NVMe no slot M.2 da propria placa
+        // (ponte do chipset AMD, 3 degraus no caminho PCI).
+        var dados = Coleta();
+        dados.AspmAc = 0;
+        dados.Nvmes.Add(new InfoNvme
+        {
+            Nome = "Netac NVMe SSD 1TB",
+            Controller = "PCI\\VEN_126F&DEV_2262&SUBSYS_2262126F&REV_03\\4&2B5FE750&0&0009",
+            PaiDoController = "PCI\\VEN_1022&DEV_1483&SUBSYS_12341022&REV_00\\3&11583659&0&09",
+            Localizacao = "PCIROOT(0)#PCI(0101)#PCI(0000)"
+        });
+
+        var achados = SaudeRegras.Avaliar(dados);
+        Assert.DoesNotContain(achados, a => a.Area == "PCIe/ASPM" && a.Mensagem.Contains("adaptadora"));
+    }
+
+    [Theory]
+    // 3 degraus (PCIROOT/PCI/PCI) = direto num soquete da placa-mãe.
+    [InlineData("PCIROOT(0)#PCI(0101)#PCI(0000)", "PCI\\VEN_1022&DEV_1483", false)]
+    // 4 degraus = atrás de um dispositivo PCIe (placa adaptadora).
+    [InlineData("PCIROOT(0)#PCI(0101)#PCI(0000)#PCI(0000)", "PCI\\VEN_1B21&DEV_1170", true)]
+    // Sem caminho de localizacao: decide pela ponte (VEN_1022 = placa da AMD).
+    [InlineData("", "PCI\\VEN_1022&DEV_1483", false)]
+    [InlineData("", "PCI\\VEN_1B21&DEV_1170", true)]
+    // Sem nenhum dos dois: não dá para afirmar nada.
+    [InlineData("", "", false)]
+    public void DeteccaoDeAdaptadorUsaTopologiaReal(string localizacao, string paiDoController, bool esperado)
+    {
+        Assert.Equal(esperado, SaudeRegras.NvmeEhAdaptador(paiDoController, localizacao));
+    }
+
+    [Fact]
+    public void CaminhoDeLocalizacaoComAcpINaoContaComoDegrau()
+    {
+        // O caminho ACPI paralelo nao descreve a topologia PCIe.
+        string caminho = "PCIROOT(0)#PCI(0101)#PCI(0000); ACPI(_SB_)#ACPI(PCI0)#ACPI(GPP0)#ACPI(D047)";
+        Assert.False(SaudeRegras.NvmeEhAdaptador("PCI\\VEN_1022&DEV_1483", caminho));
     }
 
     [Theory]

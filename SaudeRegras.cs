@@ -78,15 +78,17 @@ public static class SaudeRegras
 
         // App que falha junto de quase todo travamento: costuma reexecutar no boot,
         // então atrasa o sistema — mas raramente é a causa do congelamento.
-        foreach (var app in c.AppsQueFalharam.OrderByDescending(a => a.Value).Take(3))
+        foreach (var app in c.AppsQueFalharam.OrderByDescending(a => a.Vezes).Take(3))
         {
-            if (app.Value < c.Travamentos.Count * 0.8) continue;
+            if (app.Vezes < c.Travamentos.Count * 0.8) continue;
             saida.Add(new Achado
             {
                 Severidade = Severidade.Informativo,
                 Area = "Travamentos",
-                Mensagem = $"'{app.Key}' aparece em {app.Value} de {c.Travamentos.Count} travamentos",
-                Acao = "Provavelmente reexecuta no boot: verifique se crasha mesmo após reinício limpo"
+                Mensagem = $"'{app.Nome}' aparece em {app.Vezes} de {c.Travamentos.Count} travamentos",
+                Acao = app.AindaInstalado == false
+                    ? "Não encontrei mais esse programa instalado: esses travamentos são antigos e não voltam por causa dele"
+                    : "Provavelmente reexecuta no boot: verifique se crasha mesmo após reinício limpo"
             });
         }
     }
@@ -146,18 +148,71 @@ public static class SaudeRegras
             });
         }
 
-        if (c.NvmeEmAdaptador)
+        foreach (var nvme in c.Nvmes)
         {
+            if (!NvmeEhAdaptador(nvme.PaiDoController, nvme.Localizacao)) continue;
             saida.Add(new Achado
             {
                 Severidade = Severidade.Alto,
                 Area = "PCIe/ASPM",
-                Mensagem = "NVMe conectado via adaptador M.2->PCIe (caminho do chipset)",
-                Acao = "Slots x1 do chipset + ASPM causam NVMe não aparecer em reinício a quente"
+                Mensagem = $"NVMe '{nvme.Nome}' conectado via placa adaptadora M.2->PCIe (caminho pelo chipset)",
+                Acao = "Encaixe o M.2 direto no soquete da placa-mãe (M.2_1 vem do CPU) ou desative ASPM/L1 Substates no BIOS"
             });
         }
     }
 
+    /// <summary>
+    /// Diz se um NVMe está numa placa adaptadora M.2-&gt;PCIe ou direto num soquete da placa-mãe.
+    ///
+    /// O disco pendurado num NVMe é sempre o próprio controller (e o controller
+    /// nunca é do fabricante da placa, então olhar o pai do disco não diz nada).
+    /// Quem diz é o que vem DEPOIS do controller:
+    ///
+    ///   • controller direto num soquete/porta da placa → a ponte onde ele está
+    ///     é da própria placa (VEN_1022 na AMD) e o caminho de localização tem
+    ///     3 degraus (PCIROOT/PCI/PCI);
+    ///   • controller numa placa adaptadora → a ponte é da própria placa
+    ///     adaptadora (outro fabricante) e o caminho tem 4 degraus ou mais.
+    ///
+    /// O caminho de localização manda quando existe; a ponte é o plano B.
+    /// </summary>
+    public static bool NvmeEhAdaptador(string? paiDoController, string? localizacao)
+    {
+        int degraus = GrausPcie(localizacao);
+        if (degraus >= 4) return true;
+        if (degraus == 3) return false;
+
+        if (!string.IsNullOrWhiteSpace(paiDoController))
+            return !paiDoController.Contains("VEN_1022", StringComparison.OrdinalIgnoreCase);
+
+        return false;
+    }
+
+    /// <summary>
+    /// Quantos degraus PCIe o caminho de localização tem (PCIROOT conta como um).
+    /// "PCIROOT(0)#PCI(0101)#PCI(0000)" = 3 (dispositivo direto na placa).
+    /// </summary>
+    private static int GrausPcie(string? localizacao)
+    {
+        if (string.IsNullOrWhiteSpace(localizacao)) return 0;
+
+        // Só o caminho que começa em PCIROOT descreve a topologia PCIe;
+        // o caminho ACPI paralelo não serve para contar degraus.
+        var caminho = localizacao
+            .Split(';', '|')
+            .FirstOrDefault(p => p.Contains("PCIROOT(", StringComparison.OrdinalIgnoreCase));
+        if (caminho == null) return 0;
+
+        int degraus = 0;
+        foreach (var parte in caminho.Split('#'))
+        {
+            string t = parte.Trim();
+            if (t.StartsWith("PCIROOT(", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("PCI(", StringComparison.OrdinalIgnoreCase))
+                degraus++;
+        }
+        return degraus;
+    }
     // -------------------------------------------------------------------- discos
 
     private static void Discos(ColetaSaude c, List<Achado> saida)

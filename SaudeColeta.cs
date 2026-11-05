@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Management;
 using System.Text.RegularExpressions;
+using Microsoft.Win32;
 
 namespace ResetExplode;
 
@@ -69,6 +70,11 @@ internal static class SaudeColeta
 
         // Quem falhou na janela de cada travamento: costuma ser o app que roda no
         // boot, não a causa do congelamento.
+        //
+        // A conta é por TRAVAMENTO (e não por evento): o mesmo app pode gerar
+        // 1000 e 1002 na mesma janela, e aí contaria duas vezes. O script de
+        // linha de comando conta do mesmo jeito.
+        var falhas = new List<(string App, DateTime Data)>();
         SaudeEventos.Ler("Application", registro =>
         {
             if (registro.Id != 1000 && registro.Id != 1002) return;
@@ -78,11 +84,66 @@ internal static class SaudeColeta
 
             var app = e.Valor(0) ?? "";
             if (!EhNomeDeExecutavel(app)) return;
-            if (!dados.Travamentos.Any(t => Math.Abs((e.Data - t.Data).TotalMinutes) <= 20)) return;
 
-            dados.AppsQueFalharam.TryGetValue(app, out var n);
-            dados.AppsQueFalharam[app] = n + 1;
+            falhas.Add((app, e.Data));
         });
+
+        var contagem = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var travamento in dados.Travamentos)
+        {
+            var appsDaJanela = falhas
+                .Where(f => Math.Abs((f.Data - travamento.Data).TotalMinutes) <= 20)
+                .Select(f => f.App)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var app in appsDaJanela)
+                contagem[app] = contagem.TryGetValue(app, out var n) ? n + 1 : 1;
+        }
+
+        foreach (var (app, vezes) in contagem)
+            dados.AppsQueFalharam.Add(new AppFalhouInfo
+            {
+                Nome = app,
+                Vezes = vezes,
+                AindaInstalado = ProgramaInstalado(app)
+            });
+    }
+
+    /// <summary>
+    /// Procura o programa no registro de desinstalação para saber se ele ainda
+    /// está instalado. Serve para não mandar o usuário investigate um programa
+    /// que já foi desinstalado (o registro só cobre programas registrados, então
+    /// false significa "não achei", não "não existe").
+    /// </summary>
+    private static bool? ProgramaInstalado(string nomeExe)
+    {
+        try
+        {
+            string alvo = nomeExe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                ? nomeExe[..^4]
+                : nomeExe;
+            if (alvo.Length < 3) return null;
+
+            foreach (var hive in new[] { RegistryHive.LocalMachine, RegistryHive.CurrentUser })
+            {
+                foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+                {
+                    using var chave = RegistryKey.OpenBaseKey(hive, view)
+                        .OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
+                    if (chave == null) continue;
+
+                    foreach (var sub in chave.GetSubKeyNames())
+                    {
+                        using var item = chave.OpenSubKey(sub);
+                        string? nome = item?.GetValue("DisplayName") as string;
+                        if (string.IsNullOrWhiteSpace(nome)) continue;
+                        if (nome.IndexOf(alvo, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                    }
+                }
+            }
+            return false;
+        }
+        catch { return null; }
     }
 
     /// <summary>Eventos 1000/1002 trazem o nome do app; mensagens soltas não interessam.</summary>
@@ -119,7 +180,7 @@ internal static class SaudeColeta
 
         try
         {
-            dados.NvmeEmAdaptador = NvmePassaPorAdaptador();
+            ColetarNvmes(dados);
         }
         catch { }
     }
@@ -170,35 +231,61 @@ internal static class SaudeColeta
     }
 
     /// <summary>
-    /// True quando o NVMe está atrás de um adaptador M.2-&gt;PCIe (e não direto no soquete).
-    /// O sinal é o pai do disco: se o pai não for o chipset AMD (VEN_1022), há adaptador.
+    /// Levanta os NVMe do PC com a topologia de onde cada um está pendurado:
+    /// disco → controller NVMe → ponte PCIe → caminho de localização.
+    ///
+    /// Quem julga se há placa adaptadora é a regra; aqui são só fatos.
     /// </summary>
-    private static bool NvmePassaPorAdaptador()
+    private static void ColetarNvmes(ColetaSaude dados)
     {
-        try
+        using var busca = new ManagementObjectSearcher(
+            "SELECT Name, DeviceID, Status FROM Win32_PnPEntity WHERE PNPClass='DiskDrive'");
+
+        foreach (ManagementObject disco in busca.Get())
         {
-            using var busca = new ManagementObjectSearcher(
-                "SELECT Name, DeviceID FROM Win32_PnPEntity WHERE PNPClass='DiskDrive'");
+            var nome = disco["Name"]?.ToString() ?? "";
+            if (!nome.Contains("NVMe", StringComparison.OrdinalIgnoreCase) &&
+                !nome.Contains("NVM Express", StringComparison.OrdinalIgnoreCase)) continue;
 
-            foreach (ManagementObject disco in busca.Get())
+            // O pai do disco é o controller NVMe; o pai do controller é a ponte
+            // onde ele está de fato pendurado.
+            string controller = PropriedadePnp(disco["DeviceID"]?.ToString() ?? "", "DEVPKEY_Device_Parent") ?? "";
+            string paiDoController = controller.Length > 0
+                ? PropriedadePnp(controller, "DEVPKEY_Device_Parent") ?? ""
+                : "";
+            string localizacao = controller.Length > 0
+                ? PropriedadePnpMultiplas(controller, "DEVPKEY_Device_LocationPaths") ?? ""
+                : "";
+
+            dados.Nvmes.Add(new InfoNvme
             {
-                var nome = disco["Name"]?.ToString() ?? "";
-                if (!nome.Contains("NVMe", StringComparison.OrdinalIgnoreCase) &&
-                    !nome.Contains("NVM Express", StringComparison.OrdinalIgnoreCase)) continue;
-
-                var pai = PropriedadePnp(disco["DeviceID"]?.ToString() ?? "", "DEVPKEY_Device_Parent");
-                if (string.IsNullOrWhiteSpace(pai)) continue;
-
-                // VEN_1022 = AMD (chipset/CPU). Fora disso, o NVMe está em adaptador.
-                return !pai.Contains("VEN_1022", StringComparison.OrdinalIgnoreCase);
-            }
+                Nome = nome,
+                Status = disco["Status"]?.ToString() ?? "",
+                Controller = controller,
+                PaiDoController = paiDoController,
+                Localizacao = localizacao
+            });
         }
-        catch { }
-        return false;
     }
 
     /// <summary>Lê uma DEVPKEY de um dispositivo PnP (mesma técnica usada pelo GpuInfoCollector).</summary>
     private static string? PropriedadePnp(string deviceId, string chave)
+    {
+        return PropriedadePnpBruta(deviceId, chave)?.ToString();
+    }
+
+    /// <summary>
+    /// Lê uma DEVPKEY que pode ter vários valores (LocationPaths, por exemplo) e
+    /// devolve tudo numa string só, separado por "; ".
+    /// </summary>
+    private static string? PropriedadePnpMultiplas(string deviceId, string chave)
+    {
+        object? bruto = PropriedadePnpBruta(deviceId, chave);
+        if (bruto is string[] varios) return string.Join("; ", varios);
+        return bruto?.ToString();
+    }
+
+    private static object? PropriedadePnpBruta(string deviceId, string chave)
     {
         if (deviceId.Length == 0) return null;
         try
@@ -214,7 +301,7 @@ internal static class SaudeColeta
             if (saida?["deviceProperties"] is ManagementBaseObject[] propriedades)
                 foreach (var p in propriedades)
                     if (p["KeyName"] is string k && k == chave)
-                        return p["Data"]?.ToString();
+                        return p["Data"];
         }
         catch { }
         return null;

@@ -126,11 +126,11 @@ public partial class MainWindow
 
         if (relatorio.AppsNoBoot.Count > 0)
         {
-            var top = relatorio.AppsNoBoot.OrderByDescending(a => a.Value).Take(3);
+            var top = relatorio.AppsNoBoot.OrderByDescending(a => a.Vezes).Take(3);
             resumo.Add(new InfoNode
             {
                 Header = "Apps que falham junto dos travamentos",
-                Value = string.Join(", ", top.Select(a => $"{a.Key} ({a.Value}x)"))
+                Value = string.Join(", ", top.Select(a => $"{a.Nome} ({a.Vezes}x)"))
             });
         }
 
