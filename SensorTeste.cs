@@ -67,6 +67,8 @@ internal static class SensorTeste
                     linhas.Add($"Mortes do processo: {monitor.MortesProcesso}");
                     foreach (var hw in monitor.Rows.Select(r => r.Hardware).Distinct())
                         linhas.Add($"  - {hw}");
+                    if (!string.IsNullOrWhiteSpace(monitor.ErroColeta))
+                        linhas.Add($"Erro geral da coleta: {monitor.ErroColeta}");
                     if (monitor.Falhas.Count > 0)
                     {
                         linhas.Add("Falhas na coleta:");

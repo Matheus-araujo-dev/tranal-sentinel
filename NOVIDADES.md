@@ -1,3 +1,34 @@
+## Novidades da v0.19 — os sensores voltaram (e o app parou de culpar o PawnIO)
+
+**O defeito**
+- O app mostrava **"O PawnIO está instalado, mas a leitura falhou"** e nenhum sensor
+  aparecia, mesmo com o PawnIO instalado e funcionando.
+- A causa não era o driver: o LibreHardwareMonitor devolve `infinito` para sensores que
+  não sabem o valor (o clock de um núcleo ocioso, por exemplo). O JSON não aceita
+  infinito, então a gravação da leitura estourava — e o processo de coleta, que engolia
+  o erro, **nunca gravava o arquivo**. Sem arquivo, zero sensores, e o app concluía que o
+  driver tinha falhado.
+
+**A correção**
+- O valor não finito vira **nulo na origem** (regra única, `SensorValor`), e a
+  serialização aceita literal nomeado nos dois lados — assim um arquivo antigo também
+  é lido sem derrubar o app.
+- Medido nesta máquina: de **0 para 340 sensores lidos** (CPU, GPU, discos, rede).
+- O processo de coleta não engole mais o erro: ele grava o motivo no arquivo.
+
+**O aviso passa a dizer a verdade**
+- O motivo da falha que derrubou a coleta é gravado separado das falhas de um
+  hardware só, e aparece no aviso: em vez de "O driver não respondeu", o menu mostra
+  **"Falha na coleta: <o erro de verdade>"** (e a janela CORRIGIR mostra o detalhe).
+- Sem elevação ou sem driver instalado, o motivo conhecido continua valendo mais que
+  qualquer erro registrado.
+
+**Identidade**
+- O cabeçalho do programa mostra **TRANAL SENTINEL** (ainda estava "RESET EXPLODE").
+- O relatório exportado e a cópia de segurança da biblioteca de jogos usam o nome novo.
+
+---
+
 ## Novidades da v0.18 — o instalador deixa você escolher onde instalar
 
 **Pasta de instalação à escolha**

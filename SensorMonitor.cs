@@ -18,8 +18,22 @@ public sealed record SensorReading(
     float? Min,
     float? Max);
 
-/// <summary>Resultado de uma volta da coleta: as leituras e o que deu errado nela.</summary>
-public sealed record SensorSnapshot(IReadOnlyList<SensorReading> Leituras, IReadOnlyList<string> Falhas, DateTime Momento);
+/// <summary>
+/// Resultado de uma volta da coleta: as leituras e o que deu errado nela.
+/// </summary>
+/// <param name="Leituras">As leituras que deram certo.</param>
+/// <param name="Falhas">Hw que não pôde ser aberto (um por hw). Não impede as outras leituras.</param>
+/// <param name="Momento">Quando a volta foi feita.</param>
+/// <param name="ErroGeral">
+/// A coleta inteira parou (o processo filho caiu ou deu erro). Differe de
+/// <paramref name="Falhas"/>: aqui não há leitura nenhuma, e é este texto que
+/// o app mostra como motivo quando a CPU não responde.
+/// </param>
+public sealed record SensorSnapshot(
+    IReadOnlyList<SensorReading> Leituras,
+    IReadOnlyList<string> Falhas,
+    DateTime Momento,
+    string? ErroGeral = null);
 
 /// <summary>
 /// Os sensores do TRANAL SENTINEL.
@@ -97,7 +111,10 @@ public sealed class SensorMonitor : IDisposable
     /// <summary>Hardwares que falharam na última coleta (com o motivo).</summary>
     public IReadOnlyList<string> Falhas { get; private set; } = Array.Empty<string>();
 
-    /// <summary>Erro na coleta (vindo do processo filho).</summary>
+    /// <summary>
+    /// Erro que derrubou a coleta inteira (vindo do processo filho).
+    /// Vazio quando a coleta funcionou — mesmo que algum hw específico tenha falhado.
+    /// </summary>
     public string? ErroColeta { get; private set; }
 
     /// <summary>
@@ -265,6 +282,58 @@ public sealed class SensorMonitor : IDisposable
         _ => ""
     };
 
+    /// <summary>
+    /// O rótulo curto do aviso, por motivo.
+    ///
+    /// <para>
+    /// É a única fonte desses textos: o menu, o painel e a janela de correção
+    /// consomem daqui, em vez de cada um ter o seu <c>switch</c>.
+    /// </para>
+    /// </summary>
+    public static string ResumoCpuSensor(CpuSensorProblem p) => p switch
+    {
+        CpuSensorProblem.NotElevated => "Sem permissão de administrador.",
+        CpuSensorProblem.PawnIOMissing => "Falta o driver PawnIO.",
+        CpuSensorProblem.ReadFailed => "O driver não respondeu.",
+        _ => ""
+    };
+
+    /// <summary>
+    /// O texto do aviso no menu — a regra em si: o estado entra por parâmetro.
+    ///
+    /// <para>
+    /// Quando a coleta contou por que parou, esse motivo real vale mais que o
+    /// genérico — é o que evita culpar o driver quando o defeito está em outro
+    /// lugar. Só entra no lugar de "a leitura falhou": sem elevação ou sem
+    /// driver, o motivo conhecido é mais exato que qualquer erro registrado.
+    /// </para>
+    /// </summary>
+    public static string TextoAvisoCpuSensor(CpuSensorProblem p, string? erroGeral)
+    {
+        if (p == CpuSensorProblem.None) return "";
+        if (p == CpuSensorProblem.ReadFailed && !string.IsNullOrWhiteSpace(erroGeral))
+            return "Falha na coleta: " + erroGeral;
+        return ResumoCpuSensor(p);
+    }
+
+    /// <summary>
+    /// O texto da janela de correção: o motivo provável e, se houver, o erro real.
+    /// </summary>
+    public static string TextoExplicacaoCpuSensor(CpuSensorProblem p, string? erroGeral)
+    {
+        if (p == CpuSensorProblem.None) return "";
+        string texto = Explain(p);
+        if (p == CpuSensorProblem.ReadFailed && !string.IsNullOrWhiteSpace(erroGeral))
+            texto += " A coleta parou com este erro: " + erroGeral + ".";
+        return texto;
+    }
+
+    /// <summary>O aviso do menu, com o estado atual da coleta.</summary>
+    public string AvisoCpuSensor() => TextoAvisoCpuSensor(DiagnoseCpuSensors(), ErroColeta);
+
+    /// <summary>A explicação da janela de correção, com o estado atual da coleta.</summary>
+    public string ExplicarCpuSensor() => TextoExplicacaoCpuSensor(DiagnoseCpuSensors(), ErroColeta);
+
     // ---------------- processo filho ----------------
 
     private void IniciarFilho(bool usarGpu)
@@ -346,13 +415,13 @@ public sealed class SensorMonitor : IDisposable
             _ultimaLeituraArquivo = info.LastWriteTimeUtc;
 
             string json = File.ReadAllText(_arquivoLeituras);
-            var snap = JsonSerializer.Deserialize<SensorSnapshot>(json);
+            var snap = JsonSerializer.Deserialize<SensorSnapshot>(json, SensorValor.OpcoesJson);
             if (snap is null) return;
 
             Volatile.Write(ref _snapshot, snap);
             UltimaColeta = snap.Momento;
             Falhas = snap.Falhas;
-            ErroColeta = snap.Falhas.Count > 0 ? snap.Falhas[0] : null;
+            ErroColeta = snap.ErroGeral;
         }
         catch
         {

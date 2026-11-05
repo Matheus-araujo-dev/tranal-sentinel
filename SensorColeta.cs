@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO;
 using LibreHardwareMonitor.Hardware;
 
 namespace TranalSentinel;
@@ -117,7 +118,9 @@ internal sealed class SensorColeta : IDisposable
                     s.Name,
                     s.SensorType,
                     hw.HardwareType,
-                    s.Value, s.Min, s.Max));
+                    SensorValor.Finito(s.Value),
+                    SensorValor.Finito(s.Min),
+                    SensorValor.Finito(s.Max)));
             }
             catch
             {
@@ -141,6 +144,9 @@ internal sealed class SensorColeta : IDisposable
         }
     }
 
+    /// <summary>
+    /// Fecha a coleta: para o laço, espera a thread e fecha o hardware.
+    /// </summary>
     public void Dispose()
     {
         try { _cts.Cancel(); } catch { }

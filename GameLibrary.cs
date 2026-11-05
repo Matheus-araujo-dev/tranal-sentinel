@@ -236,7 +236,7 @@ public static class SteamInfo
             var apps = AppsNode(root, true)!;
             var app = apps.GetOrAddChild(appId);
             if (string.IsNullOrWhiteSpace(options)) app.Remove("LaunchOptions"); else app.Set("LaunchOptions", options.Trim());
-            File.Copy(f, f + ".resetexplode.bak", true); // cópia de segurança do arquivo original
+            File.Copy(f, f + ".tranal-sentinel.bak", true); // cópia de segurança do arquivo original
             File.WriteAllText(f, Vdf.Serialize(root), new System.Text.UTF8Encoding(false));
             return null;
         }

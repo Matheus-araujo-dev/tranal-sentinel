@@ -36,7 +36,12 @@ internal static class SensorWorker
         }
         catch (Exception ex)
         {
-            Gravar(caminhoLeituras, new SensorSnapshot(Array.Empty<SensorReading>(), new[] { "Falha ao abrir: " + ex.Message }, DateTime.Now));
+            // A coleta inteira não começou: o motivo fica no snapshot, para o app
+            // mostrar o que deu errado em vez de acusar o driver à toa.
+            // O texto é o motivo puro — quem mostra ele é que coloca o contexto.
+            Gravar(caminhoLeituras, new SensorSnapshot(
+                Array.Empty<SensorReading>(), Array.Empty<string>(), DateTime.Now,
+                ErroGeral: ex.GetType().Name + ": " + ex.Message));
             return;
         }
 
@@ -56,9 +61,20 @@ internal static class SensorWorker
                     if (snap != null) Gravar(caminhoLeituras, snap);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Falha ao gravar não derruba o filho: ele tenta de novo no próximo ciclo.
+                // A falha fica registrada no snapshot, para o app mostrar o motivo
+                // em vez de ficar sem sensores e sem explicação.
+                try
+                {
+                    Gravar(caminhoLeituras, new SensorSnapshot(
+                        Array.Empty<SensorReading>(), Array.Empty<string>(), DateTime.Now,
+                        ErroGeral: ex.GetType().Name + ": " + ex.Message));
+                }
+                catch
+                {
+                }
             }
             Thread.Sleep(700);
         }
@@ -83,7 +99,7 @@ internal static class SensorWorker
 
     private static void Gravar(string caminho, SensorSnapshot snapshot)
     {
-        string json = JsonSerializer.Serialize(snapshot);
+        string json = JsonSerializer.Serialize(snapshot, SensorValor.OpcoesJson);
         string temporario = caminho + ".tmp";
         File.WriteAllText(temporario, json);
         File.Move(temporario, caminho, true);   // atômico: o pai nunca lê pela metade

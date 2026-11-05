@@ -220,21 +220,15 @@ public partial class MainWindow : Window
     private void UpdateCpuSensorWarning()
     {
         if (!_monitor.IsOpen) return; // ainda detectando: não acusar falta de sensor antes da hora
-        var p = _monitor.DiagnoseCpuSensors();
-        CpuSensorWarn.Visibility = p == SensorMonitor.CpuSensorProblem.None ? Visibility.Collapsed : Visibility.Visible;
-        CpuSensorWarnText.Text = p switch
-        {
-            SensorMonitor.CpuSensorProblem.NotElevated => "Sem permissão de administrador.",
-            SensorMonitor.CpuSensorProblem.PawnIOMissing => "Falta o driver PawnIO.",
-            SensorMonitor.CpuSensorProblem.ReadFailed => "O driver não respondeu.",
-            _ => ""
-        };
+        string aviso = _monitor.AvisoCpuSensor();
+        CpuSensorWarn.Visibility = aviso.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        CpuSensorWarnText.Text = aviso;
     }
 
     private void BtnFixCpuSensors_Click(object sender, RoutedEventArgs e)
     {
         var p = _monitor.DiagnoseCpuSensors();
-        string why = SensorMonitor.Explain(p);
+        string why = _monitor.ExplicarCpuSensor();
         if (p != SensorMonitor.CpuSensorProblem.PawnIOMissing)
         {
             MessageBox.Show(why, "TRANAL SENTINEL", MessageBoxButton.OK, MessageBoxImage.Information);

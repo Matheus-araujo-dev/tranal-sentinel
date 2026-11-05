@@ -343,7 +343,7 @@ public partial class MainWindow
         {
             var sensors = _monitor.DiagnoseCpuSensors();
             list.Add(Item(sensors == SensorMonitor.CpuSensorProblem.None, "Sensores da CPU",
-                          "Temperatura e consumo disponíveis.", SensorMonitor.Explain(sensors).Split('.')[0] + "."));
+                          "Temperatura e consumo disponíveis.", SensorMonitor.ResumoCpuSensor(sensors)));
         }
 
         var errs = OcCheck.ErrorsSince(DateTime.Now.AddDays(-7));

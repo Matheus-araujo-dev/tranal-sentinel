@@ -74,6 +74,16 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   Trocar de pasta é uma **movimentação**: os arquivos do lugar antigo saem
   depois que a nova instalação está pronta, e a tarefa agendada e o atalho da
   área de trabalho não ficam órfãos apontando para o executável velho.
+- **O valor de um sensor só existe se for finito.** A regra mora em `SensorValor.Finito`
+  (não-finite vira `null`) e é aplicada na origem, na coleta — o JSON padrão não aceita
+  infinito, e uma leitura com infinito estourava a gravação, o processo de coleta
+  engolia o erro, o arquivo nunca era escrito e o app acabava acusando o PawnIO sem
+  motivo. `SensorValor.OpcoesJson` é o par de leitura e escrita; use-o nos dois lados.
+- **Falha da coleta inteira é diferente de hardware que falhou.** `SensorSnapshot.ErroGeral`
+  é o motivo que derrubou a coleta (vai para o aviso do menu); `SensorSnapshot.Falhas` é
+  um hardware que não abriu (as outras leituras continuam válidas). O texto do aviso
+  mora em `SensorMonitor.ResumoCpuSensor` / `TextoAvisoCpuSensor` / `TextoExplicacaoCpuSensor`
+  — o menu, o painel e a janela de correção consomem de lá, não cada um com o seu `switch`.
 - **A comparação de snapshots** (`Mudancas.Comparar`) é função pura e não tem
   I/O — é o que os testes cobrem.
 
@@ -99,6 +109,7 @@ auto-update procura.
 | `PoliticaRecursos.cs` | Perfil Completo / Equilibrado / Economia. Funções puras. |
 | `RegistroDiario.cs` | O log diário (um arquivo por dia). |
 | `Bandeja.cs` | Ícone na bandeja por P/Invoke direto (sem Windows Forms, que criaria ambiguidade de nomes). |
+| `SensorValor.cs` | Regra única do valor de sensor: finito ou nada (`Finito`) e as opções de JSON (`OpcoesJson`). |
 | `AutoUpdate.cs` / `Atualizador.cs` | Checagem de versão nova, download e troca do executável. |
 | `Tranal.Setup\` | O instalador (admin, atalhos, tarefa agendada, desinstalação). |
 | `Tranal.Setup\Dominio\DestinoInstalacao.cs` | Onde o app é instalado. Regra única do destino (pasta escolhida pelo usuário). |
