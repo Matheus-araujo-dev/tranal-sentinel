@@ -307,6 +307,7 @@ public partial class MainWindow : Window
             case "PageMakerDrv": InitMakerDrivers(); break;
             case "PageOptimize": InitOptimize(); break;
             case "PageSaude": InitSaude(); break;
+            case "PageMemoria": InitMemoria(); break;
             case "PageTimeline": InitTimeline(); break;
         }
     }

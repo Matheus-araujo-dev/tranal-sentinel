@@ -148,47 +148,98 @@ Campos serializados: `expo_profiles`, `amp_profiles`, `xmp_profiles`,
 O que o binário **não** tem: nenhum offset de byte do SPD (a leitura do SPD
 é feita pelo driver e devolvida pelo `DeviceIoControl`).
 
-## 7. O que falta (offsets do AMD AM5)
+## 7. O que a análise estática não entregou — e como foi resolvido
 
-O que a análise estática **não** entrega, porque exige descompilar código:
+A análise estática do CPU-Z **não** entrega os offsets do SPD, porque o
+binário não os traz: ele só exibe o que o driver devolveu. Três itens
+ficaram pendentes na primeira versão deste documento:
 
-1. **O BDF e o mapa de registradores do host SMBus no AM5** (Ryzen 7000).
-   O binário do exe imprime `SMBus, base address = 0x%X%X` — ele **descobre**
-   a base em tempo de execução. Para nós, isso significa: procurar o
-   controlador SMBus varrendo o configspace PCI (é o que o CPU-Z faz), e não
-   fixar um BDF.
-2. **Os offsets dos registradores de timing do UMC do AMD** (onde estão
-   CL/tRCD/tRP/tRAS/tRC/tRFC efetivos).
-3. **A sequência exata da transação SMBus** (o protocolo SMBus 2.0 "I2C block
-   read" com o endereço `0x50` do DIMM), incluindo os atrasos.
+1. **O BDF e o mapa de registradores do host SMBus** — resolvido sem
+   engenharia reversa: o módulo PawnIO do próprio projeto (PIIX4 para o AMD
+   FCH, I801 para a Intel) faz a busca do controlador. Não é preciso varrer
+   o configspace PCI à mão.
+2. **A sequência exata da transação SMBus** — resolvida pelo código público
+   do PawnIO e do RAMSPDToolkit: escrita de byte-data no endereço de
+   controle de página (0x36/0x37) e leitura de word para os dados.
+3. **Os offsets dos registradores de timing do UMC do AMD** (os timings
+   *ativos*) — **este continua de fora**: o app mostra o que o módulo
+   declara (JEDEC e XMP 2.0) e o clock que a BIOS configurou (via SMBIOS),
+   mas não lê os registradores do controlador de memória. É a diferença
+   entre o que o módulo *oferece* e o que está *ligado agora*.
 
-O item 1 é o mais importante e o mais fácil: a busca do controlador é
-genérica (o exe tem uma classe `CSMBusDevice` justamente para isso).
+## 8. Como ficou (implementado na v0.22)
 
-## 8. Como implementar (plano)
+| Peça | Onde | O que faz |
+|---|---|---|
+| `PawnIoTransporte.cs` | app | `DeviceIoControl` no driver PawnIO: carrega módulo e chama função |
+| `SmbusPawnIo.cs` | app | transações SMBus, seleção de porta do AMD FCH, mutex de serialize |
+| `SpdLeitor.cs` | app | lê as 2 páginas de 256 bytes de cada módulo e varre 0x50–0x57 |
+| `DecodificadorSpd.cs` | app | decodifica o SPD: identidade, capacidade, JEDEC, XMP 2.0 |
+| `MemoriaRegras.cs` | app | classifica: perfil ativo, padrão JEDEC, overclock manual, acima do perfil |
+| `MainWindow.Memoria.cs` | app | a aba TRANAL MEMÓRIA |
+| `MemoriaCli.cs` | app | `TranalSentinel.exe --memoria` (mesmo caminho, sem janela) |
+| `TranalSentinel.Tests/SpdTestes.cs` | testes | 17 testes sobre os 512 bytes reais do módulo |
 
-1. **Leitor de SMBus por PawnIO** (`LeitorSmbus.cs`):
-   - varre o configspace PCI atrás do host SMBus (AMD: dentro do Data Fabric;
-     Intel: ICH), lendo o base address;
-   - monta a transação SMBus 2.0 (endereço `0x50`, leitura de bloco).
-2. **Leitor de SPD** (`LeitorSpd.cs`): lê os 512 bytes do SPD (DDR5) e decodifica
-   pelo layout JEDEC (que é **público** — o binário do CPU-Z não traz os
-   offsets, porque ele só exibe).
-3. **Perfis**: XMP/EXPO/AMP ficam em páginas/offsets padrão do JEDEC
-   (a "profile page"); EPP é campo do perfil.
-4. **Timings ativos**: leitura dos registradores do controlador de memória
-   (no AMD, o UMC) via configspace PCI.
-5. **Apresentação**: uma aba "Memória" no TRANAL SAÚDE com a tabela de
-   timings, o perfil ativo e a comparação com o que o SPD declara suportar.
-6. **Regra de diagnóstico**: se o clock ativo estiver acima do que o perfil
-   JEDEC permite, o TRANAL SAÚDE passa a apontar "EXPO/XMP ativo" (informação,
-   não erro) — porque aí é escolha do usuário, não defeito.
+### Prova real (PC do owner)
 
-### Princípio
+Asgard VALKYRIE 32 GB (2×16 GB DDR4-3200) em Ryzen 7 5700X / AM4:
+
+- Endereços SMBus `0x52` e `0x53` → 2 módulos, 512 bytes cada.
+- JEDEC: **DDR4-2400**, CL 16, tAA 13,75 ns, tRAS 32 ns, tRC 45,75 ns,
+  tFAW 21 ns.
+- Perfil **XMP 2.0**: **3200 MT/s**, CL 18, tRAS 42 ciclos, 1,35 V.
+- Os 512 bytes viram a fixture dos testes (`TranalSentinel.Tests/Dados/`).
+
+Os números batem com o que o CPU-Z mostra para o mesmo módulo
+(`valid.x86.fr/pecrxz`: "Asgard 16384 MB (DDR4-2400) - XMP 2.0", timings
+ativos 18-20-20-42).
+
+### Mapa do DDR4 (conferido contra as folhas de SPD da Samsung)
+
+As folhas de SPD oficiais da Samsung (M391A1K43BB1-CRC00, um UDIMM
+DDR4-2400) têm os mesmos bytes do módulo do owner, e por isso serviram
+para conferir o decodificador inteiro:
+
+| Byte | Campo | Valor no módulo do owner |
+|---|---|---|
+| 0x02 | Tipo de DRAM | 0x0C (DDR4) |
+| 0x03 | Tipo de módulo | 0x02 (UDIMM) |
+| 0x04 | Densidade e bancos | 0x86 (16 Gb, 4 BG, 4 bancos) |
+| 0x05 | Endereçamento | 0x29 (18 linhas, 10 colunas) |
+| 0x0B | Tensão nominal | 0x03 (1,2 V) |
+| 0x0C | Organização do módulo | 0x01 (1Rx8) |
+| 0x0D | Largura do barramento | 0x03 (64 bits, sem ECC) |
+| 0x11 | Grades de tempo | 0x00 (MTB 125 ps, FTB 1 ps) |
+| 0x12 | tCK mínimo | 0x07 (875 ps → 2400 MT/s) |
+| 0x18 | tAA mínimo | 0x6E (110 → 13,75 ns) |
+| 0x1B | Nibbles de tRAS/tRC | 0x11 (tRAS 32 ns, tRC 45,75 ns) |
+
+Duas decisões de decodificação que vieram dessa conferência:
+
+- **O tCK do JEDEC é um byte só** (0x12), não dois. Por isso a velocidade
+  lida é sempre um pouco menor que a nominal (7 → 875 ps → 2286 MT/s), e
+  o decodificador casa o valor com a velocidade padrão mais próxima acima.
+- **O tipo de módulo está no byte 0x03**, não no 0x0E (esse é o sensor
+  térmico).
+
+### Princípio (mantido)
 
 > A regra fica em um lugar só e o resto consome. O diagnóstico continua
 > **somente leitura**: ler o SPD é leitura; escrever no controlador de
 > memória **não** entra no produto.
+
+### O que ainda não entra
+
+- **Instalar o driver PawnIO**: a feature depende dele estar instalado
+  (o dono já tem). Embutir o instalador do driver no TRANAL SENTINEL é
+  trabalho próprio, com confirmação, log e desfazer — fica para uma
+  versão própria.
+- **Timings ativos** (registradores do UMC do AMD): exige os offsets do
+  controlador de memória, que ainda não são públicos.
+- **EXPO**: o cabeçalho "EXPO" fica no offset 768 (1024 bytes de SPD). O
+  módulo do owner tem XMP 2.0, não EXPO; o decodificador de EXPO fica
+  para quando houver um módulo EXPO para testar.
+
 
 ## 9. Alternativas avaliadas
 
@@ -204,7 +255,10 @@ genérica (o exe tem uma classe `CSMBusDevice` justamente para isso).
 - Ferramentas: REA (`inspect_pe_resources`, `inspect_pe_imports`,
   `inspect_native_exports` — as portáteis; os providers de análise profunda
   não estavam configurados nesta máquina) e um extrator de strings em Python.
-- Nada foi instalado no PC e nada foi executado: a análise foi 100 % estática
-  sobre os arquivos baixados.
+- Nada do CPU-Z foi instalado nem executado no PC: a análise do binário foi
+  100 % estática. O que **foi** executado no PC foi a **sonda do PawnIO**,
+  escrita do zero a partir do protocolo público do driver: ela abriu o
+  dispositivo, carregou o módulo `SmbusPIIX4` e leu o SPD dos dois módulos
+  de memória do owner. Nada foi alterado: só leitura do SPD.
 - Os binários baixados ficam fora do repositório, em
   `workspace/_rea/cpuz/`.

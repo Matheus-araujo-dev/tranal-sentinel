@@ -503,6 +503,15 @@ internal static class SaudeColeta
             }
         }
         catch { }
+
+        // O SPD dos módulos (capacidades, timings e perfis XMP/EXPO) vem do
+        // barramento SMBus. Sem o driver PawnIO a lista fica vazia e as
+        // regras de memória continuam funcionando com o que o Windows informa.
+        try
+        {
+            dados.ModulosSpd.AddRange(MemoriaColeta.Coletar().Modulos);
+        }
+        catch { }
     }
 
     // ------------------------------------------------------------------ lentidão

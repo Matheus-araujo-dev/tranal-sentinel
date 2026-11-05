@@ -57,6 +57,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Módulos PawnIO (LGPL-2.1-or-later): são eles que falam SMBus e leem o SPD
+         dos módulos de memória. A licença e a origem estão em Assets\PawnIO. -->
+    <EmbeddedResource Include="Assets\PawnIO\*.bin" LogicalName="TranalSentinel.Assets.PawnIO.%(Filename)%(Extension)" />
+    <None Update="Assets\PawnIO\COPYING" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Assets\PawnIO\NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.8" />
     <PackageReference Include="System.Management" Version="10.0.2" />

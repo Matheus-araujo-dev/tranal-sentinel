@@ -317,6 +317,26 @@ public static class SaudeRegras
             });
         }
 
+        // Com o SPD em mãos, a memória é comparada com o que o próprio módulo
+        // oferece. A regra do "acima de 3200" do Ryzen 5000 só vale como
+        // reserva, para quando não sabemos o que o módulo tem gravado.
+        SpdModulo? modulo = c.ModulosSpd.FirstOrDefault()?.Modulo;
+        if (modulo != null)
+        {
+            int configurada = c.ModulosMemoria.Where(m => m.VelocidadeConfigMHz > 0)
+                                               .Select(m => m.VelocidadeConfigMHz)
+                                               .DefaultIfEmpty(0)
+                                               .Max();
+
+            if (configurada > 0)
+            {
+                Achado? achado = MemoriaRegras.Avaliar(configurada, modulo);
+                if (achado != null) saida.Add(achado);
+            }
+
+            return;
+        }
+
         foreach (var m in c.ModulosMemoria)
         {
             if (m.VelocidadeConfigMHz <= 3200) continue;

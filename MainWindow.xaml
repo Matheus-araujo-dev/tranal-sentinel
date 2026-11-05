@@ -269,6 +269,15 @@
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
+                            <ToggleButton x:Name="GrpMemoria" Style="{StaticResource NavGroup}" Content="TRANAL MEMÓRIA"/>
+                            <StackPanel x:Name="GrpMemoriaItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpMemoria, Converter={StaticResource BoolVis}}">
+                            <RadioButton x:Name="NavMemoria" Style="{StaticResource NavItem}" Tag="PageMemoria" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Módulos" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            </StackPanel>
                             <ToggleButton x:Name="GrpAssistente" Style="{StaticResource NavGroup}" Content="TRANAL ASSISTENTE"/>
                             <StackPanel x:Name="GrpAssistenteItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpAssistente, Converter={StaticResource BoolVis}}">
                             <RadioButton x:Name="NavTimeline" Style="{StaticResource NavItem}" Tag="PageTimeline" Checked="Nav_Checked">
@@ -1082,6 +1091,70 @@
 
                         <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
                             A análise é somente leitura: nada é instalado, alterado ou reiniciado. Os dados vêm do log de eventos do Windows, do WMI, do registro e da lista de inicialização automática.
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== TRANAL MEMÓRIA (SPD, timings e perfis de overclock) ===== -->
+                <ScrollViewer x:Name="PageMemoria" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Margin="0,0,190,0">
+                                <TextBlock Text="TRANAL MEMÓRIA" Style="{StaticResource H1}"/>
+                                <TextBlock Text="O que cada módulo de memória tem dentro: capacidades, tempos e perfis de overclock. Leitura pelo SMBus — nada do que está gravado na memória é alterado." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button x:Name="BtnMemoriaScan" Style="{StaticResource PrimaryButton}" Content="LER MÓDULOS" Padding="20,9"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMemoriaScan_Click"/>
+                        </Grid>
+                        <TextBlock x:Name="MemoriaStatus" Text="Clique em LER MÓDULOS para ler o SPD de cada módulo pelo SMBus. Nada do que está gravado na memória é alterado." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="RESUMO" Style="{StaticResource Label}"/>
+                                <ItemsControl x:Name="MemoriaResumo" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,8,16,8">
+                                                <TextBlock Text="{Binding Display}" TextWrapping="Wrap"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <ItemsControl x:Name="MemoriaModulos">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Titulo}" Style="{StaticResource Label}"/>
+                                            <TextBlock Text="{Binding Identidade}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                            <TextBlock Text="{Binding Detalhe}" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            <TextBlock Text="{Binding Padrao}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                            <TextBlock Text="{Binding Perfil}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            <ItemsControl ItemsSource="{Binding Tempos}" Margin="0,12,0,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,2,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="170"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Nome}" Foreground="{DynamicResource Muted}" Grid.Column="0"/>
+                                                            <TextBlock Text="{Binding Valor}" Grid.Column="1"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
+                            A leitura usa o driver PawnIO para conversar com o barramento SMBus do processador. O conteúdo gravado no módulo não é alterado: a única escrita é a troca de página do hub SPD, que é estado volátil do próprio hub.
                         </TextBlock>
                     </StackPanel>
                 </ScrollViewer>

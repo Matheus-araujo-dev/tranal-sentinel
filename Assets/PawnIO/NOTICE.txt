@@ -1,0 +1,32 @@
+TRANAL SENTINEL — módulos PawnIO embutidos
+===========================================
+
+Os arquivos SmbusPIIX4.bin e SmbusI801.bin são módulos do projeto
+"PawnIO.Modules" (https://github.com/namazso/PawnIO.Modules), carregados
+pelo driver PawnIO (https://github.com/namazso/PawnIO).
+
+Eles existem aqui para que o TRANAL SENTINEL consiga ler o SPD dos módulos
+de memória pelo barramento SMBus do processador — a mesma informação que o
+CPU-Z e o HWiNFO mostram.
+
+Licença
+-------
+Copyright (c) 2021 Steve-Tech (https://github.com/namazso)
+Copyright (c) 2024 PawnIO contributors
+
+Estes módulos são distribuídos sob a GNU Lesser General Public License,
+versão 2.1 ou posterior. O texto completo da licença está no arquivo
+COPYING, ao lado deste aviso.
+
+O que a LGPL exige e como foi cumprido
+---------------------------------------
+1. Os módulos são arquivos separados dentro do instalador do TRANAL SENTINEL.
+   Trocá-los por uma versão mais nova é só substituir o arquivo — nada
+   precisa ser recompilado.
+2. O código-fonte correspondente a cada módulo está no mesmo projeto:
+   https://github.com/namazso/PawnIO.Modules/blob/main/SmbusPIIX4.p
+   https://github.com/namazso/PawnIO.Modules/blob/main/SmbusI801.p
+3. Esta nota e o texto da licença acompanham a instalação.
+
+O TRANAL SENTINEL não modifica os módulos: ele apenas os carrega no driver
+PawnIO e chama as funções públicas deles.

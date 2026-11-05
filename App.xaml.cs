@@ -42,6 +42,13 @@ public partial class App : Application
             return;
         }
 
+        // Memória pela linha de comando: lê o SPD dos módulos e mostra em texto.
+        if (Array.Exists(e.Args, a => string.Equals(a, "--memoria", StringComparison.OrdinalIgnoreCase)))
+        {
+            Shutdown(MemoriaCli.Executar(e.Args));
+            return;
+        }
+
         // Processo filho da coleta de sensores: não abre janela e não trava
         // a instância única (é quem grava as leituras para o app pai ler).
         int indiceWorker = Array.FindIndex(e.Args, a => string.Equals(a, SensorWorker.Argumento, StringComparison.OrdinalIgnoreCase));

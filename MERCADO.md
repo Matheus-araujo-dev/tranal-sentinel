@@ -73,6 +73,7 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
 | **Ações de um clique** | (continuação do TRANAL SAÚDE) | A regra do diagnóstico descreve a ação; o executor aplica. Cada ação que mexe no sistema pede confirmação e tem como desfazer. |
 | **Alertas em segundo plano** | (ideia própria) | Temperatura da CPU, do disco e carga da bateria, com aviso que não repete enquanto a condição continua valendo. |
 | **Relatório em CSV** | (ideia própria) | O relatório exportado sai também em CSV no padrão do Excel em português, para abrir em planilha e filtrar. |
+| **SPD e timings de memória** | CPU-Z, HWiNFO | Aba TRANAL MEMÓRIA: lê o SPD de cada módulo pelo SMBus (driver PawnIO) e mostra fabricante, part number, serial, capacidade, ranks, os tempos do padrão JEDEC e o perfil XMP/EXPO gravado no módulo. O TRANAL SAÚDE compara o clock configurado na BIOS com o que o módulo oferece: perfil ativo, padrão JEDEC ou overclock manual. |
 
 ## O que ficou na lista (não cabe nesta versão)
 
@@ -82,13 +83,9 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
   produz o texto que ele responderia. **Ficou de fora por decisão do dono.**
 - **Comparar benchmarks entre PCs**: precisa de um formato de intercâmbio e de
   uma tela de importação — é trabalho de produto, não de uma versão.
-- **Leitura de SPD / Super I/O**: exige ler portas de I/O, o que só dá com
-  driver de kernel (PawnIO). É projeto próprio, com o risco dele.
-  **O caminho já foi estudado**: a arquitetura do CPU-Z e o mecanismo do driver
-  dele foram mapeados por análise estática, e a conclusão é que o **PawnIO já
-  dá conta** — sem driver novo, sem serviço novo e sem UAC além do que o app
-  já exige. O que falta é os offsets do controlador de memória do AMD AM5.
-  Tudo em [SPDTIMINGS.md](SPDTIMINGS.md).
+- **Leitura de SPD / Super I/O**: **entrou na v0.22** (ver abaixo). O que
+  ficou de fora: os *timings ativos* (registradores do controlador de
+  memória do AMD) e o instalador do driver PawnIO embutido no app.
 - **Assinatura digital do instalador**: exige certificado pago.
 
 ## Por que continuar em C#

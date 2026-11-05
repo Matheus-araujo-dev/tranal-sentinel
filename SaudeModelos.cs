@@ -210,6 +210,12 @@ public sealed class ColetaSaude
     public int MemoriaCompressaoMb { get; set; }
     public List<ModuloMemoria> ModulosMemoria { get; } = new();
 
+    /// <summary>
+    /// Módulos de memória lidos do barramento SMBus (SPD decodificado).
+    /// Vazio quando o driver PawnIO não está instalado.
+    /// </summary>
+    public List<MemoriaSpd> ModulosSpd { get; } = new();
+
     // lentidão
     public int AutostartAtivos { get; set; }
     public int AutostartTotal { get; set; }
