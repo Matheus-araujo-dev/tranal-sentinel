@@ -18,6 +18,12 @@ public sealed class PlanoDesinstalacao
     /// </summary>
     public required DestinoInstalacao Destino { get; init; }
 
+    /// <summary>
+    /// De onde veio o destino (entrada de desinstalação, pasta do instalador
+    /// ou destino padrão). Aparece no plano para não afirmar a fonte errada.
+    /// </summary>
+    public required string OrigemDestino { get; init; }
+
     /// <summary>Arquivos que serão removidos da pasta de instalação.</summary>
     public required IReadOnlyList<string> ArquivosRemovidos { get; init; }
 

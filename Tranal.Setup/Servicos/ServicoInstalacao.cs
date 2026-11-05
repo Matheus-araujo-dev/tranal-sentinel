@@ -96,6 +96,7 @@ public sealed class ServicoInstalacao
 
             GravarInicializacaoAutomatica(plano, reversao, detalhes);
             GravarEntradaDesinstalacao(plano, reversao, detalhes);
+            RemoverInstalacaoAnterior(plano, detalhes);
 
             _log.Registrar("Instalação concluída.");
             return ResultadoOperacao.Ok($"TRANAL SENTINEL instalado em {plano.Destino.Pasta}.", detalhes);
@@ -106,6 +107,66 @@ public sealed class ServicoInstalacao
             Desfazer(reversao, detalhes);
             return ResultadoOperacao.Falha($"A instalação falhou e foi desfeita: {ex.Message}", detalhes);
         }
+    }
+
+    /// <summary>
+    /// Trocar de pasta é um movimento, não uma cópia: a instalação anterior
+    /// (que estava em outra pasta) é removida depois que a nova já está no
+    /// lugar. Sem isso, o app antigo ficaria órfão, fora do alcance do botão
+    /// Desinstalar.
+    ///
+    /// A remoção vem por último de propósito: se algo falhar antes, a
+    /// instalação anterior continua intacta.
+    /// </summary>
+    private void RemoverInstalacaoAnterior(PlanoInstalacao plano, List<string> detalhes)
+    {
+        string pastaAntiga = plano.PastaInstalacaoAnterior ?? "";
+        if (pastaAntiga.Length == 0) return;
+
+        string[] arquivos =
+        {
+            CaminhosInstalacao.ExecutavelInstalado(pastaAntiga),
+            Path.Combine(pastaAntiga, CaminhosInstalacao.NomeLeiaMe),
+            CaminhosInstalacao.BackupExecutavel(pastaAntiga),
+            CaminhosInstalacao.InstaladorInstalado(pastaAntiga),
+        };
+
+        foreach (string arquivo in arquivos)
+        {
+            if (!File.Exists(arquivo)) continue;
+
+            try
+            {
+                File.Delete(arquivo);
+                _log.Registrar($"Arquivo da instalação anterior removido: {arquivo}");
+                detalhes.Add($"instalação anterior removida: {arquivo}");
+            }
+            catch (IOException ex)
+            {
+                // O instalador pode estar rodando de dentro da pasta antiga:
+                // a remoção fica para quando o processo terminar.
+                string? agendado = AgendarRemocao(arquivo, pastaAntiga);
+                if (agendado is null)
+                {
+                    _log.Registrar($"Falha ao remover {arquivo}: {ex.Message}");
+                    detalhes.Add($"não foi possível remover {arquivo}: {ex.Message}");
+                }
+                else
+                {
+                    _log.Registrar($"Remoção agendada (arquivo em uso): {arquivo}");
+                    detalhes.Add($"removido depois que o instalador sair: {arquivo}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.Registrar($"Falha ao remover {arquivo}: {ex.Message}");
+                detalhes.Add($"não foi possível remover {arquivo}: {ex.Message}");
+            }
+        }
+
+        TentarRemoverPastaVazia(pastaAntiga);
+        _log.Registrar($"Instalação anterior removida de {pastaAntiga}.");
+        detalhes.Add($"instalação anterior removida de {pastaAntiga}");
     }
 
     /// <summary>

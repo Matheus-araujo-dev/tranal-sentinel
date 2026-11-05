@@ -61,6 +61,13 @@ public sealed class PlanoInstalacao
     /// <summary>Se já existe uma instalação no destino.</summary>
     public required bool InstalacaoExistente { get; init; }
 
+    /// <summary>
+    /// Pasta de uma instalação anterior que está em outro lugar (null quando
+    /// não há). Quando existe, trocar de pasta é um movimento: a instalação
+    /// remove a anterior depois que a nova está no lugar.
+    /// </summary>
+    public required string? PastaInstalacaoAnterior { get; init; }
+
     /// <summary>Se o payload tem todos os arquivos necessários.</summary>
     public required bool PayloadCompleto { get; init; }
 

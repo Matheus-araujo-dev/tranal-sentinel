@@ -36,7 +36,7 @@ public partial class JanelaInstalador : Window
         _pastaPayload = _contexto.PastaInstalador;
         _log = new LogInstalador(CaminhosInstalacao.ArquivoLog(_contexto));
 
-        TxtDestino.Text = CaminhosInstalacao.PastaPadrao(_contexto);
+        TxtDestino.Text = DestinoInstalacao.Padrao(_contexto).Pasta;
         TxtPayload.Text = _pastaPayload;
         TxtLog.Text = $"Log: {CaminhosInstalacao.ArquivoLog(_contexto)}";
 
@@ -92,8 +92,8 @@ public partial class JanelaInstalador : Window
     }
 
     /// <summary>
-    /// Avisa quando a pasta escolhida já tem o TRANAL SENTINEL instalado (a
-    /// instalação vai substituir o que está lá).
+    /// Avisa o que vai acontecer com o que já está instalado: na pasta
+    /// escolhida (vai ser substituído) e em outra pasta (vai ser movido).
     /// </summary>
     private void AvisarInstalacaoExistente()
     {
@@ -104,16 +104,31 @@ public partial class JanelaInstalador : Window
         }
 
         string pasta = DestinoInstalacao.DaEscolha(TxtDestino.Text).Pasta;
-        bool existe = File.Exists(CaminhosInstalacao.ExecutavelInstalado(pasta));
+        var avisos = new List<string>();
 
-        if (!existe)
+        if (File.Exists(CaminhosInstalacao.ExecutavelInstalado(pasta)))
+        {
+            avisos.Add("Já existe uma instalação nesta pasta: ela será substituída "
+                + "(o executável atual é salvo como .bak antes de ser trocado).");
+        }
+
+        DestinoInstalacao? anterior = new ConstrutorPlano(_registro, _tarefa).DestinoRegistrado();
+        if (anterior is not null
+            && !string.Equals(anterior.Pasta, pasta, StringComparison.OrdinalIgnoreCase)
+            && File.Exists(CaminhosInstalacao.ExecutavelInstalado(anterior.Pasta)))
+        {
+            avisos.Add($"Existe outra instalação em {anterior.Pasta}. "
+                + "Instalar aqui é mudar de pasta: os arquivos de lá serão removidos "
+                + "depois que a nova instalação estiver pronta.");
+        }
+
+        if (avisos.Count == 0)
         {
             TxtDestinoAviso.Visibility = Visibility.Collapsed;
             return;
         }
 
-        TxtDestinoAviso.Text = "Já existe uma instalação nesta pasta. Ela será substituída: "
-            + "o executável atual é salvo como .bak antes de ser trocado.";
+        TxtDestinoAviso.Text = string.Join("  ", avisos);
         TxtDestinoAviso.Visibility = Visibility.Visible;
     }
 

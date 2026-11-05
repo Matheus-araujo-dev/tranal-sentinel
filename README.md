@@ -417,6 +417,9 @@ Dê dois cliques em `TranalSetup.exe`. Ele:
   `Tranal Sentinel` dentro da pasta escolhida; digitando o caminho completo na
   caixa, vale exatamente o que foi digitado). O padrão é
   `%ProgramFiles%\Tranal Sentinel`;
+- se o app já estiver instalado em outra pasta, instalar aqui é **uma mudança de
+  pasta**: os arquivos do lugar antigo são removidos depois que a nova
+  instalação está pronta (nada fica órfão);
 - cria atalho no menu Iniciar (e, se você quiser, na área de trabalho);
 - registra a desinstalação em *Painel de Controle → Programas*;
 - **faz o app abrir junto com o Windows**, já em segundo plano, na bandeja, **sem pedir UAC a cada login**;

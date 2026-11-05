@@ -85,6 +85,40 @@ public class DestinoInstalacaoTestes
     }
 
     [Fact]
+    public void Erro_ComPastaDeRede_Recusa()
+    {
+        // Instalar o app numa pasta de rede quebraria a tarefa agendada e o
+        // desinstalador (dependeriam da rede estar montada).
+        Assert.Contains("rede", DestinoInstalacao.Erro(@"\\servidor\pasta") ?? "", StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("rede", DestinoInstalacao.Erro(@"\\servidor\pasta\sub") ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Erro_ComCaminhoEnorme_NaoEstoura()
+    {
+        // O defeito: o PathTooLongException escapava da validação e derrubava a
+        // tela (o campo de texto dispara a validação a cada tecla).
+        string enorme = @"C:\" + new string('a', 32_766);
+
+        Exception? falha = null;
+        try
+        {
+            DestinoInstalacao.Erro(enorme);
+            DestinoInstalacao.DaEscolha(enorme);
+        }
+        catch (PathTooLongException ex)
+        {
+            falha = ex;
+        }
+        catch (ArgumentException)
+        {
+            // Recusa normal: o caminho não serve. Tudo bem.
+        }
+
+        Assert.Null(falha);
+    }
+
+    [Fact]
     public void PastaDentroDe_CriaASubpastaDoProduto()
     {
         Assert.Equal(@"D:\Meus Programas\Tranal Sentinel",

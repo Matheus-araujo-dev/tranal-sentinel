@@ -52,10 +52,13 @@ INSTALAÇÃO
 - Portátil: abra o TranalSentinel.exe direto, sem instalar nada.
 - Instalado: baixe TranalSentinel.exe e TranalSetup.exe para a MESMA pasta e abra o
   TranalSetup.exe. Ele pede administrador, instala em %ProgramFiles%\Tranal Sentinel
-  (ou na pasta que voce escolher na tela: o campo e editavel e o botao ... abre o
+  (ou na pasta que você escolher na tela: o campo é editável e o botão ... abre o
   seletor de pasta do Windows), cria atalho no menu Iniciar, registra a
-  desinstalacao no Painel de Controle e faz o app abrir junto com o Windows (sem
+  desinstalação no Painel de Controle e faz o app abrir junto com o Windows (sem
   pedir UAC a cada login).
+- Se você escolher outra pasta e o app já estiver instalado em outra, a instalação
+  é uma mudança de pasta: os arquivos do lugar antigo são removidos depois que a
+  nova instalação estiver pronta.
 - Para desinstalar: Painel de Controle -> Programas -> TRANAL SENTINEL -> Desinstalar.
   Suas configurações ficam em %AppData%\TranalSentinel e não são apagadas.
 

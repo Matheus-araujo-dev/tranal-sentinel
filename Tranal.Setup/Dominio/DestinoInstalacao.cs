@@ -50,6 +50,12 @@ public sealed record DestinoInstalacao
             return "Escolha a pasta de instalação.";
 
         string texto = caminho.Trim().Trim('"');
+
+        // Pasta de rede: o app, a tarefa agendada e o desinstalador passariam a
+        // depender da rede estar montada. Não é um lugar de instalação.
+        if (texto.StartsWith(@"\\", StringComparison.Ordinal))
+            return "Não dá para instalar numa pasta de rede. Escolha uma pasta deste computador.";
+
         if (texto.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
             return "O caminho tem caracteres que o Windows não aceita.";
 
@@ -61,8 +67,10 @@ public sealed record DestinoInstalacao
         {
             pasta = Normalizar(texto);
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
         {
+            // IOException cobre o PathTooLongException: um caminho de 32 mil
+            // caracteres estouraria aqui e derrubaria a tela.
             return "O caminho informado não é válido.";
         }
 

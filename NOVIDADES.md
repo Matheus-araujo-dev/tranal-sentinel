@@ -12,6 +12,20 @@
 - Se já existe uma instalação na pasta escolhida, a tela avisa que ela vai ser
   substituída (o executável atual vira `.bak`).
 
+**Trocar de pasta é uma mudança, não uma cópia**
+- Se o TRANAL SENTINEL já estava instalado em **outra** pasta, a tela avisa, e a
+  instalação remove os arquivos do lugar antigo **depois** que a nova instalação
+  está pronta. Sem isso, o app antigo ficaria órfão, fora do alcance do botão
+  Desinstalar.
+- Se algo falhar no meio, a instalação antiga continua intacta: a remoção vem
+  por último.
+
+**Caminhos recusados**
+- Pasta de rede (`\\servidor\pasta`): o app, a tarefa agendada e o desinstalador
+  dependeriam da rede estar montada.
+- Raiz da unidade (`C:\`), caminho incompleto e caractere que o Windows não
+  aceita.
+
 **A desinstalação acha o app onde ele está**
 - O local instalado fica gravado na entrada de desinstalação (`InstallLocation`) e
   a desinstalação lê esse valor — ou seja, ela funciona mesmo se o app estiver em
@@ -26,7 +40,7 @@
   plano completo com o destino novo, sem alterar nada.
 
 **Correção**
-- As mensagens de erro do instalador saíam com os acetos quebrados quando a saída
+- As mensagens de erro do instalador saíam com os acentos quebrados quando a saída
   era capturada em arquivo ou pipe (o `stderr` não recebia a codificação do
   `stdout`).
 

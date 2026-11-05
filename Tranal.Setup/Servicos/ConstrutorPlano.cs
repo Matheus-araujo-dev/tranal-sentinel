@@ -81,16 +81,37 @@ public sealed class ConstrutorPlano
                 : null,
             EntradaDesinstalacao = CaminhosInstalacao.CriarEntradaDesinstalacao(executavel, instalador, versao),
             InstalacaoExistente = File.Exists(executavel),
+            PastaInstalacaoAnterior = PastaDeInstalacaoAnterior(contexto, pasta),
             PayloadCompleto = arquivos.All(a => a.Situacao != SituacaoArquivo.AusenteNoPayload),
             VersaoPayload = versao,
         };
         return plano;
     }
 
+    /// <summary>
+    /// Pasta de uma instalação anterior que está em OUTRO lugar (null quando
+    /// não há, ou quando ela já está na pasta escolhida).
+    ///
+    /// Trocar de pasta é um movimento, não uma cópia: quando existe uma
+    /// instalação anterior em outro lugar, a instalação nova remove a antiga
+    /// no fim (depois que a nova está no lugar), para não deixar o app órfão
+    /// fora do alcance da desinstalação.
+    /// </summary>
+    private string? PastaDeInstalacaoAnterior(ContextoSistema contexto, string pastaDestino)
+    {
+        DestinoInstalacao? anterior = DestinoRegistrado();
+        if (anterior is null) return null;
+
+        if (string.Equals(anterior.Pasta, pastaDestino, StringComparison.OrdinalIgnoreCase)) return null;
+        if (!File.Exists(CaminhosInstalacao.ExecutavelInstalado(anterior.Pasta))) return null;
+
+        return anterior.Pasta;
+    }
+
     /// <summary>Calcula o plano da desinstalação.</summary>
     public PlanoDesinstalacao MontarPlanoDesinstalacao(ContextoSistema contexto)
     {
-        DestinoInstalacao destino = DescobrirDestinoInstalado(contexto);
+        (DestinoInstalacao destino, string origem) = DescobrirDestinoInstalado(contexto);
         string pasta = destino.Pasta;
 
         var arquivos = new List<string>
@@ -114,6 +135,7 @@ public sealed class ConstrutorPlano
         {
             Contexto = contexto,
             Destino = destino,
+            OrigemDestino = origem,
             ArquivosRemovidos = arquivos,
             AtalhosRemovidos = atalhos,
             NomeTarefaIniciar = TarefaInicializacao.NomeTarefa,
@@ -125,20 +147,32 @@ public sealed class ConstrutorPlano
     }
 
     /// <summary>
-    /// Descobre onde o app está instalado.
+    /// Onde o TRANAL SENTINEL foi instalado da última vez, conforme a entrada
+    /// de desinstalação no registro (null quando não há instalação).
+    ///
+    /// É a única fonte da verdade sobre a instalação anterior: a janela, o
+    /// plano de instalação e o de desinstalação consultam todas aqui.
+    /// </summary>
+    public DestinoInstalacao? DestinoRegistrado()
+    {
+        string? registrado = _registro.LerTexto(
+            ChaveRegistro.Maquina, CaminhosInstalacao.ChaveDesinstalacao, "InstallLocation");
+
+        return TentarDestino(registrado);
+    }
+
+    /// <summary>
+    /// Descobre onde o app está instalado e de onde veio essa informação.
     ///
     /// A ordem é: primeiro a entrada de desinstalação (HKLM), que guarda o
     /// InstallLocation de verdade; depois a pasta de onde este instalador está
     /// rodando (é de lá que o Windows chama a desinstalação); sem nenhum dos
     /// dois, vale o destino padrão.
     /// </summary>
-    private DestinoInstalacao DescobrirDestinoInstalado(ContextoSistema contexto)
+    private (DestinoInstalacao Destino, string Origem) DescobrirDestinoInstalado(ContextoSistema contexto)
     {
-        string? registrado = _registro.LerTexto(
-            ChaveRegistro.Maquina, CaminhosInstalacao.ChaveDesinstalacao, "InstallLocation");
-
-        DestinoInstalacao? peloRegistro = TentarDestino(registrado);
-        if (peloRegistro is not null) return peloRegistro;
+        DestinoInstalacao? peloRegistro = DestinoRegistrado();
+        if (peloRegistro is not null) return (peloRegistro, "entrada de desinstalação");
 
         string? processo = Environment.ProcessPath;
         if (!string.IsNullOrWhiteSpace(processo))
@@ -148,11 +182,11 @@ public sealed class ConstrutorPlano
                 && File.Exists(Path.Combine(pastaDoProcesso, CaminhosInstalacao.NomeExecutavel)))
             {
                 DestinoInstalacao? pelaPasta = TentarDestino(pastaDoProcesso);
-                if (pelaPasta is not null) return pelaPasta;
+                if (pelaPasta is not null) return (pelaPasta, "pasta do instalador");
             }
         }
 
-        return DestinoInstalacao.Padrao(contexto);
+        return (DestinoInstalacao.Padrao(contexto), "destino padrão");
     }
 
     /// <summary>Tenta transformar um caminho em destino; devolve null se o caminho não serve.</summary>
@@ -164,7 +198,7 @@ public sealed class ConstrutorPlano
         {
             return DestinoInstalacao.DaEscolha(caminho);
         }
-        catch (ArgumentException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
         {
             return null;
         }

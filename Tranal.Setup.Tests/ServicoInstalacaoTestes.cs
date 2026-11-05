@@ -231,6 +231,55 @@ public class ServicoInstalacaoTestes
     }
 
     [Fact]
+    public void Instalar_EmPastaNova_TrocaDePastaERemoveAInstalacaoAntiga()
+    {
+        using var ambiente = new AmbienteTeste();
+        ambiente.CriarPayload();
+        var (servico, registro, _, _, _) = Montar(ambiente);
+
+        string pastaAntiga = Path.Combine(ambiente.Raiz, "Lugar antigo", "Tranal Sentinel");
+        string pastaNova = Path.Combine(ambiente.Raiz, "Lugar novo", "Tranal Sentinel");
+
+        // primeira instalação no lugar antigo
+        Assert.True(servico.Instalar(ambiente.Opcoes(pastaAntiga), ambiente.PastaPayload).Sucesso);
+        Assert.True(File.Exists(Path.Combine(pastaAntiga, "TranalSentinel.exe")));
+
+        // segunda instalação no lugar novo
+        ResultadoOperacao resultado = servico.Instalar(ambiente.Opcoes(pastaNova), ambiente.PastaPayload);
+
+        Assert.True(resultado.Sucesso, resultado.Mensagem);
+        Assert.True(File.Exists(Path.Combine(pastaNova, "TranalSentinel.exe")));
+
+        // a instalação antiga foi removida: trocar de pasta é um movimento,
+        // não uma cópia (o app antigo não pode ficar órfão).
+        Assert.False(File.Exists(Path.Combine(pastaAntiga, "TranalSentinel.exe")));
+        Assert.False(File.Exists(Path.Combine(pastaAntiga, "LEIA-ME.txt")));
+        Assert.False(File.Exists(Path.Combine(pastaAntiga, "TranalSetup.exe")));
+        Assert.False(Directory.Exists(pastaAntiga));
+
+        // e o registro aponta para o lugar novo
+        Assert.Equal(pastaNova,
+            registro.LerTexto(ChaveRegistro.Maquina, CaminhosInstalacao.ChaveDesinstalacao, "InstallLocation"));
+    }
+
+    [Fact]
+    public void Instalar_NaMesmaPasta_NaoRemoveNemCriaDuplicado()
+    {
+        using var ambiente = new AmbienteTeste();
+        ambiente.CriarPayload();
+        var (servico, _, _, _, _) = Montar(ambiente);
+
+        string pasta = Path.Combine(ambiente.Raiz, "Um lugar", "Tranal Sentinel");
+
+        Assert.True(servico.Instalar(ambiente.Opcoes(pasta), ambiente.PastaPayload).Sucesso);
+        ResultadoOperacao segunda = servico.Instalar(ambiente.Opcoes(pasta), ambiente.PastaPayload);
+
+        Assert.True(segunda.Sucesso, segunda.Mensagem);
+        Assert.True(File.Exists(Path.Combine(pasta, "TranalSentinel.exe")));
+        Assert.True(File.Exists(Path.Combine(pasta, "LEIA-ME.txt")));
+    }
+
+    [Fact]
     public void Desinstalar_SemInstalacaoNaoFalha()
     {
         using var ambiente = new AmbienteTeste();

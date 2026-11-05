@@ -106,6 +106,15 @@ public sealed class ServicoSimulacao
         texto.AppendLine("      NoModify = 1");
         texto.AppendLine("      NoRepair = 1");
         texto.AppendLine();
+
+        if (plano.PastaInstalacaoAnterior is not null)
+        {
+            texto.AppendLine("Troca de pasta (a instalação anterior é removida depois):");
+            texto.AppendLine($"  [REMOVER] {plano.PastaInstalacaoAnterior}");
+            texto.AppendLine("      (os arquivos de lá saem depois que a nova instalação estiver pronta)");
+            texto.AppendLine();
+        }
+
         texto.AppendLine($"Log ...............: {CaminhosInstalacao.ArquivoLog(_contexto)}");
 
         return texto.ToString();
@@ -119,7 +128,7 @@ public sealed class ServicoSimulacao
 
         texto.AppendLine(Secao("2) DESINSTALAR"));
         texto.AppendLine($"Destino ...........: {plano.Destino.Pasta}");
-        texto.AppendLine("                   (descobrito na hora: vem da entrada de desinstalação)");
+        texto.AppendLine($"Origem do destino : {plano.OrigemDestino}");
         texto.AppendLine();
         texto.AppendLine("Arquivos removidos:");
         foreach (string arquivo in plano.ArquivosRemovidos)
