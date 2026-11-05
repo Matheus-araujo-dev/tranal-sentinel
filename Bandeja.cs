@@ -53,6 +53,12 @@ public sealed class Bandeja : IDisposable
     /// <summary>Disparado quando o usuário pede para sair de verdade (menu do ícone).</summary>
     public event Action? AoSair;
 
+    /// <summary>Disparado quando o usuário pede para encerrar o programa travado.</summary>
+    public event Action? AoEncerrarTravado;
+
+    private bool _temTravado;
+    private string _rotuloTravado = "Encerrar programa travado";
+
     /// <summary>Cria o ícone na bandeja, preso a uma janela do WPF.</summary>
     /// <param name="janela">Janela que hospeda o ícone e recebe as mensagens da bandeja.</param>
     /// <param name="dica">Texto que aparece ao passar o mouse (ex.: "TRANAL SENTINEL — tudo certo").</param>
@@ -111,6 +117,15 @@ public sealed class Bandeja : IDisposable
         Shell_NotifyIcon(NIM_MODIFY, ref dados);
     }
 
+    /// <summary>
+    /// Diz se há programa travado (o menu ganha a opção de encerrar).
+    /// </summary>
+    public void DefinirTravado(bool disponivel, string rotulo = "Encerrar programa travado")
+    {
+        _temTravado = disponivel;
+        _rotuloTravado = string.IsNullOrWhiteSpace(rotulo) ? "Encerrar programa travado" : rotulo;
+    }
+
     private IntPtr ProcMensagem(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == WM_TRAY)
@@ -136,6 +151,7 @@ public sealed class Bandeja : IDisposable
             int id = (int)(wParam.ToInt64() & 0xFFFF);
             if (id == 1001) { AoAbrir?.Invoke(); handled = true; }
             else if (id == 1002) { AoSair?.Invoke(); handled = true; }
+            else if (id == 1003) { AoEncerrarTravado?.Invoke(); handled = true; }
             return IntPtr.Zero;
         }
 
@@ -149,12 +165,14 @@ public sealed class Bandeja : IDisposable
         try
         {
             AppendMenu(menu, MF_STRING, 1001, "Abrir o TRANAL SENTINEL");
+            if (_temTravado) AppendMenu(menu, MF_STRING, 1003, _rotuloTravado);
             AppendMenu(menu, MF_STRING, 1002, "Sair");
             // A janela precisa estar em primeiro plano para o menu sumir ao clicar fora.
             SetForegroundWindow(_janela);
             uint cmd = TrackPopupMenu(menu, TPM_RIGHTBUTTON, 0, 0, 0, _janela, IntPtr.Zero);
             if (cmd == 1001) AoAbrir?.Invoke();
             else if (cmd == 1002) AoSair?.Invoke();
+            else if (cmd == 1003) AoEncerrarTravado?.Invoke();
         }
         finally
         {

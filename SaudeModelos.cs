@@ -11,6 +11,17 @@ public sealed class Achado
     public string Mensagem { get; init; } = "";
     public string Acao { get; init; } = "";
 
+    /// <summary>
+    /// Ações que o app pode oferecer a este achado (vazio = só informar).
+    ///
+    /// <para>
+    /// A regra só descreve a ação; quem executa é o
+    /// <see cref="AcaoExecutor"/>. É por isso que a análise continua
+    /// somente leitura: quem decide se a ação acontece é o usuário, na hora.
+    /// </para>
+    /// </summary>
+    public List<AcaoAplicavel> Acoes { get; init; } = new();
+
     /// <summary>Rótulo curto da severidade, usado nos cartões da interface.</summary>
     public string Selo => Severidade switch
     {

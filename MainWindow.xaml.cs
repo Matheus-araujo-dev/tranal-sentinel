@@ -140,12 +140,18 @@ public partial class MainWindow : Window
             _launchCts?.Cancel();
             _monitor.Dispose();
             EncerrarKalkan();
+            // A vigia para ANTES da bandeja ser descartada: um tique que
+            // corresse agora acharia a bandeja já fechada.
+            PararVigia();
             _bandeja?.Dispose();
             _timerInstantaneo?.Stop();
         };
 
         // Modo assistente: bandeja, perfil de recursos e a linha do tempo do PC.
         IniciarAssistente();
+
+        // Vigia em segundo plano: programa travado e alertas de temperatura.
+        IniciarVigia();
     }
 
     /// <summary>Coletas lentas da abertura, em paralelo e fora da thread da janela; cada parte preenche a tela quando fica pronta.</summary>

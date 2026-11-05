@@ -950,7 +950,7 @@
                         <Grid Margin="0,0,0,20">
                             <StackPanel Margin="0,0,190,0">
                                 <TextBlock Text="TRANAL SAÚDE" Style="{StaticResource H1}"/>
-                                <TextBlock Text="Por que o PC trava e o que está deixando o sistema lento. Leitura do histórico do Windows, sem alterar nada." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                                <TextBlock Text="Por que o PC trava e o que está deixando o sistema lento. Leitura do histórico do Windows. As ações sugeridas só acontecem depois de você confirmar." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnSaudeScan" Style="{StaticResource PrimaryButton}" Content="ANALISAR" Padding="20,9"
                                     HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnSaudeScan_Click"/>
@@ -960,11 +960,27 @@
                                 <Border.RenderTransform><ScaleTransform x:Name="SaudeProgress" ScaleX="0"/></Border.RenderTransform>
                             </Border>
                         </Grid>
-                        <TextBlock x:Name="SaudeStatus" Text="Clique em ANALISAR para varrer o histórico do sistema. Nada é alterado." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                        <TextBlock x:Name="SaudeStatus" Text="Clique em ANALISAR para varrer o histórico do sistema. Nada é alterado sem você confirmar." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="SaudeNotaValor" Text="—" FontSize="40" FontWeight="Bold" VerticalAlignment="Center" MinWidth="56" TextAlignment="Center"/>
+                                <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="NOTA DE SAÚDE DO PC" Style="{StaticResource Label}"/>
+                                    <TextBlock x:Name="SaudeNotaResumo" Text="Rode a análise para ver a nota." Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="SaudeNotaTendencia" Text="" Foreground="{DynamicResource Faint}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
                                 <TextBlock Text="RESUMO DO SISTEMA" Style="{StaticResource Label}"/>
+                                <StackPanel x:Name="SaudeAcoesPendentes" Orientation="Horizontal" Margin="0,10,0,0" Visibility="Collapsed">
+                                    <TextBlock x:Name="SaudePendentesTexto" Text="O TRANAL SENTINEL alterou alguma coisa neste PC." Foreground="{DynamicResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/>
+                                    <Button x:Name="BtnSaudeRestaurarAspm" Style="{StaticResource OutlineButton}" Content="RESTAURAR ASPM" Padding="14,7" Click="BtnSaudeRestaurarAspm_Click" Visibility="Collapsed"/>
+                                    <Button x:Name="BtnSaudeRestaurarServicos" Style="{StaticResource OutlineButton}" Content="RESTAURAR SERVIÇOS" Padding="14,7" Click="BtnSaudeRestaurarServicos_Click" Visibility="Collapsed" Margin="8,0,0,0"/>
+                                </StackPanel>
                                 <ItemsControl x:Name="SaudeResumo" Margin="0,10,0,0">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -1015,6 +1031,20 @@
                                                     </Grid>
                                                     <TextBlock Text="{Binding Mensagem}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
                                                     <TextBlock Text="{Binding Acao}" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                                    <ItemsControl ItemsSource="{Binding Acoes}" Margin="0,8,0,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Button Style="{StaticResource OutlineButton}" Content="{Binding Rotulo}"
+                                                                        Tag="{Binding}" Click="BtnSaudeAcao_Click"
+                                                                        Padding="12,6" Margin="0,0,8,8" ToolTip="{Binding Explicacao}"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>

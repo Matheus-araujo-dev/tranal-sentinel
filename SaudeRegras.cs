@@ -127,7 +127,8 @@ public static class SaudeRegras
                 Severidade = Severidade.Medio,
                 Area = "Hardware",
                 Mensagem = $"{c.ResetsDriverVideo} resets de driver de vídeo (4101)",
-                Acao = "Atualize o driver da GPU"
+                Acao = "Atualize o driver da GPU",
+                Acoes = { AcoesSaude.AbrirDrivers() }
             });
         }
     }
@@ -145,7 +146,8 @@ public static class SaudeRegras
                 Severidade = Severidade.Alto,
                 Area = "PCIe/ASPM",
                 Mensagem = $"Gerenciamento de energia do link PCIe (ASPM) em '{NomeAspm(c.AspmAc.Value)}'",
-                Acao = "Teste com ASPM Off: powercfg /setacvalueindex SCHEME_CURRENT SUB_PCIEXPRESS ASPM 0"
+                Acao = "Desligue o ASPM do plano de energia ativo (o botão abaixo faz isso e guarda como desfazer)",
+                Acoes = { AcoesSaude.DesligarAspm() }
             });
         }
 
@@ -157,7 +159,8 @@ public static class SaudeRegras
                 Severidade = Severidade.Alto,
                 Area = "PCIe/ASPM",
                 Mensagem = $"NVMe '{nvme.Nome}' conectado via placa adaptadora M.2->PCIe (caminho pelo chipset)",
-                Acao = "Encaixe o M.2 direto no soquete da placa-mãe (M.2_1 vem do CPU) ou desative ASPM/L1 Substates no BIOS"
+                Acao = "Encaixe o M.2 direto no soquete da placa-mãe (M.2_1 vem do CPU) ou desative ASPM/L1 Substates no BIOS",
+                Acoes = { AcoesSaude.DesligarAspm() }
             });
         }
     }
@@ -309,7 +312,8 @@ public static class SaudeRegras
                 Severidade = Severidade.Alto,
                 Area = "Lentidão",
                 Mensagem = $"Compressão de memória ativa: {c.MemoriaCompressaoMb} MB (sintoma de pressão de RAM)",
-                Acao = "Feche abas de navegador e apps Electron; reduza o autostart"
+                Acao = "Feche abas de navegador e apps Electron; reduza o autostart",
+                Acoes = { AcoesSaude.AbrirOtimizacao(), AcoesSaude.AbrirInicializacao() }
             });
         }
 
@@ -337,19 +341,22 @@ public static class SaudeRegras
                 Severidade = Severidade.Medio,
                 Area = "Lentidão",
                 Mensagem = $"{c.AutostartAtivos} programas na inicialização automática",
-                Acao = "Desative o que não usa no boot (TRANAL FERRAMENTAS ou Gerenciador de Tarefas)"
+                Acao = "Desative o que não usa no boot (TRANAL FERRAMENTAS ou Gerenciador de Tarefas)",
+                Acoes = { AcoesSaude.AbrirInicializacao() }
             });
         }
 
         var servicosTerceiros = c.ServicosAuto.Count(s => !s.EhDoSistema);
         if (servicosTerceiros >= 10)
         {
+            var suspendiveis = ServicosSuspendiveis.Listar(c.ServicosAuto).Count;
             saida.Add(new Achado
             {
                 Severidade = Severidade.Baixo,
                 Area = "Lentidão",
                 Mensagem = $"{servicosTerceiros} serviços automáticos fora do system32",
-                Acao = "Revise os que você não usa (atualizadores, apps de terceiros)"
+                Acao = "Revise os que você não usa (atualizadores, apps de terceiros)",
+                Acoes = { AcoesSaude.SuspenderServicos(suspendiveis) }
             });
         }
 

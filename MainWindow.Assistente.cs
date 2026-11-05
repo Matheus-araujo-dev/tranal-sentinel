@@ -58,6 +58,7 @@ public partial class MainWindow
             _bandeja = new Bandeja(this, "TRANAL SENTINEL — acompanhando o PC");
             _bandeja.AoAbrir += () => Dispatcher.Invoke(MostrarJanela);
             _bandeja.AoSair += () => Dispatcher.Invoke(SairDeVerdade);
+            _bandeja.AoEncerrarTravado += () => Dispatcher.Invoke(EncerrarTravado);
             RegistroDiario.Registrar("Ícone de bandeja criado.", "BANDEJA");
         }
         catch (Exception ex)

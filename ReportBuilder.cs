@@ -1,6 +1,8 @@
-﻿using System.Net;
+﻿using System.Globalization;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace TranalSentinel;
 
@@ -26,7 +28,7 @@ public sealed class ReportData
     public List<ReportBench> Benchmarks { get; init; } = new();
 }
 
-/// <summary>Gera o relatório em HTML (arquivo único, abre em qualquer navegador) ou JSON. Números de série ficam de fora.</summary>
+/// <summary>Gera o relatório em HTML (arquivo único, abre em qualquer navegador), JSON ou CSV (planilha para o Excel em português). Números de série ficam de fora.</summary>
 public static class ReportBuilder
 {
     public static ReportNode? ToNode(InfoNode n)
@@ -55,6 +57,151 @@ public static class ReportBuilder
         sensores = d.Sensors,
         benchmarks = d.Benchmarks,
     }, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
+    /// <summary>
+    /// Gera o relatório em CSV: uma planilha por bloco, pronta para o Excel em português
+    /// (separador ponto e vírgula, decimal com vírgula, acentos em UTF-8 com BOM).
+    /// </summary>
+    /// <remarks>
+    /// O texto já começa com BOM (U+FEFF) — é o que faz o Excel ler a acentuação.
+    /// Grave o arquivo com <c>new UTF8Encoding(false)</c>, senão o BOM sai duplicado.
+    /// </remarks>
+    public static string Csv(ReportData d)
+    {
+        var sb = new StringBuilder(64 * 1024);
+        sb.Append('\uFEFF'); // BOM: sem ele o Excel descarta a acentuação
+
+        BlocoCsv(sb, "Relatório", new[] { "Campo", "Valor" }, new[]
+        {
+            new[] { "Gerado em", d.Date.ToString("dd/MM/yyyy HH:mm") },
+            new[] { "Computador", d.Machine },
+            new[] { "Versão do programa", d.AppVersion },
+            new[] { "Observação", "Números de série foram omitidos deste relatório." },
+            new[] { "Fonte", "Gerado pelo TRANAL SENTINEL. Dados lidos do Windows, do driver da placa de vídeo e dos sensores da placa-mãe; podem variar conforme o hardware." },
+        });
+
+        BlocoDiscosCsv(sb, "Saúde dos discos", d.Disks);
+        BlocoDiscosCsv(sb, "Bateria e energia", d.Power);
+        BlocoDiscosCsv(sb, "Teste de rede", d.Network);
+
+        var sistema = new List<string[]>();
+        ArvoreCsv(d.System, "", sistema);
+        BlocoCsv(sb, "Sistema", new[] { "Seção", "Item", "Valor" }, sistema);
+
+        foreach (var g in d.Gpus)
+        {
+            var linhas = new List<string[]>();
+            if (g.Subtitle.Length > 0) linhas.Add(new[] { "Placa de vídeo", "Subtítulo", g.Subtitle });
+            ArvoreCsv(g.Sections, "Placa de vídeo", linhas);
+            BlocoCsv(sb, $"Placa de vídeo · {g.Name}", new[] { "Seção", "Item", "Valor" }, linhas);
+        }
+
+        BlocoCsv(sb, "Sensores (leitura no momento da exportação)", new[] { "Hardware", "Categoria", "Sensor", "Valor", "Mín.", "Máx." },
+            d.Sensors.Select(s => new[] { s.Hardware, s.Category, s.Name, Valor(s.Value), Valor(s.Min), Valor(s.Max) }));
+
+        BlocoCsv(sb, "Benchmarks e testes recentes", new[] { "Data", "Teste", "Resultado" },
+            d.Benchmarks.Select(b => new[] { b.Date.ToString("dd/MM/yyyy HH:mm"), b.Test, Valor(b.Summary) }));
+
+        return sb.ToString();
+    }
+
+    /// <summary>Bloco de discos (saúde, energia e rede): uma linha por disco e um bloco de métricas para cada disco.</summary>
+    private static void BlocoDiscosCsv(StringBuilder sb, string titulo, List<ReportDisk> itens)
+    {
+        BlocoCsv(sb, titulo, new[] { "Disco", "Detalhes", "Saúde", "Motivos" },
+            itens.Select(x => new[] { x.Name, Valor(x.Details), x.Verdict, Valor(x.Reasons) }));
+        foreach (var item in itens)
+        {
+            if (item.Metrics.Count == 0) continue;
+            BlocoCsv(sb, $"{titulo} · métricas · {item.Name}", new[] { "Métrica", "Valor" },
+                item.Metrics.Select(m => new[] { m.Key, Valor(m.Value) }));
+        }
+    }
+
+    /// <summary>Achata a árvore de informações em linhas "seção;item;valor", guardando o caminho dos grupos.</summary>
+    private static void ArvoreCsv(List<ReportNode>? nodes, string caminho, List<string[]> linhas)
+    {
+        if (nodes == null) return;
+        foreach (var n in nodes)
+        {
+            if (n.Children is { Count: > 0 })
+            {
+                if (n.Value != null) linhas.Add(new[] { caminho, n.Name, Valor(n.Value) });
+                ArvoreCsv(n.Children, caminho.Length == 0 ? n.Name : $"{caminho} > {n.Name}", linhas);
+            }
+            else linhas.Add(new[] { caminho, n.Name, Valor(n.Value) });
+        }
+    }
+
+    /// <summary>Escreve um bloco: título, cabeçalho das colunas e as linhas.</summary>
+    private static void BlocoCsv(StringBuilder sb, string titulo, string[] colunas, IEnumerable<string[]> linhas)
+    {
+        if (sb.Length > 1) sb.Append("\r\n"); // linha em branco separa os blocos
+        sb.Append(Celula(titulo)).Append("\r\n");
+        sb.Append(string.Join(";", colunas.Select(Celula))).Append("\r\n");
+        foreach (var linha in linhas)
+            sb.Append(string.Join(";", linha.Select(Celula))).Append("\r\n");
+    }
+
+    /// <summary>
+    /// Escapa a célula: ponto e vírgula, aspas e quebra de linha pedem aspas
+    /// (com aspas duplicadas dentro).
+    /// </summary>
+    /// <remarks>
+    /// Também protege contra fórmula: uma célula que começa com =, +, - ou @
+    /// seria executada pelo Excel ao abrir o arquivo. O prefixo de apóstrofo
+    /// faz o Excel tratar o texto como texto — e não muda o valor, porque o
+    /// Excel descarta o apóstrofo na importação de CSV.
+    /// </remarks>
+    private static string Celula(string? s)
+    {
+        string v = s ?? "";
+        v = NeutralizarFormula(v);
+        if (v.Contains(';') || v.Contains('"') || v.Contains('\n') || v.Contains('\r'))
+            return "\"" + v.Replace("\"", "\"\"") + "\"";
+        return v;
+    }
+
+    /// <summary>
+    /// Coloca um apóstrofo na frente de um valor que o Excel leria como
+    /// fórmula. Número negativo não é fórmula — fica como está.
+    /// </summary>
+    private static string NeutralizarFormula(string valor)
+    {
+        if (valor.Length == 0) return valor;
+        char c = valor[0];
+        if (c is not ('=' or '+' or '-' or '@' or '\t' or '\r')) return valor;
+
+        // "-5" ou "-5,3" é número, não fórmula.
+        if (c == '-' && valor.Length > 1 && (char.IsDigit(valor[1]) || valor[1] == ',')) return valor;
+
+        return "'" + valor;
+    }
+
+    /// <summary>
+    /// Escreve o número no padrão do Excel em português: decimal com vírgula.
+    /// </summary>
+    /// <remarks>
+    /// Só um número com <b>uma</b> casa decimal vira vírgula. Com duas ou
+    /// mais, é quase sempre versão ("551.23" é a versão do driver, não uma
+    /// medida) — e virar "551,23" corromperia o dado num relatório feito para
+    /// ser lido por outros.
+    /// </remarks>
+    private static string Valor(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        // número puro: o ponto decimal vira vírgula (só com uma casa)
+        if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double numero))
+        {
+            string texto = numero.ToString(CultureInfo.InvariantCulture);
+            int ponto = texto.IndexOf('.');
+            if (ponto < 0) return texto;
+            int casas = texto.Length - ponto - 1;
+            return casas == 1 ? texto.Replace('.', ',') : texto;
+        }
+        // número com unidade ("38.4 °C"): só a parte decimal do número vira vírgula — "12.345 GB" é milhar e fica como está
+        return Regex.Replace(s, @"(?<![\d.])\d+\.\d{1,2}(?![\d.])", m => m.Value.Replace('.', ','));
+    }
 
     private static void Section(StringBuilder sb, string title, List<ReportDisk> items)
     {

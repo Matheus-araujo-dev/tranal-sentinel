@@ -133,13 +133,15 @@ public partial class MainWindow
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             Title = "Exportar relatório",
-            Filter = "Relatório HTML (*.html)|*.html|Dados JSON (*.json)|*.json",
+            Filter = "Relatório HTML (*.html)|*.html|Dados CSV (*.csv)|*.csv|Dados JSON (*.json)|*.json",
             DefaultExt = ".html",
             FileName = $"TRANAL-SENTINEL-relatorio-{DateTime.Now:yyyyMMdd-HHmm}",
         };
         if (dlg.ShowDialog(this) != true) return;
         string path = dlg.FileName;
-        bool json = string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase);
+        string extensao = Path.GetExtension(path).ToLowerInvariant();
+        bool csv = extensao == ".csv";
+        bool json = extensao == ".json";
 
         BtnReport.IsEnabled = false;
         BtnReport.Content = "GERANDO…";
@@ -167,8 +169,13 @@ public partial class MainWindow
             if (_lastNet != null)
                 data.Network.AddRange(_lastNet.Select(d => new ReportDisk(d.Title, d.Meta, d.VerdictText, d.Reasons, d.Metrics)));
 
-            string text = json ? ReportBuilder.Json(data) : ReportBuilder.Html(data);
-            await File.WriteAllTextAsync(path, text, new UTF8Encoding(true));
+            string text = csv ? ReportBuilder.Csv(data) : json ? ReportBuilder.Json(data) : ReportBuilder.Html(data);
+
+            // O CSV já começa com o BOM dentro da string (é o que o Excel
+            // precisa para reconhecer a acentuação) — escrever com BOM aqui
+            // colocaria dois. Os outros formatos ganham o BOM na escrita.
+            var encoding = csv ? new UTF8Encoding(false) : new UTF8Encoding(true);
+            await File.WriteAllTextAsync(path, text, encoding);
 
             SystemSub.Text = $"Relatório salvo em {path}";
             try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); } catch { }
