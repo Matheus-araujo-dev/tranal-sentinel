@@ -57,6 +57,59 @@ dotnet test ResetExplode.Tests\ResetExplode.Tests.csproj -c Release
 
 Os testes cobrem só as regras (que são puras) — nenhum Windows é tocado por eles.
 
+### Visor Kalkan (SmartMonitor)
+
+A aba RESET SAÚDE também fala com o **visor do cooler Kalkan** (linha Alpha Rev.1,
+firmware 1.2) e mostra nele a temperatura do CPU, a rotação da ventoinha e a carga
+da processor — sem o software da Kalkan instalado e sem a DLL dele.
+
+Como funciona, em três passos:
+
+1. **Handshake** — o app escreve um pedido de 64 bytes (`01 81 E3 00…`) e lê a
+   resposta do visor. O byte depois do marcador `0xE3` é a *semente* do embaralhador.
+2. **Quadro** — a cada segundo o app monta `01 86 E0 idx temp fanHi fanLo carga 00…`
+   e embaralha os bytes a partir do 3º, bit a bit, com a semente do handshake.
+3. **Confirmação** — o visor devolve o quadro decodificado (o app usa isso para
+   conferir que o índice chegou certo).
+
+O transporte é **HID nativo do Windows** (SetupAPI + `CreateFile` + I/O sobreposto):
+sem `hidapi.dll`, sem DLL de terceiros e sem dependência do app original. O
+aplicativo acha o visor pelo VID/PID `0416:1100` e escolhe a coleção do fabricante
+(página de uso `0xFF`, relatório de 64 bytes) — a coleção de toque é ignorada.
+
+| Arquivo | O que faz |
+|---|---|
+| `KalkanProtocol.cs` | Protocolo puro: pedido de semente, quadro, embaralhador. É o único lugar com a lógica do firmware — e é o que os testes cobrem byte a byte. |
+| `KalkanNative.cs` | P/Invoke de SetupAPI, hid.pd e kernel32. |
+| `KalkanHid.cs` | Transporte: enumeração do device, abertura, escrita e leitura com timeout. |
+| `KalkanDisplay.cs` | Sessão: handshake, envio de quadros e leitura de conferência. |
+| `MainWindow.Kalkan.cs` | A interface (cartão "VISOR KALKAN" na aba RESET SAÚDE). |
+
+**Uso:** abra a aba RESET SAÚDE → cartão **VISOR KALKAN** → `CONECTAR`. Marque
+"atualizar o visor todo segundo" para ele acompanhar a temperatura em tempo real
+(ou `ENVIAR AGORA` para um envio só).
+
+**Atenção:**
+
+- Só funciona na **Rev.1 (firmware 1.2)**. A Rev.2 (comprada a partir de janeiro de
+  2026) usa **porta serial**, não USB HID — não é suportada por esta implementação.
+  O número de série na caixa (`KLKxxxxx - AAMMDDXXX`) diz qual é a sua.
+- **Feche o software oficial da Kalkan** antes de usar. Dois programas escrevendo no
+  mesmo visor ao mesmo tempo embaralham os quadros um do outro (cada um tem sua
+  semente). O software oficial também é a causa dos travamentos registrados na
+  máquina (22 acessos inválidos dentro do `hidapi.dll` em 60 dias) — dá para
+  tirá-lo da inicialização automática depois que este recurso estiver funcionando.
+- A temperatura vem do LibreHardwareMonitor (o mesmo motor do app). Sem PawnIO e sem
+  execução como administrador, o sensor da CPU não aparece e o visor mostra 0 °C.
+
+**Créditos e licença:** o protocolo foi conferido contra a análise estática do
+binário oficial publicada no projeto aberto
+[medeiroz/kalkan-monitor-rs](https://github.com/medeiroz/kalkan-monitor-rs) (MIT),
+que documenta o handshake, o quadro, o embaralhador e os vetores de teste usados
+aqui. Nenhum código do aplicativo oficial da Kalkan foi copiado, redistribuído ou
+modificado — esta implementação fala com o seu próprio hardware por um protocolo
+documentado.
+
 <!-- ================= FIM DO AVISO DO FORK ================= -->
 
 ---

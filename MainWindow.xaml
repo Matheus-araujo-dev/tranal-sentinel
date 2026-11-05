@@ -1003,8 +1003,21 @@
                             </StackPanel>
                         </Border>
 
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="VISOR KALKAN (SMARTMONITOR)" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="KalkanStatus" Text="Visor Kalkan não conectado." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                <TextBlock x:Name="KalkanDetalhe" Text="" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <Button x:Name="BtnKalkanConectar" Style="{StaticResource OutlineButton}" Content="CONECTAR" Padding="16,7" Click="BtnKalkanConectar_Click"/>
+                                    <Button x:Name="BtnKalkanEnviar" Style="{StaticResource OutlineButton}" Content="ENVIAR AGORA" Padding="16,7" Margin="8,0,0,0" Click="BtnKalkanEnviar_Click"/>
+                                    <CheckBox x:Name="ChkKalkanAuto" Content="Atualizar o visor todo segundo" Margin="18,0,0,0" VerticalAlignment="Center" Checked="ChkKalkanAuto_Click" Unchecked="ChkKalkanAuto_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
-                            A análise é somente leitura: nada é instalado, alterado ou reiniciado. Os dados vêm do log de eventos do Windows, do WMI, do registro e da lista de inicialização automática.
+                            A análise é somente leitura: nada é instalado, alterado ou reiniciado. Os dados vêm do log de eventos do Windows, do WMI, do registro e da lista de inicialização automática. A única parte que escreve em algum lugar é o cartão do visor Kalkan, e só quando você pede: ele recebe a temperatura do CPU para mostrar no visor do cooler.
                         </TextBlock>
                     </StackPanel>
                 </ScrollViewer>

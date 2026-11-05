@@ -137,6 +137,7 @@ public partial class MainWindow : Window
             ShutdownInteg();
             _launchCts?.Cancel();
             _monitor.Dispose();
+            EncerrarKalkan();
         };
     }
 
@@ -280,7 +281,7 @@ public partial class MainWindow : Window
             case "PageMakerPorts": ScanUsb(); break;
             case "PageMakerDrv": InitMakerDrivers(); break;
             case "PageOptimize": InitOptimize(); break;
-            case "PageSaude": InitSaude(); break;
+            case "PageSaude": InitSaude(); InitKalkan(); break;
         }
     }
 

@@ -31,6 +31,18 @@ RESET SAÚDE
 - Ela não instala, não altera e não reinicia nada: é somente leitura.
 - Leva alguns segundos na primeira análise (lê o log de eventos do Windows inteiro).
 
+VISOR KALKAN (SmartMonitor)
+- No mesmo grupo, aba "Saúde", no cartão VISOR KALKAN: clique em CONECTAR.
+  O programa fala direto com o visor do cooler Kalkan pela USB e mostra nele a
+  temperatura do CPU, a rotação da ventoinha e a carga da CPU.
+- Não precisa do software da Kalkan instalado. Só funciona no cooler linha Alpha
+  Rev.1 (firmware 1.2). A Rev.2 usa porta serial e não é suportada aqui.
+- Feche o software oficial da Kalkan antes de usar: dois programas escrevendo no
+  mesmo visor ao mesmo tempo embaralham os quadros um do outro.
+- A temperatura vem do mesmo motor de sensores do app: sem PawnIO e sem rodar como
+  administrador, o visor mostra 0 °C.
+- Protocolo conferido contra a análise aberta do projeto kalkan-monitor-rs (MIT).
+
 OBSERVAÇÕES
 - Placas NVIDIA mostram mais detalhes (VBIOS, limites de energia, CUDA).
 - Configurações e histórico ficam em %AppData%\ResetExplode (não vão junto com o .exe).
