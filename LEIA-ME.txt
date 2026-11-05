@@ -41,6 +41,9 @@ VISOR KALKAN (SmartMonitor)
   mesmo visor ao mesmo tempo embaralham os quadros um do outro.
 - A temperatura vem do mesmo motor de sensores do app: sem PawnIO e sem rodar como
   administrador, o visor mostra 0 °C.
+- O visor tem dois campos: DEV TEMP (°C) e FAN SPEED (RPM). No cartão você escolhe
+  de qual sensor vem cada um (CPU, núcleos, GPU, placa-mãe, discos, memória) e de
+  qual ventoinha. A escolha fica salva para a próxima vez.
 - Para conferir o visor sem abrir a janela:  ResetExplode.exe --kalkan-teste
   O resultado fica em %AppData%\ResetExplode\kalkan-teste.txt
 - Protocolo conferido contra a análise aberta do projeto kalkan-monitor-rs (MIT).

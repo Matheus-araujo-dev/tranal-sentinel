@@ -76,6 +76,12 @@ public sealed class AppSettings
     /// <summary>Itens escolhidos para o overlay (chaves de OverlayMetrics); null = padrão.</summary>
     public List<string>? OverlayItems { get; set; }
 
+    // Visor Kalkan: qual sensor alimenta a temperatura e qual alimenta a ventoinha
+    public string? KalkanTempSensor { get; set; }
+    public string? KalkanFanSensor { get; set; }
+    /// <summary>Manter o visor do cooler atualizado enquanto o app estiver aberto.</summary>
+    public bool KalkanAuto { get; set; } = true;
+
     [System.Text.Json.Serialization.JsonIgnore] // nunca gravar a chave em texto puro
     public string? HowManyFpsKey
     {

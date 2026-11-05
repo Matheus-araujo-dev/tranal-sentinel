@@ -89,6 +89,17 @@ aplicativo acha o visor pelo VID/PID `0416:1100` e escolhe a coleção do fabric
 "atualizar o visor todo segundo" para ele acompanhar a temperatura em tempo real
 (ou `ENVIAR AGORA` para um envio só).
 
+**O que aparece no visor:** o visor do Kalkan tem dois campos — "DEV TEMP" (°C) e
+"FAN SPEED" (RPM). No app oficial você escolhe *de qual sensor* vem cada um; aqui
+também, com duas listas no cartão:
+
+- **TEMPERATURA DO VISOR** — qualquer sensor de temperatura que o PC expõe
+  (pacote e núcleos da CPU, GPU, placa-mãe, discos, memória).
+- **VENTOINHA DO VISOR** — qualquer ventoinha (CPU, placa-mãe, GPU).
+
+As escolhas ficam gravadas em `%AppData%\ResetExplode\settings.json` e voltam
+prontas na próxima vez que abrir.
+
 Para conferir o visor sem abrir a janela:
 
 ```powershell
