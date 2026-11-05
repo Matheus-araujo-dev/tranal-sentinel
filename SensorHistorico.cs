@@ -82,11 +82,16 @@ public static class SensorHistorico
     public static string CaminhoArquivo => Path.Combine(Pasta, "historico.csv");
 
     /// <summary>
-    /// Tamanho máximo do arquivo. Passando disso, <see cref="Podar"/> fica só
-    /// com a metade mais nova — o que interessa é o que aconteceu antes de
-    /// travar, não o que aconteceu há semanas.
+    /// Quantos dias de histórico o arquivo guarda. É o que interessa: um
+    /// congelamento de semanas atrás já foi investigado.
     /// </summary>
-    public const long LimiteBytes = 8 * 1024 * 1024;
+    public const int DiasRetidos = 15;
+
+    /// <summary>
+    /// Tamanho máximo do arquivo. Passando disso, <see cref="Podar"/> corta o
+    /// que é mais antigo que <see cref="DiasRetidos"/>.
+    /// </summary>
+    public const long LimiteBytes = 32 * 1024 * 1024;
 
     /// <summary>
     /// Troca a pasta do log. Só os testes usam isto: eles não podem escrever
@@ -213,8 +218,13 @@ public static class SensorHistorico
     }
 
     /// <summary>
-    /// Rotação por tamanho: quando o arquivo passa do limite, fica só a metade
-    /// mais nova (as linhas recentes). Abaixo do limite, não faz nada.
+    /// Corta o que é mais antigo que <see cref="DiasRetidos"/>, quando o
+    /// arquivo passa de <see cref="LimiteBytes"/>.
+    ///
+    /// <para>
+    /// A gravação é por arquivo novo e renomeada: reescrever por cima deixaria
+    /// o histórico inteiro truncado se a máquina travasse no meio da reescrita.
+    /// </para>
     /// </summary>
     public static void Podar()
     {
@@ -225,10 +235,19 @@ public static class SensorHistorico
                 var info = new FileInfo(CaminhoArquivo);
                 if (!info.Exists || info.Length <= LimiteBytes) return;
 
+                // O timestamp da linha é ISO (aaaa-mm-dd): comparar as strings
+                // basta, e é bem mais barato do que reinterpretar cada linha.
+                string corte = DateTime.Now.AddDays(-DiasRetidos).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
                 var linhas = File.ReadAllLines(CaminhoArquivo);
-                int manter = (linhas.Length + 1) / 2;
-                var novas = linhas.Skip(linhas.Length - manter).ToArray();
-                File.WriteAllLines(CaminhoArquivo, novas, SemBom);
+                var novas = linhas.Where(l => l.Length >= 10 && string.CompareOrdinal(l, 0, corte, 0, 10) >= 0).ToList();
+
+                // Nada sobreviveu (log velho demais): melhor não tocar no arquivo.
+                if (novas.Count == 0) return;
+
+                string temporario = CaminhoArquivo + ".tmp";
+                File.WriteAllLines(temporario, novas, SemBom);
+                File.Move(temporario, CaminhoArquivo, overwrite: true);
             }
         }
         catch

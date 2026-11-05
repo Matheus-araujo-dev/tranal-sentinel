@@ -76,7 +76,7 @@ public static class MemoriaCli
         }
 
         sb.AppendLine($"Barramento: {(resultado.Barramento == SmbusModelo.AmdFch ? "AMD FCH (SMBus do processador)" : "Intel ICH/PCH (SMBus do processador)")}");
-        sb.AppendLine($"Módulos: {resultado.Modulos.Count} · Capacidade total: {FormatarBytes(resultado.CapacidadeTotalBytes)}");
+        sb.AppendLine($"Módulos: {resultado.Modulos.Count} · Capacidade total: {MemoriaTexto.Bytes(resultado.CapacidadeTotalBytes)}");
 
         if (resultado.VelocidadeConfigMts is int configurada)
         {
@@ -97,15 +97,15 @@ public static class MemoriaCli
             sb.AppendLine();
             sb.AppendLine($"MÓDULO A{modulo.EnderecoSmbus - SpdLeitor.PrimeiroEndereco + 1} · SMBus 0x{modulo.EnderecoSmbus:X2}");
             sb.AppendLine($"  {spd.Fabricante} · {spd.PartNumber} · {spd.Gigabytes:0.#} GB");
-            sb.AppendLine($"  {spd.TipoModulo} · {spd.Ranks} rank{(spd.Ranks > 1 ? "s" : "")} · {spd.LarguraBits} bits ({spd.LarguraChip}) · VDD {FormatarNumero(spd.TensaoNominal)} V");
+            sb.AppendLine($"  {spd.TipoModulo} · {spd.Ranks} rank{(spd.Ranks > 1 ? "s" : "")} · {spd.LarguraBits} bits ({spd.LarguraChip}) · VDD {MemoriaTexto.Voltagem(spd.TensaoNominal)}");
             if (spd.Serial.Length > 0) sb.AppendLine($"  Serial: {spd.Serial} · fabricado em {spd.FabricadoEm} · DRAM {spd.FabricanteDram}");
-            sb.AppendLine($"  Padrão JEDEC: {spd.Jedec.VelocidadeMts} MT/s · {spd.Jedec.ResumoCiclos} · tCK {FormatarNumero(spd.Jedec.TckPs)} ps");
-            sb.AppendLine($"  Perfil: {(perfil != null ? $"{perfil.Nome} · {perfil.Timing.VelocidadeMts} MT/s · {perfil.Timing.ResumoCiclos} · {FormatarNumero(perfil.Voltagem)} V" : "nenhum")}");
+            sb.AppendLine($"  Padrão JEDEC: {spd.Jedec.VelocidadeMts} MT/s · {spd.Jedec.ResumoCiclos} · tCK {MemoriaTexto.Ps(spd.Jedec.TckPs)}");
+            sb.AppendLine($"  Perfil: {(perfil != null ? $"{perfil.Nome} · {perfil.Timing.VelocidadeMts} MT/s · {perfil.Timing.ResumoCiclos} · {MemoriaTexto.Voltagem(perfil.Voltagem)}" : "nenhum")}");
 
             SpdTiming tempos = perfil?.Timing ?? spd.Jedec;
-            sb.AppendLine($"  Tempos: tAA {FormatarNumero(tempos.TaaNs)} ns · tRCD {FormatarNumero(tempos.TrcdNs)} ns · tRP {FormatarNumero(tempos.TrpNs)} ns");
-            sb.AppendLine($"         tRAS {FormatarNumero(tempos.TrasNs)} ns · tRC {FormatarNumero(tempos.TrcNs)} ns · tRFC1 {FormatarNumero(tempos.Trfc1Ns)} ns");
-            sb.AppendLine($"         tFAW {FormatarNumero(tempos.TfawNs)} ns · tRRD {FormatarNumero(tempos.TrrdSNs)}/{FormatarNumero(tempos.TrrdLNs)} ns · tWR {FormatarNumero(tempos.TwrNs)} ns");
+            sb.AppendLine($"  Tempos: tAA {MemoriaTexto.Ns(tempos.TaaNs)} · tRCD {MemoriaTexto.Ns(tempos.TrcdNs)} · tRP {MemoriaTexto.Ns(tempos.TrpNs)}");
+            sb.AppendLine($"         tRAS {MemoriaTexto.Ns(tempos.TrasNs)} · tRC {MemoriaTexto.Ns(tempos.TrcNs)} · tRFC1 {MemoriaTexto.Ns(tempos.Trfc1Ns)}");
+            sb.AppendLine($"         tFAW {MemoriaTexto.Ns(tempos.TfawNs)} · tRRD {MemoriaTexto.Ns(tempos.TrrdSNs)} / {MemoriaTexto.Ns(tempos.TrrdLNs)} · tWR {MemoriaTexto.Ns(tempos.TwrNs)}");
         }
 
         sb.AppendLine();
@@ -113,10 +113,4 @@ public static class MemoriaCli
 
         return sb.ToString();
     }
-
-    private static string FormatarNumero(double valor) =>
-        valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
-
-    private static string FormatarBytes(long bytes) =>
-        FormatarNumero(Math.Round(bytes / 1024.0 / 1024.0 / 1024.0, 1)) + " GB";
 }

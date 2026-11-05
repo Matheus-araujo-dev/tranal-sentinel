@@ -61,7 +61,75 @@ public class RetrospectivaTravamentoTestes
 
         var retrospectiva = Assert.Single(resultado);
         Assert.False(retrospectiva.TemDados);
-        Assert.Equal("sem log de sensores para este travamento", retrospectiva.Resumo);
+        Assert.Equal("o app não estava rodando na hora do travamento", retrospectiva.Resumo);
+    }
+
+    [Fact]
+    public void TravamentoReiniciadoHorasDepois_AindaTemRetrospectiva()
+    {
+        // O caso real do dono: o PC congelou às 10:00 e o dono só voltou e
+        // reiniciou às 14:00. A âncora é a hora do desligamento (evento 6008),
+        // não a do boot: sem ela o app diria "não estava rodando" e jogaria
+        // fora a janela que existe no arquivo.
+        var travamento = Travamento(Crash.AddHours(4));
+        travamento.InstanteDesligamento = Crash;
+
+        var amostras = new List<AmostraSensor>
+        {
+            Amostra(Crash.AddMinutes(-2), cpuTemp: 90f, gpuCarga: 40f),
+            Amostra(Crash.AddMinutes(-1), cpuTemp: 95f, gpuCarga: 100f),
+        };
+
+        var retrospectiva = Assert.Single(
+            CorrelatorTravamento.Correlacionar(new List<TravamentoInfo> { travamento }, amostras));
+
+        Assert.True(retrospectiva.TemDados);
+        Assert.Contains("CPU a 95 °C", retrospectiva.Resumo);
+        Assert.Contains("GPU 100 %", retrospectiva.Resumo);
+    }
+
+    [Fact]
+    public void TravamentoComAppParadoHorasAntes_NaoTemDados()
+    {
+        // O congelamento é que importa: o log parou 2 h antes, então o app
+        // não estava de pé na hora (mesmo que o boot tenha vindo logo depois).
+        var travamento = Travamento(Crash.AddMinutes(30));
+        travamento.InstanteDesligamento = Crash;
+
+        var amostras = new List<AmostraSensor> { Amostra(Crash.AddHours(-2), cpuTemp: 95f) };
+
+        var retrospectiva = Assert.Single(
+            CorrelatorTravamento.Correlacionar(new List<TravamentoInfo> { travamento }, amostras));
+
+        Assert.False(retrospectiva.TemDados);
+        Assert.Equal("o app não estava rodando na hora do travamento", retrospectiva.Resumo);
+    }
+
+    [Fact]
+    public void DoisTravamentosPerto_UmNaoPegaOResumoDoOutro()
+    {
+        // Dois congelamentos com menos de 2 minutos de distância: cada um tem
+        // que receber a sua retrospectiva (a ordem do correlator é a dos
+        // travamentos, e o pareamento é por índice).
+        var primeiro = Travamento(Crash);
+        primeiro.InstanteDesligamento = Crash;
+
+        var segundo = Travamento(Crash.AddMinutes(1));
+        segundo.InstanteDesligamento = Crash.AddMinutes(1);
+
+        var amostras = new List<AmostraSensor>
+        {
+            Amostra(Crash.AddMinutes(-1), cpuTemp: 70f),
+            Amostra(Crash, cpuTemp: 80f),
+            Amostra(Crash.AddMinutes(1), cpuTemp: 90f),
+        };
+
+        var resultado = CorrelatorTravamento.Correlacionar(
+            new List<TravamentoInfo> { primeiro, segundo }, amostras);
+
+        Assert.Equal(2, resultado.Count);
+        Assert.Contains("CPU a 80 °C", resultado[0].Resumo);
+        Assert.Contains("CPU a 90 °C", resultado[1].Resumo);
     }
 
     [Fact]

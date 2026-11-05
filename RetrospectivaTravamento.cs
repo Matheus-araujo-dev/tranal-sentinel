@@ -48,7 +48,13 @@ public static class CorrelatorTravamento
     private static readonly TimeSpan Janela = TimeSpan.FromMinutes(2);
 
     /// <summary>
-    /// Até quanto tempo antes do evento o app pode ter estado de pé. Se a
+    /// Margem do instante do congelamento: o log pode ter uma amostra gravada
+    /// já durante a falha (a máquina morre logo depois de escrever).
+    /// </summary>
+    private static readonly TimeSpan Margem = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Até quanto tempo antes do congelamento o app pode ter estado de pé. Se a
     /// última amostra for mais antiga que isto, o PC estava desligado (ou o
     /// app não estava rodando) e não há o que correlacionar.
     /// </summary>
@@ -61,10 +67,17 @@ public static class CorrelatorTravamento
     /// Correlaciona os travamentos com o log de sensores.
     ///
     /// <para>
-    /// Para cada travamento, as amostras candidatas são as que vieram antes
-    /// dele (o evento Kernel-Power 41 é registrado no boot seguinte, então
-    /// o congelamento foi antes). A amostra do crash é a mais recente delas;
-    /// a janela vai dos 2 minutos antes dela até ela.
+    /// A âncora é a hora em que a máquina parou — o <see cref="TravamentoInfo.InstanteDesligamento"/>,
+    /// que vem do evento 6008 (o desligamento inesperado). O <see cref="TravamentoInfo.Data"/>
+    /// é o boot seguinte: se o PC só foi reiniciado horas depois, usar o boot
+    /// como âncora faria o app dizer "não estava rodando" num congelamento em
+    /// que ele estava — e jogaria fora a janela que interessa.
+    /// </para>
+    ///
+    /// <para>
+    /// Quando o Windows não deixou o instante do desligamento, cai no boot e o
+    /// comportamento é o conservador: só há retrospectiva se o log for recente
+    /// em relação a ele.
     /// </para>
     ///
     /// <para>
@@ -80,7 +93,13 @@ public static class CorrelatorTravamento
 
         foreach (var travamento in travamentos)
         {
-            var candidatas = ordenadas.Where(a => a.Momento <= travamento.Data).ToList();
+            // A hora do congelamento (quando o Windows registrou) ou, na falta
+            // dela, o boot.
+            var ancora = travamento.InstanteDesligamento ?? travamento.Data;
+
+            // O log pode ter uma amostra já durante a falha (a máquina morre
+            // depois de gravar): a margem cobre isso.
+            var candidatas = ordenadas.Where(a => a.Momento <= ancora + Margem).ToList();
 
             if (candidatas.Count == 0)
             {
@@ -88,15 +107,15 @@ public static class CorrelatorTravamento
                 {
                     Data = travamento.Data,
                     TemDados = false,
-                    Resumo = "sem log de sensores para este travamento"
+                    Resumo = "o app não estava rodando na hora do travamento"
                 });
                 continue;
             }
 
-            // A amostra do crash é a mais recente antes do evento.
+            // A amostra do crash é a mais recente antes do congelamento.
             var amostra = candidatas[candidatas.Count - 1];
 
-            if (travamento.Data - amostra.Momento > Tolerancia)
+            if (ancora - amostra.Momento > Tolerancia)
             {
                 resultado.Add(new RetrospectivaTravamento
                 {

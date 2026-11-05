@@ -74,6 +74,32 @@ public class SpdTestes
     }
 
     [Fact]
+    public void ModuloQueManda_DesempateNaoDependeDaOrdem()
+    {
+        // Dois módulos que oferecem a mesma velocidade: o desempate não pode
+        // depender da ordem em que a coleta devolveu (a tela e o TRANAL SAÚDE
+        // precisam chegar à mesma conclusão).
+        var comPerfil = new SpdModulo
+        {
+            PartNumber = "AAAA",
+            Jedec = new SpdTiming { VelocidadeMts = 2400 },
+            Perfis = { new SpdPerfil { Nome = "XMP 2.0", Timing = new SpdTiming { VelocidadeMts = 3200 } } }
+        };
+
+        var semPerfil = new SpdModulo
+        {
+            PartNumber = "BBBB",
+            Jedec = new SpdTiming { VelocidadeMts = 3200 }
+        };
+
+        SpdModulo? primeiro = MemoriaRegras.ModuloQueManda(new[] { comPerfil, semPerfil });
+        SpdModulo? invertido = MemoriaRegras.ModuloQueManda(new[] { semPerfil, comPerfil });
+
+        Assert.Same(comPerfil, primeiro);
+        Assert.Same(comPerfil, invertido);
+    }
+
+    [Fact]
     public void SpdReal_OsDoisModulosSaoIguais()
     {
         var primeiro = DecodificadorSpd.Decodificar(SpdReal.Dimm1);

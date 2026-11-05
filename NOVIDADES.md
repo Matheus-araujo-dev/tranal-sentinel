@@ -1,3 +1,37 @@
+## Novidades da v0.23 — o app agora conta o que a máquina estava fazendo antes de travar
+
+O TRANAL SAÚDE já contava os travamentos (o evento Kernel-Power 41, que o
+Windows grava quando o PC é desligado sem limpeza). Agora ele também conta o
+que os **sensores estavam fazendo** nos minutos que antecederam o
+congelamento — que é a pergunta que interessa: a CPU estava a 95 °C? A GPU
+tava a 100 %? O clock tinha caído?
+
+**Novo · log contínuo de sensores**
+- O app passa a gravar o estado dos sensores a cada 5 segundos: temperatura e
+  clock da CPU, carga da CPU, temperatura, carga, clock e VRAM da GPU, uso da
+  RAM e o tráfego do disco.
+- O log fica em `%LOCALAPPDATA%\TranalSentinel\sensores\historico.csv` — um CSV
+  simples, que dá para abrir em qualquer editor. Ele gira sozinho (fica no
+  máximo 8 MB, guardando o que é mais recente).
+- A gravação acontece fora da thread da tela: escrever arquivo na interface já
+  tinha chegado a engasgar o benchmark.
+
+**Novo · retrospectiva do travamento**
+- Cada travamento da lista do TRANAL SAÚDE passa a mostrar a linha do que os
+  sensores faziam nos 2 minutos antes do congelamento:
+  `CPU a 95 °C · GPU a 72 °C · carga da CPU 87 % · RAM 91 % · clock da CPU 3,2 GHz`.
+- Quando o app não estava rodando na hora (ou o log ainda não tem nada), a
+  linha diz isso em vez de fingir que sabe.
+- O mesmo texto aparece no relatório de texto (`TranalSentinel.exe --saude
+  relatar`).
+
+**Como usar**
+- O app precisa estar aberto (na bandeja) para gravar o log. O quanto antes
+  ele ficar rodando, mais antigo é o histórico que dá para correlacionar.
+- Nada disso muda o computador: o log é só leitura de sensores.
+
+---
+
 ## Novidades da v0.22 — o app passou a ler a memória de verdade
 
 O TRANAL SENTINEL agora lê o **SPD** dos módulos de memória: o "cartão de visita"

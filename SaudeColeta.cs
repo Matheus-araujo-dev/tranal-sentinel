@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Management;
 using System.Text.RegularExpressions;
@@ -34,6 +35,12 @@ internal static class SaudeColeta
     {
         var inicio = DateTime.Now.AddDays(-90);
 
+        // Os desligamentos inesperados (evento 6008): cada um diz a HORA REAL em
+        // que a máquina parou. O Kernel-Power 41 só diz quando o Windows voltou
+        // a subir — se o dono só reinicia o PC horas depois, o 41 não serve
+        // para saber a hora do congelamento.
+        var desligamentos = new List<(DateTime Boot, DateTime? Instante)>();
+
         // Uma passada só pelo log System: travamentos, WHEA e resets de vídeo.
         SaudeEventos.Ler("System", registro =>
         {
@@ -58,6 +65,11 @@ internal static class SaudeColeta
                         : $"Botão de energia em {botao}"
                 });
             }
+            else if (registro.Id == 6008)
+            {
+                var e = SaudeEventos.Converter(registro);
+                desligamentos.Add((e.Data, LerInstanteDesligamento(e)));
+            }
             else if (registro.ProviderName == "Microsoft-Windows-WHEA-Logger")
             {
                 dados.EventosWhea++;
@@ -67,6 +79,15 @@ internal static class SaudeColeta
                 dados.ResetsDriverVideo++;
             }
         });
+
+        // Cada travamento ganha a hora em que a máquina parou (quando o Windows
+        // registrou o desligamento inesperado). É ela que ancora a janela do
+        // log de sensores: sem ela, o app diria "não estava rodando" num
+        // congelamento em que estava.
+        foreach (var travamento in dados.Travamentos)
+        {
+            travamento.InstanteDesligamento = DesligamentoDoBoot(travamento.Data, desligamentos);
+        }
 
         // Quem falhou na janela de cada travamento: costuma ser o app que roda no
         // boot, não a causa do congelamento.
@@ -112,6 +133,90 @@ internal static class SaudeColeta
     }
 
     /// <summary>
+    /// O instante em que a máquina parou, lido do evento 6008 ("o desligamento
+    /// anterior às HH:MM:SS do dia DD/MM/AAAA não era esperado").
+    ///
+    /// <para>
+    /// O texto vem no formato do Windows (e com marcas de direção invisíveis
+    /// no meio). A data é ambígua quando o dia e o mês são dois números
+    /// pequenos: nesse caso segue o padrão curto do Windows atual.
+    /// </para>
+    /// </summary>
+    internal static DateTime? LerInstanteDesligamento(EventoWindows e)
+    {
+        string hora = Limpar(e.Valor(0));
+        string data = Limpar(e.Valor(1));
+        if (hora.Length == 0 || data.Length == 0) return null;
+
+        string[] partes = data.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (partes.Length != 3) return null;
+        if (!int.TryParse(partes[0], out int primeiro) ||
+            !int.TryParse(partes[1], out int segundo) ||
+            !int.TryParse(partes[2], out int ano)) return null;
+
+        int dia, mes;
+        if (primeiro > 12) { dia = primeiro; mes = segundo; }
+        else if (segundo > 12) { mes = primeiro; dia = segundo; }
+        else
+        {
+            // Dia e mês ambíguos: quem decide é o Windows (o evento usa o
+            // formato curto da configuração regional).
+            string padrao = CultureInfo.CurrentCulture.DateTimeFormat.ShortDatePattern;
+            int posDia = padrao.IndexOf('d', StringComparison.OrdinalIgnoreCase);
+            int posMes = padrao.IndexOf('M', StringComparison.OrdinalIgnoreCase);
+            bool diaPrimeiro = posMes < 0 || (posDia >= 0 && posDia < posMes);
+            if (diaPrimeiro) { dia = primeiro; mes = segundo; }
+            else { mes = primeiro; dia = segundo; }
+        }
+
+        if (ano < 1900 || mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+        if (!TimeSpan.TryParse(hora, CultureInfo.InvariantCulture, out var momento)) return null;
+
+        try
+        {
+            return new DateTime(ano, mes, dia, momento.Hours, momento.Minutes, momento.Seconds, DateTimeKind.Local);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // Dia que não existe no mês (o Windows às vezes escreve 31/02).
+            return null;
+        }
+    }
+
+    /// <summary>Tira as marcas de direção e os caracteres de controle do texto do evento.</summary>
+    private static string Limpar(string? texto)
+    {
+        if (string.IsNullOrEmpty(texto)) return "";
+
+        var sb = new System.Text.StringBuilder(texto.Length);
+        foreach (char c in texto)
+        {
+            if (c == '\u200e' || c == '\u200f' || c == '\u202a' || c == '\u202b') continue;
+            if (char.IsControl(c)) continue;
+            sb.Append(c);
+        }
+
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>
+    /// O desligamento inesperado que corresponde a um boot: o Windows grava o
+    /// 6008 logo depois do Kernel-Power 41 do mesmo boot.
+    /// </summary>
+    internal static DateTime? DesligamentoDoBoot(DateTime boot, List<(DateTime Boot, DateTime? Instante)> desligamentos)
+    {
+        foreach (var (quando, instante) in desligamentos)
+        {
+            if (instante == null) continue;
+            if (quando < boot) continue;
+            if (quando > boot.AddMinutes(15)) break;
+            return instante;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Cruza os travamentos com o log contínuo de sensores e escreve, em cada
     /// travamento, o que a máquina estava fazendo antes do congelamento.
     ///
@@ -125,33 +230,36 @@ internal static class SaudeColeta
     {
         try
         {
-            var amostras = SensorHistorico.Ler(inicio);
+            // Sem travamento, não há o que correlacionar: nem precisa ler o log.
+            if (dados.Travamentos.Count == 0) return;
+
+            // Só interessa o log de antes do travamento mais antigo (com uma
+            // folga): ler o arquivo inteiro a cada análise seria caro.
+            var maisAntigo = dados.Travamentos
+                .Select(t => t.InstanteDesligamento ?? t.Data)
+                .Min();
+            var desde = maisAntigo - TimeSpan.FromMinutes(15);
+            if (desde < inicio) desde = inicio;
+
+            var amostras = SensorHistorico.Ler(desde);
             var retrospectivas = CorrelatorTravamento.Correlacionar(dados.Travamentos, amostras);
             dados.Retrospectivas.AddRange(retrospectivas);
 
             // O texto vai para dentro do próprio travamento: a tela e o
             // relatório mostram a lista de travamentos, não a de retrospectivas.
-            foreach (var travamento in dados.Travamentos)
-                travamento.Retrospectiva = ResumoRetrospectiva(travamento.Data, retrospectivas);
+            //
+            // O pareamento é por índice: o correlator devolve uma retrospectiva
+            // por travamento, na mesma ordem. Reemparelhar por proximidade
+            // aqui duplicaria a regra (e erraria quando dois travamentos
+            // aconteceram com menos de 2 minutos de distância).
+            for (int i = 0; i < dados.Travamentos.Count && i < retrospectivas.Count; i++)
+                dados.Travamentos[i].Retrospectiva = retrospectivas[i].Resumo;
         }
         catch
         {
             // O log de sensores é um extra: sem ele, o diagnóstico continua
             // funcionando igual (só não conta o que os sensores faziam).
         }
-    }
-
-    /// <summary>
-    /// O resumo do travamento mais próximo dentro de 2 minutos.
-    /// </summary>
-    private static string ResumoRetrospectiva(DateTime data, List<RetrospectivaTravamento> retrospectivas)
-    {
-        var maisProximo = retrospectivas
-            .Where(r => Math.Abs((r.Data - data).TotalMinutes) <= 2)
-            .OrderBy(r => Math.Abs((r.Data - data).TotalMinutes))
-            .FirstOrDefault();
-
-        return maisProximo?.Resumo ?? "";
     }
 
     /// <summary>

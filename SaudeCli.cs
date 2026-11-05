@@ -73,6 +73,15 @@ public sealed class TravamentoSalvo
     public string Bugcheck { get; set; } = "";
     public string Detalhe { get; set; } = "";
 
+    /// <summary>
+    /// O que os sensores faziam antes do congelamento. Vai no snapshot
+    /// também: o relatório em texto e o JSON precisam contar a mesma coisa.
+    /// </summary>
+    public string Retrospectiva { get; set; } = "";
+
+    /// <summary>A hora em que a máquina parou (vem do evento 6008).</summary>
+    public DateTime? InstanteDesligamento { get; set; }
+
     public TravamentoSalvo() { }
 
     public TravamentoSalvo(TravamentoInfo travamento)
@@ -80,6 +89,8 @@ public sealed class TravamentoSalvo
         Data = travamento.Data;
         Bugcheck = travamento.Bugcheck;
         Detalhe = travamento.Detalhe;
+        Retrospectiva = travamento.Retrospectiva;
+        InstanteDesligamento = travamento.InstanteDesligamento;
     }
 }
 

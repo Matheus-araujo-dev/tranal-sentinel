@@ -48,6 +48,14 @@ public sealed class TravamentoInfo
     public string Detalhe { get; init; } = "";
 
     /// <summary>
+    /// A hora em que a máquina realmente parou (vem do evento 6008, o
+    /// desligamento inesperado). O <see cref="Data"/> é o boot seguinte: quando
+    /// o PC só é reiniciado horas depois, é esta hora que ancora a janela do
+    /// log de sensores. Null quando o Windows não registrou o desligamento.
+    /// </summary>
+    public DateTime? InstanteDesligamento { get; set; }
+
+    /// <summary>
     /// O que os sensores estavam fazendo antes do travamento (o log contínuo
     /// correlacionado com este evento). Vazio quando não há o que dizer.
     /// </summary>

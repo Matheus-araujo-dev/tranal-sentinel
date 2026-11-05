@@ -82,7 +82,7 @@ public partial class MainWindow
         resumo.Add(new InfoNode
         {
             Header = "Capacidade total",
-            Value = FormatarBytes(resultado.CapacidadeTotalBytes)
+            Value = MemoriaTexto.Bytes(resultado.CapacidadeTotalBytes)
         });
         resumo.Add(new InfoNode
         {
@@ -110,7 +110,7 @@ public partial class MainWindow
             {
                 Header = "Perfil do módulo",
                 Value = perfil != null
-                    ? $"{perfil.Nome} · {perfil.Timing.VelocidadeMts} MT/s · {perfil.Timing.ResumoCiclos} · {FormatarVoltagem(perfil.Voltagem)}"
+                    ? $"{perfil.Nome} · {perfil.Timing.VelocidadeMts} MT/s · {perfil.Timing.ResumoCiclos} · {MemoriaTexto.Voltagem(perfil.Voltagem)}"
                     : "—"
             });
         }
@@ -146,26 +146,26 @@ public partial class MainWindow
             Detalhe = $"{spd.TipoModulo} · {spd.Ranks} rank{(spd.Ranks > 1 ? "s" : "")} · {spd.LarguraBits} bits ({spd.LarguraChip})" +
                       (spd.Serial.Length > 0 ? $" · SN {spd.Serial}" : "") +
                       (spd.FabricadoEm.Length > 0 ? $" · {spd.FabricadoEm}" : ""),
-            Padrao = $"Padrão JEDEC: {spd.Jedec.VelocidadeMts} MT/s · {spd.Jedec.ResumoCiclos} · tCK {FormatarPs(spd.Jedec.TckPs)}",
+            Padrao = $"Padrão JEDEC: {spd.Jedec.VelocidadeMts} MT/s · {spd.Jedec.ResumoCiclos} · tCK {MemoriaTexto.Ps(spd.Jedec.TckPs)}",
             Perfil = perfil != null
-                ? $"{perfil.Nome}: {perfil.Timing.VelocidadeMts} MT/s · {perfil.Timing.ResumoCiclos} · {FormatarVoltagem(perfil.Voltagem)}" +
+                ? $"{perfil.Nome}: {perfil.Timing.VelocidadeMts} MT/s · {perfil.Timing.ResumoCiclos} · {MemoriaTexto.Voltagem(perfil.Voltagem)}" +
                   (perfil.Habilitado ? " · habilitado" : " · desabilitado")
                 : "Sem perfil XMP/EXPO gravado no módulo."
         };
 
         SpdTiming tempos = perfil?.Timing ?? spd.Jedec;
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tAA (latência CAS)", Valor = FormatarNs(tempos.TaaNs) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRCD", Valor = FormatarNs(tempos.TrcdNs) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRP", Valor = FormatarNs(tempos.TrpNs) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRAS", Valor = FormatarNs(tempos.TrasNs) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRC", Valor = FormatarNs(tempos.TrcNs) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRFC1", Valor = FormatarNs(tempos.Trfc1Ns) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRFC2", Valor = FormatarNs(tempos.Trfc2Ns) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRFC4", Valor = FormatarNs(tempos.Trfc4Ns) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tFAW", Valor = FormatarNs(tempos.TfawNs) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRRD (s/l)", Valor = $"{FormatarNs(tempos.TrrdSNs)} / {FormatarNs(tempos.TrrdLNs)}" });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tWR", Valor = FormatarNs(tempos.TwrNs) });
-        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tWTR (s/l)", Valor = $"{FormatarNs(tempos.TwtrSNs)} / {FormatarNs(tempos.TwtrLNs)}" });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tAA (latência CAS)", Valor = MemoriaTexto.Ns(tempos.TaaNs) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRCD", Valor = MemoriaTexto.Ns(tempos.TrcdNs) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRP", Valor = MemoriaTexto.Ns(tempos.TrpNs) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRAS", Valor = MemoriaTexto.Ns(tempos.TrasNs) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRC", Valor = MemoriaTexto.Ns(tempos.TrcNs) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRFC1", Valor = MemoriaTexto.Ns(tempos.Trfc1Ns) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRFC2", Valor = MemoriaTexto.Ns(tempos.Trfc2Ns) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRFC4", Valor = MemoriaTexto.Ns(tempos.Trfc4Ns) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tFAW", Valor = MemoriaTexto.Ns(tempos.TfawNs) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tRRD (s/l)", Valor = $"{MemoriaTexto.Ns(tempos.TrrdSNs)} / {MemoriaTexto.Ns(tempos.TrrdLNs)}" });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tWR", Valor = MemoriaTexto.Ns(tempos.TwrNs) });
+        vm.Tempos.Add(new MemoriaLinhaVm { Nome = "tWTR (s/l)", Valor = $"{MemoriaTexto.Ns(tempos.TwtrSNs)} / {MemoriaTexto.Ns(tempos.TwtrLNs)}" });
 
         return vm;
     }
@@ -173,19 +173,4 @@ public partial class MainWindow
     /// <summary>Letra do slot a partir do endereço SMBus (0x50 = A1, 0x51 = A2...).</summary>
     private static string LetraSlot(int endereco) =>
         "A" + (endereco - SpdLeitor.PrimeiroEndereco + 1).ToString(CultureInfo.InvariantCulture);
-
-    private static string FormatarNumero(double valor) =>
-        valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
-
-    private static string FormatarNs(double nanossegundos) => FormatarNumero(nanossegundos) + " ns";
-
-    private static string FormatarPs(double picossegundos) => FormatarNumero(picossegundos) + " ps";
-
-    private static string FormatarVoltagem(double volts) => FormatarNumero(volts) + " V";
-
-    private static string FormatarBytes(long bytes)
-    {
-        double gb = bytes / 1024.0 / 1024.0 / 1024.0;
-        return FormatarNumero(Math.Round(gb, 1)) + " GB";
-    }
 }

@@ -34,6 +34,12 @@ public static class MemoriaRegras
     /// Escolhe o módulo que manda na classificação: o que oferece a menor
     /// velocidade. Com módulos diferentes é o mais fraco que limita o clock do
     /// sistema — e é ele que a tela e o TRANAL SAÚDE precisam descrever.
+    ///
+    /// <para>
+    /// O desempate é determinístico (não depende da ordem em que a coleta
+    /// devolveu os módulos): primeiro a velocidade oferecida, depois o padrão
+    /// JEDEC, depois o perfil e, por último, o part number.
+    /// </para>
     /// </summary>
     /// <param name="modulos">Os módulos lidos no SPD.</param>
     public static SpdModulo? ModuloQueManda(IEnumerable<SpdModulo> modulos)
@@ -41,7 +47,7 @@ public static class MemoriaRegras
         ArgumentNullException.ThrowIfNull(modulos);
 
         SpdModulo? escolhido = null;
-        int menor = int.MaxValue;
+        (int Oferece, int Jedec, int Perfil, string Parte) melhor = (int.MaxValue, int.MaxValue, int.MaxValue, "");
 
         foreach (SpdModulo modulo in modulos)
         {
@@ -52,9 +58,17 @@ public static class MemoriaRegras
             int oferece = Math.Max(jedec, perfil);
             if (oferece <= 0) continue;
 
-            if (oferece < menor)
+            var atual = (Oferece: oferece, Jedec: jedec, Perfil: perfil, Parte: modulo.PartNumber ?? "");
+
+            bool melhor_ = atual.Oferece < melhor.Oferece
+                        || (atual.Oferece == melhor.Oferece && atual.Jedec < melhor.Jedec)
+                        || (atual.Oferece == melhor.Oferece && atual.Jedec == melhor.Jedec && atual.Perfil < melhor.Perfil)
+                        || (atual.Oferece == melhor.Oferece && atual.Jedec == melhor.Jedec && atual.Perfil == melhor.Perfil
+                            && string.CompareOrdinal(atual.Parte, melhor.Parte) < 0);
+
+            if (melhor_)
             {
-                menor = oferece;
+                melhor = atual;
                 escolhido = modulo;
             }
         }

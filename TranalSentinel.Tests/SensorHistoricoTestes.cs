@@ -221,35 +221,42 @@ public class SensorHistoricoTestes : IDisposable
     // ---------------------------------------------------------------------- podar
 
     [Fact]
-    public void Podar_AcimaDoLimite_CortaOArquivoEMantemAsLinhasMaisNovas()
+    public void Podar_AcimaDoLimite_CortaOQueEAntigoEDeixaORecente()
     {
         UsarPastaTemporaria();
 
-        // Linhas compridas (o último campo é ruído) para passar do limite sem
-        // escrever 8 MB de linhas de verdade.
-        int total = 9000;
-        var inicio = new DateTime(2026, 11, 5, 0, 0, 0, DateTimeKind.Local);
+        // A regra é pelo tempo (os últimos SensorHistorico.DiasRetidos dias),
+        // não pela metade: o que interessa é o que aconteceu antes de travar.
+        // Linhas compridas para passar do limite sem escrever 32 MB de verdade.
+        int total = 4000;
+        var agora = DateTime.Now;
         var linhas = new List<string>(total);
         for (int i = 0; i < total; i++)
         {
-            string momento = inicio.AddSeconds(i).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture);
-            linhas.Add($"{momento};95;50;100;3200;70;90;2000;2048;80;10;{new string('9', 1000)}");
+            // Metade das linhas é de 60 dias atrás (fora da janela) e metade é
+            // de agora (dentro).
+            var momento = (i % 2 == 0 ? agora.AddDays(-60) : agora.AddMinutes(-i))
+                .ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture);
+            linhas.Add($"{momento};95;50;100;3200;70;90;2000;2048;80;10;{new string('9', 9000)}");
         }
         Directory.CreateDirectory(SensorHistorico.Pasta);
         File.WriteAllLines(SensorHistorico.CaminhoArquivo, linhas);
         Assert.True(new FileInfo(SensorHistorico.CaminhoArquivo).Length > SensorHistorico.LimiteBytes);
+
         SensorHistorico.Podar();
 
         var restantes = File.ReadAllLines(SensorHistorico.CaminhoArquivo);
-        int esperado = (total + 1) / 2;
-        Assert.Equal(esperado, restantes.Length);
+        Assert.NotEmpty(restantes);
+        Assert.True(restantes.Length < total);
         Assert.True(new FileInfo(SensorHistorico.CaminhoArquivo).Length < SensorHistorico.LimiteBytes);
 
-        // A primeira linha que sobrou é a do meio, e a última é a mais nova.
-        Assert.StartsWith(inicio.AddSeconds(total - esperado).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture),
-                          restantes[0]);
-        Assert.StartsWith(inicio.AddSeconds(total - 1).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture),
-                          restantes[^1]);
+        // Nenhuma linha mais antiga que a janela sobreviveu.
+        string corte = agora.AddDays(-SensorHistorico.DiasRetidos).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        foreach (string linha in restantes)
+            Assert.True(string.CompareOrdinal(linha, 0, corte, 0, 10) >= 0, $"linha antiga sobreviveu: {linha[..10]}");
+
+        // A reescrita é por arquivo novo: não sobra temporário.
+        Assert.False(File.Exists(SensorHistorico.CaminhoArquivo + ".tmp"));
     }
 
     [Fact]

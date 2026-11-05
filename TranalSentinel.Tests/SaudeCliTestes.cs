@@ -367,6 +367,29 @@ public class SaudeCliTestes
     }
 
     [Fact]
+    public void SnapshotEmJson_TrazARetrospectivaDoTravamento()
+    {
+        // O relatório em texto e o JSON precisam contar a mesma coisa: se a
+        // retrospectiva sumisse no snapshot, quem comparasse antes/depois
+        // não veria o que os sensors faziam.
+        var relatorio = Relatorio();
+        relatorio.Travamentos.Add(new TravamentoInfo
+        {
+            Data = new DateTime(2026, 10, 7, 23, 43, 38),
+            Bugcheck = "0",
+            Detalhe = "Sem botão de energia (travou sozinho)",
+            Retrospectiva = "CPU a 95 °C · GPU 100 %",
+            InstanteDesligamento = new DateTime(2026, 10, 7, 23, 43, 30)
+        });
+
+        var snapshot = SnapshotSaude.DeRelatorio(relatorio);
+
+        var travamento = Assert.Single(snapshot.Travamentos);
+        Assert.Equal("CPU a 95 °C · GPU 100 %", travamento.Retrospectiva);
+        Assert.Equal(new DateTime(2026, 10, 7, 23, 43, 30), travamento.InstanteDesligamento);
+    }
+
+    [Fact]
     public void ComparacaoEmTexto_TrazOsTresGrupos()
     {
         var antes = Relatorio(Achado("Hardware", "4 eventos WHEA (erro de CPU/RAM/PCIe)"));
