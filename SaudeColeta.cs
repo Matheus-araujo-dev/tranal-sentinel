@@ -313,7 +313,7 @@ internal static class SaudeColeta
     {
         try
         {
-            foreach (var linha in ConsultarWmi("SELECT Model, PNPDeviceID, Status, Size FROM Win32_DiskDrive"))
+            foreach (var linha in Wmi.Consultar("SELECT Model, PNPDeviceID, Status, Size FROM Win32_DiskDrive"))
             {
                 dados.Discos.Add(new DiscoInfo
                 {
@@ -401,7 +401,7 @@ internal static class SaudeColeta
     {
         try
         {
-            foreach (var linha in ConsultarWmiEm(@"root\SecurityCenter2", "SELECT displayName, productState FROM AntiVirusProduct"))
+            foreach (var linha in Wmi.ConsultarEm(@"root\SecurityCenter2", "SELECT displayName, productState FROM AntiVirusProduct"))
             {
                 var nome = linha["displayName"];
                 if (nome.Length == 0) continue;
@@ -418,7 +418,7 @@ internal static class SaudeColeta
     {
         try
         {
-            foreach (var linha in ConsultarWmi("SELECT Name, State, PathName FROM Win32_SystemDriver"))
+            foreach (var linha in Wmi.Consultar("SELECT Name, State, PathName FROM Win32_SystemDriver"))
             {
                 var caminho = linha["PathName"];
                 if (!caminho.Contains("mfesec.sys", StringComparison.OrdinalIgnoreCase)) continue;
@@ -490,7 +490,7 @@ internal static class SaudeColeta
 
         try
         {
-            foreach (var linha in ConsultarWmi("SELECT DeviceLocator, Capacity, Speed, ConfiguredClockSpeed, Manufacturer FROM Win32_PhysicalMemory"))
+            foreach (var linha in Wmi.Consultar("SELECT DeviceLocator, Capacity, Speed, ConfiguredClockSpeed, Manufacturer FROM Win32_PhysicalMemory"))
             {
                 dados.ModulosMemoria.Add(new ModuloMemoria
                 {
@@ -519,7 +519,7 @@ internal static class SaudeColeta
 
         try
         {
-            foreach (var linha in ConsultarWmi("SELECT Name, DisplayName, StartMode, PathName FROM Win32_Service"))
+            foreach (var linha in Wmi.Consultar("SELECT Name, DisplayName, StartMode, PathName FROM Win32_Service"))
             {
                 if (!linha["StartMode"].Equals("Auto", StringComparison.OrdinalIgnoreCase)) continue;
                 dados.ServicosAuto.Add(new ServicoInfo
@@ -534,56 +534,15 @@ internal static class SaudeColeta
 
         try
         {
-            foreach (var linha in ConsultarWmi("SELECT HypervisorPresent FROM Win32_ComputerSystem"))
+            foreach (var linha in Wmi.Consultar("SELECT HypervisorPresent FROM Win32_ComputerSystem"))
                 dados.HypervisorAtivo = linha.ValorBool("HypervisorPresent");
         }
         catch { }
     }
 
     // ---------------------------------------------------------------- infraestrutura
-
-    /// <summary>Uma linha de WMI com acesso seguro às propriedades.</summary>
-    private sealed class LinhaWmi
-    {
-        private readonly Dictionary<string, string> _valores = new(StringComparer.OrdinalIgnoreCase);
-
-        public string this[string chave] => _valores.TryGetValue(chave, out var v) ? v : "";
-
-        public void Definir(string chave, string valor) => _valores[chave] = valor;
-
-        public long ValorLong(string chave) =>
-            _valores.TryGetValue(chave, out var v) && long.TryParse(v, out var n) ? n : 0;
-
-        public bool ValorBool(string chave) =>
-            _valores.TryGetValue(chave, out var v) && bool.TryParse(v, out var b) && b;
-    }
-
-    /// <summary>Consulta WMI (namespace padrão root\cimv2) e devolve as linhas já convertidas para texto.</summary>
-    private static List<LinhaWmi> ConsultarWmi(string consulta) => ConsultarWmiEm(@"root\cimv2", consulta);
-
-    /// <summary>Consulta WMI em um namespace específico e devolve as linhas já convertidas para texto.</summary>
-    private static List<LinhaWmi> ConsultarWmiEm(string espacoDeNomes, string consulta)
-    {
-        var lista = new List<LinhaWmi>();
-        try
-        {
-            var escopo = new ManagementScope(espacoDeNomes);
-            escopo.Connect();
-
-            using var busca = new ManagementObjectSearcher(escopo, new ObjectQuery(consulta));
-            using var objetos = busca.Get();
-            foreach (ManagementObject objeto in objetos)
-            {
-                var linha = new LinhaWmi();
-                foreach (var propriedade in objeto.Properties)
-                {
-                    try { linha.Definir(propriedade.Name, propriedade.Value?.ToString() ?? ""); }
-                    catch { }
-                }
-                lista.Add(linha);
-            }
-        }
-        catch { }
-        return lista;
-    }
+    //
+    // O acesso ao WMI (Wmi.cs) e a leitura de programas instalados são compartilhados
+    // com a linha do tempo do PC: uma única implementação, para as duas telas não
+    // divergirem sobre o que o Windows está fazendo.
 }

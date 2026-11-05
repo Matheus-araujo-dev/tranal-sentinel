@@ -70,6 +70,9 @@ public sealed class AppSettings
     // Aparência
     public bool LightTheme { get; set; }
 
+    // Perfil de recursos: quanto o app gasta de CPU e memória em segundo plano.
+    public PerfilRecursos Perfil { get; set; } = PerfilRecursos.Equilibrado;
+
     // Overlay
     public string OverlayCorner { get; set; } = "TL";
     public double OverlayScale { get; set; } = 1.0;
