@@ -1,3 +1,45 @@
+## Novidades da v0.22 — o app passou a ler a memória de verdade
+
+O TRANAL SENTINEL agora lê o **SPD** dos módulos de memória: o "cartão de visita"
+de 512 bytes que cada módulo carrega, lido direto pelo barramento SMBus do
+processador. É a mesma informação que o CPU-Z e o HWiNFO mostram — aqui sem
+instalar nada além do que o app já usava.
+
+**Nova página · TRANAL MEMÓRIA › Módulos**
+- Cada módulo aparece com fabricante, part number, número de série, capacidade,
+  ranks, latência, os tempos do padrão **JEDEC** e o perfil **XMP/EXPO** gravado
+  dentro do módulo.
+- O perfil XMP 2.0 é lido campo a campo: clock (3200 MT/s), latência (CL 18),
+  tempos principais (18-22-22-42) e a tensão do perfil (1,35 V).
+- Os identificadores que o módulo guarda em binário (fabricante, número de série)
+  aparecem em hexadecimal, do jeito que vem impresso na etiqueta.
+- Precisa do driver **PawnIO** — o mesmo que o app já usa para a temperatura da
+  CPU. Se ele faltar, o botão CORRIGIR do menu lateral instala com um clique.
+- É **somente leitura**: nada do que está gravado no módulo de memória é
+  alterado. A única escrita é a troca de página do hub do SPD, que é estado
+  volátil do próprio hub.
+- Linha de comando: `TranalSentinel.exe --memoria`
+
+**O TRANAL SAÚDE passou a olhar a memória**
+- O app compara o clock que a BIOS configurou com o que o módulo realmente
+  oferece e avisa quando a memória está no perfil, no padrão JEDEC ou ajustada à
+  mão (acima do perfil do módulo).
+- O aviso é informativo quando a memória está no padrão e só vira problema quando
+  ela foi mexida à mão.
+
+**Transparência com a licença**
+- Os módulos PawnIO usados na leitura são LGPL-2.1. Eles vêm embutidos no
+  executável e são extraídos para `%LOCALAPPDATA%\TranalSentinel\PawnIO\`, com a
+  licença e o aviso de origem ao lado. Trocar por uma versão mais nova é só
+  substituir o arquivo `.bin` nessa pasta.
+
+**O que ainda não entra**
+- Os tempos **ativos** (os registradores do controlador de memória do AMD): só o
+  que está gravado no módulo é lido.
+- **EXPO**: o decodificador existe, mas falta um módulo EXPO para servir de prova.
+
+---
+
 ## Novidades da v0.21.1 — o desfazer passou a devolver o serviço de verdade
 
 Correções vindas da terceira revisão adversarial da v0.21 (8 defeitos, com

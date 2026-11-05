@@ -330,12 +330,12 @@ public static class DecodificadorSpd
             LarguraChip = larguraChip > 0 ? $"x{larguraChip}" : "",
             TipoModulo = NomeTipoModulo(spd[OffTipoModulo]),
             TensaoNominal = LerTensaoNominal(spd[OffTensaoNominal]),
-            Fabricante = LerTexto(spd, OffFabricante, 2),
+            Fabricante = LerTextoOuHex(spd, OffFabricante, 2),
             Localizacao = LerTexto(spd, OffLocalizacao, 1),
             FabricadoEm = $"{spd[OffAno]:X2}/{spd[OffSemana]:X2}",
             Serial = LerTextoOuHex(spd, OffSerial, 4),
             PartNumber = LerTexto(spd, OffPartNumber, 20),
-            FabricanteDram = LerTexto(spd, OffFabricanteDram, 2),
+            FabricanteDram = LerTextoOuHex(spd, OffFabricanteDram, 2),
             Jedec = jedec,
             Perfis = LerPerfis(spd)
         };
@@ -493,9 +493,10 @@ public static class DecodificadorSpd
     }
 
     /// <summary>
-    /// Lê um campo de texto. O número de série do SPD é binário em alguns
-    /// módulos (e não ASCII): nesse caso ele vem em hexadecimal, que é como o
-    /// fabricante imprime na etiqueta do módulo.
+    /// Lê um campo de texto. Alguns campos do SPD são binários e não ASCII
+    /// (o número de série, o identificador do fabricante): nesse caso vem em
+    /// hexadecimal, que é como o fabricante imprime na etiqueta do módulo.
+    /// A mesma regra vale para todo campo de texto.
     /// </summary>
     private static string LerTextoOuHex(byte[] spd, int offset, int tamanho)
     {

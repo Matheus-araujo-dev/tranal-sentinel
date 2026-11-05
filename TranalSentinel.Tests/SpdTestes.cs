@@ -34,6 +34,17 @@ public class SpdTestes
     }
 
     [Fact]
+    public void SpdReal_IdentificadorBinarioViraHexadecimal()
+    {
+        // O fabricante do módulo (0x140) e o do chip de memória (0x15E) não são
+        // ASCII neste módulo: a regra é o mesmo texto não imprimível vira hex.
+        var modulo = DecodificadorSpd.Decodificar(SpdReal.Dimm1);
+
+        Assert.Equal("88F1", modulo.Fabricante);
+        Assert.Equal("80CE", modulo.FabricanteDram);
+    }
+
+    [Fact]
     public void SpdReal_OsDoisModulosSaoIguais()
     {
         var primeiro = DecodificadorSpd.Decodificar(SpdReal.Dimm1);
