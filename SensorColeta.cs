@@ -17,8 +17,7 @@ namespace TranalSentinel;
 /// </summary>
 internal sealed class SensorColeta : IDisposable
 {
-    private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(1);
-
+    private readonly TimeSpan _intervalo;
     private readonly Computer _computer;
     private readonly HashSet<string> _desligados = new();
     private readonly CancellationTokenSource _cts = new();
@@ -34,8 +33,11 @@ internal sealed class SensorColeta : IDisposable
     /// <summary>A última leva de leituras.</summary>
     public SensorSnapshot? UltimoSnapshot => Volatile.Read(ref _snapshot);
 
-    public SensorColeta(bool permitirGpuAdl)
+    public SensorColeta(bool permitirGpuAdl, int intervaloMs = 1000)
     {
+        // O intervalo vem de fora porque o perfil de recursos do app muda a
+        // periodicidade: no modo economia a leitura é 5 vezes mais rara.
+        _intervalo = TimeSpan.FromMilliseconds(Math.Max(200, intervaloMs));
         _computer = new Computer
         {
             IsCpuEnabled = true,
@@ -70,7 +72,7 @@ internal sealed class SensorColeta : IDisposable
                 Erro = ex.ToString();
             }
 
-            try { _cts.Token.WaitHandle.WaitOne(Intervalo); }
+            try { _cts.Token.WaitHandle.WaitOne(_intervalo); }
             catch { break; }
         }
     }

@@ -27,9 +27,9 @@ internal static class SensorWorker
     /// <summary>Nome do argumento que liga o modo de processo filho.</summary>
     public const string Argumento = "--sensores-worker";
 
-    public static void Rodar(string caminhoLeituras, string caminhoPausa, int idPai, bool usarGpu)
+    public static void Rodar(string caminhoLeituras, string caminhoPausa, int idPai, bool usarGpu, int intervaloMs = 1000)
     {
-        using var coleta = new SensorColeta(usarGpu);
+        using var coleta = new SensorColeta(usarGpu, intervaloMs);
         try
         {
             coleta.Iniciar();

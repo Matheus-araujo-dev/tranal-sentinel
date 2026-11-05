@@ -140,7 +140,12 @@ public partial class MainWindow : Window
             _launchCts?.Cancel();
             _monitor.Dispose();
             EncerrarKalkan();
+            _bandeja?.Dispose();
+            _timerInstantaneo?.Stop();
         };
+
+        // Modo assistente: bandeja, perfil de recursos e a linha do tempo do PC.
+        IniciarAssistente();
     }
 
     /// <summary>Coletas lentas da abertura, em paralelo e fora da thread da janela; cada parte preenche a tela quando fica pronta.</summary>
@@ -263,7 +268,7 @@ public partial class MainWindow : Window
     private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Max_Click(object sender, RoutedEventArgs e)
         => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-    private void Close_Click(object sender, RoutedEventArgs e) => Close();
+    private void Close_Click(object sender, RoutedEventArgs e) => FecharParaBandeja();
 
     private void Nav_Checked(object sender, RoutedEventArgs e)
     {

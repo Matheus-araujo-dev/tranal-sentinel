@@ -100,6 +100,15 @@ public sealed class SensorMonitor : IDisposable
     /// <summary>Erro na coleta (vindo do processo filho).</summary>
     public string? ErroColeta { get; private set; }
 
+    /// <summary>
+    /// De quanto em quanto tempo o processo filho interroga o hardware.
+    /// </summary>
+    /// <remarks>
+    /// Vem do perfil de recursos: no modo economia a leitura é bem mais rara
+    /// (o custo é do LibreHardwareMonitor, não do .NET).
+    /// </remarks>
+    public int IntervaloColetaMs { get; set; } = 1000;
+
     /// <summary>O processo de coleta está rodando?</summary>
     public bool ProcessoVivo => _filho is { HasExited: false };
 
@@ -276,6 +285,8 @@ public sealed class SensorMonitor : IDisposable
         psi.ArgumentList.Add(_arquivoPausa);
         psi.ArgumentList.Add(Environment.ProcessId.ToString());
         if (!usarGpu) psi.ArgumentList.Add("--sem-gpu");
+        psi.ArgumentList.Add("--intervalo");
+        psi.ArgumentList.Add(IntervaloColetaMs.ToString());
 
         var filho = Process.Start(psi);
         if (filho is null) return;
