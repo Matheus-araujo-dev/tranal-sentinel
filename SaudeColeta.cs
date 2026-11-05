@@ -202,14 +202,20 @@ internal static class SaudeColeta
     /// <summary>
     /// O desligamento inesperado que corresponde a um boot: o Windows grava o
     /// 6008 logo depois do Kernel-Power 41 do mesmo boot.
+    ///
+    /// <para>
+    /// A lista vem do log na ordem inversa (do mais novo para o mais antigo):
+    /// o que é de outro boot é pulado, e o que é mais antigo que o boot
+    /// encerra a busca (os próximos são mais antigos ainda).
+    /// </para>
     /// </summary>
     internal static DateTime? DesligamentoDoBoot(DateTime boot, List<(DateTime Boot, DateTime? Instante)> desligamentos)
     {
         foreach (var (quando, instante) in desligamentos)
         {
+            if (quando < boot) break;
+            if (quando > boot.AddMinutes(15)) continue;
             if (instante == null) continue;
-            if (quando < boot) continue;
-            if (quando > boot.AddMinutes(15)) break;
             return instante;
         }
 

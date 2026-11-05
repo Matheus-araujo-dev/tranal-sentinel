@@ -80,16 +80,25 @@ public class SaudeColetaTestes
     [Fact]
     public void DesligamentoDoBoot_AchaOEventoDoMesmoBoot()
     {
+        // A lista vem do log na ordem inversa (do mais novo para o mais
+        // antigo), como o Windows entrega.
         var desligamentos = new List<(DateTime Boot, DateTime? Instante)>
         {
-            (new DateTime(2026, 10, 15, 10, 46, 23), new DateTime(2026, 10, 15, 10, 43, 38)),
             (new DateTime(2026, 10, 29, 12, 36, 27), new DateTime(2026, 10, 29, 12, 35, 22)),
+            (new DateTime(2026, 10, 15, 10, 46, 23), new DateTime(2026, 10, 15, 10, 43, 38)),
         };
 
         DateTime? instante = SaudeColeta.DesligamentoDoBoot(new DateTime(2026, 10, 29, 12, 36, 10), desligamentos);
 
         Assert.NotNull(instante);
         Assert.Equal(new DateTime(2026, 10, 29, 12, 35, 22), instante!.Value);
+
+        // E o travamento mais antigo também acha o desligamento dele (o
+        // primeiro da lista é de outro boot e não pode "esconder" o dele).
+        DateTime? antigo = SaudeColeta.DesligamentoDoBoot(new DateTime(2026, 10, 15, 10, 46, 9), desligamentos);
+
+        Assert.NotNull(antigo);
+        Assert.Equal(new DateTime(2026, 10, 15, 10, 43, 38), antigo!.Value);
     }
 
     [Fact]
