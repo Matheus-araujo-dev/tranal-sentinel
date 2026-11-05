@@ -127,6 +127,13 @@ public static class SensorGuard
     /// <summary>A GPU entra na coleta do LibreHardwareMonitor (caminho nativo da ADL)?</summary>
     public static bool UsarGpuAdl(NivelSensor nivel) => nivel == NivelSensor.Completo;
 
+    /// <summary>
+    /// Depois que o processo de coleta morre, a GPU deve ficar de fora?
+    /// Sim: ela é o caminho nativo que derruba as coisas, e o resto dos sensores
+    /// continua funcionando sem ela.
+    /// </summary>
+    public static bool GpuDepoisDaMorte(int mortes) => mortes >= 1;
+
     /// <summary>Texto para o usuário entender o que o app fez e por quê.</summary>
     public static string Mensagem(NivelSensor nivel, int crashes)
     {

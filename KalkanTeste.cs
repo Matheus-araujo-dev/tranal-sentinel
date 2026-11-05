@@ -57,7 +57,9 @@ internal static class KalkanTeste
                     {
                         try
                         {
-                            monitor.OpenAsync().Wait(TimeSpan.FromSeconds(30));
+                            // A detecção de hardware leva ~20 s (é o LibreHardwareMonitor
+                            // procurando todos os grupos de controladores).
+                            monitor.OpenAsync().Wait(TimeSpan.FromSeconds(60));
                             monitor.Refresh();
                             temperatura = monitor.CpuTemperature;
                             carga = monitor.CpuLoad.HasValue

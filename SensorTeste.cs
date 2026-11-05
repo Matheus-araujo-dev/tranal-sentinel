@@ -60,21 +60,11 @@ internal static class SensorTeste
             {
                 try
                 {
-                    monitor.OpenAsync().Wait(TimeSpan.FromSeconds(30));
+                    monitor.OpenAsync().Wait(TimeSpan.FromSeconds(40));
                     monitor.Refresh();
                     linhas.Add($"Sensores lidos: {monitor.Rows.Count}");
-                    linhas.Add($"Hardwares detectados: {monitor.QuantidadeHardware}");
-                    linhas.Add($"Computer pronto: {monitor.ComputerPronto}");
-                    if (monitor.ErroAbertura is not null)
-                    {
-                        linhas.Add("ERRO ao abrir o computer:");
-                        linhas.Add(monitor.ErroAbertura);
-                    }
-                    if (monitor.ErroColeta is not null)
-                    {
-                        linhas.Add("ERRO na coleta:");
-                        linhas.Add(monitor.ErroColeta);
-                    }
+                    linhas.Add($"Processo de coleta vivo: {monitor.ProcessoVivo}");
+                    linhas.Add($"Mortes do processo: {monitor.MortesProcesso}");
                     foreach (var hw in monitor.Rows.Select(r => r.Hardware).Distinct())
                         linhas.Add($"  - {hw}");
                     if (monitor.Falhas.Count > 0)
@@ -82,10 +72,23 @@ internal static class SensorTeste
                         linhas.Add("Falhas na coleta:");
                         foreach (var f in monitor.Falhas) linhas.Add($"  ! {f}");
                     }
+
+                    // Prova do isolamento: mata o processo de coleta e confere se o
+                    // app o reinicia sozinho (é o mesmo caminho de um access violation).
+                    linhas.Add("");
+                    linhas.Add("Matando o processo de coleta de proposito...");
+                    bool matou = monitor.MatarColetorParaTeste();
+                    linhas.Add($"Processo morto: {matou}");
+                    Thread.Sleep(8000);   // dá tempo de o pai reiniciar o coletor
+                    monitor.Refresh();
+                    linhas.Add($"Mortes do processo: {monitor.MortesProcesso}");
+                    linhas.Add($"Processo de coleta vivo depois: {monitor.ProcessoVivo}");
+                    linhas.Add($"GPU na coleta depois da morte: {monitor.PermitirGpuAdl}");
+                    linhas.Add($"Sensores lidos depois: {monitor.Rows.Count}");
                 }
                 catch (Exception ex)
                 {
-                    linhas.Add("Falha ao abrir a coleta: " + ex.Message);
+                    linhas.Add("Falha ao abrir a coleta: " + ex);
                 }
             }
         }
@@ -95,7 +98,8 @@ internal static class SensorTeste
         }
 
         linhas.Add("");
-        linhas.Add("O caminho nativo da GPU (ADL) fica de fora quando o app ja morreu por falha nativa.");
+        linhas.Add("A coleta roda num processo separado: um access violation do driver mata");
+        linhas.Add("só esse processo, e o app o reinicia (sem a GPU, se foi ela a culpada).");
 
         try
         {

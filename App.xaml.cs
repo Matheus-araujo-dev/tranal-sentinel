@@ -16,6 +16,21 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Processo filho da coleta de sensores: não abre janela e não trava
+        // a instância única (é quem grava as leituras para o app pai ler).
+        int indiceWorker = Array.FindIndex(e.Args, a => string.Equals(a, SensorWorker.Argumento, StringComparison.OrdinalIgnoreCase));
+        if (indiceWorker >= 0)
+        {
+            string caminhoLeituras = indiceWorker + 1 < e.Args.Length ? e.Args[indiceWorker + 1] : "";
+            string caminhoPausa = indiceWorker + 2 < e.Args.Length ? e.Args[indiceWorker + 2] : "";
+            int idPai = indiceWorker + 3 < e.Args.Length && int.TryParse(e.Args[indiceWorker + 3], out int pid) ? pid : 0;
+            bool semGpu = Array.Exists(e.Args, a => string.Equals(a, "--sem-gpu", StringComparison.OrdinalIgnoreCase));
+            if (caminhoLeituras.Length > 0)
+                SensorWorker.Rodar(caminhoLeituras, caminhoPausa, idPai, !semGpu);
+            Shutdown();
+            return;
+        }
+
         // Teste de linha de comando do visor Kalkan: não abre janela e não trava
         // a instância única (dá para rodar com o app já aberto).
         if (Array.Exists(e.Args, a => string.Equals(a, "--kalkan-teste", StringComparison.OrdinalIgnoreCase)))

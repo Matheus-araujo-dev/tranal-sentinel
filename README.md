@@ -47,6 +47,51 @@ que gera um snapshot JSON/TXT e compara duas execuções campo a campo.
 | `SaudeDiagnostico.cs` | Orquestrador: coleta → regras → relatório. |
 | `MainWindow.Saude.cs` | A aba na interface (partial class, mesmo padrão das outras). |
 
+### Sensores: por que a coleta roda num processo separado
+
+O RESET EXPLODE mede temperatura, consumo e clocks de tudo. Para isso ele usa o
+LibreHardwareMonitor, que chama **código nativo do driver** — no caso da GPU
+AMD, a ADL (AMD Display Library).
+
+**Problema comprovado nesta máquina:** em 04/11 o app morreu duas vezes com
+`0xc0000005` (access violation) dentro de
+`LibreHardwareMonitor.Hardware.Gpu.AmdGpu.Update()` — a biblioteca leu um
+ponteiro inválido devolvido pela ADL. Access violation **não dá para pegar em
+C#**: o processo inteiro morre. Nenhum `try/catch` resolve isso.
+
+**O que o fork faz, em três camadas:**
+
+1. **Isolamento em processo.** A coleta roda no mesmo executável, chamado com
+   `--sensores-worker`, num processo separado. Se a ADL devolver lixo, morre
+   **só esse processo** — o app percebe a morte e reinicia o coletor na hora.
+   (O RESET EXPLODE nunca morre por causa do driver da GPU.)
+2. **Disjuntro.** Na primeira morte, o coletor é reiniciado **sem a GPU** — é o
+   caminho nativo suspeito. CPU, memória, discos e rede continuam funcionando, e
+   a lateral mostra um aviso com botão para religar a GPU à mão.
+3. **Guarda por evidência.** No arranque, o app lê o log de eventos do Windows
+   (`Application Error`, evento 1000) e procura crashes nativos do próprio app
+   (`0xc0000005` e `0x80131623`). Se houver, a GPU fica de fora da coleta
+   desde o começo, antes de qualquer crash novo.
+
+Além disso, dentro do processo de coleta cada hardware é atualizado dentro de
+um `try/catch`: um placa com problema é desligada e as outras continuam.
+
+**Comandos para conferir (sem abrir a janela):**
+
+```powershell
+ResetExplode.exe --sensores
+```
+
+Grava em `%AppData%\ResetExplode\sensores.txt`: quantos crashes o Windows
+registrou, qual nível foi escolhido e se a coleta abre. O mesmo relatório
+tenta matar o processo de coleta de propósito e confere que o app o reinicia
+sozinho — é a prova de que o isolamento funciona.
+
+> Observação honesta: o driver da GPU instalado em 28/10/2026 é o suspeito
+> mais provável, e desligar o HAGS foi uma hipótese testada, não uma causa
+> comprovada. Se o problema continuar depois do BIOS atualizado, o próximo
+> degrau é trocar a GPU de slot (para o M.2_1, ligado à CPU).
+
 ### Testes
 
 O núcleo de diagnóstico tem testes automatizados (xUnit) em `ResetExplode.Tests/`:

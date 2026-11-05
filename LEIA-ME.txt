@@ -49,6 +49,16 @@ VISOR KALKAN (SmartMonitor)
   O resultado fica em %AppData%\ResetExplode\kalkan-teste.txt
 - Protocolo conferido contra a análise aberta do projeto kalkan-monitor-rs (MIT).
 
+SENSORES (POR QUE O APP NÃO MORRE)
+- A leitura de temperatura, consumo e clocks roda num processo separado do
+  programa. Se o driver da placa de vídeo travar (já aconteceu nesta máquina),
+  morre só esse processo: o RESET EXPLODE o reinicia sozinho e continua
+  funcionando, sem os sensores da GPU.
+- Quando isso acontece, a lateral mostra "Sensores reduzidos" com um botão
+  para religar os sensores da GPU.
+- Para conferir sem abrir a janela:  ResetExplode.exe --sensores
+  O resultado fica em %AppData%\ResetExplode\sensores.txt
+
 OBSERVAÇÕES
 - Placas NVIDIA mostram mais detalhes (VBIOS, limites de energia, CUDA).
 - Configurações e histórico ficam em %AppData%\ResetExplode (não vão junto com o .exe).

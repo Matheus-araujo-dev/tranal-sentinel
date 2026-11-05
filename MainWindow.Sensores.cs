@@ -47,6 +47,26 @@ public partial class MainWindow
         UpdateSensorWarning();
     }
 
+    /// <summary>
+    /// O processo de coleta morreu (access violation nativa do driver, por
+    /// exemplo). O app não morre: o processo filho é reiniciado — sem a GPU,
+    /// que é o caminho nativo suspeito.
+    /// </summary>
+    private void ColetorMorreu(int mortes, bool semGpu)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            _nivelSensor = semGpu ? NivelSensor.SemSensoresGpu : NivelSensor.Completo;
+            _crashesSensor = mortes;
+            _mensagemSensor = semGpu
+                ? $"O processo de sensores caiu {mortes}× (falha nativa no driver da GPU). " +
+                  "Os sensores da GPU foram desligados; CPU, memória e discos continuam funcionando."
+                : $"O processo de sensores caiu {mortes}× e foi reiniciado.";
+
+            UpdateSensorWarning();
+        });
+    }
+
     /// <summary>Mostra ou esconde o aviso de sensores na lateral.</summary>
     private void UpdateSensorWarning()
     {

@@ -1,4 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
 using LibreHardwareMonitor.Hardware;
 
 namespace ResetExplode;
@@ -19,110 +22,127 @@ public sealed record SensorReading(
 public sealed record SensorSnapshot(IReadOnlyList<SensorReading> Leituras, IReadOnlyList<string> Falhas, DateTime Momento);
 
 /// <summary>
-/// Encapsula o LibreHardwareMonitorLib e mantém a lista de sensores atualizada.
+/// Os sensores do RESET EXPLODE.
 ///
 /// <para>
-/// <b>Por que a coleta está numa thread própria:</b> a biblioteca chama código
-/// nativo do driver (ADL na GPU da AMD, PawnIO na CPU). Uma chamada travada
-/// ali congela a janela inteira — e era o que acontecia com o timer de 1 s na
-/// thread da UI. Aqui a coleta roda fora e a interface só copia o resultado.
+/// A coleta roda num <b>processo separado</b> (o mesmo executável, chamado com
+/// <c>--sensores-worker</c>). Isso é deliberado: o LibreHardwareMonitor chama
+/// código nativo do driver — a ADL da AMD, no caso da GPU — e, quando esse
+/// driver devolve ponteiro inválido, o .NET leva um access violation dentro de
+/// <c>Marshal.PtrToStructure</c>. Access violation não dá para pegar em C#: o
+/// processo inteiro morre. Num processo isolado, morre só o filho, que aqui é
+/// reiniciado automaticamente.
 /// </para>
 ///
 /// <para>
-/// <b>Por que cada hardware é atualizado dentro de um try/catch:</b> um
-/// hardware que falha é desligado e os outros continuam. Sem isso, uma única
-/// placa com problema derrubava a leitura inteira.
+/// Quando o filho morre, o app conta a morte e o reinicia <b>sem a GPU</b>:
+/// é o caminho nativo que derruba as coisas, e o resto dos sensores continua
+/// funcionando. O usuário pode religar a GPU à mão pelo aviso na lateral.
 /// </para>
 ///
 /// <para>
-/// <b>Por que a GPU pode ficar de fora:</b> o LibreHardwareMonitor lê ponteiro
-/// devolvido pela ADL; se o driver devolver lixo, o .NET leva um access
-/// violation dentro de <c>Marshal.PtrToStructure</c> — que não dá para pegar
-/// em C#, então o processo morre. O <see cref="SensorGuard"/> decide, a
-/// partir dos crashes reais do app, se a GPU entra na coleta.
+/// Cada hardware que falha dentro do filho é desligado e os outros continuam —
+/// um try/catch por hardware protege de falha comum; o isolamento protege do
+/// crash que não dá para pegar.
 /// </para>
 /// </summary>
 public sealed class SensorMonitor : IDisposable
 {
-    /// <summary>De quanto em quanto tempo a coleta roda.</summary>
-    private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(1);
-
     private readonly Dictionary<string, SensorRow> _index = new();
-    private readonly List<string> _falhas = new();
-    private readonly HashSet<string> _desligados = new();   // identificadores dos hardwares que falharam
+    private readonly string _pasta;
+    private readonly string _arquivoLeituras;
+    private readonly string _arquivoPausa;
 
-    private Computer? _computer;
-    private Thread? _worker;
-    private CancellationTokenSource? _cts;
-    private TaskCompletionSource<bool>? _primeiraColeta;
+    private Process? _filho;
     private SensorSnapshot? _snapshot;
-    private volatile bool _open;
+    private bool _permitirGpuAdl = true;
+    private bool _pausado;
+    private DateTime _ultimaLeituraArquivo = DateTime.MinValue;
 
-    /// <summary>A GPU entra na coleta? Só pode mudar antes de abrir (ou reiniciando).</summary>
-    public bool PermitirGpuAdl { get; set; } = true;
+    /// <summary>A GPU entra na coleta? (É o caminho nativo do driver da AMD.)</summary>
+    public bool PermitirGpuAdl
+    {
+        get => _permitirGpuAdl;
+        set { if (!IsOpen) _permitirGpuAdl = value; }
+    }
 
     /// <summary>Pausa a coleta (durante o benchmark de GPU, que não pode ter o driver contestado).</summary>
-    public bool Pausado { get; set; }
+    public bool Pausado
+    {
+        get => _pausado;
+        set
+        {
+            if (_pausado == value) return;
+            _pausado = value;
+            try
+            {
+                // O filho olha esse arquivo antes de cada coleta.
+                if (value) File.WriteAllText(_arquivoPausa, "1");
+                else if (File.Exists(_arquivoPausa)) File.Delete(_arquivoPausa);
+            }
+            catch { }
+        }
+    }
 
     public ObservableCollection<SensorRow> Rows { get; } = new();
 
-    public bool IsOpen => _open;
+    public bool IsOpen { get; private set; }
 
     /// <summary>Quando foi feita a última coleta (null se ainda não houve).</summary>
     public DateTime? UltimaColeta { get; private set; }
 
-    /// <summary>Último erro da coleta (diagnóstico). Nunca derruba o app.</summary>
-    public string? ErroColeta { get; private set; }
-
-    /// <summary>Quantos hardwares o LibreHardwareMonitor detectou (diagnóstico).</summary>
-    public int QuantidadeHardware => _computer?.Hardware.Count ?? 0;
-
-    /// <summary>O computer chegou a ser criado/aberto (diagnóstico).</summary>
-    public bool ComputerPronto => _computer is not null && _open;
-
-    /// <summary>Erro na abertura do computer (diagnóstico).</summary>
-    public string? ErroAbertura { get; private set; }
+    /// <summary>Quantas vezes o processo de coleta morreu (e foi reiniciado).</summary>
+    public int MortesProcesso { get; private set; }
 
     /// <summary>Hardwares que falharam na última coleta (com o motivo).</summary>
-    public IReadOnlyList<string> Falhas
+    public IReadOnlyList<string> Falhas { get; private set; } = Array.Empty<string>();
+
+    /// <summary>Erro na coleta (vindo do processo filho).</summary>
+    public string? ErroColeta { get; private set; }
+
+    /// <summary>O processo de coleta está rodando?</summary>
+    public bool ProcessoVivo => _filho is { HasExited: false };
+
+    /// <summary>Aconteceu quando o processo de coleta morreu (quantas mortes, se a GPU foi desligada).</summary>
+    public event Action<int, bool>? ColetorMorreu;
+
+    public SensorMonitor()
     {
-        get { lock (_falhas) return _falhas.ToArray(); }
+        _pasta = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ResetExplode", "sensores", Guid.NewGuid().ToString("N"));
+        _arquivoLeituras = Path.Combine(_pasta, "leituras.json");
+        _arquivoPausa = Path.Combine(_pasta, "pausa.flag");
+        try { Directory.CreateDirectory(_pasta); } catch { }
     }
 
     /// <summary>
-    /// Detecta o hardware e começa a coletar. Devolve quando a primeira leva
-    /// chega (ou quando o tempo acaba — o app continua funcionando sem sensores).
+    /// Sobe o processo de coleta e espera a primeira leva chegar
+    /// (ou o tempo acabar — o app continua funcionando sem sensores).
     /// </summary>
     public async Task OpenAsync()
     {
-        if (_open) return;
+        if (IsOpen) return;
+        IsOpen = true;
 
-        Computer computer = CriarComputer();
-        try
+        await Task.Run(() => IniciarFilho(_permitirGpuAdl)).ConfigureAwait(false);
+        IniciarLeitor();
+
+        DateTime limite = DateTime.Now.AddSeconds(30);
+        while (DateTime.Now < limite && UltimaColeta is null)
         {
-            // ConfigureAwait(false): a continuação não pode ficar presa no Dispatcher do WPF.
-            // Quem chama pode estar segurando a thread da interface (modo headless) — aí
-            // a continuação nunca rodaria e a coleta nunca abriria.
-            await Task.Run(() => computer.Open()).ConfigureAwait(false);
+            // O arquivo é lido aqui também: quem espera a primeira leva não pode
+            // depender de alguém chamar Refresh() (no modo headless, ninguém chama).
+            LerArquivo();
+            if (UltimaColeta is not null) break;
+            await Task.Delay(200).ConfigureAwait(false);
         }
-        catch (Exception ex)
-        {
-            ErroAbertura = ex.ToString();
-            throw;
-        }
-        _computer = computer;
-        _open = true;
-
-        _primeiraColeta = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        IniciarWorker();
-
-        await Task.WhenAny(_primeiraColeta.Task, Task.Delay(TimeSpan.FromSeconds(25))).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Passa a última coleta para a lista da interface. Não chama código
-    /// nativo: só copia o snapshot — precisa rodar na thread da janela
-    /// (a lista é observável e está ligada ao grid).
+    /// Passa a última coleta para a lista da interface. Só copia o que a
+    /// thread de leitura já brought do disco — não lê arquivo nem faz JSON
+    /// na thread da janela (isso engasgava o benchmark).
     /// </summary>
     public void Refresh()
     {
@@ -150,25 +170,23 @@ public sealed class SensorMonitor : IDisposable
     }
 
     /// <summary>
-    /// Reabre a coleta com outra configuração (por exemplo: ligando de novo os
-    /// sensores da GPU). Precisa ser chamado na thread da janela.
+    /// Religa (ou desliga) a GPU na coleta, reiniciando o processo filho.
+    /// Precisa ser chamado na thread da janela.
     /// </summary>
     public async Task ReiniciarAsync(bool permitirGpuAdl)
     {
-        PararWorker();
-        FecharComputer();
-
+        _permitirGpuAdl = permitirGpuAdl;
         _index.Clear();
         Rows.Clear();
-        lock (_falhas) _falhas.Clear();
-        _desligados.Clear();
-
-        PermitirGpuAdl = permitirGpuAdl;
-        _open = false;
         Volatile.Write(ref _snapshot, null);
+        UltimaColeta = null;
 
-        await OpenAsync();
-        Refresh();
+        PararFilho();
+        await Task.Run(() => IniciarFilho(permitirGpuAdl)).ConfigureAwait(false);
+
+        DateTime limite = DateTime.Now.AddSeconds(30);
+        while (DateTime.Now < limite && UltimaColeta is null)
+            await Task.Delay(200).ConfigureAwait(false);
     }
 
     /// <summary>Temperatura principal da CPU: Package (Intel) / Tctl-Tdie (AMD), senão a maior entre os núcleos.</summary>
@@ -238,151 +256,115 @@ public sealed class SensorMonitor : IDisposable
         _ => ""
     };
 
-    // ---------------- coleta ----------------
+    // ---------------- processo filho ----------------
 
-    private Computer CriarComputer() => new()
+    private void IniciarFilho(bool usarGpu)
     {
-        IsCpuEnabled = true,
-        IsGpuEnabled = PermitirGpuAdl,
-        IsMemoryEnabled = true,
-        IsMotherboardEnabled = true,
-        IsStorageEnabled = true,
-        IsNetworkEnabled = true,
-        IsControllerEnabled = true
-    };
+        string exe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "";
+        if (exe.Length == 0) return;
 
-    private void IniciarWorker()
-    {
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-        _worker = new Thread(() => Loop(token))
+        var psi = new ProcessStartInfo(exe)
         {
-            IsBackground = true,
-            Name = "Sensores"
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true
         };
-        _worker.Start();
+        psi.ArgumentList.Add(SensorWorker.Argumento);
+        psi.ArgumentList.Add(_arquivoLeituras);
+        psi.ArgumentList.Add(_arquivoPausa);
+        psi.ArgumentList.Add(Environment.ProcessId.ToString());
+        if (!usarGpu) psi.ArgumentList.Add("--sem-gpu");
+
+        var filho = Process.Start(psi);
+        if (filho is null) return;
+        _filho = filho;
+
+        // O filho é quem detecta a morte dele: avisa e o app reinicia.
+        filho.EnableRaisingEvents = true;
+        filho.Exited += (_, _) => ColetorMorreuInterno();
     }
 
-    private void Loop(CancellationToken token)
+    private void ColetorMorreuInterno()
     {
-        while (!token.IsCancellationRequested)
-        {
-            try
-            {
-                if (!Pausado) Coletar(token);
-            }
-            catch (Exception ex)
-            {
-                // O worker nunca morre: uma falha na coleta não pode derrubar o app.
-                ErroColeta = ex.ToString();
-            }
+        if (!IsOpen) return;   // encerramento normal
 
-            try { token.WaitHandle.WaitOne(Intervalo); }
-            catch { break; }
-        }
-    }
+        MortesProcesso++;
+        bool semGpu = SensorGuard.GpuDepoisDaMorte(MortesProcesso);
+        _permitirGpuAdl = !semGpu;
 
-    private void Coletar(CancellationToken token)
-    {
-        var computer = _computer;
-        if (computer is null) return;
+        ColetorMorreu?.Invoke(MortesProcesso, semGpu);
 
-        var leituras = new List<SensorReading>();
-        var falhas = new List<string>();
-
-        foreach (var hw in computer.Hardware)
-        {
-            if (token.IsCancellationRequested) return;
-            if (_desligados.Contains(hw.Identifier.ToString())) continue;
-
-            try
-            {
-                hw.Update();
-                Percorrer(hw, leituras, falhas);
-            }
-            catch (Exception ex)
-            {
-                // Um hardware problemático é desligado; os outros continuam.
-                _desligados.Add(hw.Identifier.ToString());
-                falhas.Add($"{hw.Name}: {ex.Message}");
-            }
-        }
-
-        lock (_falhas)
-        {
-            _falhas.Clear();
-            _falhas.AddRange(falhas);
-        }
-
-        UltimaColeta = DateTime.Now;
-        Volatile.Write(ref _snapshot, new SensorSnapshot(leituras, falhas, UltimaColeta.Value));
-        _primeiraColeta?.TrySetResult(true);
-    }
-
-    private void Percorrer(IHardware hw, List<SensorReading> leituras, List<string> falhas)
-    {
-        foreach (var s in hw.Sensors)
-        {
-            try
-            {
-                leituras.Add(new SensorReading(
-                    s.Identifier.ToString(),
-                    hw.Name,
-                    SensorRow.CategoryName(s.SensorType),
-                    s.Name,
-                    s.SensorType,
-                    hw.HardwareType,
-                    s.Value, s.Min, s.Max));
-            }
-            catch
-            {
-                // Sensor individual que falha: pula e segue.
-            }
-        }
-
-        foreach (var sub in hw.SubHardware)
-        {
-            if (_desligados.Contains(sub.Identifier.ToString())) continue;
-            try
-            {
-                sub.Update();
-                Percorrer(sub, leituras, falhas);
-            }
-            catch (Exception ex)
-            {
-                _desligados.Add(sub.Identifier.ToString());
-                falhas.Add($"{sub.Name}: {ex.Message}");
-            }
-        }
-    }
-
-    private void PararWorker()
-    {
-        var cts = _cts;
-        var worker = _worker;
-        _cts = null;
-        _worker = null;
-        if (cts is null) return;
-
-        cts.Cancel();
-        try { worker?.Join(3000); }
+        try { IniciarFilho(!semGpu); }
         catch { }
-        cts.Dispose();
     }
 
-    private void FecharComputer()
+    private void PararFilho()
     {
-        var computer = _computer;
-        _computer = null;
-        _open = false;
-        if (computer is null) return;
-        try { computer.Close(); }
-        catch { }
+        var filho = _filho;
+        _filho = null;
+        if (filho is null) return;
+        try { if (!filho.HasExited) filho.Kill(true); } catch { }
+        try { filho.Dispose(); } catch { }
+    }
+
+    private void IniciarLeitor()
+    {
+        var thread = new Thread(() =>
+        {
+            while (IsOpen)
+            {
+                try { LerArquivo(); }
+                catch { }
+                try { Thread.Sleep(500); }
+                catch { break; }
+            }
+        })
+        { IsBackground = true, Name = "Leitor de sensores" };
+        thread.Start();
+    }
+
+    private void LerArquivo()
+    {
+        try
+        {
+            var info = new FileInfo(_arquivoLeituras);
+            if (!info.Exists) return;
+            if (info.LastWriteTimeUtc == _ultimaLeituraArquivo) return;
+            _ultimaLeituraArquivo = info.LastWriteTimeUtc;
+
+            string json = File.ReadAllText(_arquivoLeituras);
+            var snap = JsonSerializer.Deserialize<SensorSnapshot>(json);
+            if (snap is null) return;
+
+            Volatile.Write(ref _snapshot, snap);
+            UltimaColeta = snap.Momento;
+            Falhas = snap.Falhas;
+            ErroColeta = snap.Falhas.Count > 0 ? snap.Falhas[0] : null;
+        }
+        catch
+        {
+            // Arquivo sendo escrito: tenta no próximo ciclo.
+        }
+    }
+
+    /// <summary>
+    /// Mata o processo de coleta de propósito (teste). O app deve perceber a
+    /// morte e reiniciá-lo sozinho — é o mesmo caminho de um access violation.
+    /// </summary>
+    public bool MatarColetorParaTeste()
+    {
+        var filho = _filho;
+        if (filho is null) return false;
+        try { filho.Kill(true); return true; }
+        catch { return false; }
     }
 
     public void Dispose()
     {
-        PararWorker();
-        FecharComputer();
+        IsOpen = false;
+        PararFilho();
+        try { if (Directory.Exists(_pasta)) Directory.Delete(_pasta, true); } catch { }
     }
 }

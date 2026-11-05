@@ -174,8 +174,19 @@ public class SensorGuardTestes
         Assert.Equal(usarGpu, SensorGuard.UsarGpuAdl(nivel));
     }
 
-    // ---------------- Mensagem ----------------
+    // ---------------- GpuDepoisDaMorte ----------------
 
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    [InlineData(2, true)]
+    [InlineData(9, true)]
+    public void GpuDepoisDaMorte_DesligaAGpuNaPrimeiraMorte(int mortes, bool esperado)
+    {
+        Assert.Equal(esperado, SensorGuard.GpuDepoisDaMorte(mortes));
+    }
+
+    // ---------------- Mensagem ----------------
     [Fact]
     public void Mensagem_CompletoNaoTemNada()
     {
