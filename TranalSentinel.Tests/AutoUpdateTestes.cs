@@ -69,6 +69,80 @@ public class AutoUpdateTestes
         }
         """;
 
+    // ---------------- ExtrairReleases (a lista de releases do repositorio) ----------------
+
+    // O repositorio publica duas coisas: a release com tag de versao (v0.17) e
+    // uma release "rolante" com tag "latest" (que nao e uma versao). A API
+    // /releases/latest devolve sempre a rolante, por isso o app olha a lista.
+
+    private const string JsonDaLista = """
+        [
+          {
+            "tag_name": "latest",
+            "name": "TRANAL SENTINEL (versao mais recente)",
+            "html_url": "https://github.com/exemplo/releases/tag/latest",
+            "assets": [
+              { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 123456 }
+            ]
+          },
+          {
+            "tag_name": "v0.17.0",
+            "name": "TRANAL SENTINEL 0.17.0",
+            "html_url": "https://github.com/exemplo/releases/tag/v0.17.0",
+            "assets": [
+              { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 123456 }
+            ]
+          },
+          {
+            "tag_name": "v0.16.0",
+            "name": "TRANAL SENTINEL 0.16.0",
+            "html_url": "https://github.com/exemplo/releases/tag/v0.16.0",
+            "assets": [
+              { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 123456 }
+            ]
+          }
+        ]
+        """;
+
+    [Fact]
+    public void ExtrairReleases_LeTodasComExecutavel()
+    {
+        var releases = AutoUpdate.ExtrairReleases(JsonDaLista, "TranalSentinel.exe");
+
+        Assert.Equal(3, releases.Count);
+        Assert.Equal("latest", releases[0].Tag);
+        Assert.Equal("v0.17.0", releases[1].Tag);
+        Assert.Equal("v0.16.0", releases[2].Tag);
+    }
+
+    [Fact]
+    public void ExtrairReleases_IgnoraReleaseSemExecutavel()
+    {
+        const string json = """
+            [
+              { "tag_name": "v0.17.0", "assets": [ { "name": "leia-me.txt", "browser_download_url": "x", "size": 1 } ] }
+            ]
+            """;
+
+        Assert.Empty(AutoUpdate.ExtrairReleases(json, "TranalSentinel.exe"));
+    }
+
+    [Fact]
+    public void ExtrairReleases_JsonInvalidoDevolveListaVazia()
+    {
+        Assert.Empty(AutoUpdate.ExtrairReleases("isto nao e json", "TranalSentinel.exe"));
+        Assert.Empty(AutoUpdate.ExtrairReleases("", "TranalSentinel.exe"));
+        Assert.Empty(AutoUpdate.ExtrairReleases("{}", "TranalSentinel.exe"));   // objeto, nao lista
+    }
+
+    [Fact]
+    public void AEtiquetaLatestNaoEVersao()
+    {
+        // E o que faz a release "rolante" nao atrapalhar a comparacao.
+        Assert.Null(Versao.Tentar("latest"));
+        Assert.NotNull(Versao.Tentar("v0.17.0"));
+    }
+
     // ---------------- Versao.Tentar ----------------
 
     [Theory]

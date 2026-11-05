@@ -106,6 +106,40 @@ public static class AutoUpdate
     public static bool EhMaisNova(Versao nova, Versao atual) => nova.CompareTo(atual) > 0;
 
     /// <summary>
+    /// Lê o JSON de uma LISTA de releases (formato de <c>/releases</c>) e devolve
+    /// as que têm o executável, na ordem em que vieram.
+    /// </summary>
+    /// <remarks>
+    /// O repositório tem duas coisas publicadas: a release com tag de versão
+    /// (v0.17) e uma release "rolante" com tag <c>latest</c>. A API
+    /// <c>/releases/latest</c> devolve sempre a mais recente, que é a
+    /// "latest" — e essa tag não é uma versão. Por isso o app olha a LISTA e
+    /// escolhe a maior versão que conseguir ler, ignorando o que não for
+    /// versão.
+    /// </remarks>
+    public static List<ReleaseGitHub> ExtrairReleases(string json, string nomeExe)
+    {
+        var lista = new List<ReleaseGitHub>();
+        if (string.IsNullOrWhiteSpace(json)) return lista;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return lista;
+
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object) continue;
+                var release = ExtrairRelease(item.GetRawText(), nomeExe);
+                if (release is not null) lista.Add(release);
+            }
+        }
+        catch (JsonException) { }
+        catch (Exception) { }
+        return lista;
+    }
+
+    /// <summary>
     /// Lê o JSON da release do GitHub e devolve o asset do executável (sem rede).
     /// Escolhe o asset com o nome exato; sem ele, o primeiro ".exe"; sem nenhum ".exe", null.
     /// </summary>
@@ -171,7 +205,7 @@ public static class AutoUpdate
             using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
             limite.CancelAfter(TempoLimiteChecagem);
 
-            using var req = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{repo}/releases/latest");
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{repo}/releases?per_page=20");
             req.Headers.UserAgent.ParseAdd(UserAgent); // a API do GitHub recusa requisição sem User-Agent
             req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
@@ -186,16 +220,28 @@ public static class AutoUpdate
 
             string json = resp.Content.ReadAsStringAsync(limite.Token).GetAwaiter().GetResult();
 
-            var release = ExtrairRelease(json, NomeExecutavelPadrao);
-            if (release is null) return new ResultadoAtualizacao(false, VersaoDoApp, null, null, null);
+            // Escolhe a maior versão que exista na lista. A release "rolante"
+            // (tag "latest") não é uma versão e fica de fora sozinha.
+            ReleaseGitHub? melhor = null;
+            Versao? melhorVersao = null;
+            foreach (ReleaseGitHub release in ExtrairReleases(json, NomeExecutavelPadrao))
+            {
+                var versao = Versao.Tentar(release.Tag);
+                if (versao is null) continue;
+                if (melhorVersao is null || versao.CompareTo(melhorVersao) > 0)
+                {
+                    melhor = release;
+                    melhorVersao = versao;
+                }
+            }
 
-            var versao = Versao.Tentar(release.Tag);
-            if (versao is null) return new ResultadoAtualizacao(false, VersaoDoApp, null, null, null);
+            if (melhor is null || melhorVersao is null)
+                return new ResultadoAtualizacao(false, VersaoDoApp, null, null, null);
 
-            if (!EhMaisNova(versao, VersaoDoApp))
-                return new ResultadoAtualizacao(false, VersaoDoApp, versao, release, null);
+            if (!EhMaisNova(melhorVersao, VersaoDoApp))
+                return new ResultadoAtualizacao(false, VersaoDoApp, melhorVersao, melhor, null);
 
-            return new ResultadoAtualizacao(true, VersaoDoApp, versao, release, null);
+            return new ResultadoAtualizacao(true, VersaoDoApp, melhorVersao, melhor, null);
         }
         catch (Exception ex)
         {
