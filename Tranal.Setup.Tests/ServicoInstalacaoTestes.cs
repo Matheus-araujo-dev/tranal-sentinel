@@ -34,7 +34,7 @@ public class ServicoInstalacaoTestes
         ambiente.CriarPayload();
         var (servico, registro, atalho, _, tarefa) = Montar(ambiente);
 
-        ResultadoOperacao resultado = servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        ResultadoOperacao resultado = servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
 
         Assert.True(resultado.Sucesso, resultado.Mensagem);
         Assert.True(File.Exists(ambiente.CaminhoExecutavelInstalado));
@@ -68,9 +68,9 @@ public class ServicoInstalacaoTestes
         ambiente.CriarPayload();
         var (servico, registro, atalho, _, tarefa) = Montar(ambiente);
 
-        ResultadoOperacao primeiro = servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        ResultadoOperacao primeiro = servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
         DateTime instaladoEm = File.GetLastWriteTime(ambiente.CaminhoExecutavelInstalado);
-        ResultadoOperacao segundo = servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        ResultadoOperacao segundo = servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
 
         Assert.True(primeiro.Sucesso, primeiro.Mensagem);
         Assert.True(segundo.Sucesso, segundo.Mensagem);
@@ -79,7 +79,7 @@ public class ServicoInstalacaoTestes
         Assert.Equal(2, atalho.Quantidade);
 
         // a tarefa agendada continua sendo uma só
-        Assert.Equal(1, tarefa.Tarefas.Count);
+        Assert.Single(tarefa.Tarefas);
 
         // o app continua instalado e não foi reescrito (o payload é igual ao que está lá)
         Assert.True(File.Exists(ambiente.CaminhoExecutavelInstalado));
@@ -94,11 +94,11 @@ public class ServicoInstalacaoTestes
         ambiente.CriarPayload();
         var (servico, _, _, _, _) = Montar(ambiente);
 
-        servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
 
         // o payload mudou (versão nova)
         File.WriteAllText(Path.Combine(ambiente.PastaPayload, "TranalSentinel.exe"), "conteudo novo do app");
-        ResultadoOperacao resultado = servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        ResultadoOperacao resultado = servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
 
         Assert.True(resultado.Sucesso, resultado.Mensagem);
         Assert.Equal("conteudo novo do app", File.ReadAllText(ambiente.CaminhoExecutavelInstalado));
@@ -113,7 +113,12 @@ public class ServicoInstalacaoTestes
         var (servico, registro, _, _, tarefa) = Montar(ambiente);
 
         ResultadoOperacao resultado = servico.Instalar(
-            new OpcoesInstalacao { IniciarComWindows = false }, ambiente.PastaPayload);
+            new OpcoesInstalacao
+            {
+                Destino = DestinoInstalacao.Padrao(ambiente.Contexto),
+                IniciarComWindows = false,
+            },
+            ambiente.PastaPayload);
 
         Assert.True(resultado.Sucesso, resultado.Mensagem);
         Assert.Equal(0, registro.QuantosValores(ChaveRegistro.Usuario, CaminhosInstalacao.ChaveIniciar));
@@ -127,7 +132,7 @@ public class ServicoInstalacaoTestes
         ambiente.CriarPayload(comExecutavel: false);
         var (servico, registro, atalho, _, _) = Montar(ambiente);
 
-        ResultadoOperacao resultado = servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        ResultadoOperacao resultado = servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
 
         Assert.False(resultado.Sucesso);
         Assert.Contains("TranalSentinel.exe", resultado.Mensagem, StringComparison.Ordinal);
@@ -149,7 +154,7 @@ public class ServicoInstalacaoTestes
         var (servico, registro, atalho, _, tarefa) = Montar(ambiente);
         atalho.FalharAoCriarEsteCaminho = "Desktop";
 
-        ResultadoOperacao resultado = servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        ResultadoOperacao resultado = servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
 
         Assert.False(resultado.Sucesso);
 
@@ -174,7 +179,7 @@ public class ServicoInstalacaoTestes
         // a gravação em HKLM (entrada de desinstalação) falha
         registro.FalharAoGravarNestaChave = "Uninstall";
 
-        ResultadoOperacao resultado = servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        ResultadoOperacao resultado = servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
 
         Assert.False(resultado.Sucesso);
 
@@ -189,7 +194,7 @@ public class ServicoInstalacaoTestes
         ambiente.CriarPayload();
         var (servico, registro, atalho, _, tarefa) = Montar(ambiente);
 
-        servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
         ResultadoOperacao resultado = servico.Desinstalar();
 
         Assert.True(resultado.Sucesso, resultado.Mensagem);
@@ -217,7 +222,7 @@ public class ServicoInstalacaoTestes
         string arquivo = Path.Combine(pastaConfig, "settings.json");
         File.WriteAllText(arquivo, "{}");
 
-        servico.Instalar(new OpcoesInstalacao(), ambiente.PastaPayload);
+        servico.Instalar(ambiente.Opcoes(), ambiente.PastaPayload);
         ResultadoOperacao resultado = servico.Desinstalar();
 
         Assert.True(resultado.Sucesso, resultado.Mensagem);
@@ -234,5 +239,82 @@ public class ServicoInstalacaoTestes
         ResultadoOperacao resultado = servico.Desinstalar();
 
         Assert.True(resultado.Sucesso, resultado.Mensagem);
+    }
+
+    [Fact]
+    public void Instalar_EmPastaEscolhida_ColocaOsArquivosLá()
+    {
+        using var ambiente = new AmbienteTeste();
+        ambiente.CriarPayload();
+        var (servico, registro, atalho, _, tarefa) = Montar(ambiente);
+
+        string pastaEscolhida = Path.Combine(ambiente.Raiz, "Outro lugar", "Tranal Sentinel");
+        ResultadoOperacao resultado = servico.Instalar(ambiente.Opcoes(pastaEscolhida), ambiente.PastaPayload);
+
+        Assert.True(resultado.Sucesso, resultado.Mensagem);
+
+        // os arquivos foram para a pasta escolhida...
+        Assert.True(File.Exists(Path.Combine(pastaEscolhida, "TranalSentinel.exe")));
+        Assert.True(File.Exists(Path.Combine(pastaEscolhida, "LEIA-ME.txt")));
+        Assert.True(File.Exists(Path.Combine(pastaEscolhida, "TranalSetup.exe")));
+
+        // ...e nada foi para a pasta padrão
+        Assert.False(File.Exists(ambiente.CaminhoExecutavelInstalado));
+        Assert.False(Directory.Exists(ambiente.PastaDestino));
+
+        // o atalho e a tarefa agendada apontam para o executável novo
+        string executavel = Path.Combine(pastaEscolhida, "TranalSentinel.exe");
+        Assert.Equal(executavel, tarefa.Tarefas[TarefaInicializacao.NomeTarefa].Caminho);
+        Assert.Equal(executavel,
+            atalho.Atalhos[CaminhosInstalacao.AtalhoMenuIniciar(ambiente.Contexto)].Alvo);
+
+        // o registro guarda onde a instalação ficou
+        Assert.Equal(pastaEscolhida,
+            registro.LerTexto(ChaveRegistro.Maquina, CaminhosInstalacao.ChaveDesinstalacao, "InstallLocation"));
+    }
+
+    [Fact]
+    public void Desinstalar_AchaOLocalInstaladoPelaEntradaDeDesinstalacao()
+    {
+        using var ambiente = new AmbienteTeste();
+        ambiente.CriarPayload();
+        var (servico, registro, atalho, _, tarefa) = Montar(ambiente);
+
+        string pastaEscolhida = Path.Combine(ambiente.Raiz, "Outro lugar", "Tranal Sentinel");
+        servico.Instalar(ambiente.Opcoes(pastaEscolhida), ambiente.PastaPayload);
+
+        ResultadoOperacao resultado = servico.Desinstalar();
+
+        Assert.True(resultado.Sucesso, resultado.Mensagem);
+
+        // os arquivos da pasta escolhida sumiram
+        Assert.False(File.Exists(Path.Combine(pastaEscolhida, "TranalSentinel.exe")));
+        Assert.False(File.Exists(Path.Combine(pastaEscolhida, "LEIA-ME.txt")));
+        Assert.False(File.Exists(Path.Combine(pastaEscolhida, "TranalSetup.exe")));
+        Assert.False(Directory.Exists(pastaEscolhida));
+
+        // atalhos, tarefa agendada e registro também
+        Assert.Equal(0, atalho.Quantidade);
+        Assert.Empty(tarefa.Tarefas);
+        Assert.False(registro.ExisteChave(ChaveRegistro.Maquina, CaminhosInstalacao.ChaveDesinstalacao));
+    }
+
+    [Fact]
+    public void Instalar_EmPastaEscolhida_DuasVezes_NaoDuplicaNada()
+    {
+        using var ambiente = new AmbienteTeste();
+        ambiente.CriarPayload();
+        var (servico, registro, atalho, _, tarefa) = Montar(ambiente);
+
+        string pastaEscolhida = Path.Combine(ambiente.Raiz, "Outro lugar", "Tranal Sentinel");
+
+        ResultadoOperacao primeiro = servico.Instalar(ambiente.Opcoes(pastaEscolhida), ambiente.PastaPayload);
+        ResultadoOperacao segundo = servico.Instalar(ambiente.Opcoes(pastaEscolhida), ambiente.PastaPayload);
+
+        Assert.True(primeiro.Sucesso, primeiro.Mensagem);
+        Assert.True(segundo.Sucesso, segundo.Mensagem);
+        Assert.Equal(2, atalho.Quantidade);
+        Assert.Single(tarefa.Tarefas);
+        Assert.False(File.Exists(Path.Combine(pastaEscolhida, "TranalSentinel.exe.bak")));
     }
 }

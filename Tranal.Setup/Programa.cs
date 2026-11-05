@@ -11,6 +11,7 @@ namespace TranalSetup;
 /// Jeitos de chamar:
 ///   TranalSetup.exe                           → abre a janela de instalação
 ///   TranalSetup.exe --instalar "C:\payload"   → instala em modo silencioso
+///   TranalSetup.exe --instalar "C:\payload" --destino "D:\Apps" → instala em outra pasta
 ///   TranalSetup.exe --desinstalar             → desinstala em modo silencioso
 ///   TranalSetup.exe --simular                 → mostra o plano e não altera nada
 ///
@@ -48,7 +49,7 @@ public static class Programa
 
         return argumentos.Modo switch
         {
-            ModoExecucao.Instalar => ExecutarInstalacao(argumentos.PastaPayload ?? ""),
+            ModoExecucao.Instalar => ExecutarInstalacao(argumentos, argumentos.PastaPayload ?? ""),
             ModoExecucao.Desinstalar => ExecutarDesinstalacao(),
             _ => ExecutarInterface(),
         };
@@ -64,7 +65,7 @@ public static class Programa
 
         var contexto = ContextoSistema.DoSistema();
         var simulador = new ServicoSimulacao(contexto, new RegistroWindows(), new TarefaAgendadaWindows());
-        var opcoes = new OpcoesInstalacao();
+        var opcoes = Opcoes(contexto, argumentos);
         string payload = argumentos.PastaPayload ?? contexto.PastaInstalador;
 
         string texto = argumentos.Modo switch
@@ -82,7 +83,7 @@ public static class Programa
     }
 
     /// <summary>Instala em modo silencioso (sem interface).</summary>
-    private static int ExecutarInstalacao(string pastaPayload)
+    private static int ExecutarInstalacao(ArgumentosLinhaComando argumentos, string pastaPayload)
     {
         ConsoleAnexo.Anexar();
 
@@ -90,7 +91,7 @@ public static class Programa
         var log = new LogInstalador(CaminhosInstalacao.ArquivoLog(contexto));
         var servico = new ServicoInstalacao(contexto, new RegistroWindows(), new AtalhoWindows(), new TarefaAgendadaWindows(), log);
 
-        ResultadoOperacao resultado = servico.Instalar(new OpcoesInstalacao(), pastaPayload);
+        ResultadoOperacao resultado = servico.Instalar(Opcoes(contexto, argumentos), pastaPayload);
 
         foreach (string detalhe in resultado.Detalhes) ConsoleAnexo.Escrever($"  {detalhe}");
         ConsoleAnexo.Escrever(resultado.Mensagem);
@@ -113,6 +114,18 @@ public static class Programa
         return resultado.Sucesso ? SaidaOk : SaidaFalha;
     }
 
+    /// <summary>
+    /// Opções da instalação: o destino informado na linha de comando ou, sem
+    /// ele, o destino padrão.
+    /// </summary>
+    private static OpcoesInstalacao Opcoes(ContextoSistema contexto, ArgumentosLinhaComando argumentos)
+        => new()
+        {
+            Destino = argumentos.PastaDestino is null
+                ? DestinoInstalacao.Padrao(contexto)
+                : DestinoInstalacao.DaEscolha(argumentos.PastaDestino),
+        };
+
     /// <summary>Abre a janela de instalação.</summary>
     private static int ExecutarInterface()
     {
@@ -127,6 +140,7 @@ public static class Programa
         "Uso:",
         "  TranalSetup.exe                            abre a janela de instalação",
         "  TranalSetup.exe --instalar <pasta>         instala em modo silencioso",
+        "  TranalSetup.exe --instalar <p> --destino <d>  instala na pasta <d>",
         "  TranalSetup.exe --desinstalar              desinstala o TRANAL SENTINEL",
         "  TranalSetup.exe --simular                  mostra o plano sem alterar nada",
         "  TranalSetup.exe --simular --instalar <p>   mostra o plano só da instalação",

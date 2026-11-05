@@ -110,4 +110,61 @@ public class ArgumentosLinhaComandoTestes
         Assert.False(argumentos.Valido);
         Assert.Contains("--inventado", argumentos.Erro ?? "", StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void SemDestino_ValemODestinoPadrao()
+    {
+        ArgumentosLinhaComando argumentos =
+            ArgumentosLinhaComando.Analisar(new[] { "--instalar", @"C:\Payload" });
+
+        Assert.True(argumentos.Valido);
+        Assert.Null(argumentos.PastaDestino);
+    }
+
+    [Fact]
+    public void Destino_ComInstalar_EscolheAPastaDeInstalacao()
+    {
+        ArgumentosLinhaComando argumentos = ArgumentosLinhaComando.Analisar(
+            new[] { "--instalar", @"C:\Payload", "--destino", @"D:\Apps" });
+
+        Assert.True(argumentos.Valido);
+        Assert.Equal(@"D:\Apps", argumentos.PastaDestino);
+    }
+
+    [Fact]
+    public void Destino_AceitaOIgualComoSeparador()
+    {
+        ArgumentosLinhaComando argumentos = ArgumentosLinhaComando.Analisar(
+            new[] { "--instalar", @"C:\Payload", @"--destino=D:\Apps" });
+
+        Assert.True(argumentos.Valido);
+        Assert.Equal(@"D:\Apps", argumentos.PastaDestino);
+    }
+
+    [Fact]
+    public void Destino_SemInstalar_EInvalido()
+    {
+        ArgumentosLinhaComando argumentos = ArgumentosLinhaComando.Analisar(new[] { "--destino", @"D:\Apps" });
+
+        Assert.False(argumentos.Valido);
+        Assert.Contains("--destino", argumentos.Erro ?? "", StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Destino_ComCaminhoInvalido_EInvalido()
+    {
+        ArgumentosLinhaComando argumentos = ArgumentosLinhaComando.Analisar(
+            new[] { "--instalar", @"C:\Payload", "--destino", "Apps" });
+
+        Assert.False(argumentos.Valido);
+    }
+
+    [Fact]
+    public void Destino_SemPasta_EInvalido()
+    {
+        ArgumentosLinhaComando argumentos =
+            ArgumentosLinhaComando.Analisar(new[] { "--instalar", @"C:\Payload", "--destino" });
+
+        Assert.False(argumentos.Valido);
+    }
 }

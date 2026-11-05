@@ -54,6 +54,12 @@ public static class ConsoleAnexo
         try
         {
             Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), codificacao) { AutoFlush = true });
+
+            // A saída de erro usa a MESMA codificação da saída normal. Sem isso,
+            // as mensagens de erro saíam com os acentos quebrados quando a saída
+            // era capturada em arquivo ou pipe (o console.Error continua no
+            // padrão do sistema, que é o cp1252).
+            Console.SetError(new StreamWriter(Console.OpenStandardError(), codificacao) { AutoFlush = true });
         }
         catch (Exception ex)
         {

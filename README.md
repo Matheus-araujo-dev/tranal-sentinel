@@ -226,9 +226,9 @@ documentado.
   acompanha o PC em segundo plano. Fechar a janela **não** fecha o app — ele
   continua olhando; o menu do ícone tem *Abrir* e *Sair*.
 - **Instalador próprio**: `TranalSetup.exe` pede administrador, instala em
-  `%ProgramFiles%\Tranal Sentinel`, cria atalho no menu Iniciar (e na área de
-  trabalho), registra a desinstalação no Painel de Controle e **inicia junto com
-  o Windows** sem pedir UAC a cada boot.
+  `%ProgramFiles%\Tranal Sentinel` **ou na pasta que você escolher**, cria atalho
+  no menu Iniciar (e na área de trabalho), registra a desinstalação no Painel de
+  Controle e **inicia junto com o Windows** sem pedir UAC a cada boot.
 - **Atualização automática**: o app confere a API do GitHub do próprio projeto e
   avisa quando há versão nova. O download é feito pelo app, com barra de
   progresso e conferência de tamanho; a troca do executável acontece quando o
@@ -412,15 +412,21 @@ TranalSetup.exe        <- o instalador
 
 Dê dois cliques em `TranalSetup.exe`. Ele:
 
-- instala em `%ProgramFiles%\Tranal Sentinel`;
+- **mostra a pasta de instalação e deixa você mudar**: o campo é editável e o
+  botão `...` abre o seletor de pasta do Windows (o botão cria a subpasta
+  `Tranal Sentinel` dentro da pasta escolhida; digitando o caminho completo na
+  caixa, vale exatamente o que foi digitado). O padrão é
+  `%ProgramFiles%\Tranal Sentinel`;
 - cria atalho no menu Iniciar (e, se você quiser, na área de trabalho);
 - registra a desinstalação em *Painel de Controle → Programas*;
 - **faz o app abrir junto com o Windows**, já em segundo plano, na bandeja, **sem pedir UAC a cada login**;
 - deixa um log em `%ProgramData%\Tranal Sentinel\instalador.log`.
 
 Para desinstalar: *Painel de Controle → Programas → TRANAL SENTINEL → Desinstalar* (ou rode o
-`TranalSetup.exe --desinstalar`). Os seus arquivos de configuração e histórico ficam em
-`%AppData%\TranalSentinel` — a desinstalação **não** apaga o que é seu.
+`TranalSetup.exe --desinstalar`). A desinstalação descobre sozinha onde o app foi
+instalado, mesmo que não seja na pasta padrão. Os seus arquivos de configuração e
+histórico ficam em `%AppData%\TranalSentinel` — a desinstalação **não** apaga o que
+é seu.
 
 **Atualização automática:** o app confere sozinho a API do GitHub deste projeto e avisa quando há versão
 nova (banner na lateral). O download é feito pelo app, com barra de progresso e conferência do tamanho
@@ -449,6 +455,7 @@ um `.exe` em uso.
 - ✔ Instalador próprio com administrador, atalho, desinstalação e inicialização automática (v0.17)
 - ✔ Atualização automática a partir das releases do GitHub (v0.17)
 - ✔ Diagnóstico pela linha de comando: `--saude coletar|comparar|relatar` (v0.17)
+- ✔ Instalador com pasta de instalação à escolha do usuário (v0.18)
 
 ## Próximas ideias
 - Relatório em CSV e com gráficos

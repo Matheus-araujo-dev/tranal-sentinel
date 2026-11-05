@@ -1,4 +1,6 @@
+using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using TranalSetup.Dominio;
 using TranalSetup.Infra;
@@ -10,8 +12,9 @@ namespace TranalSetup;
 /// Janela de instalação do TRANAL SENTINEL.
 ///
 /// Ela só mostra o que vai acontecer e chama o serviço de instalação: nada de
-/// regra de instalação mora aqui. Ao terminar, mostra o resultado (sucesso ou
-/// erro) e fecha.
+/// regra de instalação mora aqui. O destino pode ser alterado pelo usuário
+/// (campo editável e botão para escolher outra pasta). Ao terminar, mostra o
+/// resultado (sucesso ou erro) e fecha.
 /// </summary>
 public partial class JanelaInstalador : Window
 {
@@ -22,7 +25,10 @@ public partial class JanelaInstalador : Window
     private readonly string _pastaPayload;
     private readonly LogInstalador _log;
 
-    /// <summary>Cria a janela e mostra o destino e o payload detectado.</summary>
+    private bool _payloadCompleto = true;
+    private string? _erroDestino;
+
+    /// <summary>Cria a janela e mostra o destino e o payload detectados.</summary>
     public JanelaInstalador()
     {
         InitializeComponent();
@@ -30,11 +36,12 @@ public partial class JanelaInstalador : Window
         _pastaPayload = _contexto.PastaInstalador;
         _log = new LogInstalador(CaminhosInstalacao.ArquivoLog(_contexto));
 
-        TxtDestino.Text = CaminhosInstalacao.PastaDestino(_contexto);
+        TxtDestino.Text = CaminhosInstalacao.PastaPadrao(_contexto);
         TxtPayload.Text = _pastaPayload;
         TxtLog.Text = $"Log: {CaminhosInstalacao.ArquivoLog(_contexto)}";
 
         AvisarPayloadIncompleto();
+        ValidarDestino();
     }
 
     /// <summary>
@@ -43,19 +50,125 @@ public partial class JanelaInstalador : Window
     /// </summary>
     private void AvisarPayloadIncompleto()
     {
-        var plano = new ConstrutorPlano(_registro, _tarefa)
-            .MontarPlanoInstalacao(_contexto, new OpcoesInstalacao(), _pastaPayload);
+        var plano = new ConstrutorPlano(_registro, _tarefa).MontarPlanoInstalacao(
+            _contexto,
+            new OpcoesInstalacao { Destino = DestinoInstalacao.Padrao(_contexto) },
+            _pastaPayload);
 
-        if (plano.PayloadCompleto) return;
+        _payloadCompleto = plano.PayloadCompleto;
+
+        if (_payloadCompleto)
+        {
+            AtualizarEstado();
+            return;
+        }
 
         TxtAviso.Text = "Payload incompleto: falta " + string.Join(", ", plano.ArquivosAusentes)
             + $" em {_pastaPayload}. O instalador precisa dos dois arquivos juntos do TRANAL SENTINEL.exe.";
         TxtAviso.Visibility = Visibility.Visible;
-        BtnInstalar.IsEnabled = false;
+        AtualizarEstado();
     }
+
+    /// <summary>
+    /// Confere o caminho digitado e mostra o que houver: erro no caminho ou
+    /// aviso de que já existe uma instalação naquela pasta.
+    /// </summary>
+    private void ValidarDestino()
+    {
+        _erroDestino = DestinoInstalacao.Erro(TxtDestino.Text);
+
+        if (_erroDestino is null)
+        {
+            TxtDestinoErro.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            TxtDestinoErro.Text = _erroDestino;
+            TxtDestinoErro.Visibility = Visibility.Visible;
+        }
+
+        AvisarInstalacaoExistente();
+        AtualizarEstado();
+    }
+
+    /// <summary>
+    /// Avisa quando a pasta escolhida já tem o TRANAL SENTINEL instalado (a
+    /// instalação vai substituir o que está lá).
+    /// </summary>
+    private void AvisarInstalacaoExistente()
+    {
+        if (_erroDestino is not null)
+        {
+            TxtDestinoAviso.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        string pasta = DestinoInstalacao.DaEscolha(TxtDestino.Text).Pasta;
+        bool existe = File.Exists(CaminhosInstalacao.ExecutavelInstalado(pasta));
+
+        if (!existe)
+        {
+            TxtDestinoAviso.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        TxtDestinoAviso.Text = "Já existe uma instalação nesta pasta. Ela será substituída: "
+            + "o executável atual é salvo como .bak antes de ser trocado.";
+        TxtDestinoAviso.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>O botão INSTALAR só fica habilitado quando não há erro nenhum.</summary>
+    private void AtualizarEstado() => BtnInstalar.IsEnabled = _payloadCompleto && _erroDestino is null;
+
+    /// <summary>Abri o seletor de pasta do Windows e coloca o resultado no campo.</summary>
+    private void BtnEscolherPasta_Click(object sender, RoutedEventArgs e)
+    {
+        var dialogo = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Escolher a pasta de instalação",
+            Multiselect = false,
+            InitialDirectory = PastaInicialDoDialogo(),
+        };
+
+        if (dialogo.ShowDialog(this) != true) return;
+
+        TxtDestino.Text = DestinoInstalacao.PastaDentroDe(dialogo.FolderName);
+        TxtDestino.Focus();
+    }
+
+    /// <summary>
+    /// Pasta em que o seletor abre: o destino atual (ou o pai dele, quando a
+    /// pasta ainda não existe).
+    /// </summary>
+    private string PastaInicialDoDialogo()
+    {
+        string atual = TxtDestino.Text.Trim();
+
+        if (!string.IsNullOrEmpty(atual))
+        {
+            if (Directory.Exists(atual)) return atual;
+
+            string? pai = Path.GetDirectoryName(atual);
+            if (!string.IsNullOrEmpty(pai) && Directory.Exists(pai)) return pai;
+        }
+
+        return _contexto.PastaProgramFiles;
+    }
+
+    private void TxtDestino_TextChanged(object sender, TextChangedEventArgs e) => ValidarDestino();
 
     private async void BtnInstalar_Click(object sender, RoutedEventArgs e)
     {
+        string? erro = DestinoInstalacao.Erro(TxtDestino.Text);
+        if (erro is not null)
+        {
+            _erroDestino = erro;
+            TxtDestinoErro.Text = erro;
+            TxtDestinoErro.Visibility = Visibility.Visible;
+            AtualizarEstado();
+            return;
+        }
+
         BtnInstalar.IsEnabled = false;
         BtnCancelar.IsEnabled = false;
         TxtResultado.Text = "Instalando...";
@@ -65,6 +178,7 @@ public partial class JanelaInstalador : Window
 
         var opcoes = new OpcoesInstalacao
         {
+            Destino = DestinoInstalacao.DaEscolha(TxtDestino.Text),
             IniciarComWindows = ChkIniciarWindows.IsChecked == true,
             AtalhoAreaTrabalho = ChkAreaTrabalho.IsChecked == true,
             ReinstalarSobreInstalacaoExistente = ChkJaInstalar.IsChecked == true,

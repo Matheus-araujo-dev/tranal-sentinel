@@ -27,15 +27,16 @@ public sealed class ConstrutorPlano
     /// <summary>Calcula o plano da instalação para o payload e as opções informados.</summary>
     public PlanoInstalacao MontarPlanoInstalacao(ContextoSistema contexto, OpcoesInstalacao opcoes, string pastaPayload)
     {
-        string destino = CaminhosInstalacao.PastaDestino(contexto);
-        string executavel = CaminhosInstalacao.ExecutavelInstalado(contexto);
-        string instalador = CaminhosInstalacao.InstaladorInstalado(contexto);
+        DestinoInstalacao destino = opcoes.Destino;
+        string pasta = destino.Pasta;
+        string executavel = CaminhosInstalacao.ExecutavelInstalado(pasta);
+        string instalador = CaminhosInstalacao.InstaladorInstalado(pasta);
 
         var arquivos = new List<ArquivoPlano>();
         foreach (string nome in new[] { CaminhosInstalacao.NomeExecutavel, CaminhosInstalacao.NomeLeiaMe })
         {
             string origem = Path.Combine(pastaPayload, nome);
-            string alvo = Path.Combine(destino, nome);
+            string alvo = Path.Combine(pasta, nome);
 
             FileInfo? infoOrigem = Existe(origem);
             FileInfo? infoDestino = Existe(alvo);
@@ -68,9 +69,9 @@ public sealed class ConstrutorPlano
             Contexto = contexto,
             PastaPayload = pastaPayload,
             Opcoes = opcoes,
-            PastaDestino = destino,
+            Destino = destino,
             CaminhoExecutavel = executavel,
-            CaminhoBackup = CaminhosInstalacao.BackupExecutavel(contexto),
+            CaminhoBackup = CaminhosInstalacao.BackupExecutavel(pasta),
             CaminhoInstaladorInstalado = instalador,
             Arquivos = arquivos,
             Atalhos = atalhos,
@@ -89,14 +90,15 @@ public sealed class ConstrutorPlano
     /// <summary>Calcula o plano da desinstalação.</summary>
     public PlanoDesinstalacao MontarPlanoDesinstalacao(ContextoSistema contexto)
     {
-        string destino = CaminhosInstalacao.PastaDestino(contexto);
+        DestinoInstalacao destino = DescobrirDestinoInstalado(contexto);
+        string pasta = destino.Pasta;
 
         var arquivos = new List<string>
         {
-            Path.Combine(destino, CaminhosInstalacao.NomeExecutavel),
-            Path.Combine(destino, CaminhosInstalacao.NomeLeiaMe),
-            CaminhosInstalacao.BackupExecutavel(contexto),
-            Path.Combine(destino, CaminhosInstalacao.NomeInstalador),
+            CaminhosInstalacao.ExecutavelInstalado(pasta),
+            Path.Combine(pasta, CaminhosInstalacao.NomeLeiaMe),
+            CaminhosInstalacao.BackupExecutavel(pasta),
+            CaminhosInstalacao.InstaladorInstalado(pasta),
         };
 
         var atalhos = new List<string>
@@ -111,6 +113,7 @@ public sealed class ConstrutorPlano
         return new PlanoDesinstalacao
         {
             Contexto = contexto,
+            Destino = destino,
             ArquivosRemovidos = arquivos,
             AtalhosRemovidos = atalhos,
             NomeTarefaIniciar = TarefaInicializacao.NomeTarefa,
@@ -119,6 +122,52 @@ public sealed class ConstrutorPlano
             ChaveDesinstalacaoExiste = _registro.ExisteChave(ChaveRegistro.Maquina, CaminhosInstalacao.ChaveDesinstalacao),
             PastaConfiguracoesPreservada = CaminhosInstalacao.PastaConfiguracoes(contexto),
         };
+    }
+
+    /// <summary>
+    /// Descobre onde o app está instalado.
+    ///
+    /// A ordem é: primeiro a entrada de desinstalação (HKLM), que guarda o
+    /// InstallLocation de verdade; depois a pasta de onde este instalador está
+    /// rodando (é de lá que o Windows chama a desinstalação); sem nenhum dos
+    /// dois, vale o destino padrão.
+    /// </summary>
+    private DestinoInstalacao DescobrirDestinoInstalado(ContextoSistema contexto)
+    {
+        string? registrado = _registro.LerTexto(
+            ChaveRegistro.Maquina, CaminhosInstalacao.ChaveDesinstalacao, "InstallLocation");
+
+        DestinoInstalacao? peloRegistro = TentarDestino(registrado);
+        if (peloRegistro is not null) return peloRegistro;
+
+        string? processo = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(processo))
+        {
+            string pastaDoProcesso = Path.GetDirectoryName(processo) ?? string.Empty;
+            if (!string.IsNullOrEmpty(pastaDoProcesso)
+                && File.Exists(Path.Combine(pastaDoProcesso, CaminhosInstalacao.NomeExecutavel)))
+            {
+                DestinoInstalacao? pelaPasta = TentarDestino(pastaDoProcesso);
+                if (pelaPasta is not null) return pelaPasta;
+            }
+        }
+
+        return DestinoInstalacao.Padrao(contexto);
+    }
+
+    /// <summary>Tenta transformar um caminho em destino; devolve null se o caminho não serve.</summary>
+    private static DestinoInstalacao? TentarDestino(string? caminho)
+    {
+        if (string.IsNullOrWhiteSpace(caminho)) return null;
+
+        try
+        {
+            return DestinoInstalacao.DaEscolha(caminho);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     private static FileInfo? Existe(string caminho)

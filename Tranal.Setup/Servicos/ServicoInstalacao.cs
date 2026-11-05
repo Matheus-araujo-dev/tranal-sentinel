@@ -67,15 +67,15 @@ public sealed class ServicoInstalacao
 
             if (plano.InstalacaoExistente && !plano.Opcoes.ReinstalarSobreInstalacaoExistente)
             {
-                _log.Registrar($"Instalação recusada: já existe uma instalação em {plano.PastaDestino}.");
+                _log.Registrar($"Instalação recusada: já existe uma instalação em {plano.Destino.Pasta}.");
                 return ResultadoOperacao.Falha(
-                    $"O TRANAL SENTINEL já está instalado em {plano.PastaDestino}. Marque “Já instalar” para substituir.");
+                    $"O TRANAL SENTINEL já está instalado em {plano.Destino.Pasta}. Marque “Já instalar” para substituir.");
             }
 
-            _log.Registrar($"Iniciando instalação. Payload: {plano.PastaPayload}. Destino: {plano.PastaDestino}.");
+            _log.Registrar($"Iniciando instalação. Payload: {plano.PastaPayload}. Destino: {plano.Destino.Pasta}.");
 
-            Directory.CreateDirectory(plano.PastaDestino);
-            detalhes.Add($"pasta de destino: {plano.PastaDestino}");
+            Directory.CreateDirectory(plano.Destino.Pasta);
+            detalhes.Add($"pasta de destino: {plano.Destino.Pasta}");
 
             foreach (ArquivoPlano arquivo in plano.ArquivosParaGravar)
             {
@@ -98,7 +98,7 @@ public sealed class ServicoInstalacao
             GravarEntradaDesinstalacao(plano, reversao, detalhes);
 
             _log.Registrar("Instalação concluída.");
-            return ResultadoOperacao.Ok($"TRANAL SENTINEL instalado em {plano.PastaDestino}.", detalhes);
+            return ResultadoOperacao.Ok($"TRANAL SENTINEL instalado em {plano.Destino.Pasta}.", detalhes);
         }
         catch (Exception ex)
         {
@@ -240,7 +240,7 @@ public sealed class ServicoInstalacao
         var detalhes = new List<string>();
         var erros = new List<string>();
 
-        _log.Registrar($"Iniciando desinstalação. Destino: {CaminhosInstalacao.PastaDestino(_contexto)}.");
+        _log.Registrar($"Iniciando desinstalação. Destino: {plano.Destino.Pasta}.");
 
         foreach (string arquivo in plano.ArquivosRemovidos)
         {
@@ -260,7 +260,7 @@ public sealed class ServicoInstalacao
             {
                 // Executável em uso: só acontece com o próprio instalador rodando
                 // a partir da pasta de instalação. A removal fica para depois.
-                string? agendado = AgendarRemocao(arquivo);
+                string? agendado = AgendarRemocao(arquivo, plano.Destino.Pasta);
                 if (agendado is null)
                 {
                     erros.Add($"não foi possível remover {arquivo}: {ex.Message}");
@@ -339,7 +339,7 @@ public sealed class ServicoInstalacao
         detalhes.Add($"configurações do usuário preservadas: {plano.PastaConfiguracoesPreservada}");
 
         // A pasta de instalação só some se sobrar alguma coisa que não é nossa.
-        TentarRemoverPastaVazia(CaminhosInstalacao.PastaDestino(_contexto));
+        TentarRemoverPastaVazia(plano.Destino.Pasta);
 
         if (erros.Count > 0)
             return ResultadoOperacao.Falha("A desinstalação terminou com erros.", detalhes.Concat(erros));
@@ -349,10 +349,9 @@ public sealed class ServicoInstalacao
     }
 
     /// <summary>Agenda a remoção de um arquivo que está em uso (o próprio instalador).</summary>
-    private string? AgendarRemocao(string arquivo)
+    private string? AgendarRemocao(string arquivo, string pastaInstalacao)
     {
-        string pasta = CaminhosInstalacao.PastaDestino(_contexto);
-        bool sucesso = RemocaoAdiada.Agendar(arquivo, pasta);
+        bool sucesso = RemocaoAdiada.Agendar(arquivo, pastaInstalacao);
         return sucesso ? arquivo : null;
     }
 

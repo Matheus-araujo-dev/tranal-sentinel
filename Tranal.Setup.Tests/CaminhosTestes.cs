@@ -19,24 +19,24 @@ public class CaminhosTestes
     };
 
     [Fact]
-    public void PastaDestino_UsarProgramFilesEONomeDaPasta()
+    public void PastaPadrao_UsarProgramFilesEONomeDaPasta()
     {
         Assert.Equal(@"C:\Program Files\Tranal Sentinel",
-            CaminhosInstalacao.PastaDestino(ContextoDeTeste()));
+            CaminhosInstalacao.PastaPadrao(ContextoDeTeste()));
     }
 
     [Fact]
     public void ExecutavelInstalado_FicaNaPastaDeDestino()
     {
         Assert.Equal(@"C:\Program Files\Tranal Sentinel\TranalSentinel.exe",
-            CaminhosInstalacao.ExecutavelInstalado(ContextoDeTeste()));
+            CaminhosInstalacao.ExecutavelInstalado(@"C:\Program Files\Tranal Sentinel"));
     }
 
     [Fact]
     public void BackupExecutavel_TemExtensaoBak()
     {
         Assert.Equal(@"C:\Program Files\Tranal Sentinel\TranalSentinel.exe.bak",
-            CaminhosInstalacao.BackupExecutavel(ContextoDeTeste()));
+            CaminhosInstalacao.BackupExecutavel(@"C:\Program Files\Tranal Sentinel"));
     }
 
     [Fact]

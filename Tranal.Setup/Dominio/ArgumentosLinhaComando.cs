@@ -19,6 +19,7 @@ public enum ModoExecucao
 /// O contrato é:
 ///   (sem argumento)          → abre a janela de instalação
 ///   --instalar &lt;pasta&gt;   → instala em modo silencioso
+///   --destino &lt;pasta&gt;    → instala em outra pasta (com --instalar)
 ///   --desinstalar            → desinstala
 ///   --simular                → mostra o plano e não altera nada
 /// O --simular pode vir sozinho (mostra o plano das três operações) ou junto de
@@ -35,6 +36,11 @@ public sealed record ArgumentosLinhaComando
     /// <summary>Pasta do payload informada em --instalar.</summary>
     public string? PastaPayload { get; init; }
 
+    /// <summary>
+    /// Pasta final de instalação informada em --destino (null = destino padrão).
+    /// </summary>
+    public string? PastaDestino { get; init; }
+
     /// <summary>Se os argumentos são válidos.</summary>
     public bool Valido { get; init; } = true;
 
@@ -50,6 +56,7 @@ public sealed record ArgumentosLinhaComando
         var modo = ModoExecucao.Interface;
         bool simular = false;
         string? payload = null;
+        string? destino = null;
 
         for (int i = 0; i < argumentos.Count; i++)
         {
@@ -66,6 +73,20 @@ public sealed record ArgumentosLinhaComando
                 if (modo == ModoExecucao.Instalar)
                     return Invalido("Escolha apenas uma operação: --instalar ou --desinstalar.");
                 modo = ModoExecucao.Desinstalar;
+                continue;
+            }
+
+            if (arg.StartsWith("--destino=", StringComparison.OrdinalIgnoreCase))
+            {
+                destino = arg["--destino=".Length..];
+                continue;
+            }
+
+            if (arg.Equals("--destino", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 >= argumentos.Count || argumentos[i + 1].StartsWith("--", StringComparison.Ordinal))
+                    return Invalido("A opção --destino precisa da pasta de instalação. Exemplo: --destino \"D:\\Apps\"");
+                destino = argumentos[++i];
                 continue;
             }
 
@@ -95,7 +116,22 @@ public sealed record ArgumentosLinhaComando
         if (modo == ModoExecucao.Instalar && string.IsNullOrWhiteSpace(payload))
             return Invalido("A opção --instalar precisa da pasta do payload.");
 
-        return new ArgumentosLinhaComando { Modo = modo, Simular = simular, PastaPayload = payload };
+        if (destino is not null)
+        {
+            if (modo != ModoExecucao.Instalar)
+                return Invalido("A opção --destino só vale junto com --instalar.");
+
+            string? erro = DestinoInstalacao.Erro(destino);
+            if (erro is not null) return Invalido($"A pasta de instalação não serve: {erro}");
+        }
+
+        return new ArgumentosLinhaComando
+        {
+            Modo = modo,
+            Simular = simular,
+            PastaPayload = payload,
+            PastaDestino = destino,
+        };
     }
 
     private static ArgumentosLinhaComando Invalido(string erro)

@@ -28,8 +28,11 @@ public sealed class PlanoInstalacao
     /// <summary>Opções escolhidas pelo usuário.</summary>
     public required OpcoesInstalacao Opcoes { get; init; }
 
-    /// <summary>Pasta de destino da instalação.</summary>
-    public required string PastaDestino { get; init; }
+    /// <summary>
+    /// Onde o app será instalado. Vem das opções do usuário já resolvida: quem
+    /// decide é o <see cref="DestinoInstalacao"/>.
+    /// </summary>
+    public required DestinoInstalacao Destino { get; init; }
 
     /// <summary>Executável do app depois de instalado.</summary>
     public required string CaminhoExecutavel { get; init; }

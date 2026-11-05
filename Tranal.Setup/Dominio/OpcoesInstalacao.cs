@@ -7,6 +7,13 @@ namespace TranalSetup.Dominio;
 /// </summary>
 public sealed record OpcoesInstalacao
 {
+    /// <summary>
+    /// Onde o app será instalado. É a escolha do usuário já resolvida: quem
+    /// decide é o <see cref="DestinoInstalacao"/>, e o resto do instalador
+    /// só consome esta pasta.
+    /// </summary>
+    public required DestinoInstalacao Destino { get; init; }
+
     /// <summary>Grava o valor na chave Run para o app abrir junto com o Windows.</summary>
     public bool IniciarComWindows { get; init; } = true;
 

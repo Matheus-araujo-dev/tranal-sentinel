@@ -11,6 +11,13 @@ public sealed class PlanoDesinstalacao
     /// <summary>Contexto (pastas do sistema) usado no plano.</summary>
     public required ContextoSistema Contexto { get; init; }
 
+    /// <summary>
+    /// Onde o app está instalado. A desinstalação descobre esse caminho na
+    /// hora (vem da entrada de desinstalação no registro), porque o usuário
+    /// pode ter instalado em uma pasta diferente da padrão.
+    /// </summary>
+    public required DestinoInstalacao Destino { get; init; }
+
     /// <summary>Arquivos que serão removidos da pasta de instalação.</summary>
     public required IReadOnlyList<string> ArquivosRemovidos { get; init; }
 

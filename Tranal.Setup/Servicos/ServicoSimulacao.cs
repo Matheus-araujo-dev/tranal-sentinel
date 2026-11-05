@@ -52,7 +52,7 @@ public sealed class ServicoSimulacao
 
         texto.AppendLine(Secao("1) INSTALAR"));
         texto.AppendLine($"Payload ...........: {plano.PastaPayload}");
-        texto.AppendLine($"Destino ...........: {plano.PastaDestino}");
+        texto.AppendLine($"Destino ...........: {plano.Destino.Pasta}");
         texto.AppendLine($"Instalação atual ..: {(plano.InstalacaoExistente ? "sim (será substituída)" : "não")}");
         texto.AppendLine($"Versão do payload .: {(plano.VersaoPayload.Length == 0 ? "(não informada)" : plano.VersaoPayload)}");
         texto.AppendLine($"Payload completo ..: {(plano.PayloadCompleto ? "sim" : "NÃO")}");
@@ -118,7 +118,8 @@ public sealed class ServicoSimulacao
         var texto = new StringBuilder();
 
         texto.AppendLine(Secao("2) DESINSTALAR"));
-        texto.AppendLine($"Destino ...........: {CaminhosInstalacao.PastaDestino(_contexto)}");
+        texto.AppendLine($"Destino ...........: {plano.Destino.Pasta}");
+        texto.AppendLine("                   (descobrito na hora: vem da entrada de desinstalação)");
         texto.AppendLine();
         texto.AppendLine("Arquivos removidos:");
         foreach (string arquivo in plano.ArquivosRemovidos)
@@ -147,7 +148,8 @@ public sealed class ServicoSimulacao
 
         texto.AppendLine(Secao("3) JANELA DE INSTALAÇÃO"));
         texto.AppendLine("Título ............: Instalar TRANAL SENTINEL");
-        texto.AppendLine($"Destino ...........: {CaminhosInstalacao.PastaDestino(_contexto)}");
+        texto.AppendLine($"Destino ...........: {opcoes.Destino.Pasta}");
+        texto.AppendLine("Campo de destino ..: editável, com botão para escolher outra pasta");
         texto.AppendLine($"Payload detectado .: {pastaPayload}");
         texto.AppendLine($"[{(opcoes.IniciarComWindows ? "X" : " ")}] Iniciar com o Windows");
         texto.AppendLine($"[{(opcoes.AtalhoAreaTrabalho ? "X" : " ")}] Atalho na área de trabalho");

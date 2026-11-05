@@ -3,11 +3,16 @@ using System.IO;
 namespace TranalSetup.Dominio;
 
 /// <summary>
-/// Nomes e caminhos fixos da instalação do TRANAL SENTINEL.
+/// Nomes e caminhos da instalação do TRANAL SENTINEL.
 ///
-/// Tudo aqui é função pura: dado um <see cref="ContextoSistema"/>, devolve o caminho.
+/// Tudo aqui é função pura: devolve o caminho a partir do que é informado.
 /// Assim o mesmo cálculo serve para a instalação real, para o plano do modo
 /// --simular e para os testes, sem risco de um lugar calcular diferente do outro.
+///
+/// A pasta de destino NÃO é fixa: o usuário pode escolher onde instalar. O
+/// destino já resolvido chega aqui como <see cref="DestinoInstalacao"/> (e,
+/// nos caminhos que dependem dele, como o caminho da pasta) — a regra de onde
+/// instalar mora em um lugar só.
 /// </summary>
 public static class CaminhosInstalacao
 {
@@ -53,21 +58,21 @@ public static class CaminhosInstalacao
     /// <summary>Extensão do backup do executável instalado.</summary>
     public const string ExtensaoBackup = ".bak";
 
-    /// <summary>Pasta de destino da instalação (%ProgramFiles%\Tranal Sentinel).</summary>
-    public static string PastaDestino(ContextoSistema contexto)
+    /// <summary>Pasta de destino padrão da instalação (%ProgramFiles%\Tranal Sentinel).</summary>
+    public static string PastaPadrao(ContextoSistema contexto)
         => Path.Combine(contexto.PastaProgramFiles, NomePasta);
 
     /// <summary>Caminho do executável do app dentro da pasta de instalação.</summary>
-    public static string ExecutavelInstalado(ContextoSistema contexto)
-        => Path.Combine(PastaDestino(contexto), NomeExecutavel);
+    public static string ExecutavelInstalado(string pastaDestino)
+        => Path.Combine(pastaDestino, NomeExecutavel);
 
     /// <summary>Caminho do instalador dentro da pasta de instalação (é o alvo do botão Desinstalar).</summary>
-    public static string InstaladorInstalado(ContextoSistema contexto)
-        => Path.Combine(PastaDestino(contexto), NomeInstalador);
+    public static string InstaladorInstalado(string pastaDestino)
+        => Path.Combine(pastaDestino, NomeInstalador);
 
     /// <summary>Caminho do backup do executável anterior.</summary>
-    public static string BackupExecutavel(ContextoSistema contexto)
-        => ExecutavelInstalado(contexto) + ExtensaoBackup;
+    public static string BackupExecutavel(string pastaDestino)
+        => ExecutavelInstalado(pastaDestino) + ExtensaoBackup;
 
     /// <summary>Caminho do atalho do menu Iniciar.</summary>
     public static string AtalhoMenuIniciar(ContextoSistema contexto)

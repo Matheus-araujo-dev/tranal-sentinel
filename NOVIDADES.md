@@ -1,3 +1,35 @@
+## Novidades da v0.18 — o instalador deixa você escolher onde instalar
+
+**Pasta de instalação à escolha**
+- A janela do instalador mostra a pasta de destino num **campo editável**: dá para
+  digitar o caminho completo e ele é respeitado exatamente como foi escrito.
+- O botão `...` abre o **seletor de pasta do Windows**. Ele cria a subpasta
+  `Tranal Sentinel` dentro da pasta escolhida (e não cria a subpasta duas vezes
+  se você já estiver dentro dela).
+- O padrão continua sendo `%ProgramFiles%\Tranal Sentinel`.
+- O caminho é conferido antes de instalar: caminho incompleto, raiz da unidade ou
+  caractere proibido são recusados com aviso, e o botão INSTALAR fica desabilitado.
+- Se já existe uma instalação na pasta escolhida, a tela avisa que ela vai ser
+  substituída (o executável atual vira `.bak`).
+
+**A desinstalação acha o app onde ele está**
+- O local instalado fica gravado na entrada de desinstalação (`InstallLocation`) e
+  a desinstalação lê esse valor — ou seja, ela funciona mesmo se o app estiver em
+  `D:\...` e não na pasta padrão.
+- Se essa informação não existir, ela usa a pasta de onde o próprio instalador
+  está rodando.
+
+**Linha de comando**
+- `TranalSetup.exe --instalar <payload> --destino <pasta>` instala em modo
+  silencioso na pasta escolhida.
+- `TranalSetup.exe --simular --instalar <payload> --destino <pasta>` mostra o
+  plano completo com o destino novo, sem alterar nada.
+
+**Correção**
+- As mensagens de erro do instalador saíam com os acetos quebrados quando a saída
+  era capturada em arquivo ou pipe (o `stderr` não recebia a codificação do
+  `stdout`).
+
 ## Novidades da v0.17 — o app vira assistente diário
 
 **Nova página · TRANAL ASSISTENTE › Linha do tempo**

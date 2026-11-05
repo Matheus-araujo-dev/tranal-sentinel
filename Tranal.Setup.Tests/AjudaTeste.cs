@@ -36,10 +36,19 @@ public sealed class AmbienteTeste : IDisposable
     public string PastaPayload { get; }
 
     /// <summary>Pasta de destino da instalação (a de verdade, dentro da temp).</summary>
-    public string PastaDestino => CaminhosInstalacao.PastaDestino(Contexto);
+    public string PastaDestino => CaminhosInstalacao.PastaPadrao(Contexto);
 
     /// <summary>Executável instalado (dentro da temp).</summary>
-    public string CaminhoExecutavelInstalado => CaminhosInstalacao.ExecutavelInstalado(Contexto);
+    public string CaminhoExecutavelInstalado => CaminhosInstalacao.ExecutavelInstalado(PastaDestino);
+
+    /// <summary>Opções de instalação padrão (destino padrão, tudo ligado).</summary>
+    public OpcoesInstalacao Opcoes() => new() { Destino = DestinoInstalacao.Padrao(Contexto) };
+
+    /// <summary>Opções de instalação em uma pasta escolhida pelo usuário.</summary>
+    public OpcoesInstalacao Opcoes(string pastaDestino) => new()
+    {
+        Destino = DestinoInstalacao.DaEscolha(pastaDestino),
+    };
 
     /// <summary>Instalador que o serviço copia para a pasta de instalação.</summary>
     public string CaminhoInstaladorOrigem => Path.Combine(PastaPayload, "TranalSetup.exe");
