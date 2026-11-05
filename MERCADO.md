@@ -84,6 +84,11 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
   uma tela de importação — é trabalho de produto, não de uma versão.
 - **Leitura de SPD / Super I/O**: exige ler portas de I/O, o que só dá com
   driver de kernel (PawnIO). É projeto próprio, com o risco dele.
+  **O caminho já foi estudado**: a arquitetura do CPU-Z e o mecanismo do driver
+  dele foram mapeados por análise estática, e a conclusão é que o **PawnIO já
+  dá conta** — sem driver novo, sem serviço novo e sem UAC além do que o app
+  já exige. O que falta é os offsets do controlador de memória do AMD AM5.
+  Tudo em [SPDTIMINGS.md](SPDTIMINGS.md).
 - **Assinatura digital do instalador**: exige certificado pago.
 
 ## Por que continuar em C#
