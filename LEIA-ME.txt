@@ -31,6 +31,31 @@ TRANAL SAÚDE
   travamento ou lentidão, com a ação sugerida para cada problema.
 - Ela não instala, não altera e não reinicia nada: é somente leitura.
 - Leva alguns segundos na primeira análise (lê o log de eventos do Windows inteiro).
+- O mesmo diagnóstico pela linha de comando:
+      TranalSentinel.exe --saude coletar
+      TranalSentinel.exe --saude comparar antes.json depois.json
+      TranalSentinel.exe --saude relatar
+  Os instantâneos ficam em %AppData%\TranalSentinel\saude\.
+
+TRANAL ASSISTENTE
+- No menu lateral, grupo "TRANAL ASSISTENTE" -> aba "Linha do tempo".
+- O app tira um retrato do PC de tempos em tempos (Windows, BIOS, drivers, plano de
+  energia, memória, programas instalados, inicialização) e anota o que mudou, com
+  data e hora. O botão TIRAR RETRATO AGORA faz isso na hora.
+- Perfil de recursos: COMPLETO, EQUILIBRADO ou ECONOMIA. Em economia os sensores
+  são lidos a cada 5 s em vez de 1 s e a análise de saúde não roda sozinha.
+- O app fica com ícone na bandeja (ao lado do relógio) e continua olhando o PC em
+  segundo plano. Fechar a janela não fecha o programa; o menu do ícone tem Sair.
+- O diário de cada dia fica em %AppData%\TranalSentinel\log\.
+
+INSTALAÇÃO
+- Portátil: abra o TranalSentinel.exe direto, sem instalar nada.
+- Instalado: baixe TranalSentinel.exe e TranalSetup.exe para a MESMA pasta e abra o
+  TranalSetup.exe. Ele pede administrador, instala em %ProgramFiles%\Tranal Sentinel,
+  cria atalho no menu Iniciar, registra a desinstalação no Painel de Controle e faz
+  o app abrir junto com o Windows (sem pedir UAC a cada login).
+- Para desinstalar: Painel de Controle -> Programas -> TRANAL SENTINEL -> Desinstalar.
+  Suas configurações ficam em %AppData%\TranalSentinel e não são apagadas.
 
 VISOR KALKAN (SmartMonitor)
 - No menu lateral, grupo "TRANAL FERRAMENTAS" -> "Integração", no cartão

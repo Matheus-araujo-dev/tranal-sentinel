@@ -391,9 +391,41 @@ Para levar a outro PC: dê dois cliques em `publicar.bat`. Ele gera `..\TranalSe
 sem caminhos do seu usuário) + `LEIA-ME.txt`. No outro PC só é preciso instalar o PawnIO. Rode de novo após cada alteração no código.
 
 ### Baixar a versão mais recente
+
 A cada push na `main`, o GitHub Actions (`.github/workflows/publicar.yml`) gera o `TranalSentinel.exe` e atualiza a release
 **latest** (aba *Releases* do repositório), com o `.exe` e um `.zip`. É só baixar de lá, sem compilar.
-Ao criar uma tag (`git tag v0.12` e `git push --tags`), também sai uma release fixa dessa versão.
+Ao criar uma tag (`git tag v0.17` e `git push --tags`), também sai uma release fixa dessa versão.
+
+### Como instalar
+
+Há dois jeitos. Nos dois, o app **pede administrador** (ele precisa ler sensores de baixo nível, MSRs e Super I/O).
+
+**1. Portátil (o mais simples)** — baixe `TranalSentinel.exe` da release e dê dois cliques.
+Roda direto de onde foi baixado. Não instala nada, não cria atalho, não abre junto com o Windows.
+
+**2. Instalado (com inicialização automática)** — baixe **os dois** arquivos da release para a *mesma* pasta:
+
+```
+TranalSentinel.exe     <- o app
+TranalSetup.exe        <- o instalador
+```
+
+Dê dois cliques em `TranalSetup.exe`. Ele:
+
+- instala em `%ProgramFiles%\Tranal Sentinel`;
+- cria atalho no menu Iniciar (e, se você quiser, na área de trabalho);
+- registra a desinstalação em *Painel de Controle → Programas*;
+- **faz o app abrir junto com o Windows**, já em segundo plano, na bandeja, **sem pedir UAC a cada login**;
+- deixa um log em `%ProgramData%\Tranal Sentinel\instalador.log`.
+
+Para desinstalar: *Painel de Controle → Programas → TRANAL SENTINEL → Desinstalar* (ou rode o
+`TranalSetup.exe --desinstalar`). Os seus arquivos de configuração e histórico ficam em
+`%AppData%\TranalSentinel` — a desinstalação **não** apaga o que é seu.
+
+**Atualização automática:** o app confere sozinho a API do GitHub deste projeto e avisa quando há versão
+nova (banner na lateral). O download é feito pelo app, com barra de progresso e conferência do tamanho
+do arquivo; a troca do executável acontece quando o app fecha, porque o Windows não deixa sobrescrever
+um `.exe` em uso.
 
 ## Observações
 - Se algum sensor não aparecer, depende do suporte da biblioteca à sua placa-mãe.
@@ -413,6 +445,10 @@ Ao criar uma tag (`git tag v0.12` e `git push --tags`), também sai uma release 
 - ✔ Abertura rápida: janela na hora, hardware carregado em paralelo (v0.16)
 - ✔ Instalar apps essenciais pós-formatação pelo winget (v0.16)
 - ✔ TRANAL MAKER: portas COM e drivers seriais CH340/CP210x/FTDI/Prolific/Arduino (v0.16)
+- ✔ TRANAL ASSISTENTE: linha do tempo do PC, diário, ícone de bandeja e perfil de recursos (v0.17)
+- ✔ Instalador próprio com administrador, atalho, desinstalação e inicialização automática (v0.17)
+- ✔ Atualização automática a partir das releases do GitHub (v0.17)
+- ✔ Diagnóstico pela linha de comando: `--saude coletar|comparar|relatar` (v0.17)
 
 ## Próximas ideias
 - Relatório em CSV e com gráficos
@@ -420,7 +456,10 @@ Ao criar uma tag (`git tag v0.12` e `git push --tags`), também sai uma release 
 - Leitura direta de SPD / Super I/O
 - TRANAL INTEGRAÇÃO: perfis salvos, efeitos por jogo, SDKs nativos da MSI/ASUS/Gigabyte se forem liberados
 - Alertas de temperatura, bateria e saúde de disco em segundo plano
-- Versão com instalador e assinatura digital
+- Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina
+- Ações de um clique para os achados do TRANAL SAÚDE (hoje o app diz o que fazer; falta o botão que faz)
+- Assinatura digital do instalador
+- Ver [MERCADO.md](MERCADO.md) para a pesquisa de concorrentes e o que foi adotado aqui
 
 ## Licença
 

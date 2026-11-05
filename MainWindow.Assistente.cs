@@ -58,11 +58,13 @@ public partial class MainWindow
             _bandeja = new Bandeja(this, "TRANAL SENTINEL — acompanhando o PC");
             _bandeja.AoAbrir += () => Dispatcher.Invoke(MostrarJanela);
             _bandeja.AoSair += () => Dispatcher.Invoke(SairDeVerdade);
+            RegistroDiario.Registrar("Ícone de bandeja criado.", "BANDEJA");
         }
-        catch
+        catch (Exception ex)
         {
             // Sem bandeja o app segue funcionando pela janela.
             _bandeja = null;
+            RegistroDiario.Registrar("Não foi possível criar o ícone de bandeja: " + ex.Message, "BANDEJA");
         }
 
         // Aberto junto com o Windows: entra escondido e só aparece na bandeja.
