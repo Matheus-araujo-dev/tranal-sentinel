@@ -1,3 +1,68 @@
+## Novidades da v0.17 — o app vira assistente diário
+
+**Nova página · TRANAL ASSISTENTE › Linha do tempo**
+- O app tira um **retrato** do PC de tempos em tempos e compara com o anterior.
+  O retrato cobre: versão do Windows, BIOS/UEFI, driver de vídeo, driver de rede,
+  plano de energia, memória (módulos, total e velocidade), configurações que
+  afetam desempenho (Modo de Jogo, Game DVR, HAGS, Integridade de memória, VBS,
+  Inicialização Rápida), programas instalados e itens de inicialização.
+- A linha do tempo mostra **o que mudou**, com data e hora: driver atualizado,
+  programa instalado ou desinstalado, versão trocada, plano de energia mudado.
+- Botão **TIRAR RETRATO AGORA** para fotografar o PC na hora.
+- Snapshot anterior guardado em `%AppData%\TranalSentinel\historico\instantaneos.json`.
+
+**Diário diário**
+- Um arquivo de log por dia em `%AppData%\TranalSentinel\log\tranal-AAAA-MM-DD.log`.
+- Registra abertura do app, perfil escolhido, mudanças detectadas, atualização
+  disponível e demais eventos. Mantém 30 dias.
+
+**Ícone na bandeja**
+- O app passa a ter ícone ao lado do relógio e vive ali. **Fechar a janela não
+  fecha o app** — ele continua acompanhando o PC, e um aviso explica isso.
+- Menu do ícone: *Abrir o TRANAL SENTINEL* e *Sair*.
+- Implementado com P/Invoke direto (`Shell_NotifyIcon`), sem Windows Forms, para
+  não misturar os dois frameworks no mesmo projeto.
+
+**Instalador próprio (`TranalSetup.exe`)**
+- Pede administrador e instala em `%ProgramFiles%\Tranal Sentinel`.
+- Cria atalho no menu Iniciar e (opcionalmente) na área de trabalho.
+- Registra a desinstalação no Painel de Controle; desinstalar remove os arquivos,
+  os atalhos e o registro, e **não** apaga as suas configurações.
+- **Inicia junto com o Windows** por tarefa agendada (sem prompt de UAC a cada boot).
+- Modo `--simular` mostra o que seria feito sem mexer em nada.
+
+**Atualização automática**
+- O app confere a API do GitHub do próprio projeto e avisa quando há versão nova.
+- O banner fica na lateral, com o tamanho do download e barra de progresso.
+- O arquivo é conferido pelo tamanho exato da release: download cortado não
+  vira executável.
+- A troca do executável acontece quando o app fecha: o Windows não deixa
+  sobrescrever um .exe em uso, então o app chama a si mesmo com `--atualizar` e
+  esse processo espera o app atual sair (com backup e rollback).
+
+**Perfil de recursos**
+- **Completo**: sensores a cada 1 s, retrato a cada 3 h, overlay e análise de
+  saúde rodando sozinhos.
+- **Equilibrado** (padrão): sensores a cada 2 s, retrato a cada 6 h.
+- **Economia**: sensores a cada 5 s, retrato a cada 24 h, overlay e análise
+  automática desligados.
+- O perfil muda o intervalo da leitura no **coletor** (não é só texto na tela):
+  o que pesa é interrogar a placa.
+
+**Diagnóstico pela linha de comando**
+- `TranalSentinel.exe --saude coletar` grava um snapshot JSON + TXT.
+- `TranalSentinel.exe --saude comparar a.json b.json` mostra o que sumiu, o que
+  apareceu e o que continua.
+- `TranalSentinel.exe --saude relatar` imprime o relatório.
+- Usa exatamente as mesmas regras da aba TRANAL SAÚDE (nenhuma duplicação).
+
+**Custo real medido** (60 s, app + coletor, 16 núcleos): 0,215 % da CPU da
+máquina e ~364 MB de RAM. A leitura do hardware é o custo; o runtime não é.
+Por isso a resposta a "reescrever em Rust?" foi medir, não palpite — e mexer no
+intervalo da leitura, não na linguagem.
+
+---
+
 ## Novidades da v0.16
 
 **Nova página · TRANAL FERRAMENTAS › Inicialização**

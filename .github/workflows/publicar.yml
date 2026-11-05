@@ -25,8 +25,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Testes
+        run: dotnet test TranalSentinel.Tests/TranalSentinel.Tests.csproj -c Release -nologo
+
       - name: Publicar (arquivo único, com o .NET embutido)
         run: dotnet publish TranalSentinel.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist -nologo
+
+      - name: Publicar o instalador
+        run: dotnet publish Tranal.Setup/Tranal.Setup.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist-instalador -nologo
 
       - name: Montar pacote
         shell: pwsh
@@ -42,7 +48,7 @@ jobs:
         run: |
           $sha = "$env:GITHUB_SHA".Substring(0, 7)
           gh release delete latest --cleanup-tag --yes
-          gh release create latest TranalSentinel.zip dist/TranalSentinel.exe --target $env:GITHUB_SHA --latest --title "TRANAL SENTINEL (versão mais recente)" --notes-file NOVIDADES.md
+          gh release create latest TranalSentinel.zip dist/TranalSentinel.exe dist-instalador/TranalSetup.exe --target $env:GITHUB_SHA --latest --title "TRANAL SENTINEL (versão mais recente)" --notes-file NOVIDADES.md
 
       - name: Release da versão (tag)
         if: startsWith(github.ref, 'refs/tags/')
@@ -50,4 +56,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create $env:GITHUB_REF_NAME TranalSentinel.zip dist/TranalSentinel.exe --title "TRANAL SENTINEL $env:GITHUB_REF_NAME" --generate-notes --latest=false
+          gh release create $env:GITHUB_REF_NAME TranalSentinel.zip dist/TranalSentinel.exe dist-instalador/TranalSetup.exe --title "TRANAL SENTINEL $env:GITHUB_REF_NAME" --generate-notes --latest=false

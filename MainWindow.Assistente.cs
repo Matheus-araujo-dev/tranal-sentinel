@@ -75,6 +75,9 @@ public partial class MainWindow
         RegistroDiario.Registrar(
             $"App aberto (perfil {_settings.Perfil}, versão {VersaoAtual}).", "APP");
 
+        // A versão na lateral vem do assembly: não fica desatualizada sozinha.
+        if (SideVersion != null) SideVersion.Text = "v" + VersaoAtual;
+
         // Uma checagem por sessão: se houver versão nova, o banner aparece.
         IniciarVerificacaoDeAtualizacao();
 

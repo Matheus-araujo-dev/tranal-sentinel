@@ -8,7 +8,8 @@ namespace TranalSentinel;
 /// cada regra sem Windows em cima.
 ///
 /// Os limiares espelham os do script de linha de comando
-/// (diagnostico-resetexplode.ps1), para os dois relatórios contarem a mesma história.
+/// (e a CLI --saude, que reaproveita as mesmas regras), para os dois relatórios
+/// contarem a mesma história.
 /// </summary>
 public static class SaudeRegras
 {

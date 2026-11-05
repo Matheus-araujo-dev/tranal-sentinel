@@ -11,17 +11,21 @@
     <AssemblyName>TranalSentinel</AssemblyName>
     <RootNamespace>TranalSentinel</RootNamespace>
     <Product>TRANAL SENTINEL</Product>
-    <Version>0.16.0</Version>
+    <Version>0.17.0</Version>
     <!-- Sempre otimizado: o TRANAL BENCH e os stress tests precisam do JIT otimizado tambem em Debug -->
     <Optimize>true</Optimize>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- O projeto de testes fica dentro da pasta do app: precisa ficar de fora do glob de compilacao. -->
+    <!-- O projeto de testes fica dentro da pasta do app: precisa ficar de fora do glob de compilacao.
+         O instalador tambem: e um executavel separado, que publica o app. -->
     <Compile Remove="TranalSentinel.Tests\**" />
     <None Remove="TranalSentinel.Tests\**" />
     <EmbeddedResource Remove="TranalSentinel.Tests\**" />
+    <Compile Remove="Tranal.Setup\**" />
+    <None Remove="Tranal.Setup\**" />
+    <EmbeddedResource Remove="Tranal.Setup\**" />
   </ItemGroup>
 
   <ItemGroup>

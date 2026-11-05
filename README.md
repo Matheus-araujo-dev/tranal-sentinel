@@ -32,9 +32,16 @@ para o **histórico** do Windows e aponta as causas prováveis, cada uma com a a
 - **Lentidão**: compressão de memória, RAM acima do spec, inicialização automática, serviços de
   terceiros e Hyper-V/VBS.
 
-**É somente leitura:** a aba não instala, não altera e não reinicia nada. Se preferir rodar pela
-linha de comando, há o script equivalente `diagnostico-resetexplode.ps1` (modo `Coletar`/`Comparar`),
-que gera um snapshot JSON/TXT e compara duas execuções campo a campo.
+**É somente leitura:** a aba não instala, não altera e não reinicia nada. O mesmo diagnóstico
+roda pela linha de comando, sem abrir a janela:
+
+```
+TranalSentinel.exe --saude coletar      # grava um snapshot JSON + TXT
+TranalSentinel.exe --saude comparar a.json b.json   # o que sumiu, apareceu e continua
+TranalSentinel.exe --saude relatar      # só o relatório em texto
+```
+
+Os instantâneos ficam em `%AppData%\TranalSentinel\saude\`.
 
 ### Como o código está organizado
 
@@ -47,6 +54,20 @@ que gera um snapshot JSON/TXT e compara duas execuções campo a campo.
 | `SaudePnp.cs` | Detecção de dispositivos órfãos (SetupAPI + cfgmgr32 + registro). |
 | `SaudeDiagnostico.cs` | Orquestrador: coleta → regras → relatório. |
 | `MainWindow.Saude.cs` | A aba na interface (partial class, mesmo padrão das outras). |
+
+### Como o TRANAL ASSISTENTE está organizado
+
+| Arquivo | O que faz |
+|---|---|
+| `Mudancas.cs` | A linha do tempo: o retrato do PC (`InstantaneoPC`), a comparação pura entre dois retratos (`Mudancas.Comparar`) e a coleta do retrato (`ColetaInstantaneo`). |
+| `PoliticaRecursos.cs` | As regras do perfil Completo / Equilibrado / Economia: de quanto em quanto tempo ler os sensores, tirar o retrato e o que roda sozinho. Funções puras, sem I/O. |
+| `RegistroDiario.cs` | O log diário: um arquivo por dia em `%AppData%\TranalSentinel\log\`, 30 dias. |
+| `Bandeja.cs` | O ícone na bandeja (P/Invoke direto do `Shell_NotifyIcon`, sem Windows Forms). |
+| `AutoUpdate.cs` | A checagem de versão nova na API do GitHub e o download do executável. Sem interface. |
+| `Atualizador.cs` | A troca do executável quando o app fecha (backup, rollback, reabrir). |
+| `SaudeCli.cs` | O diagnóstico por linha de comando (`--saude`), reaproveitando as mesmas regras da aba. |
+| `Wmi.cs` | As consultas WMI compartilhadas entre a aba de saúde e a linha do tempo. |
+| `MainWindow.Assistente.cs` | A aba do assistente: bandeja, perfil de recursos, retrato periódico e diário. |
 
 ### Sensores: por que a coleta roda num processo separado
 
@@ -184,13 +205,45 @@ documentado.
 
 ---
 
-# TRANAL SENTINEL — v0.16
+# TRANAL SENTINEL — v0.17
 
 > **Download:** apenas nas [releases deste repositório](https://github.com/Matheus-araujo-dev/tranal-sentinel/releases).
 > O app roda como administrador; não use versões baixadas de outros lugares.
 >
 > **Contribuições:** este projeto não aceita pull requests. Fique à vontade para fazer um *fork* e modificar a sua própria cópia
 > (licença [MIT](LICENSE): mantenha o aviso de copyright).
+
+## Novidades da v0.17 — o app vira assistente
+
+- **TRANAL ASSISTENTE** (nova aba): a **linha do tempo do PC**. O app tira um retrato
+  do sistema de tempos em tempos (Windows, BIOS, drivers, plano de energia, memória,
+  programas instalados, itens de inicialização) e anota **o que mudou** desde o
+  retrato anterior, com data e hora. Driver novo, programa instalado, plano de
+  energia trocado: fica registrado.
+- **Diário diário**: um arquivo de log por dia em `%AppData%\TranalSentinel\log\`,
+  com o que o app fez. Aparece na aba do assistente.
+- **Ícone na bandeja**: o app passa a morar na bandeja (ao lado do relógio) e
+  acompanha o PC em segundo plano. Fechar a janela **não** fecha o app — ele
+  continua olhando; o menu do ícone tem *Abrir* e *Sair*.
+- **Instalador próprio**: `TranalSetup.exe` pede administrador, instala em
+  `%ProgramFiles%\Tranal Sentinel`, cria atalho no menu Iniciar (e na área de
+  trabalho), registra a desinstalação no Painel de Controle e **inicia junto com
+  o Windows** sem pedir UAC a cada boot.
+- **Atualização automática**: o app confere a API do GitHub do próprio projeto e
+  avisa quando há versão nova. O download é feito pelo app, com barra de
+  progresso e conferência de tamanho; a troca do executável acontece quando o
+  app fecha (o Windows não deixa sobrescrever um .exe em uso).
+- **Perfil de recursos**: Completo / Equilibrado / Economia. No modo economia os
+  sensores são lidos a cada 5 s em vez de 1 s, o histórico passa de 3 h para 24 h
+  e o overlay e a análise de saúde não rodam sozinhos.
+- **Diagnóstico pela linha de comando**: `--saude coletar|comparar|relatar`,
+  reaproveitando exatamente as mesmas regras da aba TRANAL SAÚDE.
+
+Medição real do custo (60 s, app e coletor rodando): **0,215 % da CPU da máquina**
+(16 núcleos) e ~364 MB de RAM. A leitura do hardware é o que pesa — por isso o
+perfil de recursos muda o intervalo da leitura, e não o runtime.
+Ver [MERCADO.md](MERCADO.md) para a pesquisa de concorrentes e o que foi
+adotado aqui.
 
 ## Novidades da v0.16
 - **Inicialização** (TRANAL FERRAMENTAS): veja, desative ou remova os programas que abrem junto com o Windows, com opção de desfazer.
