@@ -140,6 +140,34 @@
                 <DockPanel>
                     <!-- Rodapé: aviso de sensores + leitura ao vivo compacta -->
                     <StackPanel DockPanel.Dock="Bottom" Margin="16,6,16,16">
+                        <Border x:Name="UpdateWarn" Visibility="Collapsed" BorderBrush="{DynamicResource Fg}" BorderThickness="1"
+                                CornerRadius="12" Padding="12,10" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Nova versão disponível" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="UpdateWarnText" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,8"/>
+                                <Grid x:Name="UpdateProgress" Visibility="Collapsed">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0" Height="4" Background="{DynamicResource Line}">
+                                        <Border x:Name="UpdateProgressFill" Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
+                                            <Border.RenderTransform>
+                                                <ScaleTransform ScaleX="0"/>
+                                            </Border.RenderTransform>
+                                        </Border>
+                                    </Grid>
+                                    <TextBlock x:Name="UpdateProgressText" Grid.Row="1" Foreground="{DynamicResource Faint}" FontSize="10.5"
+                                               FontFamily="{StaticResource Mono}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </Grid>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button x:Name="BtnAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="10,5" FontSize="11"
+                                            Click="BtnAtualizar_Click"/>
+                                    <Button Style="{StaticResource OutlineButton}" Content="DEPOIS" Padding="10,5" FontSize="11" Margin="8,0,0,0"
+                                            Click="BtnAtualizarDepois_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                         <Border x:Name="CpuSensorWarn" Visibility="Collapsed" BorderBrush="{DynamicResource Fg}" BorderThickness="1"
                                 CornerRadius="12" Padding="12,10" Margin="0,0,0,12">
                             <StackPanel>

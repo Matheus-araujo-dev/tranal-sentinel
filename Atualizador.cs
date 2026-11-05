@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 
 namespace TranalSentinel;
@@ -12,55 +13,21 @@ namespace TranalSentinel;
 /// <para>
 /// Não dá para sobrescrever um .exe que está rodando: o Windows trava o
 /// arquivo. A solução é o app chamar a si mesmo com a flag
-/// <c>--atualizar</c>; esse processo filho espera o pai sair, troca o arquivo
-/// e reabre o app.
+/// <see cref="AutoUpdate.ArgumentoAtualizacao"/>; esse processo filho espera o
+/// pai sair, troca o arquivo e reabre o app.
 /// </para>
 /// <para>
 /// O filho já nasce com privilégio de administrador (é filho de um processo
 /// elevado), então consegue escrever em <c>%ProgramFiles%</c> sem pedir UAC de
 /// novo — o que seria inaceitável no meio de uma atualização.
 /// </para>
+/// <para>
+/// Os caminhos e o nome da flag não são repetidos aqui: vêm do
+/// <see cref="AutoUpdate"/>, que é quem define o contrato da atualização.
+/// </para>
 /// </remarks>
 public static class Atualizador
 {
-    /// <summary>Flag que liga o modo de troca do executável.</summary>
-    public const string Argumento = "--atualizar";
-
-    /// <summary>Pastas onde a versão nova é baixada antes da troca.</summary>
-    public static string Pasta => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tranal Sentinel", "update");
-
-    /// <summary>Nome do arquivo baixado enquanto a troca não acontece.</summary>
-    public static string CaminhoNovo => Path.Combine(Pasta, "TranalSentinel.exe.novo");
-
-    /// <summary>
-    /// Dispara a troca: chama este mesmo executável com a flag de atualização.
-    /// </summary>
-    /// <remarks>Devolve o processo filho (que fica esperando o pai sair) ou null se deu erro.</remarks>
-    public static Process? Iniciar(string caminhoNovo)
-    {
-        try
-        {
-            string exe = Environment.ProcessPath ?? "";
-            if (exe.Length == 0) return null;
-
-            var info = new ProcessStartInfo(exe)
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            info.ArgumentList.Add(Argumento);
-            info.ArgumentList.Add(caminhoNovo);
-            info.ArgumentList.Add("--pid");
-            info.ArgumentList.Add(Environment.ProcessId.ToString());
-            return Process.Start(info);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     /// <summary>
     /// Executa a troca (lado do processo filho): espera o pai sair, troca o
     /// executável e reabre o app.
@@ -70,14 +37,17 @@ public static class Atualizador
     {
         try
         {
-            if (!File.Exists(caminhoNovo))
+            if (caminhoNovo.Length == 0 || !File.Exists(caminhoNovo))
             {
                 Console.Error.WriteLine("Arquivo da nova versão não encontrado: " + caminhoNovo);
                 return 1;
             }
 
-            // A troca só pode começar quando o app velho não estiver mais usando o .exe.
-            if (!EsperarPaiSair(pidPai, TimeSpan.FromSeconds(120)))
+            // Quem chamou a atualização sabe qual processo está usando o .exe.
+            // Se não vier no argumento, o log da atualização guarda o PID.
+            if (pidPai <= 0) pidPai = LerPidDoLog();
+
+            if (pidPai > 0 && !EsperarPaiSair(pidPai, TimeSpan.FromSeconds(120)))
             {
                 Console.Error.WriteLine("O app anterior não fechou a tempo; atualização cancelada.");
                 return 1;
@@ -86,35 +56,12 @@ public static class Atualizador
             string alvo = Environment.ProcessPath ?? "";
             if (alvo.Length == 0) return 1;
 
-            string backup = alvo + ".bak";
-            bool tinhaBackup = File.Exists(backup);
-            try
+            if (!TrocarComTentativas(caminhoNovo, alvo))
             {
-                if (tinhaBackup) File.Delete(backup);
-                File.Copy(alvo, backup, true);
-            }
-            catch
-            {
-                // Sem backup não vale o risco: troca direto só se não houver nada para perder.
-                tinhaBackup = false;
-            }
-
-            try
-            {
-                File.Copy(caminhoNovo, alvo, true);
-            }
-            catch (Exception ex)
-            {
-                if (tinhaBackup)
-                {
-                    try { File.Copy(backup, alvo, true); } catch { }
-                    try { File.Delete(backup); } catch { }
-                }
-                Console.Error.WriteLine("Falha ao trocar o executável: " + ex.Message);
+                Console.Error.WriteLine("Não foi possível trocar o executável (o arquivo continua em uso).");
                 return 1;
             }
 
-            try { if (tinhaBackup) File.Delete(backup); } catch { }
             try { File.Delete(caminhoNovo); } catch { }
 
             if (reabrir)
@@ -134,6 +81,84 @@ public static class Atualizador
         }
     }
 
+    /// <summary>
+    /// Copia o executável novo por cima do antigo, com backup e rollback.
+    /// </summary>
+    /// <remarks>
+    /// Se o Windows ainda estiver segurando o arquivo (o app velho levou
+    /// alguns segundos para sair de verdade), a cópia é tentada de novo.
+    /// </remarks>
+    private static bool TrocarComTentativas(string origem, string alvo)
+    {
+        string backup = alvo + ".bak";
+        bool tinhaBackup = false;
+
+        try
+        {
+            if (File.Exists(backup)) File.Delete(backup);
+            File.Copy(alvo, backup, true);
+            tinhaBackup = true;
+        }
+        catch
+        {
+            // Sem backup não vale o risco: só troca direto se não houver nada para perder.
+            tinhaBackup = false;
+        }
+
+        for (int tentativa = 0; tentativa < 20; tentativa++)
+        {
+            try
+            {
+                File.Copy(origem, alvo, true);
+                if (tinhaBackup) { try { File.Delete(backup); } catch { } }
+                return true;
+            }
+            catch (IOException)
+            {
+                // O arquivo ainda está em uso: espera o app velho soltar.
+                Thread.Sleep(500);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Thread.Sleep(500);
+            }
+        }
+
+        if (tinhaBackup)
+        {
+            try { File.Copy(backup, alvo, true); } catch { }
+            try { File.Delete(backup); } catch { }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Descobre o PID do app que pediu a atualização lendo o log da atualização.
+    /// </summary>
+    /// <remarks>
+    /// O log é escrito antes de o processo filho nascer, justamente para não
+    /// haver corrida entre "gravar o pid" e "ler o pid".
+    /// </remarks>
+    private static int LerPidDoLog()
+    {
+        try
+        {
+            string arquivo = Path.Combine(AutoUpdate.PastaUpdate, AutoUpdate.NomeArquivoLog);
+            if (!File.Exists(arquivo)) return 0;
+
+            string[] linhas = File.ReadAllLines(arquivo);
+            for (int i = linhas.Length - 1; i >= 0; i--)
+            {
+                int pos = linhas[i].LastIndexOf("pid ", StringComparison.OrdinalIgnoreCase);
+                if (pos < 0) continue;
+                string digitos = new string(linhas[i][(pos + 4)..].TakeWhile(char.IsDigit).ToArray());
+                if (int.TryParse(digitos, out int pid) && pid > 0) return pid;
+            }
+        }
+        catch { }
+        return 0;
+    }
+
     /// <summary>Espera o processo pai terminar (ou o tempo acabar).</summary>
     private static bool EsperarPaiSair(int pidPai, TimeSpan limite)
     {
@@ -146,13 +171,9 @@ public static class Atualizador
                 using var p = Process.GetProcessById(pidPai);
                 if (p.HasExited) return true;
             }
-            catch (ArgumentException)
-            {
-                return true;   // o pai já não existe
-            }
             catch
             {
-                return true;
+                return true;   // o pai já não existe
             }
             Thread.Sleep(300);
         }

@@ -24,7 +24,7 @@ public partial class App : Application
     {
         // Troca do executável quando entra uma versão nova: este processo roda
         // separado e espera o app atual fechar antes de mexer no arquivo.
-        int indiceAtualizar = Array.FindIndex(e.Args, a => string.Equals(a, Atualizador.Argumento, StringComparison.OrdinalIgnoreCase));
+        int indiceAtualizar = Array.FindIndex(e.Args, a => string.Equals(a, AutoUpdate.ArgumentoAtualizacao, StringComparison.OrdinalIgnoreCase));
         if (indiceAtualizar >= 0)
         {
             string caminhoNovo = indiceAtualizar + 1 < e.Args.Length ? e.Args[indiceAtualizar + 1] : "";

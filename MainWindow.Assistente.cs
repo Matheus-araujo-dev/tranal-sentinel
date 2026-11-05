@@ -74,6 +74,9 @@ public partial class MainWindow
         RegistroDiario.Registrar(
             $"App aberto (perfil {_settings.Perfil}, versão {VersaoAtual}).", "APP");
 
+        // Uma checagem por sessão: se houver versão nova, o banner aparece.
+        IniciarVerificacaoDeAtualizacao();
+
         _timerInstantaneo = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMinutes(5),
