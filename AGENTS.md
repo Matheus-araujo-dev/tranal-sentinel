@@ -67,6 +67,13 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   fechado: o Windows não deixa sobrescrever um `.exe` em uso.
 - **A inicialização automática é tarefa agendada**, não chave `Run`: o app exige
   administrador, e `requireAdministrator` na `Run` pediria UAC a cada login.
+- **A pasta de instalação é escolha do usuário.** A regra que decide onde o app
+  fica mora só em `DestinoInstalacao.cs` (construtor privado: todo destino já
+  passou pela validação). A desinstalação descobre o local pelo `InstallLocation`
+  da entrada de desinstalação no registro — nunca assumindo a pasta padrão.
+  Trocar de pasta é uma **movimentação**: os arquivos do lugar antigo saem
+  depois que a nova instalação está pronta, e a tarefa agendada e o atalho da
+  área de trabalho não ficam órfãos apontando para o executável velho.
 - **A comparação de snapshots** (`Mudancas.Comparar`) é função pura e não tem
   I/O — é o que os testes cobrem.
 
@@ -94,4 +101,5 @@ auto-update procura.
 | `Bandeja.cs` | Ícone na bandeja por P/Invoke direto (sem Windows Forms, que criaria ambiguidade de nomes). |
 | `AutoUpdate.cs` / `Atualizador.cs` | Checagem de versão nova, download e troca do executável. |
 | `Tranal.Setup\` | O instalador (admin, atalhos, tarefa agendada, desinstalação). |
+| `Tranal.Setup\Dominio\DestinoInstalacao.cs` | Onde o app é instalado. Regra única do destino (pasta escolhida pelo usuário). |
 | `MERCADO.md` | Pesquisa de concorrentes e o que foi adotado aqui. |
