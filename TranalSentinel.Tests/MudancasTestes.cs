@@ -207,6 +207,15 @@ public class MudancasTestes
         Assert.Equal("nao-conhecido", PlanosEnergia.NomeDoPlano("nao-conhecido"));
     }
 
+    [Fact]
+    public void MemoriaEmBytesViraGigabytes()
+    {
+        // O WMI devolve a capacidade em bytes: 16 GB não é 16384 GB.
+        Assert.Equal(16, Mudancas.BytesEmGb(16L * 1024 * 1024 * 1024));
+        Assert.Equal(32, Mudancas.BytesEmGb(32L * 1024 * 1024 * 1024));
+        Assert.Equal(0, Mudancas.BytesEmGb(0));
+    }
+
     // ---------------------------------------------------------------- perfil de recursos
 
     [Fact]

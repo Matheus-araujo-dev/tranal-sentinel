@@ -1,0 +1,81 @@
+<Window x:Class="TranalSetup.JanelaInstalador"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Instalar TRANAL SENTINEL" Height="520" Width="620"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#F3F5F8" FontFamily="Segoe UI" FontSize="13">
+
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#E7EBF1" />
+            <Setter Property="Foreground" Value="#1E2430" />
+            <Setter Property="BorderBrush" Value="#C2C9D4" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="18,8" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#1E2430" Padding="26,20">
+            <StackPanel>
+                <TextBlock Text="TRANAL SENTINEL" Foreground="#FFFFFF" FontSize="22" FontWeight="SemiBold" />
+                <TextBlock Text="Instalador oficial" Foreground="#9AA6B8" FontSize="12" Margin="0,5,0,0" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="26,22,26,10">
+
+                <TextBlock Text="O TRANAL SENTINEL será instalado nesta pasta:" Foreground="#39414E" />
+                <TextBlock x:Name="TxtDestino" Margin="0,6,0,0" FontWeight="SemiBold" Foreground="#111722"
+                           TextWrapping="Wrap" />
+
+                <TextBlock Text="Payload (arquivos do aplicativo):" Foreground="#39414E" Margin="0,18,0,0" />
+                <TextBlock x:Name="TxtPayload" Margin="0,6,0,0" FontWeight="SemiBold" Foreground="#111722"
+                           TextWrapping="Wrap" />
+
+                <TextBlock x:Name="TxtAviso" Margin="0,14,0,0" Foreground="#A8490F" TextWrapping="Wrap"
+                           Visibility="Collapsed" />
+
+                <Separator Margin="0,20,0,18" />
+
+                <CheckBox x:Name="ChkIniciarWindows" Content="Iniciar com o Windows" IsChecked="True" />
+                <CheckBox x:Name="ChkAreaTrabalho" Content="Atalho na área de trabalho" IsChecked="True" />
+                <CheckBox x:Name="ChkJaInstalar" Content="Já instalar" IsChecked="True" Margin="0,0,0,4" />
+                <TextBlock Text="Substitui uma instalação existente: o executável atual é salvo como .bak antes de ser trocado."
+                           Foreground="#6B7484" FontSize="11" Margin="24,0,0,0" TextWrapping="Wrap" />
+
+                <TextBlock x:Name="TxtResultado" Margin="0,20,0,0" TextWrapping="Wrap" FontWeight="SemiBold"
+                           Visibility="Collapsed" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#D7DCE4" BorderThickness="0,1,0,0" Padding="26,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="TxtLog" Grid.Column="0" VerticalAlignment="Center" Foreground="#6B7484"
+                           FontSize="11" TextWrapping="Wrap" Text="Requer permissão de administrador." />
+                <Button x:Name="BtnCancelar" Grid.Column="1" Content="CANCELAR" Width="120" Height="36"
+                        Margin="0,0,10,0" Click="BtnCancelar_Click" />
+                <Button x:Name="BtnInstalar" Grid.Column="2" Content="INSTALAR" Width="140" Height="36"
+                        FontWeight="SemiBold" Background="#2E6BD6" Foreground="#FFFFFF" BorderBrush="#2E6BD6"
+                        IsDefault="True" Click="BtnInstalar_Click" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

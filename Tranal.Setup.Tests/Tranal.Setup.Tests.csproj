@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Testes do instalador do TRANAL SENTINEL.
+       O projeto do instalador é o referência; os dublês (Falsos.cs) trocam o
+       registro, os atalhos e o log por versões em memória, então os testes
+       rodam sem tocar no Windows de verdade. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Tranal.Setup.Tests</AssemblyName>
+    <RootNamespace>TranalSetup.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tranal.Setup\Tranal.Setup.csproj" />
+  </ItemGroup>
+
+</Project>

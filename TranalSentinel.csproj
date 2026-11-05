@@ -25,7 +25,11 @@
     <EmbeddedResource Remove="TranalSentinel.Tests\**" />
     <Compile Remove="Tranal.Setup\**" />
     <None Remove="Tranal.Setup\**" />
+    <Page Remove="Tranal.Setup\**" />
     <EmbeddedResource Remove="Tranal.Setup\**" />
+    <Compile Remove="Tranal.Setup.Tests\**" />
+    <None Remove="Tranal.Setup.Tests\**" />
+    <EmbeddedResource Remove="Tranal.Setup.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

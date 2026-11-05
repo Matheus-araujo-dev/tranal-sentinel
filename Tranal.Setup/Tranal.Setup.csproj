@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Instalador oficial do TRANAL SENTINEL.
+       App Windows (WPF) que instala o app em %ProgramFiles%\Tranal Sentinel,
+       cria atalhos, registra a inicialização automática e a entrada de
+       desinstalação. Sem nenhum PackageReference novo: só o framework. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>TranalSetup</AssemblyName>
+    <RootNamespace>TranalSetup</RootNamespace>
+    <!-- O ponto de entrada é o Programa (precisa devolver código de saída nos modos de linha de comando). -->
+    <StartupObject>TranalSetup.Programa</StartupObject>
+    <Product>TRANAL SENTINEL</Product>
+    <Company>TRANAL</Company>
+    <Description>Instalador do TRANAL SENTINEL</Description>
+    <Version>0.16.0</Version>
+    <AssemblyVersion>0.16.0.0</AssemblyVersion>
+    <FileVersion>0.16.0.0</FileVersion>
+    <InformationalVersion>0.16.0</InformationalVersion>
+    <!-- O instalador não é um app de interface que precisa ficar em segundo plano. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <!-- O projeto de testes é irmão desta pasta (Tranal.Setup.Tests), então não entra no glob.
+      Se alguém criar a pasta de testes aqui dentro, ela fica fora do executável. -->
+  <ItemGroup>
+    <Compile Remove="Tranal.Setup.Tests\**" />
+    <None Remove="Tranal.Setup.Tests\**" />
+    <EmbeddedResource Remove="Tranal.Setup.Tests\**" />
+  </ItemGroup>
+
+</Project>

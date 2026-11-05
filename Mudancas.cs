@@ -259,6 +259,9 @@ public static class Mudancas
         int corte = item.LastIndexOf(" · ", StringComparison.Ordinal);
         return corte > 0 ? item[(corte + 3)..] : "";
     }
+
+    /// <summary>Converte bytes em GB (o WMI devolve a capacidade da memória em bytes).</summary>
+    public static long BytesEmGb(long bytes) => bytes / (1024L * 1024 * 1024);
 }
 
 /// <summary>
@@ -332,6 +335,12 @@ public static class ColetaInstantaneo
             string nome = chave.GetValue("ProductName")?.ToString() ?? "";
             string build = chave.GetValue("CurrentBuild")?.ToString() ?? "";
             string rev = chave.GetValue("UBR")?.ToString() ?? "";
+
+            // O registro ainda chama o Windows 11 de "Windows 10 Pro" em
+            // builds recentes: o número do build é que diz a verdade.
+            if (int.TryParse(build, out int numero) && numero >= 22000)
+                nome = nome.Replace("Windows 10", "Windows 11");
+
             return string.IsNullOrEmpty(rev) ? $"{nome} {build}".Trim() : $"{nome} {build}.{rev}";
         }
         catch { return ""; }
@@ -396,12 +405,12 @@ public static class ColetaInstantaneo
             string saida = proc.StandardOutput.ReadToEnd();
             proc.WaitForExit(5000);
 
-            // A linha contém o GUID do esquema; o nome vem do powercfg /list.
-            int ini = saida.IndexOf(':');
-            int fim = saida.IndexOf(')', ini + 1);
-            if (ini < 0 || fim < 0) return "";
-            string guid = saida.Substring(ini + 1, fim - ini - 1).Trim();
-            return PlanosEnergia.NomeDoPlano(guid);
+            // O powercfg escreve "GUID do plano: <guid>  (Nome)". O nome do
+            // plano depende do idioma do Windows, então o que vale é o GUID.
+            var achado = System.Text.RegularExpressions.Regex.Match(saida,
+                @"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}");
+            if (!achado.Success) return "";
+            return PlanosEnergia.NomeDoPlano(achado.Value);
         }
         catch { return ""; }
     }
@@ -416,6 +425,7 @@ public static class ColetaInstantaneo
             foreach (var linha in Wmi.Consultar(
                 "SELECT DeviceLocator, Capacity, Speed, ConfiguredClockSpeed, Manufacturer FROM Win32_PhysicalMemory"))
             {
+                // O WMI devolve a capacidade em bytes.
                 long capacidade = linha.ValorLong("Capacity");
                 total += capacidade;
                 int vel = (int)linha.ValorLong("ConfiguredClockSpeed");
@@ -423,10 +433,10 @@ public static class ColetaInstantaneo
                 if (vel > velocidade) velocidade = vel;
                 string local = linha["DeviceLocator"];
                 string fabricante = linha["Manufacturer"];
-                modulos.Add($"{local} {fabricante} {capacidade / (1024 * 1024)} GB".Trim());
+                modulos.Add($"{local} {fabricante} {Mudancas.BytesEmGb(capacidade)} GB".Trim());
             }
             if (modulos.Count == 0) return "";
-            return $"{total / (1024 * 1024)} GB em {modulos.Count} módulo(s) · {velocidade} MHz · {string.Join(" / ", modulos)}";
+            return $"{Mudancas.BytesEmGb(total)} GB em {modulos.Count} módulo(s) · {velocidade} MHz · {string.Join(" / ", modulos)}";
         }
         catch { return ""; }
     }
