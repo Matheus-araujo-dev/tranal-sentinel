@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Threading;
 
 namespace TranalSentinel;
@@ -80,7 +80,7 @@ public partial class MainWindow
     {
         ThemeManager.Apply(!ThemeManager.IsLight);
         _settings.LightTheme = ThemeManager.IsLight;
-        try { _settings.Save(); } catch { }
+        _settings.Save();
         UpdateThemeButton();
     }
 

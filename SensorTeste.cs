@@ -69,6 +69,8 @@ internal static class SensorTeste
                         linhas.Add($"  - {hw}");
                     if (!string.IsNullOrWhiteSpace(monitor.ErroColeta))
                         linhas.Add($"Erro geral da coleta: {monitor.ErroColeta}");
+                    if (!string.IsNullOrWhiteSpace(monitor.FalhaCpu))
+                        linhas.Add($"Falha da CPU: {monitor.FalhaCpu}");
                     if (monitor.Falhas.Count > 0)
                     {
                         linhas.Add("Falhas na coleta:");

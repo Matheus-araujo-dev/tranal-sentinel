@@ -73,8 +73,11 @@ public sealed class GameSimBench
         int n = Math.Max(1, frameTimes.Count);
         var sorted = frameTimes.OrderBy(x => x).ToArray();
         double p99 = sorted.Length > 0 ? sorted[Math.Min(sorted.Length - 1, (int)(sorted.Length * 0.99))] : 0;
-        return new GameSimResult(frameTimes.Count / sw.Elapsed.TotalSeconds, p99 > 0 ? 1000 / p99 : 0,
-                                 mainMs / n, parMs / n, frameTimes.Count, sw.Elapsed.TotalSeconds);
+        // Tempo zero daria infinito: um número que não é finito quebra o JSON
+        // das configurações (e viraria nota de NaN no histórico).
+        double segundos = sw.Elapsed.TotalSeconds;
+        return new GameSimResult(segundos > 0 ? frameTimes.Count / segundos : 0, p99 > 0 ? 1000 / p99 : 0,
+                                 mainMs / n, parMs / n, frameTimes.Count, segundos);
     }
 
     private void Reset()

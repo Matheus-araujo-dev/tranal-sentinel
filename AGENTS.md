@@ -81,9 +81,18 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   motivo. `SensorValor.OpcoesJson` é o par de leitura e escrita; use-o nos dois lados.
 - **Falha da coleta inteira é diferente de hardware que falhou.** `SensorSnapshot.ErroGeral`
   é o motivo que derrubou a coleta (vai para o aviso do menu); `SensorSnapshot.Falhas` é
-  um hardware que não abriu (as outras leituras continuam válidas). O texto do aviso
-  mora em `SensorMonitor.ResumoCpuSensor` / `TextoAvisoCpuSensor` / `TextoExplicacaoCpuSensor`
+  um hardware que não abriu (as outras leituras continuam válidas); `SensorSnapshot.FalhaCpu`
+  é o motivo da CPU em si (é o que interessa quando a temperatura não vem). O texto do
+  aviso mora em `SensorMonitor.ResumoCpuSensor` / `TextoAvisoCpuSensor` / `TextoExplicacaoCpuSensor`
   — o menu, o painel e a janela de correção consomem de lá, não cada um com o seu `switch`.
+- **O motivo de um hardware que falhou é guardado, não jogado fora.** O hardware
+  desligado não volta; sem o motivo guardado, o app perderia a explicação na volta
+  seguinte e voltaria a culpar o driver à toa. A regra da volta mora em
+  `SensorColeta.MontarVolta`, e ela só conversa com `HardwareColeta` — o
+  LibreHardwareMonitor entra pelo adaptador `HardwareLibre`.
+- **`AppSettings.Save()` nunca lança.** Gravar configuração é uma conveniência;
+  derrubar o app, não. E o `settings.json` aceita literal nomeado (`NaN`, `Infinity`):
+  uma nota de benchmark estranha não pode estragar o arquivo inteiro.
 - **A comparação de snapshots** (`Mudancas.Comparar`) é função pura e não tem
   I/O — é o que os testes cobrem.
 
@@ -110,6 +119,7 @@ auto-update procura.
 | `RegistroDiario.cs` | O log diário (um arquivo por dia). |
 | `Bandeja.cs` | Ícone na bandeja por P/Invoke direto (sem Windows Forms, que criaria ambiguidade de nomes). |
 | `SensorValor.cs` | Regra única do valor de sensor: finito ou nada (`Finito`) e as opções de JSON (`OpcoesJson`). |
+| `HardwareColeta.cs` / `HardwareLibre.cs` | O que a coleta precisa de um hardware (interface) e o adaptador do LibreHardwareMonitor. |
 | `AutoUpdate.cs` / `Atualizador.cs` | Checagem de versão nova, download e troca do executável. |
 | `Tranal.Setup\` | O instalador (admin, atalhos, tarefa agendada, desinstalação). |
 | `Tranal.Setup\Dominio\DestinoInstalacao.cs` | Onde o app é instalado. Regra única do destino (pasta escolhida pelo usuário). |

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
@@ -173,7 +173,7 @@ public partial class MainWindow
         _lp.Hz = int.TryParse(CheckedTag(LHzPanel), out int hz) ? hz : 0;
         _lp.Style = CheckedTag(LStylePanel) ?? "source";
         _lp.Extra = LExtra.Text.Trim();
-        try { _settings.Save(); } catch { }
+        _settings.Save();
         UpdateLauncherPreview();
     }
 
@@ -210,7 +210,7 @@ public partial class MainWindow
         };
         if (dlg.ShowDialog(this) != true) return;
         _lp.ExePath = dlg.FileName;
-        try { _settings.Save(); } catch { }
+        _settings.Save();
         await ShowExeAsync(_lg, _lp);
     }
 
@@ -222,7 +222,7 @@ public partial class MainWindow
         var dlg = new OpenFileDialog { Filter = "Programas e scripts|*.exe;*.bat;*.cmd;*.lnk", Title = "Programa para abrir junto com o jogo" };
         if (dlg.ShowDialog(this) != true) return;
         _lp.Helpers.Add(new HelperProgram { Path = dlg.FileName, CloseWithGame = LHelperClose.IsChecked == true });
-        try { _settings.Save(); } catch { }
+        _settings.Save();
         LHelpers.ItemsSource = null;
         LHelpers.ItemsSource = _lp.Helpers;
     }
@@ -231,7 +231,7 @@ public partial class MainWindow
     {
         if (_lp == null || ((FrameworkElement)sender).Tag is not HelperProgram h) return;
         _lp.Helpers.Remove(h);
-        try { _settings.Save(); } catch { }
+        _settings.Save();
         LHelpers.ItemsSource = null;
         LHelpers.ItemsSource = _lp.Helpers;
     }
@@ -283,7 +283,7 @@ public partial class MainWindow
                     if (!string.Equals(p.ExePath, exe, StringComparison.OrdinalIgnoreCase))
                     {
                         p.ExePath = exe;
-                        try { _settings.Save(); } catch { }
+                        _settings.Save();
                         if (_lg == g) LExeText.Text = "Executável: " + exe;
                     }
                 })),

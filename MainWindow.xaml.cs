@@ -227,8 +227,10 @@ public partial class MainWindow : Window
 
     private void BtnFixCpuSensors_Click(object sender, RoutedEventArgs e)
     {
+        // O motivo é lido uma vez só: o texto e a decisão precisam falar do
+        // mesmo estado, senão a mensagem pode não bater com o caminho escolhido.
         var p = _monitor.DiagnoseCpuSensors();
-        string why = _monitor.ExplicarCpuSensor();
+        string why = SensorMonitor.TextoExplicacaoCpuSensor(p, _monitor.MotivoCpuSensor);
         if (p != SensorMonitor.CpuSensorProblem.PawnIOMissing)
         {
             MessageBox.Show(why, "TRANAL SENTINEL", MessageBoxButton.OK, MessageBoxImage.Information);

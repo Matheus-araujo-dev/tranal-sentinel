@@ -1,3 +1,34 @@
+## Novidades da v0.20 — o aviso dos sensores passou a culpar a coisa certa
+
+Correções vindas de uma revisão adversarial da v0.19. Nenhuma delas muda o
+jeito de usar o programa; todas mudam o que o programa faz quando algo dá errado.
+
+**O motivo da falha não se perde mais**
+- Quando um hardware falhava (o driver recusou, o acesso foi negado), o motivo
+  ficava só na volta em que aconteceu. Na volta seguinte o hardware já estava
+  desligado — e o app voltava a dizer "o driver não respondeu", sem explicar
+  nada. Agora o motivo fica guardado e continua aparecendo.
+- A falha da CPU foi separada da falha geral da coleta: é ela que interessa
+  quando o app pergunta pela temperatura da CPU. O aviso mostra **"Falha na
+  coleta: <o motivo real>"** em vez de acusar o driver.
+
+**O erro engolido saiu**
+- A coleta engolia a exceção num campo que ninguém lia. Agora o motivo vai
+  para o snapshot: o app mostra o que deu errado em vez de continuar
+  exibindo as últimas leituras como se fossem de agora.
+- O processo de coleta foi isolado do LibreHardwareMonitor por um adaptador
+  (`HardwareColeta`): a regra da volta ficou testável sem depender do driver.
+
+**Gravar as configurações não derruba mais o app**
+- `Save()` era chamado sem proteção em vários lugares: disco cheio ou arquivo
+  bloqueado pelo antivírus derrubavam o programa. Agora a gravação engole o
+  erro (perder uma preferência é um incômodo; derrubar o app, não).
+- Um número não finito (uma nota de benchmark que deu `NaN`) não estraga mais o
+  arquivo de configurações: ele vai para o disco como literal nomeado e volta
+  na leitura.
+
+---
+
 ## Novidades da v0.19 — os sensores voltaram (e o app parou de culpar o PawnIO)
 
 **O defeito**

@@ -51,6 +51,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Os testes do app precisam de acesso interno para redirecionar a pasta
+         das configuracoes (nao mexer no arquivo de verdade do usuario). -->
+    <InternalsVisibleTo Include="TranalSentinel.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.8" />
     <PackageReference Include="System.Management" Version="10.0.2" />

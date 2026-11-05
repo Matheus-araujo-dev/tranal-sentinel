@@ -26,14 +26,20 @@ public sealed record SensorReading(
 /// <param name="Momento">Quando a volta foi feita.</param>
 /// <param name="ErroGeral">
 /// A coleta inteira parou (o processo filho caiu ou deu erro). Differe de
-/// <paramref name="Falhas"/>: aqui não há leitura nenhuma, e é este texto que
+/// <paramref name="Falhas"/>: aqui não há leitura nova, e é este texto que
 /// o app mostra como motivo quando a CPU não responde.
+/// </param>
+/// <param name="FalhaCpu">
+/// A CPU em si não pôde ser lida (o driver recusou, o acesso foi negado).
+/// É o motivo que interessa quando o app pergunta pela temperatura da CPU —
+/// sem ele, o app culparia o driver sem saber de nada.
 /// </param>
 public sealed record SensorSnapshot(
     IReadOnlyList<SensorReading> Leituras,
     IReadOnlyList<string> Falhas,
     DateTime Momento,
-    string? ErroGeral = null);
+    string? ErroGeral = null,
+    string? FalhaCpu = null);
 
 /// <summary>
 /// Os sensores do TRANAL SENTINEL.
@@ -116,6 +122,34 @@ public sealed class SensorMonitor : IDisposable
     /// Vazio quando a coleta funcionou — mesmo que algum hw específico tenha falhado.
     /// </summary>
     public string? ErroColeta { get; private set; }
+
+    /// <summary>
+    /// Motivo pelo qual a CPU não pôde ser lida (o driver recusou, o acesso
+    /// foi negado). Vazio quando a CPU foi lida normalmente.
+    /// </summary>
+    public string? FalhaCpu { get; private set; }
+
+    /// <summary>
+    /// O motivo da falta do sensor da CPU, quando a coleta souber.
+    ///
+    /// <para>
+    /// A regra é uma só, e a prioridade também: primeiro a falha que
+    /// derrubou a coleta inteira, depois a falha da CPU em si. Sem nenhum dos
+    /// dois, o app só pode chutar o motivo provável.
+    /// </para>
+    /// </summary>
+    public string? MotivoCpuSensor => MotivoCpu(ErroColeta, FalhaCpu);
+
+    /// <summary>
+    /// Escolhe o motivo da falta do sensor da CPU: a falha geral da coleta
+    /// vem primeiro (ela explica tudo), depois a falha da CPU em si.
+    /// </summary>
+    public static string? MotivoCpu(string? erroGeral, string? falhaCpu)
+    {
+        if (!string.IsNullOrWhiteSpace(erroGeral)) return erroGeral;
+        if (!string.IsNullOrWhiteSpace(falhaCpu)) return falhaCpu;
+        return null;
+    }
 
     /// <summary>
     /// De quanto em quanto tempo o processo filho interroga o hardware.
@@ -308,31 +342,31 @@ public sealed class SensorMonitor : IDisposable
     /// driver, o motivo conhecido é mais exato que qualquer erro registrado.
     /// </para>
     /// </summary>
-    public static string TextoAvisoCpuSensor(CpuSensorProblem p, string? erroGeral)
+    public static string TextoAvisoCpuSensor(CpuSensorProblem p, string? motivo)
     {
         if (p == CpuSensorProblem.None) return "";
-        if (p == CpuSensorProblem.ReadFailed && !string.IsNullOrWhiteSpace(erroGeral))
-            return "Falha na coleta: " + erroGeral;
+        if (p == CpuSensorProblem.ReadFailed && !string.IsNullOrWhiteSpace(motivo))
+            return "Falha na coleta: " + motivo;
         return ResumoCpuSensor(p);
     }
 
     /// <summary>
     /// O texto da janela de correção: o motivo provável e, se houver, o erro real.
     /// </summary>
-    public static string TextoExplicacaoCpuSensor(CpuSensorProblem p, string? erroGeral)
+    public static string TextoExplicacaoCpuSensor(CpuSensorProblem p, string? motivo)
     {
         if (p == CpuSensorProblem.None) return "";
         string texto = Explain(p);
-        if (p == CpuSensorProblem.ReadFailed && !string.IsNullOrWhiteSpace(erroGeral))
-            texto += " A coleta parou com este erro: " + erroGeral + ".";
+        if (p == CpuSensorProblem.ReadFailed && !string.IsNullOrWhiteSpace(motivo))
+            texto += " A coleta registrou este erro: " + motivo + ".";
         return texto;
     }
 
     /// <summary>O aviso do menu, com o estado atual da coleta.</summary>
-    public string AvisoCpuSensor() => TextoAvisoCpuSensor(DiagnoseCpuSensors(), ErroColeta);
+    public string AvisoCpuSensor() => TextoAvisoCpuSensor(DiagnoseCpuSensors(), MotivoCpuSensor);
 
     /// <summary>A explicação da janela de correção, com o estado atual da coleta.</summary>
-    public string ExplicarCpuSensor() => TextoExplicacaoCpuSensor(DiagnoseCpuSensors(), ErroColeta);
+    public string ExplicarCpuSensor() => TextoExplicacaoCpuSensor(DiagnoseCpuSensors(), MotivoCpuSensor);
 
     // ---------------- processo filho ----------------
 
@@ -422,6 +456,7 @@ public sealed class SensorMonitor : IDisposable
             UltimaColeta = snap.Momento;
             Falhas = snap.Falhas;
             ErroColeta = snap.ErroGeral;
+            FalhaCpu = snap.FalhaCpu;
         }
         catch
         {

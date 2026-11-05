@@ -2,6 +2,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace TranalSentinel;
 
@@ -46,8 +47,27 @@ public sealed class CustomGame
 /// <summary>Configurações em %AppData%\Tranal. A chave da API é cifrada com DPAPI (só este usuário do Windows a lê).</summary>
 public sealed class AppSettings
 {
-    public static string Folder { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TranalSentinel");
+    /// <summary>
+    /// Pasta das configurações.
+    ///
+    /// <para>
+    /// O teste sobrescreve isto para não mexer no arquivo de verdade do
+    /// usuário — e as classes de teste que mexem nisso ficam na mesma
+    /// coleção do xUnit, para não rodarem em paralelo uma contra a outra.
+    /// </para>
+    /// </summary>
+    public static string Folder
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(PastaOverride)) return PastaOverride!;
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TranalSentinel");
+        }
+    }
+
+    /// <summary>Redireciona a pasta das configurações (só os testes usam).</summary>
+    internal static string? PastaOverride { get; set; }
+
     private static string FilePath => Path.Combine(Folder, "settings.json");
 
     public string? HowManyFpsKeyProtected { get; set; }
@@ -113,20 +133,49 @@ public sealed class AppSettings
         }
     }
 
+    /// <summary>
+    /// As opções do arquivo de configurações.
+    ///
+    /// <para>
+    /// <c>AllowNamedFloatingPointLiterals</c> é o que impede uma nota de
+    /// benchmark estranha (NaN ou infinito) de estragar o arquivo inteiro: o
+    /// valor vai para o disco como literal nomeado e volta na leitura. A
+    /// leitura usa as mesmas opções — é o mesmo arquivo, com a mesma regra.
+    /// </para>
+    /// </summary>
+    private static readonly JsonSerializerOptions OpcoesJson = new()
+    {
+        WriteIndented = true,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+    };
+
     public static AppSettings Load()
     {
         try
         {
             if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
+                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), OpcoesJson) ?? new AppSettings();
         }
         catch { }
         return new AppSettings();
     }
 
+    /// <summary>
+    /// Grava as configurações. Nunca lança: perder uma preferência é um
+    /// incômodo, derrubar o app é pior.
+    /// </summary>
     public void Save()
     {
-        Directory.CreateDirectory(Folder);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        try
+        {
+            Directory.CreateDirectory(Folder);
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, OpcoesJson));
+        }
+        catch
+        {
+            // Disco cheio, arquivo bloqueado pelo antivírus, pasta sem
+            // permissão: o app segue funcionando com as configurações em
+            // memória. Perder a gravação não pode derrubar o programa.
+        }
     }
 }

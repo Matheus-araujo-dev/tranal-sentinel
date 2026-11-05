@@ -1,8 +1,18 @@
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using LibreHardwareMonitor.Hardware;
 
 namespace TranalSentinel;
+
+/// <summary>
+/// Uma volta da coleta: as leituras, as falhas por hardware e o motivo da CPU
+/// (quando foi ela que não pôde ser lida).
+/// </summary>
+internal sealed record ColetaVolta(
+    IReadOnlyList<SensorReading> Leituras,
+    IReadOnlyList<string> Falhas,
+    string? FalhaCpu);
 
 /// <summary>
 /// A coleta de verdade: é isto que roda dentro do processo filho.
@@ -15,20 +25,23 @@ namespace TranalSentinel;
 /// processo inteiro. Num processo isolado, o crash mata só o filho, que o app
 /// reinicia sozinho (e, se foi a GPU, reinicia sem ela).
 /// </para>
+///
+/// <para>
+/// A regra da volta mora em <see cref="MontarVolta"/>: o que é falha, o que
+/// desliga o hardware, o que é o motivo da CPU. O LibreHardwareMonitor entra
+/// só pelo adaptador <see cref="HardwareLibre"/>.
+/// </para>
 /// </summary>
 internal sealed class SensorColeta : IDisposable
 {
     private readonly TimeSpan _intervalo;
     private readonly Computer _computer;
-    private readonly HashSet<string> _desligados = new();
+    private readonly Dictionary<string, string> _desligados = new();
     private readonly CancellationTokenSource _cts = new();
     private SensorSnapshot? _snapshot;
     private Thread? _worker;
 
-    /// <summary>Última falha da coleta (texto da exceção).</summary>
-    public string? Erro { get; private set; }
-
-    /// <summary>Hardware que falhou e foi desligado.</summary>
+    /// <summary>Hardware que falhou e foi desligado (com o motivo da falha).</summary>
     public IReadOnlyList<string> Falhas { get; private set; } = Array.Empty<string>();
 
     /// <summary>A última leva de leituras.</summary>
@@ -70,7 +83,15 @@ internal sealed class SensorColeta : IDisposable
             catch (Exception ex)
             {
                 // A coleta nunca derruba o filho: ela só para de atualizar.
-                Erro = ex.ToString();
+                // Mas o motivo vai para o snapshot — senão o app ficaria
+                // mostrando as últimas leituras como se fossem de agora, sem
+                // explicar por que a coleta parou.
+                var anterior = Volatile.Read(ref _snapshot);
+                Volatile.Write(ref _snapshot, new SensorSnapshot(
+                    anterior?.Leituras ?? Array.Empty<SensorReading>(),
+                    anterior?.Falhas ?? Array.Empty<string>(),
+                    DateTime.Now,
+                    ErroGeral: ex.GetType().Name + ": " + ex.Message));
             }
 
             try { _cts.Token.WaitHandle.WaitOne(_intervalo); }
@@ -80,67 +101,79 @@ internal sealed class SensorColeta : IDisposable
 
     private void Coletar()
     {
-        var leituras = new List<SensorReading>();
-        var falhas = new List<string>();
-
-        foreach (var hw in _computer.Hardware)
-        {
-            if (_cts.IsCancellationRequested) return;
-            if (_desligados.Contains(hw.Identifier.ToString())) continue;
-
-            try
-            {
-                hw.Update();
-                Percorrer(hw, leituras, falhas);
-            }
-            catch (Exception ex)
-            {
-                // Um hardware problemático é desligado; os outros continuam.
-                _desligados.Add(hw.Identifier.ToString());
-                falhas.Add($"{hw.Name}: {ex.Message}");
-            }
-        }
-
-        Falhas = falhas;
-        Volatile.Write(ref _snapshot, new SensorSnapshot(leituras, falhas, DateTime.Now));
+        var hardwares = _computer.Hardware.Select(h => (HardwareColeta)new HardwareLibre(h));
+        var volta = MontarVolta(hardwares, _desligados, _cts.Token);
+        Falhas = volta.Falhas;
+        Volatile.Write(ref _snapshot, new SensorSnapshot(volta.Leituras, volta.Falhas, DateTime.Now, FalhaCpu: volta.FalhaCpu));
     }
 
-    private void Percorrer(IHardware hw, List<SensorReading> leituras, List<string> falhas)
+    /// <summary>
+    /// Monta uma volta da coleta: percorre os hardwares, lê os sensores e
+    /// anota as falhas.
+    ///
+    /// <para>
+    /// O motivo da falha fica guardado em <paramref name="desligados"/>: o
+    /// hardware que falhou não volta, e sem guardar o motivo o app perderia a
+    /// explicação na volta seguinte (e voltaria a culpar o driver à toa).
+    /// </para>
+    /// </summary>
+    internal static ColetaVolta MontarVolta(
+        IEnumerable<HardwareColeta> hardwares,
+        Dictionary<string, string> desligados,
+        CancellationToken cancela)
     {
-        foreach (var s in hw.Sensors)
+        var leituras = new List<SensorReading>();
+        var falhas = new List<string>();
+        string? falhaCpu = null;
+
+        foreach (var hw in hardwares)
         {
-            try
-            {
-                leituras.Add(new SensorReading(
-                    s.Identifier.ToString(),
-                    hw.Name,
-                    SensorRow.CategoryName(s.SensorType),
-                    s.Name,
-                    s.SensorType,
-                    hw.HardwareType,
-                    SensorValor.Finito(s.Value),
-                    SensorValor.Finito(s.Min),
-                    SensorValor.Finito(s.Max)));
-            }
-            catch
-            {
-                // Sensor individual que falha: pula e segue.
-            }
+            if (cancela.IsCancellationRequested) break;
+            ColetarHardware(hw, leituras, falhas, desligados, cancela, ref falhaCpu);
         }
 
-        foreach (var sub in hw.SubHardware)
+        return new ColetaVolta(leituras, falhas, falhaCpu);
+    }
+
+    /// <summary>
+    /// Lê um hardware e os seus sub-hardwares. A falha de um sub-hardware não
+    /// derruba o pai: só ele é desligado.
+    /// </summary>
+    private static void ColetarHardware(
+        HardwareColeta hw,
+        List<SensorReading> leituras,
+        List<string> falhas,
+        Dictionary<string, string> desligados,
+        CancellationToken cancela,
+        ref string? falhaCpu)
+    {
+        // Hardware desligado em outra volta: a falha continua valendo (é
+        // por causa dela que ele foi desligado), então o motivo continua
+        // visível em vez de sumir no silêncio da volta seguinte.
+        if (desligados.TryGetValue(hw.Id, out string? motivo))
         {
-            if (_desligados.Contains(sub.Identifier.ToString())) continue;
-            try
-            {
-                sub.Update();
-                Percorrer(sub, leituras, falhas);
-            }
-            catch (Exception ex)
-            {
-                _desligados.Add(sub.Identifier.ToString());
-                falhas.Add($"{sub.Name}: {ex.Message}");
-            }
+            falhas.Add($"{hw.Nome}: {motivo}");
+            if (hw.Tipo == HardwareType.Cpu) falhaCpu = motivo;
+            return;
+        }
+
+        try
+        {
+            leituras.AddRange(hw.Ler());
+        }
+        catch (Exception ex)
+        {
+            // Um hardware problemático é desligado; os outros continuam.
+            desligados[hw.Id] = ex.Message;
+            falhas.Add($"{hw.Nome}: {ex.Message}");
+            if (hw.Tipo == HardwareType.Cpu) falhaCpu = ex.Message;
+            return;
+        }
+
+        foreach (var sub in hw.Subs)
+        {
+            if (cancela.IsCancellationRequested) return;
+            ColetarHardware(sub, leituras, falhas, desligados, cancela, ref falhaCpu);
         }
     }
 

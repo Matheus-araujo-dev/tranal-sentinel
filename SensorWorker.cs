@@ -68,8 +68,14 @@ internal static class SensorWorker
                 // em vez de ficar sem sensores e sem explicação.
                 try
                 {
+                    // As últimas leituras continuam no lugar: elas ainda valem
+                    // como último estado conhecido, e o aviso diz que a
+                    // coleta parou.
+                    var anterior = coleta.UltimoSnapshot;
                     Gravar(caminhoLeituras, new SensorSnapshot(
-                        Array.Empty<SensorReading>(), Array.Empty<string>(), DateTime.Now,
+                        anterior?.Leituras ?? Array.Empty<SensorReading>(),
+                        anterior?.Falhas ?? Array.Empty<string>(),
+                        DateTime.Now,
                         ErroGeral: ex.GetType().Name + ": " + ex.Message));
                 }
                 catch

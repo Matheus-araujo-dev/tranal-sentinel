@@ -110,7 +110,7 @@ public partial class MainWindow
     {
         bool ligado = ChkKalkanAuto.IsChecked == true;
         _settings.KalkanAuto = ligado;
-        try { _settings.Save(); } catch { }
+        _settings.Save();
 
         if (ligado)
         {
@@ -130,7 +130,7 @@ public partial class MainWindow
         if (KalkanTemp.SelectedItem is SensorItem item)
         {
             _settings.KalkanTempSensor = item.Id;
-            try { _settings.Save(); } catch { }
+            _settings.Save();
         }
     }
 
@@ -139,7 +139,7 @@ public partial class MainWindow
         if (KalkanVent.SelectedItem is SensorItem item)
         {
             _settings.KalkanFanSensor = item.Id;
-            try { _settings.Save(); } catch { }
+            _settings.Save();
         }
     }
 
