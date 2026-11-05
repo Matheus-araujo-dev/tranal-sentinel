@@ -58,8 +58,12 @@
 
   <ItemGroup>
     <!-- Módulos PawnIO (LGPL-2.1-or-later): são eles que falam SMBus e leem o SPD
-         dos módulos de memória. A licença e a origem estão em Assets\PawnIO. -->
+         dos módulos de memória. A licença e a origem estão em Assets\PawnIO.
+         Os .bin vão EMBUTIDOS (para o .exe portátil funcionar sozinho) e também
+         como arquivo separado ao lado do executável (para darem para trocar). -->
     <EmbeddedResource Include="Assets\PawnIO\*.bin" LogicalName="TranalSentinel.Assets.PawnIO.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\PawnIO\COPYING" LogicalName="TranalSentinel.Assets.PawnIO.COPYING" />
+    <EmbeddedResource Include="Assets\PawnIO\NOTICE.txt" LogicalName="TranalSentinel.Assets.PawnIO.NOTICE.txt" />
     <None Update="Assets\PawnIO\COPYING" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="Assets\PawnIO\NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

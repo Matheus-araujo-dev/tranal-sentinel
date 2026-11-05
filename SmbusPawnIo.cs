@@ -82,11 +82,14 @@ public sealed class SmbusPawnIo : ISmbusLeitor, IDisposable
     /// Tenta abrir o SMBus: primeiro o módulo do AMD, depois o da Intel.
     /// Devolve null quando nenhum dos dois funciona nesta máquina.
     /// </summary>
-    public static SmbusPawnIo? Abrir(byte[] moduloAmd, byte[] moduloIntel, out string? erro)
+    /// <param name="moduloAmd">Módulo do AMD FCH (null quando não está disponível).</param>
+    /// <param name="moduloIntel">Módulo da Intel (null quando não está disponível).</param>
+    /// <param name="erro">Motivo da falha, quando não deu para abrir.</param>
+    public static SmbusPawnIo? Abrir(byte[]? moduloAmd, byte[]? moduloIntel, out string? erro)
     {
         erro = null;
 
-        foreach ((SmbusModelo modelo, byte[] modulo) in new[]
+        foreach ((SmbusModelo modelo, byte[]? modulo) in new[]
                  {
                      (SmbusModelo.AmdFch, moduloAmd),
                      (SmbusModelo.IntelI801, moduloIntel)

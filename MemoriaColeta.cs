@@ -1,6 +1,3 @@
-using System.IO;
-using System.Reflection;
-
 namespace TranalSentinel;
 
 /// <summary>
@@ -46,12 +43,6 @@ public sealed class MemoriaColetaResultado
 /// </remarks>
 public static class MemoriaColeta
 {
-    /// <summary>Nome do recurso do módulo PawnIO do AMD FCH (AM4).</summary>
-    public const string RecursoModuloAmd = "TranalSentinel.Assets.PawnIO.SmbusPIIX4.bin";
-
-    /// <summary>Nome do recurso do módulo PawnIO da Intel (ICH/PCH).</summary>
-    public const string RecursoModuloIntel = "TranalSentinel.Assets.PawnIO.SmbusI801.bin";
-
     private static readonly object Trinco = new();
     private static MemoriaColetaResultado? _cache;
 
@@ -70,8 +61,8 @@ public static class MemoriaColeta
 
     private static MemoriaColetaResultado Ler()
     {
-        byte[]? moduloAmd = CarregarRecurso(RecursoModuloAmd);
-        byte[]? moduloIntel = CarregarRecurso(RecursoModuloIntel);
+        byte[]? moduloAmd = ModulosPawnIo.Obter("SmbusPIIX4.bin", ModulosPawnIo.RecursoModuloAmd);
+        byte[]? moduloIntel = ModulosPawnIo.Obter("SmbusI801.bin", ModulosPawnIo.RecursoModuloIntel);
 
         if (moduloAmd == null && moduloIntel == null)
         {
@@ -81,7 +72,7 @@ public static class MemoriaColeta
             };
         }
 
-        SmbusPawnIo? smbus = SmbusPawnIo.Abrir(moduloAmd!, moduloIntel!, out string? erro);
+        SmbusPawnIo? smbus = SmbusPawnIo.Abrir(moduloAmd, moduloIntel, out string? erro);
         if (smbus == null)
         {
             return new MemoriaColetaResultado { Erro = erro };
@@ -112,19 +103,6 @@ public static class MemoriaColeta
         {
             smbus.Dispose();
         }
-    }
-
-    /// <summary>Carrega um módulo PawnIO embutido no executável.</summary>
-    private static byte[]? CarregarRecurso(string nome)
-    {
-        Assembly assembly = typeof(MemoriaColeta).Assembly;
-
-        using Stream? fluxo = assembly.GetManifestResourceStream(nome);
-        if (fluxo == null) return null;
-
-        using var memoria = new MemoryStream();
-        fluxo.CopyTo(memoria);
-        return memoria.ToArray();
     }
 
     /// <summary>

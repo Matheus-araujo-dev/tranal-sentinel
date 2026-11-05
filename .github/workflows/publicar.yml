@@ -38,7 +38,9 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item LEIA-ME.txt dist/LEIA-ME.txt
-          Compress-Archive -Path dist/TranalSentinel.exe, dist/LEIA-ME.txt -DestinationPath TranalSentinel.zip
+          Copy-Item Assets/PawnIO/COPYING dist/COPYING
+          Copy-Item Assets/PawnIO/NOTICE.txt dist/NOTICE.txt
+          Compress-Archive -Path dist/TranalSentinel.exe, dist/LEIA-ME.txt, dist/COPYING, dist/NOTICE.txt -DestinationPath TranalSentinel.zip
 
       - name: Atualizar release "latest"
         if: startsWith(github.ref, 'refs/heads/')

@@ -230,15 +230,15 @@ Duas decisões de decodificação que vieram dessa conferência:
 
 ### O que ainda não entra
 
-- **Instalar o driver PawnIO**: a feature depende dele estar instalado
-  (o dono já tem). Embutir o instalador do driver no TRANAL SENTINEL é
-  trabalho próprio, com confirmação, log e desfazer — fica para uma
-  versão própria.
 - **Timings ativos** (registradores do UMC do AMD): exige os offsets do
   controlador de memória, que ainda não são públicos.
 - **EXPO**: o cabeçalho "EXPO" fica no offset 768 (1024 bytes de SPD). O
   módulo do owner tem XMP 2.0, não EXPO; o decodificador de EXPO fica
   para quando houver um módulo EXPO para testar.
+
+O driver PawnIO **não** é um bloqueio: o app já o instala com um clique
+(mesmo caminho usado para a temperatura da CPU), então a aba TRANAL MEMÓRIA
+funciona em qualquer máquina onde os sensores de CPU já funcionam.
 
 
 ## 9. Alternativas avaliadas

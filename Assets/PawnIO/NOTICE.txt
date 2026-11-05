@@ -16,17 +16,25 @@ Copyright (c) 2024 PawnIO contributors
 
 Estes módulos são distribuídos sob a GNU Lesser General Public License,
 versão 2.1 ou posterior. O texto completo da licença está no arquivo
-COPYING, ao lado deste aviso.
+COPYING, que acompanha esta instalação.
 
 O que a LGPL exige e como foi cumprido
 ---------------------------------------
-1. Os módulos são arquivos separados dentro do instalador do TRANAL SENTINEL.
-   Trocá-los por uma versão mais nova é só substituir o arquivo — nada
-   precisa ser recompilado.
+1. Os módulos acompanham o TRANAL SENTINEL como arquivos separados (vêm
+   embutidos no executável e são extraídos para a pasta do usuário na
+   primeira leitura). Trocar o módulo por uma versão mais nova é só
+   substituir o arquivo .bin nessa pasta — nada precisa ser recompilado
+   nem reinstalado.
 2. O código-fonte correspondente a cada módulo está no mesmo projeto:
    https://github.com/namazso/PawnIO.Modules/blob/main/SmbusPIIX4.p
    https://github.com/namazso/PawnIO.Modules/blob/main/SmbusI801.p
 3. Esta nota e o texto da licença acompanham a instalação.
 
-O TRANAL SENTINEL não modifica os módulos: ele apenas os carrega no driver
-PawnIO e chama as funções públicas deles.
+Onde os módulos ficam depois da instalação
+------------------------------------------
+%LOCALAPPDATA%\TranalSentinel\PawnIO\
+
+nessa pasta há o arquivo COPYING (a licença), o NOTICE.txt (esta nota) e os
+módulos SmbusPIIX4.bin e SmbusI801.bin. O TRANAL SENTINEL não modifica os
+módulos: ele apenas os carrega no driver PawnIO e chama as funções públicas
+deles.

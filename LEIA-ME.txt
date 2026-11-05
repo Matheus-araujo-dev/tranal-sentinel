@@ -37,6 +37,22 @@ TRANAL SAÚDE
       TranalSentinel.exe --saude relatar
   Os instantâneos ficam em %AppData%\TranalSentinel\saude\.
 
+TRANAL MEMÓRIA
+- No menu lateral, grupo "TRANAL MEMÓRIA" -> aba "Módulos". Clique em LER MÓDULOS.
+- Lê o SPD (o "cartão de visita" de 512 bytes) de cada módulo de memória pelo barramento
+  SMBus do processador e mostra: fabricante, part number, número de série, capacidade,
+  ranks, os tempos do padrão JEDEC e o perfil XMP/EXPO gravado no módulo.
+- O TRANAL SAÚDE compara o clock que a BIOS configurou com o que o módulo oferece e
+  avisa quando a memória está no perfil, no padrão JEDEC ou ajustada à mão (overclock
+  manual, fora do perfil do módulo).
+- Precisa do driver PawnIO instalado (o mesmo que o app usa para a temperatura do
+  CPU). Se ele faltar, o botão CORRIGIR do menu lateral instala com um clique.
+- É somente leitura: nada do que está gravado no módulo de memória é alterado.
+- Os módulos PawnIO usados para a leitura ficam em %LOCALAPPDATA%\TranalSentinel\PawnIO\,
+  com a licença e o aviso de origem ao lado. Trocar por uma versão mais nova é substituir
+  o arquivo .bin nessa pasta.
+- Para conferir sem abrir a janela:  TranalSentinel.exe --memoria
+
 TRANAL ASSISTENTE
 - No menu lateral, grupo "TRANAL ASSISTENTE" -> aba "Linha do tempo".
 - O app tira um retrato do PC de tempos em tempos (Windows, BIOS, drivers, plano de
