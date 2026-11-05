@@ -11,7 +11,7 @@
     <AssemblyName>TranalSentinel</AssemblyName>
     <RootNamespace>TranalSentinel</RootNamespace>
     <Product>TRANAL SENTINEL</Product>
-    <Version>0.17.0</Version>
+    <!-- A versão vem do Directory.Build.props, o lugar único do projeto. -->
     <!-- Sempre otimizado: o TRANAL BENCH e os stress tests precisam do JIT otimizado tambem em Debug -->
     <Optimize>true</Optimize>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

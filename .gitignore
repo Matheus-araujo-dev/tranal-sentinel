@@ -9,6 +9,7 @@ TranalSentinel-dist/
 dist/
 dist-*/
 dist-novo/
+release/
 *.zip
 
 # IDE
