@@ -48,11 +48,16 @@ internal static class KalkanTeste
                     ushort fan = 0;
                     byte carga = 0;
 
-                    using (var monitor = new SensorMonitor())
+                    using (var monitor = new SensorMonitor
+                    {
+                        // O teste só precisa de CPU e ventoinha: a GPU do
+                        // LibreHardwareMonitor é o caminho nativo que pode derrubar o app.
+                        PermitirGpuAdl = false
+                    })
                     {
                         try
                         {
-                            monitor.OpenAsync().Wait(TimeSpan.FromSeconds(10));
+                            monitor.OpenAsync().Wait(TimeSpan.FromSeconds(30));
                             monitor.Refresh();
                             temperatura = monitor.CpuTemperature;
                             carga = monitor.CpuLoad.HasValue

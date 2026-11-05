@@ -76,6 +76,13 @@ public sealed class AppSettings
     /// <summary>Itens escolhidos para o overlay (chaves de OverlayMetrics); null = padrão.</summary>
     public List<string>? OverlayItems { get; set; }
 
+    // Sensores: a GPU do LibreHardwareMonitor é lida por código nativo do driver da AMD.
+    // Se esse caminho derrubar o app, o SensorGuard desliga a GPU sozinho; aqui o usuário
+    // pode deixar desligado de vez.
+    public bool SensoresGpuAdl { get; set; } = true;
+    /// <summary>Quando o usuário reabilitou os sensores da GPU à mão (zera a contagem de crashes).</summary>
+    public DateTime? SensoresGpuReabilitadoEm { get; set; }
+
     // Visor Kalkan: qual sensor alimenta a temperatura e qual alimenta a ventoinha
     public string? KalkanTempSensor { get; set; }
     public string? KalkanFanSensor { get; set; }

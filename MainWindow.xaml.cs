@@ -106,6 +106,7 @@ public partial class MainWindow : Window
         {
             // Durante a cena de GPU as leituras de sensores (NVML/driver) ficam pausadas: cada consulta trava o driver
             // por um instante e aparecia como engasgo no 1% low do benchmark.
+            _monitor.Pausado = _gpuBenchActive;
             if (_gpuBenchActive) return;
             _monitor.Refresh();
             if (_monitor.IsOpen) StatusText.Text = $"{_monitor.Rows.Count} sensores · atualizado {DateTime.Now:HH:mm:ss}";
@@ -158,6 +159,22 @@ public partial class MainWindow : Window
 
         async Task LoadSensors()
         {
+            // Antes de abrir a coleta: o log de eventos diz se o app já morreu por
+            // falha nativa nos sensores. Se morreu, a GPU fica de fora da coleta
+            // (é o caminho nativo do driver da AMD que derruba o programa).
+            try
+            {
+                var decisao = await Task.Run(DecidirNivelSensor);
+                AplicarNivelSensor(decisao.Nivel, decisao.Crashes, decisao.Mensagem);
+                if (decisao.Nivel == NivelSensor.SemSensores)
+                {
+                    StatusText.Text = "Sensores desativados após um crash do app.";
+                    UpdateDashboard();
+                    return;
+                }
+            }
+            catch { /* sem evidência de crash: segue com tudo ligado */ }
+
             try { await _monitor.OpenAsync(); }
             catch (Exception ex) { StatusText.Text = $"Sensores indisponíveis: {ex.Message}"; return; }
             _monitor.Refresh();

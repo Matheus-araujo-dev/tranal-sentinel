@@ -149,6 +149,16 @@
                                         Click="BtnFixCpuSensors_Click"/>
                             </StackPanel>
                         </Border>
+                        <Border x:Name="SensorWarn" Visibility="Collapsed" BorderBrush="{DynamicResource Fg}" BorderThickness="1"
+                                CornerRadius="12" Padding="12,10" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Sensores reduzidos" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="SensorWarnText" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,8"/>
+                                <Button x:Name="BtnReabilitarSensores" Style="{StaticResource PrimaryButton}" Content="REABILITAR SENSORES DA GPU"
+                                        Padding="10,5" FontSize="11" Visibility="Collapsed"
+                                        Click="BtnReabilitarSensores_Click"/>
+                            </StackPanel>
+                        </Border>
                         <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="14" Padding="14,10">
                             <Grid>
                                 <Grid.ColumnDefinitions>

@@ -25,6 +25,15 @@ public partial class App : Application
             return;
         }
 
+        // Teste de linha de comando da guarda dos sensores: mostra o que o app
+        // decidiu fazer com os sensores depois dos crashes.
+        if (Array.Exists(e.Args, a => string.Equals(a, "--sensores", StringComparison.OrdinalIgnoreCase)))
+        {
+            SensorTeste.Rodar();
+            Shutdown();
+            return;
+        }
+
         bool first;
         try { _single = new Mutex(true, @"Local\ResetExplode.SingleInstance", out first); }
         catch (UnauthorizedAccessException) { first = false; } // criado por outra instância com outro nível de permissão
