@@ -67,22 +67,24 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
 | **Modo economia** | (ideia própria) | Perfil de recursos: Completo / Equilibrado / Economia. Economia lê os sensores a cada 5 s em vez de 1 s, reduz o histórico de 3 h para 24 h e desliga overlay e análise automática. |
 | **Comparação entre execuções** | Sysoptimizer | CLI `--saude comparar`: duas execuções do diagnóstico viram um diff do que sumiu, apareceu e continua. |
 | **Isolamento da coleta em processo** | (ideia própria, já existia) | O coletor roda em processo filho e o app não morre se ele morrer. |
+| **Suspender serviços de segundo plano** | AVG TuneUp Sleep Mode | Janela "SUSPENDER SERVIÇOS": lista os serviços de terceiros, explica o que cada um é e deixa o usuário escolher. Os que o app reconhece vêm marcados. Serviço de segurança nunca entra. |
+| **Detecção de programa travado** | Cpu-Pets | A vigia do app pergunta às janelas abertas se elas respondem (é a mesma pergunta do "Não responder" do Windows) e oferece encerrar pelo menu do ícone da bandeja. |
+| **Nota de saúde** | SysPerf | Nota de 0 a 100 (conceito A–E) calculada a partir dos achados, com tendência comparando com os dias anteriores. Histórico em `%AppData%\TranalSentinel\log\tranal-saude-nota.log`. |
+| **Ações de um clique** | (continuação do TRANAL SAÚDE) | A regra do diagnóstico descreve a ação; o executor aplica. Cada ação que mexe no sistema pede confirmação e tem como desfazer. |
+| **Alertas em segundo plano** | (ideia própria) | Temperatura da CPU, do disco e carga da bateria, com aviso que não repete enquanto a condição continua valendo. |
+| **Relatório em CSV** | (ideia própria) | O relatório exportado sai também em CSV no padrão do Excel em português, para abrir em planilha e filtrar. |
 
 ## O que ficou na lista (não cabe nesta versão)
 
 - **Assistente de IA local** (Pulse Diagnostics): rodar um modelo local
   (Ollama/LM Studio) sobre o relatório, com a mesma promessa de privacidade —
   nada sai da máquina. É o próximo passo natural, porque o TRANAL SAÚDE já
-  produz o texto que ele responderia.
-- **Suspender serviços de programas em segundo plano** (AVG TuneUp Sleep Mode):
-  exige base de conhecimento de serviços por programa, que não existe pronto.
-- **Detecção de programa travado** (Cpu-Pets): o Windows já avisa, mas o app
-  pode observar e oferecer o "encerrar" no lugar certo.
-- **Nota de saúde** (SysPerf): precisa de um histórico longo para ser
-  confiável — depende da linha do tempo já existir, que agora existe.
-- **Ações de um clique** para os achados do TRANAL SAÚDE: o diagnóstico já diz
-  a ação ("desative a inicialização rápida"), falta o botão que aplica. É a
-  continuação natural da aba TRANAL SAÚDE.
+  produz o texto que ele responderia. **Ficou de fora por decisão do dono.**
+- **Comparar benchmarks entre PCs**: precisa de um formato de intercâmbio e de
+  uma tela de importação — é trabalho de produto, não de uma versão.
+- **Leitura de SPD / Super I/O**: exige ler portas de I/O, o que só dá com
+  driver de kernel (PawnIO). É projeto próprio, com o risco dele.
+- **Assinatura digital do instalador**: exige certificado pago.
 
 ## Por que continuar em C#
 

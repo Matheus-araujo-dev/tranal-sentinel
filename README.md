@@ -32,7 +32,35 @@ para o **histórico** do Windows e aponta as causas prováveis, cada uma com a a
 - **Lentidão**: compressão de memória, RAM acima do spec, inicialização automática, serviços de
   terceiros e Hyper-V/VBS.
 
-**É somente leitura:** a aba não instala, não altera e não reinicia nada. O mesmo diagnóstico
+**A leitura é sempre somente leitura. As ações são a exceção explícita:** cada
+achado que tem solução prática ganhou um botão (desligar o ASPM, abrir a
+Inicialização, abrir os Drivers, abrir as Otimizações). Toda ação que mexe no
+sistema **pede confirmação antes**, explica o custo, fica registrada no diário
+e **tem como desfazer** — o app guarda o valor original antes de mudar qualquer
+coisa. Serviço de antivírus, Defender e serviço do Windows nunca são tocados.
+
+**Nota de saúde do PC** — uma nota de 0 a 100 (conceito de A a E) calculada a
+partir dos achados, com a **tendência** comparando com os dias anteriores.
+Histórico em `%AppData%\TranalSentinel\log\tranal-saude-nota.log`.
+
+**Suspender serviços** (janela própria) — o app lista os **serviços de
+terceiros** que sobem com o Windows, diz o que cada um é (atualizador,
+telemetria, sincronização) e **você escolhe** quais suspender. Os que o app
+reconhece vêm marcados; os desconhecidos aparecem, mas desmarcados. Suspender
+é mudar o modo para Manual e parar o serviço; "restaurar tudo" devolve cada
+um ao modo que tinha.
+
+**Vigia em segundo plano** — o app acompanha o PC mesmo com a janela fechada:
+avisa quando um programa **para de responder** por mais de 30 s (a mesma
+pergunta que o Windows faz quando mostra o "Não responder") e o menu do ícone
+ganha a opção de **encerrar**; avisa também de **temperatura alta** da CPU
+(85 °C), do disco (60 °C) e de **bateria acabando** (20 % fora da tomada).
+
+**Relatório em CSV** — o relatório exportado sai também em CSV no padrão do
+Excel em português (separador `;`, decimal com vírgula, acentuação correta),
+para abrir numa planilha e filtrar.
+
+O mesmo diagnóstico
 roda pela linha de comando, sem abrir a janela:
 
 ```
@@ -54,6 +82,15 @@ Os instantâneos ficam em `%AppData%\TranalSentinel\saude\`.
 | `SaudePnp.cs` | Detecção de dispositivos órfãos (SetupAPI + cfgmgr32 + registro). |
 | `SaudeDiagnostico.cs` | Orquestrador: coleta → regras → relatório. |
 | `MainWindow.Saude.cs` | A aba na interface (partial class, mesmo padrão das outras). |
+| `SaudeAcao.cs` | O catálogo de ações: o que dá para fazer, o que cada uma custa e se tem como desfazer. |
+| `AcaoExecutor.cs` | Quem executa a ação (a regra só descreve). Guarda o valor original antes de mudar e nunca lança. |
+| `ServicosSuspendiveis.cs` | A lista de serviços que dá para suspender: filtra e classifica. **Puro** — não executa nada. |
+| `ServicosSuspender.cs` | Suspender/restaurar serviços de terceiros (fala com o Windows pelo `sc.exe`), guardando o modo original para desfazer. |
+| `JanelaServicos.xaml` | A janela "SUSPENDER SERVIÇOS": a lista com as caixas de marcação e o botão de restaurar tudo. |
+| `SaudeNota.cs` | A nota de saúde (0–100, conceito A–E) e o histórico por dia. |
+| `MonitorTravados.cs` | A vigia de programa travado: quanto tempo cada janela está sem responder. |
+| `AlertasSegundoPlano.cs` | As regras de alerta de temperatura, disco e bateria (com deduplicação por episódio). |
+| `MainWindow.Vigia.cs` | Liga a vigia na interface: os timers, o aviso na tela e o menu da bandeja. |
 
 ### Como o TRANAL ASSISTENTE está organizado
 
@@ -461,13 +498,10 @@ um `.exe` em uso.
 - ✔ Instalador com pasta de instalação à escolha do usuário (v0.18)
 
 ## Próximas ideias
-- Relatório em CSV e com gráficos
+- Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina
 - Comparar resultados de benchmark entre PCs / histórico de relatórios
 - Leitura direta de SPD / Super I/O
 - TRANAL INTEGRAÇÃO: perfis salvos, efeitos por jogo, SDKs nativos da MSI/ASUS/Gigabyte se forem liberados
-- Alertas de temperatura, bateria e saúde de disco em segundo plano
-- Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina
-- Ações de um clique para os achados do TRANAL SAÚDE (hoje o app diz o que fazer; falta o botão que faz)
 - Assinatura digital do instalador
 - Ver [MERCADO.md](MERCADO.md) para a pesquisa de concorrentes e o que foi adotado aqui
 

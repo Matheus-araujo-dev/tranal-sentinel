@@ -1,3 +1,54 @@
+## Novidades da v0.21 — o app passou a agir
+
+O TRANAL SAÚDE até aqui era só leitura: ele dizia o que estava errado e
+como resolver, e você resolvia. Agora dá para resolver **sem sair do app** —
+e o app passou a vigiar o PC enquanto fica na bandeja.
+
+**TRANAL SAÚDE — ações de um clique**
+- Cada achado que tem solução prática ganhou botões: **desligar o ASPM** (o
+  gerenciamento de energia do link PCIe, que é a suspeita padrão quando o
+  NVMe numa placa adaptadora trava), **abrir a Inicialização**, **abrir os
+  Drivers** e **abrir as Otimizações**.
+- Toda ação que mexe no sistema **pede confirmação antes** e explica o custo
+  ("gasta um pouco mais de energia"). O que foi alterado fica guardado, e
+  aparece o botão de **restaurar**.
+- A regra do diagnóstico continua sendo pura: ela só descreve a ação; quem
+  executa é o executor, que é a única parte que toca no Windows.
+
+**Suspender serviços (estilo "Sleep Mode")**
+- O app lista os **serviços de terceiros** que sobem com o Windows, explica o
+  que cada um é (atualizador, telemetria, sincronização) e **você escolhe**
+  quais suspender. Os que o app reconhece já vêm marcados; os desconhecidos
+  aparecem, mas desmarcados.
+- Serviço do Windows e serviço de segurança **nunca entram na lista** — nem
+  se o app for chamado direto.
+- Suspender é mudar o modo para Manual e parar o serviço. **Restaurar tudo**
+  devolve cada serviço ao modo que ele tinha.
+
+**Nota de saúde do PC**
+- Uma nota de **0 a 100** (conceito de A a E) a partir dos achados, com a
+  **tendência** comparando com os dias anteriores. O histórico fica em
+  `%AppData%\TranalSentinel\log\tranal-saude-nota.log`.
+
+**Programa travado**
+- O app vigia as janelas abertas e avisa quando um programa **para de
+  responder** por mais de 30 s (é a mesma pergunta que o Windows faz quando
+  mostra o "Não responder"). O aviso aparece na tela e o menu do ícone ganha
+  a opção de **encerrar** — a decisão é sua.
+
+**Alertas em segundo plano**
+- Temperatura da CPU acima de 85 °C, disco acima de 60 °C e bateria abaixo de
+  20 % fora da tomada. O aviso não repete enquanto a condição continua
+  valendo, e volta a aparecer se o problema voltar.
+
+**Relatório em CSV**
+- O relatório exportado agora sai também em **CSV**, no padrão do Excel em
+  português (separador `;`, decimal com vírgula, acentuação correta) — para
+  abrir numa planilha e filtrar. Células que o Excel leria como fórmula são
+  neutralizadas.
+
+---
+
 ## Novidades da v0.20 — o aviso dos sensores passou a culpar a coisa certa
 
 Correções vindas de uma revisão adversarial da v0.19. Nenhuma delas muda o

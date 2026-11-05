@@ -52,7 +52,20 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   precisa aparecer em dois lugares, extraia para um núcleo compartilhado
   (ex.: `Wmi.cs` serve à aba de saúde e à linha do tempo).
 - **Só leitura por padrão**: a aba TRANAL SAÚDE não instala, não altera e não
-  reinicia nada. Ações que mudam o sistema são exceções explícitas.
+  reinicia nada. Ações que mudam o sistema são exceções explícitas — e cada
+  uma delas pede confirmação, fica registrada no diário e tem como desfazer.
+- **A regra do diagnóstico só descreve; quem executa é o executor.**
+  `SaudeRegras` (pura) devolve `AcaoAplicavel`; `AcaoExecutor` (impuro)
+  executa, perguntando ao `IAcaoAlvo`. A regra nunca toca no Windows.
+- **Serviço de segurança nunca é tocado** — nem pela lista, nem se o app for
+  chamado direto. A lista de proibidos está em `ServicosSuspendiveis` (puro),
+  e o executor (`ServicosSuspender`) só obedece; a regra do diagnóstico
+  depende do puro, e não do executor.
+- **O que o app mexe fica guardado para desfazer** (`AppSettings.TweakBackup`):
+  o modo original do serviço, o valor original do ASPM. Sem isso, "restaurar"
+  não tem de onde voltar.
+- **O app nunca age por conta própria**: suspender serviço é sempre escolha do
+  usuário; o app só marca os que ele reconhece.
 - **Nada de `catch` vazio** sem comentário dizendo por que é seguro.
 
 ## Arquitetura que não se deve quebrar
