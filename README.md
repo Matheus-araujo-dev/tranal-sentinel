@@ -89,6 +89,18 @@ aplicativo acha o visor pelo VID/PID `0416:1100` e escolhe a coleção do fabric
 "atualizar o visor todo segundo" para ele acompanhar a temperatura em tempo real
 (ou `ENVIAR AGORA` para um envio só).
 
+Para conferir o visor sem abrir a janela:
+
+```powershell
+ResetExplode.exe --kalkan-teste
+```
+
+O teste conecta no visor, manda um quadro e grava o resultado em
+`%AppData%\ResetExplode\kalkan-teste.txt` (inclui a resposta bruta do aparelho,
+que vem decodificada: `01 e0 <índice>`). Rodando como administrador, ele manda a
+temperatura real do CPU; sem permissão, manda um quadro de teste de 99 °C para
+dar para ver no visor.
+
 **Atenção:**
 
 - Só funciona na **Rev.1 (firmware 1.2)**. A Rev.2 (comprada a partir de janeiro de

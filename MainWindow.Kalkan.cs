@@ -145,7 +145,8 @@ public partial class MainWindow
 
         KalkanStatus.Text = $"Visor atualizado · {temp} °C · {fan} RPM · {carga} % de carga.";
         KalkanDetalhe.Text = $"{_kalkan!.Colecao} · semente 0x{_kalkan.Semente:X2}"
-            + $" · {_kalkan.QuadrosEnviados} quadros enviados · {_kalkan.LeiturasRecebidas} respostas do visor";
+            + $" · {_kalkan.QuadrosEnviados} quadros enviados · {_kalkan.LeiturasRecebidas} respostas do visor"
+            + (_kalkan.UltimaLeituraHex.Length > 0 ? " · última: " + RecortarHex(_kalkan.UltimaLeituraHex) : "");
     }
 
     /// <summary>
@@ -173,5 +174,12 @@ public partial class MainWindow
         var cpu = ventoinhas.FirstOrDefault(r => r.HardwareType == HardwareType.Cpu);
         float rpm = cpu?.RawValue ?? ventoinhas.Max(r => r.RawValue ?? 0);
         return (ushort)Math.Clamp(Math.Round(rpm), 0, ushort.MaxValue);
+    }
+
+    /// <summary>Corta o hexadecimal da resposta do visor para caber no cartão.</summary>
+    private static string RecortarHex(string hex)
+    {
+        if (hex.Length <= 20) return hex;
+        return hex[..20] + "…";
     }
 }

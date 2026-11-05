@@ -16,6 +16,15 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Teste de linha de comando do visor Kalkan: não abre janela e não trava
+        // a instância única (dá para rodar com o app já aberto).
+        if (Array.Exists(e.Args, a => string.Equals(a, "--kalkan-teste", StringComparison.OrdinalIgnoreCase)))
+        {
+            KalkanTeste.Rodar();
+            Shutdown();
+            return;
+        }
+
         bool first;
         try { _single = new Mutex(true, @"Local\ResetExplode.SingleInstance", out first); }
         catch (UnauthorizedAccessException) { first = false; } // criado por outra instância com outro nível de permissão
