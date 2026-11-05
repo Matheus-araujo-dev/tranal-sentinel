@@ -146,7 +146,7 @@ public partial class MainWindow
         // Os botões de restaurar só aparecem quando o app mexeu em algo
         // (ASPM ou serviços). O de restaurar serviço funciona mesmo sem a
         // varredura ter dado certo — o desfazer não pode depender dela.
-        bool mexeuAspm = _settings.TweakBackup.ContainsKey(AcaoExecutor.ChaveAspm);
+        bool mexeuAspm = AcaoExecutor.TemAspmAlterado(_settings);
         bool mexeuServicos = ServicosSuspender.Suspensos(_settings).Count > 0;
 
         SaudeAcoesPendentes.Visibility = (mexeuAspm || mexeuServicos) ? Visibility.Visible : Visibility.Collapsed;

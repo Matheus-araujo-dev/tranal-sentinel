@@ -186,6 +186,11 @@ public static class ReportBuilder
     /// mais, é quase sempre versão ("551.23" é a versão do driver, não uma
     /// medida) — e virar "551,23" corromperia o dado num relatório feito para
     /// ser lido por outros.
+    ///
+    /// <para>
+    /// A regra é a mesma nos dois caminhos: o número puro e o número dentro
+    /// de um texto ("38.45 °C" fica como está, do mesmo jeito que "38.45").
+    /// </para>
     /// </remarks>
     private static string Valor(string? s)
     {
@@ -199,8 +204,9 @@ public static class ReportBuilder
             int casas = texto.Length - ponto - 1;
             return casas == 1 ? texto.Replace('.', ',') : texto;
         }
-        // número com unidade ("38.4 °C"): só a parte decimal do número vira vírgula — "12.345 GB" é milhar e fica como está
-        return Regex.Replace(s, @"(?<![\d.])\d+\.\d{1,2}(?![\d.])", m => m.Value.Replace('.', ','));
+        // número com unidade ("38.4 °C"): a mesma regra do número puro —
+        // uma casa vira vírgula, duas ou mais ficam ("12.345 GB" é milhar).
+        return Regex.Replace(s, @"(?<![\d.])\d+\.\d(?![\d.])", m => m.Value.Replace('.', ','));
     }
 
     private static void Section(StringBuilder sb, string title, List<ReportDisk> items)

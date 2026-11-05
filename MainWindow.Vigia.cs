@@ -127,10 +127,25 @@ public partial class MainWindow
         try
         {
             using var p = Process.GetProcessById(app.Pid);
+
+            // O Windows reaproveita o número do processo: o PID que o app
+            // guardou pode ser outro programa agora. O nome é a conferência
+            // antes de encerrar qualquer coisa.
+            if (!string.Equals(p.ProcessName, app.Processo, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    this,
+                    $"O programa {app.Processo} já não está mais travado — o Windows reaproveitou o número dele. Nada foi encerrado.",
+                    "TRANAL SENTINEL", MessageBoxButton.OK, MessageBoxImage.Information);
+                AtualizarBandejaTravados();
+                return;
+            }
+
             p.Kill();
             Toast("Programa encerrado", $"{app.Processo} foi encerrado.", "✓");
             try { RegistroDiario.Registrar($"Encerrado (travado): {app.Processo} (pid {app.Pid})", "VIGIA"); }
             catch { }
+            AtualizarBandejaTravados();
         }
         catch (Exception ex)
         {

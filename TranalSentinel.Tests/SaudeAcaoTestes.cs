@@ -12,10 +12,11 @@ namespace TranalSentinel.Tests;
 /// executadas e como voltam atrás.
 ///
 /// <para>
-/// O que estes testes cobrem: serviço de segurança nunca é tocado, o modo
-/// original fica guardado para desfazer, backup forjado não desliga nada,
-/// ação sem administrador não mexe no sistema, e o aviso de programa travado
-/// não repete nem some do nada.
+/// O que estes testes cobrem: serviço de segurança nunca é tocado, o estado
+/// original fica guardado para desfazer (inclusive se o serviço estava
+/// rodando), backup forjado não desliga nada, ação sem administrador não
+/// mexe no sistema, e o aviso de programa travado não repete nem some do
+/// nada.
 /// </para>
 ///
 /// <para>
@@ -55,6 +56,59 @@ public class SaudeAcaoTestes : IDisposable
     /// </summary>
     private static ServicoSuspendivel Susp(string nome, string caminho) =>
         new() { Nome = nome, Caminho = caminho, ModoInicializacao = "Auto" };
+
+    /// <summary>
+    /// Serviços de mentira: registra o que o app mandou fazer.
+    ///
+    /// <para>
+    /// O caminho que o "Windows" devolve é o que o app usa para decidir —
+    /// não o que está no backup. É o que garante que um backup forjado não
+    /// passa por serviço de segurança.
+    /// </para>
+    /// </summary>
+    private sealed class ServicoFalso : IServicoWindows
+    {
+        public Dictionary<string, InfoServico> Servicos { get; } = new();
+        public List<string> Parados { get; } = new();
+        public List<string> Iniciados { get; } = new();
+        public List<string> Configurados { get; } = new();
+        public bool PodeConfigurar { get; set; } = true;
+        public bool PodeParar { get; set; } = true;
+
+        public void Registrar(string nome, int modo = ModoServico.Automatico,
+            string caminho = @"C:\Program Files\X\X.exe", bool rodando = true, bool atrasado = false)
+        {
+            Servicos[nome] = new InfoServico(new ModoServico { Modo = modo, Atrasado = atrasado }, caminho, rodando);
+        }
+
+        public InfoServico? Ler(string nome) => Servicos.TryGetValue(nome, out var s) ? s : null;
+
+        public bool Configurar(string nome, ModoServico modo)
+        {
+            if (!PodeConfigurar) return false;
+            Configurados.Add(nome);
+            if (Servicos.TryGetValue(nome, out var s))
+                Servicos[nome] = s with { Modo = modo };
+            return true;
+        }
+
+        public bool Parar(string nome)
+        {
+            if (!PodeParar) return false;
+            Parados.Add(nome);
+            if (Servicos.TryGetValue(nome, out var s))
+                Servicos[nome] = s with { Rodando = false };
+            return true;
+        }
+
+        public bool Iniciar(string nome)
+        {
+            Iniciados.Add(nome);
+            if (Servicos.TryGetValue(nome, out var s))
+                Servicos[nome] = s with { Rodando = true };
+            return true;
+        }
+    }
 
     [Fact]
     public void Listar_NaoIncluiServicoDoWindows()
@@ -171,46 +225,14 @@ public class SaudeAcaoTestes : IDisposable
     {
         var settings = new AppSettings();
         var alvo = new ServicoFalso();
-        alvo.Modos["OpenRGB"] = new ModoServico { Modo = ModoServico.Automatico };
+        alvo.Registrar("OpenRGB");
 
         int total = ServicosSuspender.Suspender(settings, new[] { Susp("OpenRGB", @"E:\Program Files\OpenRGB\OpenRGB.exe") }, alvo);
 
         Assert.Equal(0, total);
-        Assert.Equal(ModoServico.Automatico, alvo.Modos["OpenRGB"].Modo);
+        Assert.Equal(ModoServico.Automatico, alvo.Servicos["OpenRGB"].Modo.Modo);
         Assert.Empty(alvo.Parados);
         Assert.Empty(settings.TweakBackup);
-    }
-
-    /// <summary>Serviços de mentira: registra o que o app mandou fazer.</summary>
-    private sealed class ServicoFalso : IServicoWindows
-    {
-        public Dictionary<string, ModoServico> Modos { get; } = new();
-        public List<string> Parados { get; } = new();
-        public List<string> Iniciados { get; } = new();
-        public bool PodeConfigurar { get; set; } = true;
-        public bool PodeParar { get; set; } = true;
-
-        public ModoServico? LerModo(string nome) => Modos.TryGetValue(nome, out var m) ? m : null;
-
-        public bool Configurar(string nome, ModoServico modo)
-        {
-            if (!PodeConfigurar) return false;
-            Modos[nome] = modo;
-            return true;
-        }
-
-        public bool Parar(string nome)
-        {
-            if (!PodeParar) return false;
-            Parados.Add(nome);
-            return true;
-        }
-
-        public bool Iniciar(string nome)
-        {
-            Iniciados.Add(nome);
-            return true;
-        }
     }
 
     [Fact]
@@ -218,17 +240,18 @@ public class SaudeAcaoTestes : IDisposable
     {
         var settings = new AppSettings();
         var alvo = new ServicoFalso();
-        alvo.Modos["AdobeARCSService"] = new ModoServico { Modo = ModoServico.Automatico };
+        alvo.Registrar("AdobeARCSService", caminho: @"C:\Program Files\Adobe\ARC.exe");
 
         int total = ServicosSuspender.Suspender(settings,
             new[] { Susp("AdobeARCSService", @"C:\Program Files\Adobe\ARC.exe") }, alvo);
 
         Assert.Equal(1, total);
-        Assert.Equal(ModoServico.Manual, alvo.Modos["AdobeARCSService"].Modo);   // manual
+        Assert.Equal(ModoServico.Manual, alvo.Servicos["AdobeARCSService"].Modo.Modo);   // manual
         Assert.Contains("AdobeARCSService", alvo.Parados);
-        // O backup carrega modo, atraso e caminho: é o que permite desfazer
-        // (e o que impede um backup forjado de desativar um serviço).
-        Assert.Equal("2;0;C:\\Program Files\\Adobe\\ARC.exe", settings.TweakBackup["servico.AdobeARCSService"]);
+        // O backup carrega modo, atraso, se estava rodando e o caminho:
+        // é o que permite desfazer exatamente (e o que impede um backup
+        // forjado de desativar um serviço).
+        Assert.Equal("2;0;1;C:\\Program Files\\Adobe\\ARC.exe", settings.TweakBackup["servico.AdobeARCSService"]);
     }
 
     [Fact]
@@ -237,7 +260,7 @@ public class SaudeAcaoTestes : IDisposable
         // Sem isso, o serviço voltaria a subir no boot normal ao restaurar.
         var settings = new AppSettings();
         var alvo = new ServicoFalso();
-        alvo.Modos["AdobeARCSService"] = new ModoServico { Modo = ModoServico.Automatico, Atrasado = true };
+        alvo.Registrar("AdobeARCSService", caminho: @"C:\Program Files\Adobe\ARC.exe", atrasado: true);
 
         ServicosSuspender.Suspender(settings,
             new[] { Susp("AdobeARCSService", @"C:\Program Files\Adobe\ARC.exe") }, alvo);
@@ -252,13 +275,13 @@ public class SaudeAcaoTestes : IDisposable
         // fora é a única forma de não deixar o serviço preso em Manual.
         var settings = new AppSettings();
         var alvo = new ServicoFalso();
-        alvo.Modos["AdobeARCSService"] = new ModoServico { Modo = 4 };
+        alvo.Registrar("AdobeARCSService", modo: 4, caminho: @"C:\Program Files\Adobe\ARC.exe");
 
         int total = ServicosSuspender.Suspender(settings,
             new[] { Susp("AdobeARCSService", @"C:\Program Files\Adobe\ARC.exe") }, alvo);
 
         Assert.Equal(0, total);
-        Assert.Equal(4, alvo.Modos["AdobeARCSService"].Modo);
+        Assert.Equal(4, alvo.Servicos["AdobeARCSService"].Modo.Modo);
         Assert.Empty(alvo.Parados);
         Assert.Empty(settings.TweakBackup);
     }
@@ -269,7 +292,7 @@ public class SaudeAcaoTestes : IDisposable
         // Se o serviço não parou, nada mudou: não há nada para desfazer.
         var settings = new AppSettings();
         var alvo = new ServicoFalso { PodeParar = false };
-        alvo.Modos["AdobeARCSService"] = new ModoServico { Modo = ModoServico.Automatico };
+        alvo.Registrar("AdobeARCSService", caminho: @"C:\Program Files\Adobe\ARC.exe");
 
         int total = ServicosSuspender.Suspender(settings,
             new[] { Susp("AdobeARCSService", @"C:\Program Files\Adobe\ARC.exe") }, alvo);
@@ -283,13 +306,30 @@ public class SaudeAcaoTestes : IDisposable
     {
         var settings = new AppSettings();
         var alvo = new ServicoFalso();
-        alvo.Modos["McAfeeMPE"] = new ModoServico { Modo = ModoServico.Automatico };
+        alvo.Registrar("McAfeeMPE", caminho: @"C:\Program Files\McAfee\X.exe");
 
         int total = ServicosSuspender.Suspender(settings,
             new[] { Susp("McAfeeMPE", @"C:\Program Files\McAfee\X.exe") }, alvo);
 
         Assert.Equal(0, total);
-        Assert.Equal(ModoServico.Automatico, alvo.Modos["McAfeeMPE"].Modo);   // intocado
+        Assert.Equal(ModoServico.Automatico, alvo.Servicos["McAfeeMPE"].Modo.Modo);   // intocado
+        Assert.Empty(alvo.Parados);
+        Assert.Empty(settings.TweakBackup);
+    }
+
+    [Fact]
+    public void Suspender_ServicoDoWindowsComCaminhoDeMentiraNaoEMexido()
+    {
+        // O chamador jura que o serviço é de terceiro, mas o Windows diz que
+        // o executável é do system32: quem manda é o Windows.
+        var settings = new AppSettings();
+        var alvo = new ServicoFalso();
+        alvo.Registrar("SysMain", caminho: @"C:\Windows\System32\svchost.exe");
+
+        int total = ServicosSuspender.Suspender(settings,
+            new[] { Susp("SysMain", @"C:\Program Files\Falso\App.exe") }, alvo);
+
+        Assert.Equal(0, total);
         Assert.Empty(alvo.Parados);
         Assert.Empty(settings.TweakBackup);
     }
@@ -311,14 +351,14 @@ public class SaudeAcaoTestes : IDisposable
     public void Restaurar_DevolveOModoOriginalEInicia()
     {
         var settings = new AppSettings();
-        settings.TweakBackup["servico.AdobeARCSService"] = "2;0;C:\\Program Files\\Adobe\\ARC.exe";
+        settings.TweakBackup["servico.AdobeARCSService"] = "2;0;1;C:\\Program Files\\Adobe\\ARC.exe";
         var alvo = new ServicoFalso();
-        alvo.Modos["AdobeARCSService"] = new ModoServico { Modo = ModoServico.Manual };
+        alvo.Registrar("AdobeARCSService", modo: ModoServico.Manual, caminho: @"C:\Program Files\Adobe\ARC.exe", rodando: false);
 
         int total = ServicosSuspender.Restaurar(settings, alvo);
 
         Assert.Equal(1, total);
-        Assert.Equal(ModoServico.Automatico, alvo.Modos["AdobeARCSService"].Modo);   // volta a automático
+        Assert.Equal(ModoServico.Automatico, alvo.Servicos["AdobeARCSService"].Modo.Modo);   // volta a automático
         Assert.Contains("AdobeARCSService", alvo.Iniciados);
         Assert.False(settings.TweakBackup.ContainsKey("servico.AdobeARCSService"));
     }
@@ -327,28 +367,63 @@ public class SaudeAcaoTestes : IDisposable
     public void Restaurar_DevolveOAutomaticoComAtraso()
     {
         var settings = new AppSettings();
-        settings.TweakBackup["servico.AdobeARCSService"] = "2;1;C:\\Program Files\\Adobe\\ARC.exe";
+        settings.TweakBackup["servico.AdobeARCSService"] = "2;1;1;C:\\Program Files\\Adobe\\ARC.exe";
         var alvo = new ServicoFalso();
-        alvo.Modos["AdobeARCSService"] = new ModoServico { Modo = ModoServico.Manual };
+        alvo.Registrar("AdobeARCSService", modo: ModoServico.Manual, caminho: @"C:\Program Files\Adobe\ARC.exe", rodando: false);
 
         int total = ServicosSuspender.Restaurar(settings, alvo);
 
         Assert.Equal(1, total);
-        Assert.Equal(ModoServico.Automatico, alvo.Modos["AdobeARCSService"].Modo);
-        Assert.True(alvo.Modos["AdobeARCSService"].Atrasado);
+        Assert.Equal(ModoServico.Automatico, alvo.Servicos["AdobeARCSService"].Modo.Modo);
+        Assert.True(alvo.Servicos["AdobeARCSService"].Modo.Atrasado);
     }
 
     [Fact]
-    public void Restaurar_ServicoQueEraManualNaoEIniciado()
+    public void Restaurar_ServicoQueEraManualVoltaARodar()
+    {
+        // O serviço já era manual e estava rodando: o app só o parou. Ao
+        // desfazer, ele tem que voltar a rodar — senão o app prometeu uma
+        // restauração e o serviço ficou parado.
+        var settings = new AppSettings();
+        settings.TweakBackup["servico.Meu"] = "3;0;1;C:\\Program Files\\Meu\\X.exe";
+        var alvo = new ServicoFalso();
+        alvo.Registrar("Meu", modo: ModoServico.Manual, caminho: @"C:\Program Files\Meu\X.exe", rodando: false);
+
+        int total = ServicosSuspender.Restaurar(settings, alvo);
+
+        Assert.Equal(1, total);
+        Assert.Contains("Meu", alvo.Iniciados);
+        Assert.Equal(ModoServico.Manual, alvo.Servicos["Meu"].Modo.Modo);   // o modo não muda
+        Assert.False(settings.TweakBackup.ContainsKey("servico.Meu"));
+    }
+
+    [Fact]
+    public void Restaurar_QuandoOWindowsRecusouAMudancaDeModoVoltaARodar()
+    {
+        // O Windows recusou o "sc config": o modo continuou automático, mas o
+        // serviço ficou parado. Ao desfazer, ele tem que voltar a rodar.
+        var settings = new AppSettings();
+        settings.TweakBackup["servico.AdobeARCSService"] = "2;0;1;C:\\Program Files\\Adobe\\ARC.exe";
+        var alvo = new ServicoFalso();
+        alvo.Registrar("AdobeARCSService", modo: ModoServico.Automatico, caminho: @"C:\Program Files\Adobe\ARC.exe", rodando: false);
+
+        int total = ServicosSuspender.Restaurar(settings, alvo);
+
+        Assert.Equal(1, total);
+        Assert.Contains("AdobeARCSService", alvo.Iniciados);
+        Assert.False(settings.TweakBackup.ContainsKey("servico.AdobeARCSService"));
+    }
+
+    [Fact]
+    public void Restaurar_ServicoQueNaoEstavaRodandoNaoERodado()
     {
         var settings = new AppSettings();
-        settings.TweakBackup["servico.Meu"] = "3;0;C:\\Program Files\\Meu\\X.exe";
+        settings.TweakBackup["servico.Meu"] = "2;0;0;C:\\Program Files\\Meu\\X.exe";
         var alvo = new ServicoFalso();
-        alvo.Modos["Meu"] = new ModoServico { Modo = ModoServico.Manual };
+        alvo.Registrar("Meu", modo: ModoServico.Manual, caminho: @"C:\Program Files\Meu\X.exe", rodando: false);
 
         ServicosSuspender.Restaurar(settings, alvo);
 
-        Assert.Equal(ModoServico.Manual, alvo.Modos["Meu"].Modo);
         Assert.Empty(alvo.Iniciados);
     }
 
@@ -359,14 +434,14 @@ public class SaudeAcaoTestes : IDisposable
         // forjado não pode desligar nada — e um modo fora do que o app
         // grava é descartado sem tocar no serviço.
         var settings = new AppSettings();
-        settings.TweakBackup["servico.Defender"] = "4;0;C:\\Program Files\\Defender\\X.exe";
+        settings.TweakBackup["servico.Defender"] = "4;0;1;C:\\Program Files\\Defender\\X.exe";
         var alvo = new ServicoFalso();
-        alvo.Modos["Defender"] = new ModoServico { Modo = ModoServico.Manual };
+        alvo.Registrar("Defender", modo: ModoServico.Manual, caminho: @"C:\Program Files\\Defender\\X.exe", rodando: false);
 
         int total = ServicosSuspender.Restaurar(settings, alvo);
 
         Assert.Equal(0, total);
-        Assert.Equal(ModoServico.Manual, alvo.Modos["Defender"].Modo);   // intocado
+        Assert.Equal(ModoServico.Manual, alvo.Servicos["Defender"].Modo.Modo);   // intocado
         Assert.False(settings.TweakBackup.ContainsKey("servico.Defender"));
     }
 
@@ -374,9 +449,9 @@ public class SaudeAcaoTestes : IDisposable
     public void Restaurar_BackupForjadoDeServicoDeSegurancaEDescartado()
     {
         var settings = new AppSettings();
-        settings.TweakBackup["servico.McAfeeMPE"] = "2;0;C:\\Program Files\\McAfee\\X.exe";
+        settings.TweakBackup["servico.McAfeeMPE"] = "2;0;1;C:\\Program Files\\McAfee\\X.exe";
         var alvo = new ServicoFalso();
-        alvo.Modos["McAfeeMPE"] = new ModoServico { Modo = ModoServico.Manual };
+        alvo.Registrar("McAfeeMPE", modo: ModoServico.Manual, caminho: @"C:\Program Files\\McAfee\\X.exe", rodando: false);
 
         int total = ServicosSuspender.Restaurar(settings, alvo);
 
@@ -388,31 +463,50 @@ public class SaudeAcaoTestes : IDisposable
     [Fact]
     public void Restaurar_BackupForjadoDeServicoDoWindowsEDescartado()
     {
+        // O backup pode dizer qualquer coisa sobre o caminho; quem decide é
+        // o caminho que o WINDOWS registra.
         var settings = new AppSettings();
-        settings.TweakBackup["servico.Wsearch"] = "2;0;C:\\Windows\\System32\\SearchIndexer.exe";
+        settings.TweakBackup["servico.SysMain"] = "2;0;1;C:\\Program Files\\Falso\\App.exe";
         var alvo = new ServicoFalso();
-        alvo.Modos["Wsearch"] = new ModoServico { Modo = ModoServico.Manual };
+        alvo.Registrar("SysMain", modo: ModoServico.Manual, caminho: @"C:\Windows\System32\svchost.exe", rodando: false);
 
         int total = ServicosSuspender.Restaurar(settings, alvo);
 
         Assert.Equal(0, total);
-        Assert.False(settings.TweakBackup.ContainsKey("servico.Wsearch"));
+        Assert.Empty(alvo.Iniciados);
+        Assert.False(settings.TweakBackup.ContainsKey("servico.SysMain"));
+    }
+
+    [Fact]
+    public void Restaurar_ServicoSemCaminhoConhecidoEDescartado()
+    {
+        // Sem caminho, não dá para saber se é serviço do Windows: não se mexe.
+        var settings = new AppSettings();
+        settings.TweakBackup["servico.Meu"] = "2;0;1;C:\\Program Files\\Meu\\X.exe";
+        var alvo = new ServicoFalso();
+        alvo.Registrar("Meu", modo: ModoServico.Manual, caminho: "", rodando: false);
+
+        int total = ServicosSuspender.Restaurar(settings, alvo);
+
+        Assert.Equal(0, total);
+        Assert.Empty(alvo.Iniciados);
+        Assert.False(settings.TweakBackup.ContainsKey("servico.Meu"));
     }
 
     [Fact]
     public void Restaurar_QuandoServicoNaoEstaMaisManualNaoSobrescreve()
     {
-        // Alguém mexeu no serviço depois (botou em Automático ou
-        // Desativado): a escolha de quem mexeu depois manda.
+        // Alguém mexeu no serviço depois (botou em Desativado): a escolha de
+        // quem mexeu depois manda — o app não reativa nada.
         var settings = new AppSettings();
-        settings.TweakBackup["servico.AdobeARCSService"] = "2;0;C:\\Program Files\\Adobe\\ARC.exe";
+        settings.TweakBackup["servico.AdobeARCSService"] = "2;0;1;C:\\Program Files\\Adobe\\ARC.exe";
         var alvo = new ServicoFalso();
-        alvo.Modos["AdobeARCSService"] = new ModoServico { Modo = 4 };
+        alvo.Registrar("AdobeARCSService", modo: 4, caminho: @"C:\Program Files\\Adobe\\ARC.exe", rodando: false);
 
         int total = ServicosSuspender.Restaurar(settings, alvo);
 
         Assert.Equal(0, total);
-        Assert.Equal(4, alvo.Modos["AdobeARCSService"].Modo);
+        Assert.Equal(4, alvo.Servicos["AdobeARCSService"].Modo.Modo);
         Assert.Empty(alvo.Iniciados);
         Assert.False(settings.TweakBackup.ContainsKey("servico.AdobeARCSService"));
     }
@@ -421,9 +515,9 @@ public class SaudeAcaoTestes : IDisposable
     public void Restaurar_QuandoWindowsRecusaOBancoFicaParaTentarDeNovo()
     {
         var settings = new AppSettings();
-        settings.TweakBackup["servico.AdobeARCSService"] = "2;0;C:\\Program Files\\Adobe\\ARC.exe";
+        settings.TweakBackup["servico.AdobeARCSService"] = "2;0;1;C:\\Program Files\\Adobe\\ARC.exe";
         var alvo = new ServicoFalso { PodeConfigurar = false };
-        alvo.Modos["AdobeARCSService"] = new ModoServico { Modo = ModoServico.Manual };
+        alvo.Registrar("AdobeARCSService", modo: ModoServico.Manual, caminho: @"C:\Program Files\\Adobe\\ARC.exe", rodando: false);
 
         int total = ServicosSuspender.Restaurar(settings, alvo);
 
@@ -432,17 +526,58 @@ public class SaudeAcaoTestes : IDisposable
     }
 
     [Fact]
+    public void Restaurar_BackupDoFormatoAntigoEDescartado()
+    {
+        // O formato antigo não tem o campo "estava rodando": o app não sabe
+        // o que restaurar, então descarta (e não mexe no serviço).
+        var settings = new AppSettings();
+        settings.TweakBackup["servico.AdobeARCSService"] = "2;0;C:\\Program Files\\Adobe\\ARC.exe";
+        var alvo = new ServicoFalso();
+        alvo.Registrar("AdobeARCSService", modo: ModoServico.Manual, caminho: @"C:\Program Files\\Adobe\\ARC.exe", rodando: false);
+
+        int total = ServicosSuspender.Restaurar(settings, alvo);
+
+        Assert.Equal(0, total);
+        Assert.Empty(alvo.Iniciados);
+        Assert.False(settings.TweakBackup.ContainsKey("servico.AdobeARCSService"));
+    }
+
+    [Fact]
     public void Suspensos_ListaOQueOAppMudou()
     {
         var settings = new AppSettings();
-        settings.TweakBackup["servico.Um"] = "2;0;C:\\X.exe";
-        settings.TweakBackup["servico.Outro"] = "2;0;C:\\Y.exe";
-        settings.TweakBackup["aspm"] = "plano|1";
+        settings.TweakBackup["servico.Um"] = "2;0;1;C:\\X.exe";
+        settings.TweakBackup["servico.Outro"] = "2;0;1;C:\\Y.exe";
+        settings.TweakBackup[AcaoExecutor.ChaveAspm("381b4222-f694-41f0-9685-ff5bb260df2e")] = "1";
 
         var suspensos = ServicosSuspender.Suspensos(settings);
 
         Assert.Equal(2, suspensos.Count);
-        Assert.DoesNotContain("aspm", suspensos);
+        Assert.DoesNotContain("Um", suspensos.Where(s => s.Contains("aspm")));
+    }
+
+    [Fact]
+    public void SuspenderEDesfazerDevolveOServicoAoEstadoDeAntes()
+    {
+        // O caminho completo: suspender, conferir o estado, desfazer e
+        // conferir que voltou tudo ao que era.
+        var settings = new AppSettings();
+        var alvo = new ServicoFalso();
+        alvo.Registrar("AdobeARCSService", caminho: @"C:\Program Files\Adobe\ARC.exe", rodando: true);
+
+        int suspensos = ServicosSuspender.Suspender(settings,
+            new[] { Susp("AdobeARCSService", @"C:\Program Files\Adobe\ARC.exe") }, alvo);
+
+        Assert.Equal(1, suspensos);
+        Assert.False(alvo.Servicos["AdobeARCSService"].Rodando);
+        Assert.Equal(ModoServico.Manual, alvo.Servicos["AdobeARCSService"].Modo.Modo);
+
+        int restaurados = ServicosSuspender.Restaurar(settings, alvo);
+
+        Assert.Equal(1, restaurados);
+        Assert.True(alvo.Servicos["AdobeARCSService"].Rodando);
+        Assert.Equal(ModoServico.Automatico, alvo.Servicos["AdobeARCSService"].Modo.Modo);
+        Assert.Empty(settings.TweakBackup);
     }
 
     // ------------------------------------------------------------------ executor
@@ -455,16 +590,18 @@ public class SaudeAcaoTestes : IDisposable
         public bool AceitaAspm { get; set; } = true;
         public int? AspmAplicado { get; private set; }
         public string? PlanoAplicado { get; private set; }
+        public bool? ReativarAplicado { get; private set; }
         public List<ServicoSuspendivel> Suspensos { get; } = new();
         public int Restaurados { get; set; }
 
         public string? PlanoAtivo() => Plano;
         public int? LerAspm(string plano) => Aspm;
-        public bool AplicarAspm(string plano, int valor)
+        public bool AplicarAspm(string plano, int valor, bool reativar)
         {
             if (!AceitaAspm) return false;
             PlanoAplicado = plano;
             AspmAplicado = valor;
+            ReativarAplicado = reativar;
             return true;
         }
         public int SuspenderServicos(AppSettings settings, IEnumerable<ServicoSuspendivel> servicos)
@@ -476,7 +613,7 @@ public class SaudeAcaoTestes : IDisposable
     }
 
     [Fact]
-    public void Executor_DesligarAspmGuardaOValorOriginalEOPlano()
+    public void Executor_DesligarAspmGuardaOValorOriginalNoPlano()
     {
         var settings = new AppSettings();
         var alvo = new AlvoFalso { Aspm = 1 };
@@ -486,8 +623,27 @@ public class SaudeAcaoTestes : IDisposable
 
         Assert.True(resultado.Sucesso);
         Assert.Equal(0, alvo.AspmAplicado);
-        // O plano entra no backup: restaurar no plano errado não desfaz nada.
-        Assert.Equal(alvo.Plano + "|1", settings.TweakBackup[AcaoExecutor.ChaveAspm]);
+        // O plano entra na chave: restaurar no plano errado não desfaz nada,
+        // e um segundo plano não sobrescreve o registro do primeiro.
+        Assert.Equal("1", settings.TweakBackup[AcaoExecutor.ChaveAspm(alvo.Plano!)]);
+        Assert.True(AcaoExecutor.TemAspmAlterado(settings));
+    }
+
+    [Fact]
+    public void Executor_DesligarAspmJaDesligadoNaoRegistraNemAnunciaAlteracao()
+    {
+        // O app não alterou nada: não pode registrar um "desfazer" que
+        // sobrescreveria uma escolha do usuário.
+        var settings = new AppSettings();
+        var alvo = new AlvoFalso { Aspm = 0 };
+        var executor = new AcaoExecutor(alvo, settings);
+
+        var resultado = executor.Executar(AcoesSaude.DesligarAspm());
+
+        Assert.True(resultado.Sucesso);
+        Assert.Contains("já estava desligado", resultado.Mensagem, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(alvo.AspmAplicado);
+        Assert.False(AcaoExecutor.TemAspmAlterado(settings));
     }
 
     [Fact]
@@ -509,7 +665,8 @@ public class SaudeAcaoTestes : IDisposable
     public void Executor_RestaurarAspmVoltaOValorGuardadoNoPlanoGuardado()
     {
         var settings = new AppSettings();
-        settings.TweakBackup[AcaoExecutor.ChaveAspm] = "381b4222-f694-41f0-9685-ff5bb260df2e|2";
+        string plano = "381b4222-f694-41f0-9685-ff5bb260df2e";
+        settings.TweakBackup[AcaoExecutor.ChaveAspm(plano)] = "2";
         var alvo = new AlvoFalso { Aspm = 0, Plano = "outro-plano-0000-0000-0000-000000000000" };
         var executor = new AcaoExecutor(alvo, settings);
 
@@ -517,8 +674,42 @@ public class SaudeAcaoTestes : IDisposable
 
         Assert.True(resultado.Sucesso);
         Assert.Equal(2, alvo.AspmAplicado);
-        Assert.Equal("381b4222-f694-41f0-9685-ff5bb260df2e", alvo.PlanoAplicado);
-        Assert.False(settings.TweakBackup.ContainsKey(AcaoExecutor.ChaveAspm));
+        Assert.Equal(plano, alvo.PlanoAplicado);
+        // O plano em uso NÃO é trocado: restaurar não pode mudar a escolha
+        // de energia do usuário sem ele pedir.
+        Assert.False(alvo.ReativarAplicado);
+        Assert.False(settings.TweakBackup.ContainsKey(AcaoExecutor.ChaveAspm(plano)));
+    }
+
+    [Fact]
+    public void Executor_RestaurarAspmNoPlanoEmUsoReativa()
+    {
+        var settings = new AppSettings();
+        string plano = "381b4222-f694-41f0-9685-ff5bb260df2e";
+        settings.TweakBackup[AcaoExecutor.ChaveAspm(plano)] = "2";
+        var alvo = new AlvoFalso { Aspm = 0, Plano = plano };
+        var executor = new AcaoExecutor(alvo, settings);
+
+        executor.Executar(AcoesSaude.RestaurarAspm());
+
+        Assert.True(alvo.ReativarAplicado);
+    }
+
+    [Fact]
+    public void Executor_RestaurarAspmDesfazTodosOsPlanosQueOMexeu()
+    {
+        var settings = new AppSettings();
+        string p1 = "plano-um-0000-0000-0000-000000000000";
+        string p2 = "plano-dois-0000-0000-0000-000000000000";
+        settings.TweakBackup[AcaoExecutor.ChaveAspm(p1)] = "2";
+        settings.TweakBackup[AcaoExecutor.ChaveAspm(p2)] = "3";
+        var alvo = new AlvoFalso { Aspm = 0, Plano = p1 };
+        var executor = new AcaoExecutor(alvo, settings);
+
+        var resultado = executor.Executar(AcoesSaude.RestaurarAspm());
+
+        Assert.True(resultado.Sucesso);
+        Assert.False(AcaoExecutor.TemAspmAlterado(settings));
     }
 
     [Fact]
@@ -527,14 +718,15 @@ public class SaudeAcaoTestes : IDisposable
         // O backup é a prova de que o app mexeu: sem ele, o usuário perde o
         // caminho de volta. Falhou? O backup fica.
         var settings = new AppSettings();
-        settings.TweakBackup[AcaoExecutor.ChaveAspm] = "381b4222-f694-41f0-9685-ff5bb260df2e|2";
+        string plano = "381b4222-f694-41f0-9685-ff5bb260df2e";
+        settings.TweakBackup[AcaoExecutor.ChaveAspm(plano)] = "2";
         var alvo = new AlvoFalso { Aspm = 0, AceitaAspm = false };
         var executor = new AcaoExecutor(alvo, settings);
 
         var resultado = executor.Executar(AcoesSaude.RestaurarAspm());
 
         Assert.False(resultado.Sucesso);
-        Assert.True(settings.TweakBackup.ContainsKey(AcaoExecutor.ChaveAspm));
+        Assert.True(settings.TweakBackup.ContainsKey(AcaoExecutor.ChaveAspm(plano)));
     }
 
     [Fact]
@@ -548,7 +740,7 @@ public class SaudeAcaoTestes : IDisposable
 
         Assert.False(resultado.Sucesso);
         // O valor original continua guardado: o app ainda pode tentar depois.
-        Assert.True(settings.TweakBackup.ContainsKey(AcaoExecutor.ChaveAspm));
+        Assert.True(AcaoExecutor.TemAspmAlterado(settings));
     }
 
     [Fact]

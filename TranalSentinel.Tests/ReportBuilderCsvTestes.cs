@@ -201,6 +201,40 @@ public class ReportBuilderCsvTestes
     }
 
     [Fact]
+    public void CsvUsaAMesmaRegraNoNumeroPuroENoNumeroDentroDoTexto()
+    {
+        // Uma casa vira vírgula nos dois caminhos; duas ou mais ficam. Sem
+        // esta regra, "38.45 °C" virava "38,45 °C" enquanto o número puro
+        // "38.45" ficava — o mesmo dado, escrito de dois jeitos.
+        var dados = Dados();
+        dados.System.Add(new ReportNode("Medida", "38.4 °C", null));
+        dados.System.Add(new ReportNode("Medida2", "38.45 °C", null));
+        dados.System.Add(new ReportNode("Tabela", "38.4", null));
+        dados.System.Add(new ReportNode("Tabela2", "38.45", null));
+
+        var csv = ReportBuilder.Csv(dados);
+
+        Assert.Contains("38,4 °C", csv);      // uma casa: vírgula
+        Assert.Contains("38.45 °C", csv);     // duas casas: fica
+        Assert.Contains("Tabela;38,4", csv);  // uma casa: vírgula
+        Assert.Contains("Tabela2;38.45", csv); // duas casas: fica
+        Assert.DoesNotContain("38,45", csv);
+    }
+
+    [Fact]
+    public void CsvNaoTrocaMilharPorDecimal()
+    {
+        // "12.345 GB" é milhar, não medida: não pode virar "12,345 GB".
+        var dados = Dados();
+        dados.System.Add(new ReportNode("Memória", "12.345 GB", null));
+
+        var csv = ReportBuilder.Csv(dados);
+
+        Assert.Contains("12.345 GB", csv);
+        Assert.DoesNotContain("12,345 GB", csv);
+    }
+
+    [Fact]
     public void CsvTemAsMetricasDoDiscoEmBlocoProprio()
     {
         var csv = ReportBuilder.Csv(Dados());

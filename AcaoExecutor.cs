@@ -35,10 +35,16 @@ public interface IAcaoAlvo
     int? LerAspm(string plano);
 
     /// <summary>
-    /// Escreve o valor do ASPM no plano e aplica. Devolve false se o Windows
-    /// recusou — quem chama precisa saber, senão jura que restaurou.
+    /// Escreve o valor do ASPM no plano. Devolve false se o Windows recusou
+    /// — quem chama precisa saber, senão jura que restaurou.
+    ///
+    /// <para>
+    /// O <paramref name="reativar"/> diz se o plano deve virar o plano em
+    /// uso depois da mudança. Só é true quando o plano já era o em uso: ativar
+    /// outro plano trocaria a escolha de energia do usuário sem ele pedir.
+    /// </para>
     /// </summary>
-    bool AplicarAspm(string plano, int valor);
+    bool AplicarAspm(string plano, int valor, bool reativar);
 
     /// <summary>Suspende os serviços escolhidos. Devolve quantos pararam.</summary>
     int SuspenderServicos(AppSettings settings, IEnumerable<ServicoSuspendivel> servicos);
@@ -69,8 +75,19 @@ public sealed class AcaoExecutor
         _navegar = navegar ?? (_ => { });
     }
 
-    /// <summary>Chave de backup do ASPM (o valor é "plano|aspm").</summary>
-    public const string ChaveAspm = "aspm";
+    /// <summary>Prefixo da chave de backup do ASPM (o plano vem no fim da chave).</summary>
+    public const string PrefixoAspm = "aspm.";
+
+    /// <summary>
+    /// Chave de backup do ASPM de um plano. Cada plano tem a sua: desligar o
+    /// ASPM em um plano e em outro são duas mudanças, com dois valores
+    /// originais.
+    /// </summary>
+    public static string ChaveAspm(string plano) => PrefixoAspm + plano;
+
+    /// <summary>O app alterou o ASPM de algum plano neste PC?</summary>
+    public static bool TemAspmAlterado(AppSettings settings) =>
+        settings.TweakBackup.Keys.Any(k => k.StartsWith(PrefixoAspm, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Executa a ação. Devolve o que aconteceu — nunca lança: uma ação que
@@ -116,6 +133,17 @@ public sealed class AcaoExecutor
         }
     }
 
+    /// <summary>
+    /// Aplica o ASPM em um plano. Só reativa o plano quando ele já é o plano
+    /// em uso — ativar outro trocaria a escolha de energia do usuário sem ele
+    /// pedir.
+    /// </summary>
+    private bool AplicarAspm(string plano, int valor)
+    {
+        bool reativar = string.Equals(plano, _alvo.PlanoAtivo(), StringComparison.OrdinalIgnoreCase);
+        return _alvo.AplicarAspm(plano, valor, reativar);
+    }
+
     /// <summary>Desliga o ASPM, guardando o valor original para desfazer.</summary>
     public ResultadoAcao DesligarAspm()
     {
@@ -130,50 +158,80 @@ public sealed class AcaoExecutor
         if (original is null)
             return ResultadoAcao.Falhou("Não deu para ler o ASPM deste plano de energia.");
 
+        // Já estava desligado: o app não alterou nada, e não vai registrar
+        // uma "alteração" que não fez — senão o desfazer sobrescreveria uma
+        // escolha que o usuário fez depois.
+        if (original.Value == 0)
+            return ResultadoAcao.Ok("O ASPM já estava desligado neste plano — nada foi alterado.");
+
         // O backup vem ANTES da mudança: se o app cair no meio, o valor
         // original já está no arquivo e dá para restaurar depois.
-        if (!_settings.TweakBackup.ContainsKey(ChaveAspm))
+        string chave = ChaveAspm(plano);
+        if (!_settings.TweakBackup.ContainsKey(chave))
         {
-            _settings.TweakBackup[ChaveAspm] = plano + "|" + original.Value.ToString(CultureInfo.InvariantCulture);
+            _settings.TweakBackup[chave] = original.Value.ToString(CultureInfo.InvariantCulture);
             _settings.Save();
         }
 
-        if (original.Value == 0)
-            return ResultadoAcao.Ok("O ASPM já estava desligado.");
-
-        if (!_alvo.AplicarAspm(plano, 0))
+        if (!AplicarAspm(plano, 0))
             return ResultadoAcao.Falhou("O Windows recusou a mudança do ASPM. Nada foi alterado.");
 
         return ResultadoAcao.Ok("ASPM desligado. Dá para restaurar depois.");
     }
 
-    /// <summary>Devolve o ASPM ao valor original (se o app tiver mudado).</summary>
+    /// <summary>Devolve o ASPM ao valor original (nos planos em que o app mexeu).</summary>
     public ResultadoAcao RestaurarAspm()
     {
         if (!_alvo.Elevado)
             return ResultadoAcao.Falhou("Esta ação precisa de administrador. Abra o TRANAL SENTINEL como administrador.");
 
-        if (!_settings.TweakBackup.TryGetValue(ChaveAspm, out var texto) || string.IsNullOrWhiteSpace(texto))
+        // Registro de uma versão antiga: o valor não pode ser aplicado com
+        // segurança (não dá para saber em que plano foi feito). Some.
+        _settings.TweakBackup.Remove("aspm");
+
+        var chaves = _settings.TweakBackup.Keys
+            .Where(k => k.StartsWith(PrefixoAspm, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (chaves.Count == 0)
             return ResultadoAcao.Falhou("O TRANAL SENTINEL não mudou o ASPM neste PC — nada a restaurar.");
 
-        // O backup guarda o plano em que a mudança foi feita: restaurar em
-        // outro plano não desfaz nada e estraga o plano errado.
-        var partes = texto.Split('|');
-        if (partes.Length != 2 ||
-            string.IsNullOrWhiteSpace(partes[0]) ||
-            !int.TryParse(partes[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int original))
-            return ResultadoAcao.Falhou("O registro do ASPM ficou inconsistente — o valor original não foi encontrado.");
+        int restaurados = 0;
+        int ultimoValor = 0;
 
-        if (!_alvo.AplicarAspm(partes[0], original))
+        foreach (var chave in chaves)
         {
-            // Falhou: o backup fica, para uma segunda tentativa.
-            return ResultadoAcao.Falhou("O Windows recusou a mudança do ASPM. O valor original continua guardado.");
+            string plano = chave.Substring(PrefixoAspm.Length);
+            var texto = _settings.TweakBackup[chave];
+            if (!int.TryParse(texto, NumberStyles.Integer, CultureInfo.InvariantCulture, out int valor))
+            {
+                _settings.TweakBackup.Remove(chave);
+                continue;
+            }
+
+            // O plano restaurado é o plano em que a mudança foi feita. O
+            // plano de energia em uso não é trocado (é o usuário que escolhe
+            // o plano dele) — só é reativado se já for o plano em uso, para
+            // que a mudança valha na hora.
+            if (!AplicarAspm(plano, valor))
+            {
+                // Falhou: o backup fica, para uma segunda tentativa.
+                continue;
+            }
+
+            _settings.TweakBackup.Remove(chave);
+            restaurados++;
+            ultimoValor = valor;
         }
 
-        _settings.TweakBackup.Remove(ChaveAspm);
+        if (restaurados == 0)
+            return ResultadoAcao.Falhou("O Windows recusou a mudança do ASPM. O valor original continua guardado.");
+
         _settings.Save();
 
-        return ResultadoAcao.Ok($"ASPM restaurado para o valor original ({original}).");
+        return ResultadoAcao.Ok(restaurados == 1
+            ? $"ASPM restaurado para o valor original ({ultimoValor})."
+            : $"ASPM restaurado em {restaurados} planos de energia (valor original {ultimoValor}).");
     }
 }
 
@@ -231,10 +289,15 @@ public sealed class AcaoWindows : IAcaoAlvo
         return null;
     }
 
-    public bool AplicarAspm(string plano, int valor)
+    public bool AplicarAspm(string plano, int valor, bool reativar)
     {
         if (!PowerCfgOk($"/setacvalueindex {plano} SUB_PCIEXPRESS ASPM {valor}")) return false;
-        // Sem isto o valor fica guardado mas o plano continua com o valor antigo.
+
+        // Sem isto o valor fica guardado mas o plano continua com o valor
+        // antigo. E só quando o plano já é o plano em uso: ativar outro
+        // trocaria a escolha de energia do usuário sem ele pedir.
+        if (!reativar) return true;
+
         return PowerCfgOk("/setactive " + plano);
     }
 

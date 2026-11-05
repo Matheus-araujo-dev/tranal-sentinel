@@ -1,3 +1,38 @@
+## Novidades da v0.21.1 — o desfazer passou a devolver o serviço de verdade
+
+Correções vindas da terceira revisão adversarial da v0.21 (8 defeitos, com
+teste). Nenhuma delas muda o jeito de usar o programa; todas mudam o que
+acontece quando você desfaz uma alteração.
+
+- **Serviço que já era manual volta a rodar.** O registro do modo original
+  agora guarda também se o serviço **estava rodando**. Antes, desfazer
+  devolvia o modo e deixava o serviço parado — o app dizia que tinha
+  restaurado, e o serviço continuava parado.
+- **O Windows recusou a mudança de modo?** O serviço tinha parado mesmo
+  assim. Agora o desfazer percebe que o modo é o mesmo de sempre e volta a
+  **ligar** o serviço.
+- **A checagem de segurança usa o caminho que o Windows registra**, não o
+  texto do arquivo de configuração (que é editável à mão). Um registro
+  adulterado apontando para "SysMain" é descartado — e serviço sem caminho
+  conhecido também.
+- **Restaurar o ASPM não troca mais o seu plano de energia.** O valor volta
+  para o plano em que a mudança foi feita, e esse plano só é reativado se já
+  era o plano em uso — ativar outro trocaria a escolha de energia sem você
+  pedir.
+- **Um registro por plano de energia.** Desligar o ASPM em dois planos não
+  sobrescreve o registro do primeiro, e desfazer desfaz os dois.
+- **"O ASPM já estava desligado"** não vira mais uma alteração registrada:
+  o app não inventa uma mudança que não fez (senão o desfazer sobrescreveria
+  uma escolha sua).
+- **CSV: uma regra só para decimais.** Uma casa vira vírgula nos dois
+  caminhos (o número puro e o número dentro de um texto); duas ou mais ficam
+  como estão, porque são versão de driver, não medida.
+- **Encerrar programa travado confere o processo antes.** O Windows
+  reaproveita o número do processo: se o PID já for de outro programa, o app
+  não encerra nada.
+
+---
+
 ## Novidades da v0.21 — o app passou a agir
 
 O TRANAL SAÚDE até aqui era só leitura: ele dizia o que estava errado e
