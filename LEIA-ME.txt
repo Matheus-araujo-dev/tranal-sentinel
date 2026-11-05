@@ -32,7 +32,8 @@ RESET SAÚDE
 - Leva alguns segundos na primeira análise (lê o log de eventos do Windows inteiro).
 
 VISOR KALKAN (SmartMonitor)
-- No mesmo grupo, aba "Saúde", no cartão VISOR KALKAN: clique em CONECTAR.
+- No menu lateral, grupo "RESET FERRAMENTAS" -> "Integração", no cartão
+  VISOR KALKAN: clique em CONECTAR.
   O programa fala direto com o visor do cooler Kalkan pela USB e mostra nele a
   temperatura do CPU, a rotação da ventoinha e a carga da CPU.
 - Não precisa do software da Kalkan instalado. Só funciona no cooler linha Alpha

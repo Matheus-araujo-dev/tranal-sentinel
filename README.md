@@ -59,9 +59,10 @@ Os testes cobrem só as regras (que são puras) — nenhum Windows é tocado por
 
 ### Visor Kalkan (SmartMonitor)
 
-A aba RESET SAÚDE também fala com o **visor do cooler Kalkan** (linha Alpha Rev.1,
-firmware 1.2) e mostra nele a temperatura do CPU, a rotação da ventoinha e a carga
-da processor — sem o software da Kalkan instalado e sem a DLL dele.
+Na aba **RESET INTEGRAÇÃO** (junto com iCUE, OpenRGB e Chroma) há o cartão
+**VISOR KALKAN**, que mostra no visor do cooler Kalkan (linha Alpha Rev.1,
+firmware 1.2) a temperatura do CPU, a rotação da ventoinha e a carga da
+processor — sem o software da Kalkan instalado e sem a DLL dele.
 
 Como funciona, em três passos:
 
@@ -83,11 +84,11 @@ aplicativo acha o visor pelo VID/PID `0416:1100` e escolhe a coleção do fabric
 | `KalkanNative.cs` | P/Invoke de SetupAPI, hid.pd e kernel32. |
 | `KalkanHid.cs` | Transporte: enumeração do device, abertura, escrita e leitura com timeout. |
 | `KalkanDisplay.cs` | Sessão: handshake, envio de quadros e leitura de conferência. |
-| `MainWindow.Kalkan.cs` | A interface (cartão "VISOR KALKAN" na aba RESET SAÚDE). |
+| `MainWindow.Kalkan.cs` | A interface (cartão "VISOR KALKAN" na aba RESET INTEGRAÇÃO). |
 
-**Uso:** abra a aba RESET SAÚDE → cartão **VISOR KALKAN** → `CONECTAR`. Marque
-"atualizar o visor todo segundo" para ele acompanhar a temperatura em tempo real
-(ou `ENVIAR AGORA` para um envio só).
+**Uso:** abra o menu lateral → **RESET FERRAMENTAS → Integração** → cartão
+**VISOR KALKAN** → `CONECTAR`. Marque "atualizar o visor todo segundo" para ele
+acompanhar a temperatura em tempo real (ou `ENVIAR AGORA` para um envio só).
 
 **O que aparece no visor:** o visor do Kalkan tem dois campos — "DEV TEMP" (°C) e
 "FAN SPEED" (RPM). No app oficial você escolhe *de qual sensor* vem cada um; aqui

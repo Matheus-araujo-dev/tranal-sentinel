@@ -23,8 +23,9 @@ namespace ResetExplode;
 /// sensores que o RESET EXPLODE já coleta (CPU, núcleos, GPU, placa-mãe,
 /// armazenamento, memória).
 ///
-/// Quem manda é a aba RESET SAÚDE: ela já é o lugar onde o PC mostra como
-/// está a temperatura, então o visor passa a mostrar o mesmo número.
+/// Fica na aba RESET INTEGRAÇÃO, junto com iCUE, OpenRGB e Chroma: são as
+/// integrações do app com periféricos — e, ao contrário do diagnóstico, aqui o
+/// app escreve no dispositivo (no visor), não só lê o sistema.
 /// </summary>
 public partial class MainWindow
 {

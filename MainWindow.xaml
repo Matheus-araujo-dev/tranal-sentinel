@@ -1003,36 +1003,8 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
-                            <StackPanel>
-                                <TextBlock Text="VISOR KALKAN (SMARTMONITOR)" Style="{StaticResource Label}"/>
-                                <TextBlock x:Name="KalkanStatus" Text="Visor Kalkan não conectado." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0"/>
-                                <TextBlock x:Name="KalkanDetalhe" Text="" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                                <Grid Margin="0,12,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="12"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="TEMPERATURA DO VISOR" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
-                                        <ComboBox x:Name="KalkanTemp" Style="{StaticResource DarkCombo}" SelectionChanged="KalkanFonteTemp_SelectionChanged"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="VENTOINHA DO VISOR" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
-                                        <ComboBox x:Name="KalkanVent" Style="{StaticResource DarkCombo}" SelectionChanged="KalkanFonteVent_SelectionChanged"/>
-                                    </StackPanel>
-                                </Grid>
-                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                    <Button x:Name="BtnKalkanConectar" Style="{StaticResource OutlineButton}" Content="CONECTAR" Padding="16,7" Click="BtnKalkanConectar_Click"/>
-                                    <Button x:Name="BtnKalkanEnviar" Style="{StaticResource OutlineButton}" Content="ENVIAR AGORA" Padding="16,7" Margin="8,0,0,0" Click="BtnKalkanEnviar_Click"/>
-                                    <CheckBox x:Name="ChkKalkanAuto" Content="Atualizar o visor todo segundo" Margin="18,0,0,0" VerticalAlignment="Center" Checked="ChkKalkanAuto_Click" Unchecked="ChkKalkanAuto_Click"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-
                         <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
-                            A análise é somente leitura: nada é instalado, alterado ou reiniciado. Os dados vêm do log de eventos do Windows, do WMI, do registro e da lista de inicialização automática. A única parte que escreve em algum lugar é o cartão do visor Kalkan, e só quando você pede: ele recebe a temperatura do CPU para mostrar no visor do cooler.
+                            A análise é somente leitura: nada é instalado, alterado ou reiniciado. Os dados vêm do log de eventos do Windows, do WMI, do registro e da lista de inicialização automática.
                         </TextBlock>
                     </StackPanel>
                 </ScrollViewer>
@@ -1043,7 +1015,7 @@
                         <Grid Margin="0,0,0,20">
                             <StackPanel Margin="0,0,190,0">
                                 <TextBlock Text="RESET INTEGRAÇÃO" Style="{StaticResource H1}"/>
-                                <TextBlock Text="Iluminação e efeitos do PC · Corsair iCUE, OpenRGB (MSI, Gigabyte, ASUS...) e Razer Chroma (em teste)" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                                <TextBlock Text="Iluminação, efeitos e o visor do cooler · Corsair iCUE, OpenRGB (MSI, Gigabyte, ASUS...), Razer Chroma (em teste) e Kalkan SmartMonitor" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnLightConnect" Style="{StaticResource OutlineButton}" Content="CONECTAR TUDO" Padding="20,9"
                                     HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnLightConnect_Click"/>
@@ -1083,6 +1055,39 @@
                                         </TextBlock>
                                     </StackPanel>
                                 </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="VISOR KALKAN (SMARTMONITOR)" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="KalkanStatus" Text="Visor Kalkan não conectado." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                <TextBlock x:Name="KalkanDetalhe" Text="" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="TEMPERATURA DO VISOR" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="KalkanTemp" Style="{StaticResource DarkCombo}" SelectionChanged="KalkanFonteTemp_SelectionChanged"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="VENTOINHA DO VISOR" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="KalkanVent" Style="{StaticResource DarkCombo}" SelectionChanged="KalkanFonteVent_SelectionChanged"/>
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <Button x:Name="BtnKalkanConectar" Style="{StaticResource OutlineButton}" Content="CONECTAR" Padding="16,7" Click="BtnKalkanConectar_Click"/>
+                                    <Button x:Name="BtnKalkanEnviar" Style="{StaticResource OutlineButton}" Content="ENVIAR AGORA" Padding="16,7" Margin="8,0,0,0" Click="BtnKalkanEnviar_Click"/>
+                                    <CheckBox x:Name="ChkKalkanAuto" Content="Atualizar o visor todo segundo" Margin="18,0,0,0" VerticalAlignment="Center" Checked="ChkKalkanAuto_Click" Unchecked="ChkKalkanAuto_Click"/>
+                                </StackPanel>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0">
+                                    O visor do cooler Kalkan (linha Alpha Rev.1) mostra dois campos: DEV TEMP (°C) e FAN SPEED (RPM).
+                                    Escolha de qual sensor vem cada um. Não precisa do software da Kalkan instalado — o RESET EXPLODE conversa com o visor pela USB.
+                                    Feche o software oficial antes de usar, senão os dois programas embaralham os quadros um do outro.
+                                </TextBlock>
                             </StackPanel>
                         </Border>
 

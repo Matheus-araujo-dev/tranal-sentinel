@@ -273,7 +273,7 @@ public partial class MainWindow : Window
             case "PageDisks": RefreshDiskHealth(); break;
             case "PageEnergy": RefreshEnergy(); break;
             case "PageOc": UpdateOcGpuState(); UpdateRecentErrors(); break;
-            case "PageInteg": InitInteg(); break;
+            case "PageInteg": InitInteg(); InitKalkan(); break;
             case "PageLauncher": InitLauncher(); break;
             case "PageDriver": InitDriver(); break;
             case "PageStartup": ScanStartup(); break;
@@ -281,7 +281,7 @@ public partial class MainWindow : Window
             case "PageMakerPorts": ScanUsb(); break;
             case "PageMakerDrv": InitMakerDrivers(); break;
             case "PageOptimize": InitOptimize(); break;
-            case "PageSaude": InitSaude(); InitKalkan(); break;
+            case "PageSaude": InitSaude(); break;
         }
     }
 
