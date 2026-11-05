@@ -201,6 +201,11 @@ public partial class MainWindow : Window
         {
             try { _gpus = await Task.Run(GpuInfoCollector.Collect); }
             catch { _gpus = new(); }
+
+            // O log de sensores acompanha a mesma GPU que o resto do app
+            // (a primeira da lista: a placa dedicada).
+            _monitor.GpuPrincipal = _gpus.Count > 0 ? _gpus[0].Name : null;
+
             for (int i = 0; i < _gpus.Count && _gpus.Count > 1; i++)
             {
                 var g = _gpus[i];

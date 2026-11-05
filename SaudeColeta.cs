@@ -107,6 +107,51 @@ internal static class SaudeColeta
                 Vezes = vezes,
                 AindaInstalado = ProgramaInstalado(app)
             });
+
+        AnexarRetrospectivas(dados, inicio);
+    }
+
+    /// <summary>
+    /// Cruza os travamentos com o log contínuo de sensores e escreve, em cada
+    /// travamento, o que a máquina estava fazendo antes do congelamento.
+    ///
+    /// <para>
+    /// É a parte que responde "por que travou": o evento Kernel-Power 41 diz
+    /// que o PC foi desligado sem limpeza; o log de sensores diz a
+    /// temperatura, a carga e o clock na hora.
+    /// </para>
+    /// </summary>
+    private static void AnexarRetrospectivas(ColetaSaude dados, DateTime inicio)
+    {
+        try
+        {
+            var amostras = SensorHistorico.Ler(inicio);
+            var retrospectivas = CorrelatorTravamento.Correlacionar(dados.Travamentos, amostras);
+            dados.Retrospectivas.AddRange(retrospectivas);
+
+            // O texto vai para dentro do próprio travamento: a tela e o
+            // relatório mostram a lista de travamentos, não a de retrospectivas.
+            foreach (var travamento in dados.Travamentos)
+                travamento.Retrospectiva = ResumoRetrospectiva(travamento.Data, retrospectivas);
+        }
+        catch
+        {
+            // O log de sensores é um extra: sem ele, o diagnóstico continua
+            // funcionando igual (só não conta o que os sensores faziam).
+        }
+    }
+
+    /// <summary>
+    /// O resumo do travamento mais próximo dentro de 2 minutos.
+    /// </summary>
+    private static string ResumoRetrospectiva(DateTime data, List<RetrospectivaTravamento> retrospectivas)
+    {
+        var maisProximo = retrospectivas
+            .Where(r => Math.Abs((r.Data - data).TotalMinutes) <= 2)
+            .OrderBy(r => Math.Abs((r.Data - data).TotalMinutes))
+            .FirstOrDefault();
+
+        return maisProximo?.Resumo ?? "";
     }
 
     /// <summary>

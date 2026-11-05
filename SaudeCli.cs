@@ -426,7 +426,16 @@ public static class SaudeCli
             sb.AppendLine();
             sb.AppendLine("TRAVAMENTOS (90 dias)");
             foreach (var travamento in relatorio.Travamentos.Take(10))
-                sb.AppendLine($"  {travamento.DataFormatada} · bugcheck {travamento.Bugcheck} · {travamento.Detalhe}");
+            {
+                string linha = $"  {travamento.DataFormatada} · bugcheck {travamento.Bugcheck} · {travamento.Detalhe}";
+
+                // O que os sensores faziam antes do congelamento, quando o
+                // log contínuo tem o que contar.
+                if (!string.IsNullOrWhiteSpace(travamento.Retrospectiva))
+                    linha += " · " + travamento.Retrospectiva;
+
+                sb.AppendLine(linha);
+            }
         }
 
         sb.AppendLine();

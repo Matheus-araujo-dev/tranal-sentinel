@@ -132,6 +132,8 @@ auto-update procura.
 | `RegistroDiario.cs` | O log diário (um arquivo por dia). |
 | `Bandeja.cs` | Ícone na bandeja por P/Invoke direto (sem Windows Forms, que criaria ambiguidade de nomes). |
 | `SensorValor.cs` | Regra única do valor de sensor: finito ou nada (`Finito`) e as opções de JSON (`OpcoesJson`). |
+| `SensorHistorico.cs` | O log contínuo de sensores (CSV de 5 em 5 segundos): o que o PC estava fazendo antes de travar. |
+| `RetrospectivaTravamento.cs` | Correlaciona o log de sensores com os travamentos (função pura): vira a frase da tela. |
 | `HardwareColeta.cs` / `HardwareLibre.cs` | O que a coleta precisa de um hardware (interface) e o adaptador do LibreHardwareMonitor. |
 | `AutoUpdate.cs` / `Atualizador.cs` | Checagem de versão nova, download e troca do executável. |
 | `Tranal.Setup\` | O instalador (admin, atalhos, tarefa agendada, desinstalação). |

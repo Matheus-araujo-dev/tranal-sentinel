@@ -1078,6 +1078,8 @@
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding DataFormatada}" FontWeight="SemiBold"/>
                                                         <TextBlock Text="{Binding Detalhe}" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                        <TextBlock Text="{Binding Retrospectiva}" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                                   Visibility="{Binding TemRetrospectiva, Converter={StaticResource BoolVis}}"/>
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="1" Foreground="{DynamicResource Muted}" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"
                                                                Text="{Binding Bugcheck, StringFormat='bugcheck {0}'}"/>

@@ -47,6 +47,15 @@ public sealed class TravamentoInfo
     /// <summary>Texto legível do que o evento registrou.</summary>
     public string Detalhe { get; init; } = "";
 
+    /// <summary>
+    /// O que os sensores estavam fazendo antes do travamento (o log contínuo
+    /// correlacionado com este evento). Vazio quando não há o que dizer.
+    /// </summary>
+    public string Retrospectiva { get; set; } = "";
+
+    /// <summary>Tem retrospectiva para mostrar? (a interface usa para esconder a linha vazia)</summary>
+    public bool TemRetrospectiva => !string.IsNullOrWhiteSpace(Retrospectiva);
+
     /// <summary>Data já formatada para a lista da interface.</summary>
     public string DataFormatada => Data == DateTime.MinValue ? "—" : Data.ToString("dd/MM/yyyy HH:mm");
 }
@@ -181,6 +190,12 @@ public sealed class ColetaSaude
     // travamentos e histórico
     public List<TravamentoInfo> Travamentos { get; } = new();
     public List<AppFalhouInfo> AppsQueFalharam { get; } = new();
+
+    /// <summary>
+    /// O que os sensores faziam antes de cada travamento (uma entrada por
+    /// travamento, na mesma ordem de <see cref="Travamentos"/>).
+    /// </summary>
+    public List<RetrospectivaTravamento> Retrospectivas { get; } = new();
     public int EventosWhea { get; set; }
     public int Minidumps { get; set; }
     public int ResetsDriverVideo { get; set; }

@@ -78,6 +78,15 @@ public sealed class SensorMonitor : IDisposable
     private bool _permitirGpuAdl = true;
     private bool _pausado;
     private DateTime _ultimaLeituraArquivo = DateTime.MinValue;
+    private DateTime _ultimaGravacao = DateTime.MinValue;
+    private DateTime _ultimoMomentoGravado = DateTime.MinValue;
+    private AmostraSensor? _amostraPendente;
+
+    /// <summary>
+    /// O nome do hardware da GPU que o app acompanha (a placa dedicada).
+    /// Vazio = a primeira GPU que aparecer nas leituras.
+    /// </summary>
+    public string? GpuPrincipal { get; set; }
 
     /// <summary>A GPU entra na coleta? (É o caminho nativo do driver da AMD.)</summary>
     public bool PermitirGpuAdl
@@ -227,6 +236,55 @@ public sealed class SensorMonitor : IDisposable
             }
             row.Update(leitura.Value, leitura.Min, leitura.Max);
         }
+
+        PrepararAmostra(snap);
+    }
+
+    /// <summary>
+    /// Monta a amostra do histórico (a cada 5 s, e só quando chega leitura
+    /// nova) e deixa à espera para a thread leitora gravar.
+    ///
+    /// <para>
+    /// A gravação em si é feita fora da thread da janela: escrever arquivo na
+    /// thread da interface já chegou a engasgar o benchmark.
+    /// </para>
+    /// </summary>
+    private void PrepararAmostra(SensorSnapshot snap)
+    {
+        try
+        {
+            // A mesma leitura pode ser refreshada várias vezes (a janela
+            // atualiza a cada segundo, a coleta nem sempre chegou).
+            if (snap.Momento == _ultimoMomentoGravado) return;
+            if (DateTime.Now - _ultimaGravacao < SensorHistorico.IntervaloGravacao) return;
+
+            _ultimoMomentoGravado = snap.Momento;
+            _ultimaGravacao = DateTime.Now;
+
+            Volatile.Write(ref _amostraPendente, new AmostraSensor(
+                snap.Momento,
+                CpuTemperature, CpuLoad, CpuPower, CpuClocks().Avg,
+                GpuTemperature, GpuLoad, GpuClock, GpuVram,
+                RamUso, DiscoLeitura, DiscoEscrita));
+        }
+        catch
+        {
+            // O log é um extra: se ele falhar, a leitura dos sensores continua.
+        }
+    }
+
+    /// <summary>Grava a amostra que ficou esperando (a thread leitora chama).</summary>
+    private void GravarAmostraPendente()
+    {
+        try
+        {
+            var amostra = Interlocked.Exchange(ref _amostraPendente, null);
+            if (amostra is not null) SensorHistorico.Gravar(amostra);
+        }
+        catch
+        {
+            // O log é um extra: se ele falhar, a leitura dos sensores continua.
+        }
     }
 
     /// <summary>
@@ -271,6 +329,93 @@ public sealed class SensorMonitor : IDisposable
     public float? CpuPower => Rows.FirstOrDefault(r => r.HardwareType == HardwareType.Cpu
                                                     && r.Type == SensorType.Power
                                                     && r.Name.Contains("Package"))?.RawValue;
+
+    /// <summary>Clock médio e máximo dos núcleos da CPU (MHz).</summary>
+    public (float? Avg, float? Max) CpuClocks()
+    {
+        var cores = Rows.Where(r => r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Clock &&
+                                     r.Name.StartsWith("Core #") && !r.Name.Contains("Effective") && r.RawValue > 0)
+                         .Select(r => r.RawValue!.Value).ToList();
+        return cores.Count > 0 ? (cores.Average(), cores.Max()) : (null, null);
+    }
+
+    /// <summary>Temperatura da GPU em °C ("GPU Core" quando existe, senão a primeira da placa).</summary>
+    public float? GpuTemperature
+    {
+        get
+        {
+            var temps = LinhasGpu().Where(r => r.Type == SensorType.Temperature && r.RawValue != null).ToList();
+            var principal = temps.FirstOrDefault(r => r.Name == "GPU Core");
+            return (principal ?? temps.FirstOrDefault())?.RawValue;
+        }
+    }
+
+    /// <summary>Carga da GPU em %.</summary>
+    public float? GpuLoad => LinhasGpu()
+        .FirstOrDefault(r => r.Type == SensorType.Load && r.Name == "GPU Core")?.RawValue;
+
+    /// <summary>Clock do núcleo da GPU em MHz.</summary>
+    public float? GpuClock => LinhasGpu()
+        .FirstOrDefault(r => r.Type == SensorType.Clock && r.Name == "GPU Core")?.RawValue;
+
+    /// <summary>Memória de vídeo em uso, em MB.</summary>
+    public float? GpuVram => LinhasGpu()
+        .FirstOrDefault(r => r.Type == SensorType.SmallData && r.Name == "GPU Memory Used")?.RawValue;
+
+    /// <summary>
+    /// Memória RAM em uso, em %. Vem do próprio Windows (não do driver): é a
+    /// mesma fonte que o overlay usa.
+    /// </summary>
+    public float? RamUso
+    {
+        get
+        {
+            var (total, disponivel) = Optimizer.MemoryStatus();
+            if (total <= 0) return null;
+            return (float)(100.0 * (total - disponivel) / total);
+        }
+    }
+
+    /// <summary>Taxa de leitura dos discos, em MB/s (somando todos eles).</summary>
+    public float? DiscoLeitura => TaxaDisco("Read");
+
+    /// <summary>Taxa de escrita dos discos, em MB/s (somando todos eles).</summary>
+    public float? DiscoEscrita => TaxaDisco("Write");
+
+    /// <summary>
+    /// As linhas da GPU que o app acompanha: a placa principal, quando o app
+    /// sabe qual é (a dedicada vem primeiro na lista de placas).
+    /// </summary>
+    private List<SensorRow> LinhasGpu()
+    {
+        var todas = Rows.Where(r => r.HardwareType is HardwareType.GpuAmd or HardwareType.GpuNvidia).ToList();
+        if (todas.Count == 0) return todas;
+
+        if (!string.IsNullOrWhiteSpace(GpuPrincipal))
+        {
+            var principal = todas.Where(r => r.Hardware == GpuPrincipal).ToList();
+            if (principal.Count > 0) return principal;
+        }
+        return todas;
+    }
+
+    /// <summary>
+    /// Taxa de um dos sentidos do disco, em MB/s. Vem das leituras de
+    /// armazenamento (o que a coleta já traz); sem elas, fica vazio.
+    /// </summary>
+    private float? TaxaDisco(string prefixo)
+    {
+        var valores = Rows
+            .Where(r => r.HardwareType == HardwareType.Storage
+                        && r.Type == SensorType.Throughput
+                        && r.Name.StartsWith(prefixo, StringComparison.OrdinalIgnoreCase)
+                        && r.RawValue != null)
+            .Select(r => r.RawValue!.Value)
+            .ToList();
+
+        if (valores.Count == 0) return null;
+        return (float)(valores.Sum() / 1048576.0);
+    }
 
     /// <summary>
     /// Driver PawnIO (necessário para temperatura/consumo da CPU via MSR/SMN).
@@ -431,6 +576,8 @@ public sealed class SensorMonitor : IDisposable
             {
                 try { LerArquivo(); }
                 catch { }
+                try { GravarAmostraPendente(); }
+                catch { /* O log de sensores é um extra: a leitura continua. */ }
                 try { Thread.Sleep(500); }
                 catch { break; }
             }

@@ -349,6 +349,24 @@ public class SaudeCliTestes
     }
 
     [Fact]
+    public void RelatorioEmTexto_MostraARetrospectivaDoTravamento()
+    {
+        var relatorio = Relatorio();
+        relatorio.Travamentos.Add(new TravamentoInfo
+        {
+            Data = new DateTime(2026, 10, 7, 23, 43, 38),
+            Bugcheck = "0",
+            Detalhe = "Sem botão de energia (travou sozinho)",
+            Retrospectiva = "CPU a 95 °C · GPU 100 %"
+        });
+
+        string texto = SaudeCli.MontarRelatorio(relatorio);
+
+        Assert.Contains("TRAVAMENTOS (90 dias)", texto);
+        Assert.Contains("CPU a 95 °C", texto);
+    }
+
+    [Fact]
     public void ComparacaoEmTexto_TrazOsTresGrupos()
     {
         var antes = Relatorio(Achado("Hardware", "4 eventos WHEA (erro de CPU/RAM/PCIe)"));
