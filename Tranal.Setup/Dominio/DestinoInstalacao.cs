@@ -51,11 +51,6 @@ public sealed record DestinoInstalacao
 
         string texto = caminho.Trim().Trim('"');
 
-        // Pasta de rede: o app, a tarefa agendada e o desinstalador passariam a
-        // depender da rede estar montada. Não é um lugar de instalação.
-        if (texto.StartsWith(@"\\", StringComparison.Ordinal))
-            return "Não dá para instalar numa pasta de rede. Escolha uma pasta deste computador.";
-
         if (texto.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
             return "O caminho tem caracteres que o Windows não aceita.";
 
@@ -75,8 +70,28 @@ public sealed record DestinoInstalacao
         }
 
         string? raiz = Path.GetPathRoot(pasta);
+        if (!string.IsNullOrEmpty(raiz) && raiz.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            // "\\?\C:\..." e "\\.\C:\..." são prefixos do Windows (caminho
+            // estendido e device), não pastas de rede — mas também não são
+            // pastas onde se instala um app.
+            if (raiz.StartsWith(@"\\?", StringComparison.Ordinal) || raiz.StartsWith(@"\\.\", StringComparison.Ordinal))
+                return "Caminho do Windows (\\\\? ou \\\\) não é aceito como pasta de instalação.";
+
+            // A rede é conferida DEPOIS de normalizar: "//servidor\pasta"
+            // escaparia se a checagem olhasse só o texto digitado.
+            return "Não dá para instalar numa pasta de rede. Escolha uma pasta deste computador.";
+        }
+
         if (!string.IsNullOrEmpty(raiz) && string.Equals(pasta, raiz, StringComparison.OrdinalIgnoreCase))
             return "Escolha uma pasta dentro da unidade, não a raiz dela.";
+
+        // O Windows ainda tem o limite de 260 caracteres (MAX_PATH) para a
+        // maioria das APIs: um caminho mais longo passa na tela e só falha na
+        // hora de criar a pasta.
+        string caminhoCompleto = Path.Combine(pasta, CaminhosInstalacao.NomeExecutavel);
+        if (caminhoCompleto.Length > 259)
+            return "O caminho é longo demais para o Windows (máximo de 259 caracteres).";
 
         // Cada parte do caminho tem que ser um nome de pasta válido. A raiz da
         // unidade fica de fora: o "C:" dela é nome de unidade, não nome de pasta.

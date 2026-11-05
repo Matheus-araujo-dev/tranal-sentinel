@@ -94,6 +94,33 @@ public class DestinoInstalacaoTestes
     }
 
     [Fact]
+    public void Erro_ComPastaDeRedeComBarraNormal_Recusa()
+    {
+        // "//servidor\pasta\sub" vira "\\servidor\pasta\sub" quando normalizado:
+        // a checagem tem que ser feita depois de normalizar, senão escapa.
+        Assert.Contains("rede", DestinoInstalacao.Erro("//servidor/pasta/sub") ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Erro_ComCaminhoDoWindows_Recusa()
+    {
+        // "\\?\C:\..." e "\\.\C:\..." não são pastas de rede, mas também não
+        // são pastas onde se instala um app.
+        Assert.NotNull(DestinoInstalacao.Erro(@"\\?\C:\Apps"));
+        Assert.NotNull(DestinoInstalacao.Erro(@"\\.\C:\Apps"));
+    }
+
+    [Fact]
+    public void Erro_ComCaminhoLongoDemais_Recusa()
+    {
+        // O Windows ainda tem o limite de 260 caracteres: um caminho mais longo
+        // passa na tela e só falha na hora de criar a pasta.
+        string longo = @"C:\" + new string('p', 250);
+
+        Assert.Contains("longo", DestinoInstalacao.Erro(longo) ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Erro_ComCaminhoEnorme_NaoEstoura()
     {
         // O defeito: o PathTooLongException escapava da validação e derrubava a

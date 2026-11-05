@@ -27,6 +27,7 @@ public partial class JanelaInstalador : Window
 
     private bool _payloadCompleto = true;
     private string? _erroDestino;
+    private readonly string? _pastaInstalada;
 
     /// <summary>Cria a janela e mostra o destino e o payload detectados.</summary>
     public JanelaInstalador()
@@ -35,6 +36,10 @@ public partial class JanelaInstalador : Window
 
         _pastaPayload = _contexto.PastaInstalador;
         _log = new LogInstalador(CaminhosInstalacao.ArquivoLog(_contexto));
+
+        // Onde o app está instalado agora. Lido uma vez só: o registro não muda
+        // enquanto a janela está aberta, e ler a cada tecla seria desperdício.
+        _pastaInstalada = new ConstrutorPlano(_registro, _tarefa).PastaInstalada();
 
         TxtDestino.Text = DestinoInstalacao.Padrao(_contexto).Pasta;
         TxtPayload.Text = _pastaPayload;
@@ -112,12 +117,12 @@ public partial class JanelaInstalador : Window
                 + "(o executável atual é salvo como .bak antes de ser trocado).");
         }
 
-        DestinoInstalacao? anterior = new ConstrutorPlano(_registro, _tarefa).DestinoRegistrado();
-        if (anterior is not null
-            && !string.Equals(anterior.Pasta, pasta, StringComparison.OrdinalIgnoreCase)
-            && File.Exists(CaminhosInstalacao.ExecutavelInstalado(anterior.Pasta)))
+        // A instalação anterior é a do registro (mesma regra do plano de
+        // instalação): o ConstrutorPlano é quem decide, a janela só mostra.
+        if (_pastaInstalada is not null
+            && !string.Equals(_pastaInstalada, pasta, StringComparison.OrdinalIgnoreCase))
         {
-            avisos.Add($"Existe outra instalação em {anterior.Pasta}. "
+            avisos.Add($"Existe outra instalação em {_pastaInstalada}. "
                 + "Instalar aqui é mudar de pasta: os arquivos de lá serão removidos "
                 + "depois que a nova instalação estiver pronta.");
         }

@@ -263,6 +263,45 @@ public class ServicoInstalacaoTestes
     }
 
     [Fact]
+    public void Instalar_EmPastaNova_ComOpcoesDesligadas_NaoDeixaReferenciaOrfa()
+    {
+        using var ambiente = new AmbienteTeste();
+        ambiente.CriarPayload();
+        var (servico, _, atalho, _, tarefa) = Montar(ambiente);
+
+        string pastaAntiga = Path.Combine(ambiente.Raiz, "Lugar antigo", "Tranal Sentinel");
+        string pastaNova = Path.Combine(ambiente.Raiz, "Lugar novo", "Tranal Sentinel");
+
+        // primeira instalação, com tudo ligado
+        Assert.True(servico.Instalar(ambiente.Opcoes(pastaAntiga), ambiente.PastaPayload).Sucesso);
+        Assert.True(tarefa.Existe(TarefaInicializacao.NomeTarefa));
+        Assert.True(atalho.Existe(CaminhosInstalacao.AtalhoAreaTrabalho(ambiente.Contexto)));
+
+        // segunda instalação em outra pasta, com as opções desligadas
+        var opcoes = new OpcoesInstalacao
+        {
+            Destino = DestinoInstalacao.DaEscolha(pastaNova),
+            IniciarComWindows = false,
+            AtalhoAreaTrabalho = false,
+        };
+        ResultadoOperacao resultado = servico.Instalar(opcoes, ambiente.PastaPayload);
+
+        Assert.True(resultado.Sucesso, resultado.Mensagem);
+
+        // o executável antigo foi removido, então nada pode apontar para ele
+        Assert.False(File.Exists(Path.Combine(pastaAntiga, "TranalSentinel.exe")));
+
+        // a tarefa e o atalho da área de trabalho sumiram: com a opção
+        // desligada, a instalação nova não os recria, e eles ficariam
+        // apontando para um executável que não está mais lá.
+        Assert.Empty(tarefa.Tarefas);
+        Assert.False(atalho.Existe(CaminhosInstalacao.AtalhoAreaTrabalho(ambiente.Contexto)));
+
+        // o atalho do menu Iniciar continua (sempre é criado)
+        Assert.True(atalho.Existe(CaminhosInstalacao.AtalhoMenuIniciar(ambiente.Contexto)));
+    }
+
+    [Fact]
     public void Instalar_NaMesmaPasta_NaoRemoveNemCriaDuplicado()
     {
         using var ambiente = new AmbienteTeste();

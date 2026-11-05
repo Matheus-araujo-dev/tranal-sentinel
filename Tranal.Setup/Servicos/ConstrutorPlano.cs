@@ -81,11 +81,28 @@ public sealed class ConstrutorPlano
                 : null,
             EntradaDesinstalacao = CaminhosInstalacao.CriarEntradaDesinstalacao(executavel, instalador, versao),
             InstalacaoExistente = File.Exists(executavel),
-            PastaInstalacaoAnterior = PastaDeInstalacaoAnterior(contexto, pasta),
+            PastaInstalacaoAnterior = PastaDeInstalacaoAnterior(pasta),
             PayloadCompleto = arquivos.All(a => a.Situacao != SituacaoArquivo.AusenteNoPayload),
             VersaoPayload = versao,
         };
         return plano;
+    }
+
+    /// <summary>
+    /// Pasta onde o TRANAL SENTINEL está instalado agora (null quando não há
+    /// instalação, ou quando o executável não está lá).
+    ///
+    /// É a mesma regra do plano: um lugar só. A janela consulta isto para
+    /// avisar, e o plano consulta isto para saber o que remover ao trocar de
+    /// pasta.
+    /// </summary>
+    public string? PastaInstalada()
+    {
+        DestinoInstalacao? registrado = DestinoRegistrado();
+        if (registrado is null) return null;
+        if (!File.Exists(CaminhosInstalacao.ExecutavelInstalado(registrado.Pasta))) return null;
+
+        return registrado.Pasta;
     }
 
     /// <summary>
@@ -97,15 +114,13 @@ public sealed class ConstrutorPlano
     /// no fim (depois que a nova está no lugar), para não deixar o app órfão
     /// fora do alcance da desinstalação.
     /// </summary>
-    private string? PastaDeInstalacaoAnterior(ContextoSistema contexto, string pastaDestino)
+    public string? PastaDeInstalacaoAnterior(string pastaDestino)
     {
-        DestinoInstalacao? anterior = DestinoRegistrado();
-        if (anterior is null) return null;
+        string? instalada = PastaInstalada();
+        if (instalada is null) return null;
+        if (string.Equals(instalada, pastaDestino, StringComparison.OrdinalIgnoreCase)) return null;
 
-        if (string.Equals(anterior.Pasta, pastaDestino, StringComparison.OrdinalIgnoreCase)) return null;
-        if (!File.Exists(CaminhosInstalacao.ExecutavelInstalado(anterior.Pasta))) return null;
-
-        return anterior.Pasta;
+        return instalada;
     }
 
     /// <summary>Calcula o plano da desinstalação.</summary>

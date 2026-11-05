@@ -19,12 +19,20 @@
   Desinstalar.
 - Se algo falhar no meio, a instalação antiga continua intacta: a remoção vem
   por último.
+- Se o executável antigo estiver aberto (é o TRANAL SENTINEL rodando), a remoção
+  é tentada por até 2 minutos, até o app ser fechado.
+- A tarefa agendada e o atalho da área de trabalho não ficam órfãos: com a
+  opção desligada, a instalação nova não os recria, então eles são removidos
+  em vez de continuarem apontando para o executável antigo.
 
 **Caminhos recusados**
-- Pasta de rede (`\\servidor\pasta`): o app, a tarefa agendada e o desinstalador
-  dependeriam da rede estar montada.
-- Raiz da unidade (`C:\`), caminho incompleto e caractere que o Windows não
-  aceita.
+- Pasta de rede (`\\servidor\pasta`, e também `//servidor/pasta`): o app, a
+  tarefa agendada e o desinstalador dependeriam da rede estar montada. A
+  checagem é feita depois de normalizar o caminho, então não escapa com barra
+  normal.
+- Caminho do Windows (`\\?\C:\...`, `\\.\C:\...`).
+- Raiz da unidade (`C:\`), caminho incompleto, caractere que o Windows não
+  aceita e caminho acima de 259 caracteres (o limite do MAX_PATH).
 
 **A desinstalação acha o app onde ele está**
 - O local instalado fica gravado na entrada de desinstalação (`InstallLocation`) e

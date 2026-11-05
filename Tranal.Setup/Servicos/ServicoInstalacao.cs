@@ -96,6 +96,7 @@ public sealed class ServicoInstalacao
 
             GravarInicializacaoAutomatica(plano, reversao, detalhes);
             GravarEntradaDesinstalacao(plano, reversao, detalhes);
+            LimparReferenciasAntigas(plano, detalhes);
             RemoverInstalacaoAnterior(plano, detalhes);
 
             _log.Registrar("Instalação concluída.");
@@ -106,6 +107,36 @@ public sealed class ServicoInstalacao
             _log.Registrar($"Falha na instalação: {ex.Message}");
             Desfazer(reversao, detalhes);
             return ResultadoOperacao.Falha($"A instalação falhou e foi desfeita: {ex.Message}", detalhes);
+        }
+    }
+
+    /// <summary>
+    /// Limpa as referências que a instalação deixou para trás quando uma opção
+    /// está desligada.
+    ///
+    /// A tarefa agendada e o atalho da área de trabalho são globais: com a
+    /// opção desligada, a instalação nova não os recria, e eles ficariam
+    /// apontando para um executável que não está mais lá (ou que não deveria
+    /// mais abrir junto com o Windows).
+    /// </summary>
+    private void LimparReferenciasAntigas(PlanoInstalacao plano, List<string> detalhes)
+    {
+        if (!plano.Opcoes.IniciarComWindows && _tarefa.Existe(TarefaInicializacao.NomeTarefa))
+        {
+            _tarefa.Remover(TarefaInicializacao.NomeTarefa);
+            _log.Registrar($"Tarefa agendada removida (a opção de iniciar com o Windows está desligada).");
+            detalhes.Add($"tarefa agendada removida: {TarefaInicializacao.NomeTarefa}");
+        }
+
+        if (!plano.Opcoes.AtalhoAreaTrabalho)
+        {
+            string atalho = CaminhosInstalacao.AtalhoAreaTrabalho(plano.Contexto);
+            if (_atalho.Existe(atalho))
+            {
+                _atalho.Remover(atalho);
+                _log.Registrar($"Atalho da área de trabalho removido (a opção está desligada): {atalho}");
+                detalhes.Add($"atalho da área de trabalho removido: {atalho}");
+            }
         }
     }
 
@@ -154,7 +185,7 @@ public sealed class ServicoInstalacao
                 else
                 {
                     _log.Registrar($"Remoção agendada (arquivo em uso): {arquivo}");
-                    detalhes.Add($"removido depois que o instalador sair: {arquivo}");
+                    detalhes.Add($"removido assim que o app for fechado (a remoção é tentada por até 2 minutos): {arquivo}");
                 }
             }
             catch (Exception ex)
@@ -329,7 +360,7 @@ public sealed class ServicoInstalacao
                 }
                 else
                 {
-                    detalhes.Add($"removido depois que o instalador sair: {arquivo}");
+                    detalhes.Add($"removido assim que o instalador sair: {arquivo}");
                     _log.Registrar($"Remoção agendada (arquivo em uso): {arquivo}");
                 }
             }

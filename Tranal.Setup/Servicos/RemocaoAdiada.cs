@@ -16,6 +16,11 @@ public static class RemocaoAdiada
     /// Agenda a remoção do arquivo (e da pasta, se ela ficar vazia) para depois
     /// que este processo terminar. Devolve false se não foi possível agendar.
     /// </summary>
+    /// <remarks>
+    /// A tentativa é repetida por um tempo: quem costuma segurar o arquivo não é
+    /// só o instalador, é o TRANAL SENTINEL aberto. Uma tentativa única
+    /// deixaria o app antigo órfão quando ele estivesse aberto.
+    /// </remarks>
     public static bool Agendar(string caminhoArquivo, string? pastaParaRemover = null)
     {
         try
@@ -24,9 +29,14 @@ public static class RemocaoAdiada
                 Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
             if (!File.Exists(powershell)) powershell = "powershell.exe";
 
-            string comando = $"Start-Sleep -Seconds 2; Remove-Item -LiteralPath '{Escapar(caminhoArquivo)}' -Force -ErrorAction SilentlyContinue";
+            string comando =
+                "$arquivo='" + Escapar(caminhoArquivo) + "'"
+                + "; for($i=0;$i -lt 40;$i++){"
+                + " if(-not (Test-Path -LiteralPath $arquivo)){break};"
+                + " Start-Sleep -Seconds 3;"
+                + " Remove-Item -LiteralPath $arquivo -Force -ErrorAction SilentlyContinue }";
             if (!string.IsNullOrWhiteSpace(pastaParaRemover))
-                comando += $"; Remove-Item -LiteralPath '{Escapar(pastaParaRemover)}' -Force -ErrorAction SilentlyContinue";
+                comando += "; Remove-Item -LiteralPath '" + Escapar(pastaParaRemover) + "' -Force -ErrorAction SilentlyContinue";
 
             var inicio = new ProcessStartInfo(powershell)
             {
