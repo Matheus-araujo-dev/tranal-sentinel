@@ -60,15 +60,23 @@ public static class UsoHistorico
     /// <summary>
     /// Acrescenta uma troca ao histórico do dia. Nunca lança: o registro de
     /// uso é um extra, e perder uma linha é melhor que derrubar o app.
+    ///
+    /// <para>
+    /// Devolve <c>true</c> quando a linha foi gravada. A coleta usa isso
+    /// para não dar a troca por registrada quando ela não foi — senão o
+    /// programa anterior ficaria com o tempo dela.
+    /// </para>
     /// </summary>
-    public static void Gravar(TrocaUso troca)
+    public static bool Gravar(TrocaUso troca)
     {
+        bool gravou = false;
         try
         {
             lock (Tranca)
             {
                 Directory.CreateDirectory(Pasta);
                 File.AppendAllText(ArquivoDe(troca.Momento), MontarLinha(troca) + Environment.NewLine, SemBom);
+                gravou = true;
             }
         }
         catch
@@ -78,6 +86,7 @@ public static class UsoHistorico
         }
 
         Podar();
+        return gravou;
     }
 
     /// <summary>
@@ -100,7 +109,11 @@ public static class UsoHistorico
         if (string.IsNullOrWhiteSpace(linha)) return null;
 
         var partes = linha.Split(';');
-        if (partes.Length < 2) return null;
+
+        // Três campos: timestamp, processo e título. Uma escrita interrompida
+        // deixa a linha curta — e uma linha curta viraria um programa
+        // fantasma no ranking ("chr", de "chrome" cortado pela metade).
+        if (partes.Length < 3) return null;
 
         if (!DateTime.TryParseExact(partes[0].Trim(), "yyyy-MM-ddTHH:mm:ss.fff",
                                     CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal,
@@ -110,8 +123,7 @@ public static class UsoHistorico
         string processo = partes[1].Trim();
         if (processo.Length == 0) return null;
 
-        string titulo = partes.Length > 2 ? partes[2] : "";
-        return new TrocaUso(momento, processo, titulo);
+        return new TrocaUso(momento, processo, partes[2]);
     }
 
     /// <summary>
@@ -143,6 +155,27 @@ public static class UsoHistorico
         }
 
         return resultado;
+    }
+
+    /// <summary>
+    /// Lê as trocas de um dia **e a última troca do dia anterior**.
+    ///
+    /// <para>
+    /// A última troca de ontem é a que atravessa a meia-noite: o programa
+    /// que estava em frente às 23:50 continua em frente às 00:10. Sem ela,
+    /// o dia inteiro ficaria sem dono quando o app rodou a noite toda sem
+    /// trocar de programa.
+    /// </para>
+    /// </summary>
+    public static List<TrocaUso> LerComAnterior(DateTime dia)
+    {
+        var trocas = Ler(dia);
+
+        var anteriores = Ler(dia.Date.AddDays(-1));
+        if (anteriores.Count > 0)
+            trocas.Add(anteriores.OrderBy(t => t.Momento).Last());
+
+        return trocas;
     }
 
     /// <summary>Lista os dias que têm histórico, do mais novo para o mais antigo.</summary>

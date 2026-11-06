@@ -52,7 +52,7 @@ public partial class MainWindow
     private sealed record OpcaoDiaUso(DateTime Data, string Rotulo);
 
     /// <summary>Os dados do dia carregado (a leitura acontece fora da thread da tela).</summary>
-    private sealed record DadosUso(DateTime Dia, List<TrocaUso> Trocas, RelatorioUso Relatorio);
+    private sealed record DadosUso(DateTime Dia, List<TrocaUso> Trocas, PeriodoUso Periodo, RelatorioUso Relatorio);
 
     /// <summary>
     /// Prepara a aba "Uso" (chamada quando o menu "Uso" é aberto).
@@ -143,7 +143,7 @@ public partial class MainWindow
         {
             // Falha ao ler o histórico não pode derrubar a página: ela fica
             // mostrando o que sabe, que é o estado vazio honesto.
-            dados = new DadosUso(dia, new List<TrocaUso>(), new RelatorioUso());
+            dados = new DadosUso(dia, new List<TrocaUso>(), new PeriodoUso(dia, dia), new RelatorioUso());
         }
         finally
         {
@@ -171,16 +171,19 @@ public partial class MainWindow
     /// </summary>
     private static DadosUso CarregarUso(DateTime dia)
     {
-        var trocas = UsoHistorico.Ler(dia);
+        // As trocas do dia e a última do dia anterior: a que atravessa a
+        // meia-noite. Sem ela, a noite inteira ficaria sem dono quando o app
+        // rodou a noite toda sem trocar de programa.
+        var trocas = UsoHistorico.LerComAnterior(dia);
         var amostras = AmostrasDoDia(dia);
 
-        // O fim do período é uma regra do núcleo: num dia antigo, ele para
-        // na última evidência de que o app estava vivo (senão as horas em
-        // que o app estava fechado seriam creditadas a um programa).
-        var fim = UsoRegras.FimDoDia(dia, DateTime.Now, amostras, trocas);
+        // O período é uma regra do núcleo: começa na primeira evidência de
+        // que o app rodava e para na última. Sem isso, as horas em que o app
+        // estava fechado seriam creditadas a um programa.
+        var periodo = UsoRegras.Periodo(dia, DateTime.Now, amostras, trocas);
 
-        var relatorio = UsoRegras.Calcular(trocas, fim, amostras);
-        return new DadosUso(dia, trocas, relatorio);
+        var relatorio = UsoRegras.Calcular(trocas, periodo.Inicio, periodo.Fim, amostras);
+        return new DadosUso(dia, trocas, periodo, relatorio);
     }
 
     /// <summary>
@@ -204,7 +207,7 @@ public partial class MainWindow
         if (UsoVazio == null) return;
 
         var relatorio = dados.Relatorio;
-        bool semUso = dados.Trocas.Count == 0;
+        bool semUso = relatorio.PorApp.Count == 0;
         bool hoje = dados.Dia.Date == DateTime.Today;
 
         // Estado vazio honesto: o app só registra o uso enquanto está rodando.
@@ -218,17 +221,15 @@ public partial class MainWindow
         }
         else
         {
-            DateTime primeiro = dados.Trocas.Min(t => t.Momento);
-            DateTime ultimo = dados.Trocas.Max(t => t.Momento);
             UsoTotal.Text = UsoTexto.Duracao(relatorio.Total);
-            UsoTotalObs.Text = $"Primeira troca às {UsoTexto.Hora(primeiro)} · última às {UsoTexto.Hora(ultimo)}.";
+            UsoTotalObs.Text = $"Observado das {UsoTexto.Hora(dados.Periodo.Inicio)} às {UsoTexto.Hora(dados.Periodo.Fim)}.";
         }
 
         // ---- o que estava em frente
         UsoDestaqueRotulo.Text = hoje ? "EM FRENTE AGORA" : "EM FRENTE NO FIM DAQUELE DIA";
         UsoDestaque.Text = string.IsNullOrEmpty(relatorio.EmDestaque) ? "o app não sabe" : relatorio.EmDestaque;
         UsoDestaqueTitulo.Text = relatorio.EmDestaqueTitulo;
-        UsoDestaqueQuando.Text = semUso ? "" : $"visto às {UsoTexto.Hora(dados.Trocas.Max(t => t.Momento))}";
+        UsoDestaqueQuando.Text = dados.Trocas.Count == 0 ? "" : $"visto às {UsoTexto.Hora(dados.Trocas.Max(t => t.Momento))}";
 
         // ---- ranking
         var linhas = relatorio.PorApp

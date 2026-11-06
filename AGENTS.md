@@ -187,17 +187,24 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   sensor na janela, a resposta é "o app não estava gravando sensores nesse
   momento" — nunca um número inventado e nunca um motivo chutado.
 - **A janela em foco é lida, nunca adivinhada.** `UsoJanela` usa
-  `GetForegroundWindow`/`GetWindowThreadProcessId` do user32 e ignora o próprio
-  processo (o app não deve aparecer como programa em uso). A leitura nunca
-  lança: falha na coleta de uso não pode derrubar o app.
+  `GetForegroundWindow`/`GetWindowThreadProcessId` do user32. A janela do
+  próprio TRANAL SENTINEL também entra no histórico, com o nome do app: o
+  tempo em que a pessoa olha o monitor não pode ser creditado no programa
+  que estava em frente antes (era o que inflava o ranking sem ninguém
+  perceber). A leitura nunca lança: falha na coleta de uso não pode
+  derrubar o app.
 
-- **O fim do período de um dia é a última evidência de que o app estava
-  vivo** (`UsoRegras.FimDoDia`): hoje é "agora"; num dia passado, é a última
-  amostra de sensor gravada (o log escreve de 5 em 5 segundos enquanto o app
-  roda) ou, sem ela, a última troca de uso. Sem essa regra, a última sessão
-  do dia se estenderia até a meia-noite e as horas em que o app estava
-  fechado seriam creditadas a um programa. Tempo inflado é pior que tempo
-  ausente.
+- **O período de um dia vai da primeira evidência de que o app rodava à
+  última** (`UsoRegras.Periodo`). Hoje o fim é "agora"; num dia passado é a
+  última amostra de sensor gravada (o log escreve de 5 em 5 segundos
+  enquanto o app roda) ou, sem ela, a última troca de uso. O começo é a
+  primeira evidência do dia. Sem essas duas pontas, as horas em que o app
+  estava fechado (PC desligado, app fechado) seriam creditadas a um
+  programa. Tempo inflado é pior que tempo ausente.
+- **A sessão é cortada pelo período do dia** (`UsoRegras.MontarSessoes`) e a
+  leitura de um dia traz também a última troca do dia anterior: é a que
+  atravessa a meia-noite. Sem ela, a noite inteira ficaria sem dono quando o
+  app rodou a noite toda sem trocar de programa.
 - **O log de sensores é lido limitado à janela pedida**
   (`SensorHistorico.Ler(desde, ate)`): o arquivo guarda 15 dias e chega a
   dezoito megabytes; interpretar tudo custa meio segundo. A leitura compara

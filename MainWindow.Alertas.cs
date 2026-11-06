@@ -55,6 +55,13 @@ public partial class MainWindow
     /// </summary>
     private readonly Dictionary<string, (long desde, ExplicacaoAlerta explicacao)> _explicacoes = new();
 
+    /// <summary>
+    /// A trava do cache das explicações: a escrita acontece na thread do
+    /// pool (depois de ler o histórico) e a leitura na thread da tela. Um
+    /// <see cref="Dictionary"/> não segura as duas ao mesmo tempo.
+    /// </summary>
+    private readonly object _travaExplicacoes = new();
+
     /// <summary>Trava da recarga (a tela e o tique podem pedir a explicação ao mesmo tempo).</summary>
     private bool _explicacaoCarregando;
 
@@ -474,10 +481,15 @@ public partial class MainWindow
     /// instante e a explicação é refeita.
     /// </para>
     /// </summary>
-    private ExplicacaoAlerta? ExplicacaoDe(Alerta alerta) =>
-        _explicacoes.TryGetValue(alerta.Id, out var entrada) && entrada.desde == alerta.Desde.Ticks
-            ? entrada.explicacao
-            : null;
+    private ExplicacaoAlerta? ExplicacaoDe(Alerta alerta)
+    {
+        lock (_travaExplicacoes)
+        {
+            return _explicacoes.TryGetValue(alerta.Id, out var entrada) && entrada.desde == alerta.Desde.Ticks
+                ? entrada.explicacao
+                : null;
+        }
+    }
 
     /// <summary>
     /// Recarrega o histórico que a explicação do alerta usa: as amostras de
@@ -502,21 +514,25 @@ public partial class MainWindow
             try { ativos = _alertas.Ativos; }
             catch { return; }   // a vigia pode estar mudando a lista neste instante
 
-            // Os dias que a explicação pode precisar: o de hoje e o dia em
-            // que cada aviso começou. A partir do começo do dia mais antigo
-            // (e não do instante do aviso) é o que garante que a janela
-            // inteira do episódio esteja no cache.
-            var dias = new HashSet<DateTime> { DateTime.Today };
-            foreach (var alerta in ativos) dias.Add(alerta.Desde.Date);
-
-            DateTime maisAntigo = dias.Min();
+            // A janela da explicação são os dois minutos antes do começo do
+            // episódio. A leitura começa ali (e não na meia-noite): um aviso
+            // que começou logo depois da meia-noite precisa das amostras do
+            // dia anterior, senão o app diria "não estava gravando" quando
+            // estava.
+            DateTime maisAntigo = ativos.Count > 0 ? ativos.Min(a => a.Desde) : DateTime.Now;
+            DateTime inicio = maisAntigo - UsoRegras.Janela;
 
             // A leitura para no aviso mais recente: as amostras depois
             // dele não entram em nenhuma explicação.
-            DateTime maisRecente = ativos.Count > 0 ? ativos.Max(a => a.Desde) : DateTime.Now;
+            DateTime fim = ativos.Count > 0 ? ativos.Max(a => a.Desde) : DateTime.Now;
+
+            // Os dias que a explicação pode precisar: o de hoje, o dia em
+            // que cada aviso começou e o dia da janela que olha para trás.
+            var dias = new HashSet<DateTime> { DateTime.Today, inicio.Date };
+            foreach (var alerta in ativos) dias.Add(alerta.Desde.Date);
 
             var dados = await Task.Run(() => (
-                Amostras: SensorHistorico.Ler(maisAntigo.Date, maisRecente),
+                Amostras: SensorHistorico.Ler(inicio, fim),
                 Trocas: TrocasDe(dias))).ConfigureAwait(false);
 
             _explicacaoAmostras = dados.Amostras;
@@ -528,8 +544,12 @@ public partial class MainWindow
             foreach (var alerta in ativos)
             {
                 if (ExplicacaoDe(alerta) != null) continue;
-                _explicacoes[alerta.Id] = (alerta.Desde.Ticks,
-                    UsoRegras.ExplicarAlerta(alerta.Desde, _explicacaoAmostras, _explicacaoTrocas));
+
+                var explicacao = UsoRegras.ExplicarAlerta(alerta.Desde, _explicacaoAmostras, _explicacaoTrocas);
+                lock (_travaExplicacoes)
+                {
+                    _explicacoes[alerta.Id] = (alerta.Desde.Ticks, explicacao);
+                }
             }
 
             _explicacaoFalhou = false;

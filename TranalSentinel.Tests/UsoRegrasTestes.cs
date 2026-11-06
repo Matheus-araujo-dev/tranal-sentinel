@@ -75,7 +75,7 @@ public class UsoRegrasTestes : IDisposable
             Troca(11, 0, "explorer")
         };
 
-        var sessoes = UsoRegras.MontarSessoes(trocas, Momento(11, 30));
+        var sessoes = UsoRegras.MontarSessoes(trocas, Momento(0, 0), Momento(11, 30));
 
         Assert.Equal(3, sessoes.Count);
         Assert.Equal(TimeSpan.FromMinutes(30), sessoes[0].Duracao);
@@ -95,7 +95,7 @@ public class UsoRegrasTestes : IDisposable
             Troca(11, 0, "chrome")
         };
 
-        var sessoes = UsoRegras.MontarSessoes(trocas, Momento(10, 0));
+        var sessoes = UsoRegras.MontarSessoes(trocas, Momento(0, 0), Momento(10, 0));
 
         Assert.Empty(sessoes);
     }
@@ -112,7 +112,7 @@ public class UsoRegrasTestes : IDisposable
             Troca(10, 0, "code")
         };
 
-        var sessoes = UsoRegras.MontarSessoes(trocas, Momento(11, 30));
+        var sessoes = UsoRegras.MontarSessoes(trocas, Momento(0, 0), Momento(11, 30));
 
         Assert.Equal(2, sessoes.Count);
         Assert.Equal("code", sessoes[0].Processo);
@@ -124,7 +124,7 @@ public class UsoRegrasTestes : IDisposable
     [Fact]
     public void SemTrocasNaoHaSessao()
     {
-        Assert.Empty(UsoRegras.MontarSessoes(new List<TrocaUso>(), Momento(11, 30)));
+        Assert.Empty(UsoRegras.MontarSessoes(new List<TrocaUso>(), Momento(0, 0), Momento(11, 30)));
     }
 
     // ------------------------------------------------------------------ relatorio
@@ -139,7 +139,7 @@ public class UsoRegrasTestes : IDisposable
             Troca(10, 45, "chrome")
         };
 
-        var relatorio = UsoRegras.Calcular(trocas, Momento(11, 0), new List<AmostraSensor>());
+        var relatorio = UsoRegras.Calcular(trocas, Momento(0, 0), Momento(11, 0), new List<AmostraSensor>());
 
         Assert.Equal(2, relatorio.PorApp.Count);
         Assert.Equal("chrome", relatorio.PorApp[0].Processo);
@@ -159,7 +159,7 @@ public class UsoRegrasTestes : IDisposable
             Troca(10, 10, "code", "projeto.cs")
         };
 
-        var relatorio = UsoRegras.Calcular(trocas, Momento(10, 30), new List<AmostraSensor>());
+        var relatorio = UsoRegras.Calcular(trocas, Momento(0, 0), Momento(10, 30), new List<AmostraSensor>());
 
         // A regra mostra até as 5 sessões mais longas; aqui há 3 sessões, e as
         // três entram.
@@ -178,7 +178,7 @@ public class UsoRegrasTestes : IDisposable
             Troca(10, 30, "code")
         };
 
-        var relatorio = UsoRegras.Calcular(trocas, Momento(11, 0), new List<AmostraSensor>());
+        var relatorio = UsoRegras.Calcular(trocas, Momento(0, 0), Momento(11, 0), new List<AmostraSensor>());
 
         Assert.Equal("code", relatorio.EmDestaque);
     }
@@ -199,7 +199,7 @@ public class UsoRegrasTestes : IDisposable
             Amostra(10, 50, 70f)
         };
 
-        var relatorio = UsoRegras.Calcular(trocas, Momento(11, 0), amostras);
+        var relatorio = UsoRegras.Calcular(trocas, Momento(0, 0), Momento(11, 0), amostras);
 
         Assert.Equal("code", relatorio.QuemFezOCalor);
         Assert.Equal(85f, relatorio.TempMaximaCpu);
@@ -210,7 +210,7 @@ public class UsoRegrasTestes : IDisposable
     {
         var trocas = new List<TrocaUso> { Troca(10, 0, "chrome") };
 
-        var relatorio = UsoRegras.Calcular(trocas, Momento(11, 0), new List<AmostraSensor>());
+        var relatorio = UsoRegras.Calcular(trocas, Momento(0, 0), Momento(11, 0), new List<AmostraSensor>());
 
         Assert.Equal("", relatorio.QuemFezOCalor);
         Assert.Null(relatorio.TempMaximaCpu);
@@ -219,7 +219,7 @@ public class UsoRegrasTestes : IDisposable
     [Fact]
     public void RelatorioVazioNaoErra()
     {
-        var relatorio = UsoRegras.Calcular(new List<TrocaUso>(), Momento(11, 0), new List<AmostraSensor>());
+        var relatorio = UsoRegras.Calcular(new List<TrocaUso>(), Momento(0, 0), Momento(11, 0), new List<AmostraSensor>());
 
         Assert.Empty(relatorio.PorApp);
         Assert.Empty(relatorio.MaioresSessoes);
@@ -416,17 +416,17 @@ public class UsoRegrasTestes : IDisposable
         50f, 0f, 0f);
 
     [Fact]
-    public void FimDoDiaDeHojeEAgora()
+    public void PeriodoDeHojeVaiAteAgora()
     {
         var agora = Momento(15, 0);
 
-        var fim = UsoRegras.FimDoDia(Momento(14, 0), agora, new List<AmostraSensor>(), new List<TrocaUso>());
+        var periodo = UsoRegras.Periodo(Momento(14, 0), agora, new List<AmostraSensor>(), new List<TrocaUso>());
 
-        Assert.Equal(agora, fim);
+        Assert.Equal(agora, periodo.Fim);
     }
 
     [Fact]
-    public void FimDoDiaPassadoParaNaUltimaAmostraDeSensor()
+    public void PeriodoPassadoVaiDaPrimeiraEvidenciaAteAUltima()
     {
         // O app rodou das 8h às 9h ontem. O período não pode ir até a
         // meia-noite: as horas em que o app estava fechado não são tempo
@@ -438,31 +438,34 @@ public class UsoRegrasTestes : IDisposable
             AmostraEm(MomentoDia(1, 9, 0), 82f),
         };
 
-        var fim = UsoRegras.FimDoDia(MomentoDia(1, 0, 0), Momento(15, 0), amostras, new List<TrocaUso>());
+        var periodo = UsoRegras.Periodo(MomentoDia(1, 0, 0), Momento(15, 0), amostras, new List<TrocaUso>());
 
-        Assert.Equal(MomentoDia(1, 9, 0), fim);
+        Assert.Equal(MomentoDia(1, 8, 0), periodo.Inicio);
+        Assert.Equal(MomentoDia(1, 9, 0), periodo.Fim);
     }
 
     [Fact]
-    public void FimDoDiaPassadoSemSensorUsaAUltimaTroca()
+    public void PeriodoPassadoSemSensorUsaATroca()
     {
         var trocas = new List<TrocaUso> { TrocaEm(MomentoDia(1, 8, 0), "chrome") };
 
-        var fim = UsoRegras.FimDoDia(MomentoDia(1, 0, 0), Momento(15, 0), new List<AmostraSensor>(), trocas);
+        var periodo = UsoRegras.Periodo(MomentoDia(1, 0, 0), Momento(15, 0), new List<AmostraSensor>(), trocas);
 
-        Assert.Equal(MomentoDia(1, 8, 0), fim);
+        Assert.Equal(MomentoDia(1, 8, 0), periodo.Inicio);
+        Assert.Equal(MomentoDia(1, 8, 0), periodo.Fim);
     }
 
     [Fact]
-    public void FimDoDiaPassadoSemNadaNaoContaNada()
+    public void PeriodoPassadoSemNadaNaoContaNada()
     {
         // Sem amostra e sem troca, o app não rodou naquele dia: o período
         // fica vazio em vez de fingir que o dia inteiro foi observado.
         var inicio = MomentoDia(1, 0, 0);
 
-        var fim = UsoRegras.FimDoDia(inicio, Momento(15, 0), new List<AmostraSensor>(), new List<TrocaUso>());
+        var periodo = UsoRegras.Periodo(inicio, Momento(15, 0), new List<AmostraSensor>(), new List<TrocaUso>());
 
-        Assert.Equal(inicio, fim);
+        Assert.Equal(inicio, periodo.Inicio);
+        Assert.Equal(inicio, periodo.Fim);
     }
 
     [Fact]
@@ -475,11 +478,65 @@ public class UsoRegrasTestes : IDisposable
         var amostras = new List<AmostraSensor> { AmostraEm(MomentoDia(1, 9, 0), 80f) };
 
         var agora = Momento(15, 0);
-        var fim = UsoRegras.FimDoDia(MomentoDia(1, 0, 0), agora, amostras, trocas);
-        var relatorio = UsoRegras.Calcular(trocas, fim, amostras);
+        var periodo = UsoRegras.Periodo(MomentoDia(1, 0, 0), agora, amostras, trocas);
+        var relatorio = UsoRegras.Calcular(trocas, periodo.Inicio, periodo.Fim, amostras);
 
         var uso = Assert.Single(relatorio.PorApp);
         Assert.Equal("chrome", uso.Processo);
         Assert.Equal(TimeSpan.FromHours(1), uso.Tempo);
+    }
+
+    [Fact]
+    public void SessaoQueAtravessaAMeiaNoiteNaoPerdeTempo()
+    {
+        // O app rodou a noite toda com o chrome em frente e o dia só teve
+        // uma troca, às 9h. Sem a troca que atravessa a meia-noite, a
+        // noite inteira ficaria sem dono.
+        var trocas = new List<TrocaUso>
+        {
+            TrocaEm(MomentoDia(1, 23, 0), "chrome"),   // a troca que atravessa a meia-noite
+            TrocaEm(MomentoDia(0, 9, 0), "code"),
+        };
+
+        var amostras = new List<AmostraSensor>
+        {
+            AmostraEm(MomentoDia(0, 0, 5), 55f),
+            AmostraEm(MomentoDia(0, 8, 55), 60f),
+        };
+
+        var agora = Momento(9, 30);
+        var periodo = UsoRegras.Periodo(MomentoDia(0, 0, 0), agora, amostras, trocas);
+        var relatorio = UsoRegras.Calcular(trocas, periodo.Inicio, periodo.Fim, amostras);
+
+        var chrome = Assert.Single(relatorio.PorApp, u => u.Processo == "chrome");
+        Assert.Equal(TimeSpan.FromHours(8) + TimeSpan.FromMinutes(55), chrome.Tempo);
+    }
+
+    [Fact]
+    public void NoiteComOPcDesligadoNaoEntraNoTempoDeHoje()
+    {
+        // O PC ficou desligado a noite. O app só voltou às 10h: as horas
+        // em que ele não existia não podem virar tempo de programa.
+        var trocas = new List<TrocaUso>
+        {
+            TrocaEm(MomentoDia(1, 23, 0), "chrome"),
+            TrocaEm(MomentoDia(0, 10, 0), "code"),
+        };
+
+        var amostras = new List<AmostraSensor>
+        {
+            AmostraEm(MomentoDia(0, 10, 3), 55f),
+            AmostraEm(MomentoDia(0, 10, 10), 60f),
+        };
+
+        var agora = Momento(10, 20);
+        var periodo = UsoRegras.Periodo(MomentoDia(0, 0, 0), agora, amostras, trocas);
+        var relatorio = UsoRegras.Calcular(trocas, periodo.Inicio, periodo.Fim, amostras);
+
+        Assert.DoesNotContain(relatorio.PorApp, u => u.Processo == "chrome");
+
+        var code = Assert.Single(relatorio.PorApp);
+        Assert.Equal("code", code.Processo);
+        Assert.Equal(TimeSpan.FromMinutes(20), code.Tempo);
     }
 }

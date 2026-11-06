@@ -37,14 +37,16 @@ public sealed record TrocaUso(DateTime Momento, string Processo, string Titulo);
 public static class UsoJanela
 {
     /// <summary>
-    /// O processo do próprio TRANAL SENTINEL não conta como uso: o app não
-    /// é a pessoa usando o PC.
-    /// </summary>
-    private static int MeuProcessoId => Environment.ProcessId;
-
-    /// <summary>
     /// A janela em frente agora: o processo e o título. Devolve null quando
     /// não há janela legível.
+    ///
+    /// <para>
+    /// A janela do próprio TRANAL SENTINEL também conta, com o nome do
+    /// próprio app. Antes ela era ignorada — e o tempo em que a pessoa
+    /// olhava o monitor acabava creditado no programa que estava em frente
+    /// antes, inflando o ranking de um jeito que ninguém percebia. Agora o
+    /// tempo do monitor fica com o monitor.
+    /// </para>
     /// </summary>
     public static TrocaUso? LerEmDestaque(DateTime agora)
     {
@@ -54,7 +56,7 @@ public static class UsoJanela
             if (janela == IntPtr.Zero) return null;
 
             _ = GetWindowThreadProcessId(janela, out int processoId);
-            if (processoId <= 0 || processoId == MeuProcessoId) return null;
+            if (processoId <= 0) return null;
 
             string titulo = LerTitulo(janela);
             string processo = LerProcesso(processoId);

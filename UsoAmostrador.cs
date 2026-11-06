@@ -57,10 +57,15 @@ public static class UsoAmostrador
                 if (string.Equals(_ultimoProcesso, troca.Processo, StringComparison.OrdinalIgnoreCase))
                     return;
 
+                // A gravação acontece com a trava, para não escrever a mesma
+                // troca duas vezes. O programa atual só muda depois que a
+                // linha entrou no arquivo: se a gravação falhar, a próxima
+                // amostra tenta de novo — senão o programa anterior ficaria
+                // com o tempo da troca que se perdeu.
+                if (!UsoHistorico.Gravar(troca)) return;
+
                 _ultimoProcesso = troca.Processo;
             }
-
-            UsoHistorico.Gravar(troca);
         }
         catch
         {

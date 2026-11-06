@@ -50,6 +50,14 @@ public sealed record RelatorioUso
 public sealed record ExplicacaoAlerta(bool TemDados, string Resumo);
 
 /// <summary>
+/// O período que se pode contar para um dia: da primeira evidência de que o
+/// app rodava à última.
+/// </summary>
+/// <param name="Inicio">A primeira evidência do dia.</param>
+/// <param name="Fim">A última evidência do dia.</param>
+public sealed record PeriodoUso(DateTime Inicio, DateTime Fim);
+
+/// <summary>
 /// A regra do histórico de uso: quanto tempo cada programa ficou em frente,
 /// quais foram as sessões mais longas e quem estava em frente quando a
 /// máquina ficou quente.
@@ -62,14 +70,22 @@ public sealed record ExplicacaoAlerta(bool TemDados, string Resumo);
 public static class UsoRegras
 {
     /// <summary>Quanto tempo antes do momento a janela olha (para o alerta).</summary>
-    private static readonly TimeSpan Janela = TimeSpan.FromMinutes(2);
+    public static readonly TimeSpan Janela = TimeSpan.FromMinutes(2);
 
     /// <summary>Quantas sessões longas o relatório mostra.</summary>
     public const int MaioresSessoesMostradas = 5;
 
     /// <summary>
     /// Monta as sessões: cada troca começa uma sessão que dura até a
-    /// próxima troca (a última dura até <paramref name="agora"/>).
+    /// próxima troca (a última dura até <paramref name="fim"/>).
+    ///
+    /// <para>
+    /// A sessão é <b>cortada pelo período do dia</b>: uma sessão que começou
+    /// antes da meia-noite e continua depois conta só a parte do dia. É o
+    /// que impede duas coisas — o tempo de ontem virar tempo de hoje, e a
+    /// noite inteira ficar sem dono quando o app rodou a noite toda sem
+    /// trocar de programa.
+    /// </para>
     ///
     /// <para>
     /// As trocas são ordenadas pelo horário antes de virarem sessão: o
@@ -78,7 +94,7 @@ public static class UsoRegras
     /// trocas no mesmo instante não são "tempo em que o app ficou aberto".
     /// </para>
     /// </summary>
-    public static List<SessaoUso> MontarSessoes(IReadOnlyList<TrocaUso> trocas, DateTime agora)
+    public static List<SessaoUso> MontarSessoes(IReadOnlyList<TrocaUso> trocas, DateTime inicio, DateTime fim)
     {
         var sessoes = new List<SessaoUso>();
         if (trocas == null || trocas.Count == 0) return sessoes;
@@ -87,12 +103,16 @@ public static class UsoRegras
 
         for (int i = 0; i < ordenadas.Count; i++)
         {
-            DateTime inicio = ordenadas[i].Momento;
-            DateTime fim = i + 1 < ordenadas.Count ? ordenadas[i + 1].Momento : agora;
+            DateTime comeco = ordenadas[i].Momento;
+            DateTime ultimoInstante = i + 1 < ordenadas.Count ? ordenadas[i + 1].Momento : fim;
 
-            if (fim <= inicio) continue;
+            // Corta pelo período do dia.
+            if (comeco < inicio) comeco = inicio;
+            if (ultimoInstante > fim) ultimoInstante = fim;
 
-            sessoes.Add(new SessaoUso(inicio, fim, ordenadas[i].Processo, ordenadas[i].Titulo));
+            if (ultimoInstante <= comeco) continue;
+
+            sessoes.Add(new SessaoUso(comeco, ultimoInstante, ordenadas[i].Processo, ordenadas[i].Titulo));
         }
 
         return sessoes;
@@ -102,9 +122,9 @@ public static class UsoRegras
     /// O relatório de uso: o ranking, as sessões mais longas, o que está em
     /// frente e quem estava em frente quando a CPU ficou mais quente.
     /// </summary>
-    public static RelatorioUso Calcular(IReadOnlyList<TrocaUso> trocas, DateTime agora, IReadOnlyList<AmostraSensor> amostras)
+    public static RelatorioUso Calcular(IReadOnlyList<TrocaUso> trocas, DateTime inicio, DateTime fim, IReadOnlyList<AmostraSensor> amostras)
     {
-        var sessoes = MontarSessoes(trocas, agora);
+        var sessoes = MontarSessoes(trocas, inicio, fim);
 
         var porApp = sessoes
             .GroupBy(s => s.Processo, StringComparer.OrdinalIgnoreCase)
@@ -163,44 +183,64 @@ public static class UsoRegras
     }
 
     /// <summary>
-    /// O fim do período que se pode contar para um dia.
+    /// O período que se pode contar para um dia: da primeira evidência de que
+    /// o app rodava à última.
     ///
     /// <para>
-    /// Hoje é <paramref name="agora"/>: o app está rodando e o dia ainda não
-    /// acabou. Num dia passado, o fim é a **última evidência de que o app
-    /// estava vivo** — a última amostra de sensor gravada (o log escreve de
-    /// 5 em 5 segundos enquanto o app roda) ou, sem ela, a última troca de
-    /// uso registrada.
+    /// Hoje, o fim é <paramref name="agora"/>: o app está rodando. Num dia
+    /// passado, é a última amostra de sensor gravada (o log escreve de 5 em
+    /// 5 segundos enquanto o app roda) ou, sem ela, a última troca de uso
+    /// registrada.
     /// </para>
     ///
     /// <para>
-    /// Sem isso, a última sessão do dia se estenderia até a meia-noite e as
-    /// horas em que o app estava fechado seriam creditadas ao programa que
-    /// estava em frente. Tempo inflado é pior que tempo ausente.
+    /// O começo é a primeira evidência do dia, e isso é o que impede o tempo
+    /// inflado: sem ele, a sessão que atravessa a meia-noite contaria as
+    /// horas em que o app estava fechado (o PC desligado, por exemplo) como
+    /// se o app tivesse estado olhando a tela a noite toda.
     /// </para>
     /// </summary>
     /// <param name="dia">O dia que a tela está mostrando.</param>
     /// <param name="agora">O momento atual.</param>
     /// <param name="amostras">As amostras de sensor do período.</param>
     /// <param name="trocas">As trocas de uso do período.</param>
-    public static DateTime FimDoDia(DateTime dia, DateTime agora, IReadOnlyList<AmostraSensor> amostras, IReadOnlyList<TrocaUso> trocas)
+    public static PeriodoUso Periodo(DateTime dia, DateTime agora, IReadOnlyList<AmostraSensor> amostras, IReadOnlyList<TrocaUso> trocas)
     {
-        DateTime inicio = dia.Date;
+        DateTime meiaNoite = dia.Date;
+
+        DateTime? primeiraAmostra = PrimeiroDoDia(amostras, meiaNoite, a => a.Momento);
+        DateTime? primeiraTroca = PrimeiroDoDia(trocas, meiaNoite, t => t.Momento);
+        DateTime? ultimaAmostra = UltimoDoDia(amostras, meiaNoite, a => a.Momento);
+        DateTime? ultimaTroca = UltimoDoDia(trocas, meiaNoite, t => t.Momento);
+
+        DateTime? primeiroInstante = Menor(primeiraAmostra, primeiraTroca);
+        DateTime? ultimoInstante = Maior(ultimaAmostra, ultimaTroca);
 
         // Hoje (ou um dia que ainda não aconteceu): o período vai até agora.
-        if (inicio >= agora.Date) return agora;
+        if (meiaNoite >= agora.Date)
+            return new PeriodoUso(primeiroInstante ?? agora, agora);
 
-        DateTime? ultimaAmostra = UltimoDoDia(amostras, inicio, a => a.Momento);
-        DateTime? ultimaTroca = UltimoDoDia(trocas, inicio, t => t.Momento);
+        // Dia passado sem nenhuma evidência: o app não rodou nele.
+        if (!primeiroInstante.HasValue || !ultimoInstante.HasValue)
+            return new PeriodoUso(meiaNoite, meiaNoite);
 
-        DateTime? evidencia = ultimaAmostra.HasValue && ultimaTroca.HasValue
-            ? (ultimaAmostra.Value > ultimaTroca.Value ? ultimaAmostra : ultimaTroca)
-            : (ultimaAmostra ?? ultimaTroca);
+        return new PeriodoUso(primeiroInstante.Value, ultimoInstante.Value);
+    }
 
-        // Sem nenhuma evidência, o app não rodou naquele dia: nada a contar.
-        if (!evidencia.HasValue) return inicio;
+    /// <summary>O menor de dois instantes (null quando nenhum existe).</summary>
+    private static DateTime? Menor(DateTime? a, DateTime? b)
+    {
+        if (!a.HasValue) return b;
+        if (!b.HasValue) return a;
+        return a.Value <= b.Value ? a : b;
+    }
 
-        return evidencia.Value;
+    /// <summary>O maior de dois instantes (null quando nenhum existe).</summary>
+    private static DateTime? Maior(DateTime? a, DateTime? b)
+    {
+        if (!a.HasValue) return b;
+        if (!b.HasValue) return a;
+        return a.Value >= b.Value ? a : b;
     }
 
     /// <summary>
@@ -219,6 +259,24 @@ public static class UsoRegras
         }
 
         return ultimo;
+    }
+
+    /// <summary>
+    /// O instante mais antigo de um dia (null quando não há item desse dia).
+    /// </summary>
+    private static DateTime? PrimeiroDoDia<T>(IReadOnlyList<T>? itens, DateTime dia, Func<T, DateTime> momento)
+    {
+        if (itens == null || itens.Count == 0) return null;
+
+        DateTime? primeiro = null;
+        foreach (var item in itens)
+        {
+            DateTime instante = momento(item);
+            if (instante.Date != dia) continue;
+            if (primeiro == null || instante < primeiro.Value) primeiro = instante;
+        }
+
+        return primeiro;
     }
 
     /// <summary>

@@ -142,6 +142,9 @@ TRANAL USO
 - O cartão "QUEM FEZ O CALOR" diz qual programa estava em frente quando a CPU
   ficou mais quente, a temperatura máxima e o que fazer com isso. Sem
   histórico de sensores, o app diz que não sabe: ele nunca inventa número.
+- O próprio TRANAL SENTINEL aparece na lista quando ele está em frente: o
+  tempo em que você olha o monitor é dele, e não do programa que estava em
+  frente antes.
 - O histórico fica em %AppData%\TranalSentinel\uso\, um arquivo por dia, e é
   apagado depois de 30 dias. É um recurso de leitura: o app registra só o
   nome do programa e o título da janela (nunca a imagem da tela, o conteúdo
