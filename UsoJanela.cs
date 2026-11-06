@@ -37,6 +37,12 @@ public sealed record TrocaUso(DateTime Momento, string Processo, string Titulo);
 public static class UsoJanela
 {
     /// <summary>
+    /// O nome do app como o usuário conhece. É o que aparece no ranking
+    /// quando o próprio TRANAL SENTINEL está em frente na tela.
+    /// </summary>
+    public const string NomeDoApp = "TRANAL SENTINEL";
+
+    /// <summary>
     /// A janela em frente agora: o processo e o título. Devolve null quando
     /// não há janela legível.
     ///
@@ -59,7 +65,11 @@ public static class UsoJanela
             if (processoId <= 0) return null;
 
             string titulo = LerTitulo(janela);
-            string processo = LerProcesso(processoId);
+
+            // O próprio app entra no histórico com o nome que o usuário
+            // conhece. O nome do executável ("TranalSentinel") não aparece
+            // em lugar nenhum da tela.
+            string processo = processoId == Environment.ProcessId ? NomeDoApp : LerProcesso(processoId);
 
             // Sem nome de processo não há como saber quem estava em frente.
             if (string.IsNullOrWhiteSpace(processo)) return null;

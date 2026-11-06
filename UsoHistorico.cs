@@ -178,6 +178,31 @@ public static class UsoHistorico
         return trocas;
     }
 
+    /// <summary>
+    /// As trocas de vários dias, em ordem cronológica.
+    ///
+    /// <para>
+    /// O primeiro dia (o mais antigo) traz também a última troca do dia
+    /// anterior: é a que atravessa a meia-noite, e sem ela um período que
+    /// começa de madrugada não sabe dizer quem estava em frente.
+    /// </para>
+    /// </summary>
+    public static List<TrocaUso> LerVarios(IEnumerable<DateTime> dias)
+    {
+        var trocas = new List<TrocaUso>();
+        var lista = dias.OrderBy(d => d).ToList();
+
+        for (int i = 0; i < lista.Count; i++)
+        {
+            trocas.AddRange(i == 0
+                ? LerComAnterior(lista[i])
+                : Ler(lista[i]));
+        }
+
+        trocas.Sort((a, b) => a.Momento.CompareTo(b.Momento));
+        return trocas;
+    }
+
     /// <summary>Lista os dias que têm histórico, do mais novo para o mais antigo.</summary>
     public static List<DateTime> DiasComUso()
     {

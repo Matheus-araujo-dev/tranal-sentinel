@@ -556,7 +556,7 @@ public sealed class SensorMonitor : IDisposable
         ColetorMorreu?.Invoke(MortesProcesso, semGpu);
 
         try { IniciarFilho(!semGpu); }
-        catch { }
+        catch { /* O coletor que morreu nao volta: o app continua sem sensores ate a proxima leitura. */ }
     }
 
     private void PararFilho()
@@ -564,8 +564,8 @@ public sealed class SensorMonitor : IDisposable
         var filho = _filho;
         _filho = null;
         if (filho is null) return;
-        try { if (!filho.HasExited) filho.Kill(true); } catch { }
-        try { filho.Dispose(); } catch { }
+        try { if (!filho.HasExited) filho.Kill(true); } catch { /* O processo ja morreu: nao ha o que encerrar. */ }
+        try { filho.Dispose(); } catch { /* Liberar o handle falhou: o processo ja foi encerrado e o Windows recolhe o resto. */ }
     }
 
     private void IniciarLeitor()

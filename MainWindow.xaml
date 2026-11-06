@@ -1520,7 +1520,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0">
-                                    A sessão é o período em que um mesmo programa ficou em frente, sem que outra janela tomasse a frente.
+                                    A sessão é o período em que um mesmo programa ficou em frente, sem que outro programa tomasse a frente.
                                 </TextBlock>
                             </StackPanel>
                         </Border>

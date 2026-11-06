@@ -63,7 +63,7 @@ public partial class MainWindow
     private readonly object _travaExplicacoes = new();
 
     /// <summary>Trava da recarga (a tela e o tique podem pedir a explicação ao mesmo tempo).</summary>
-    private bool _explicacaoCarregando;
+    private volatile bool _explicacaoCarregando;
 
     /// <summary>
     /// De quanto em quanto tempo uma nova leitura do histórico é tentada.
@@ -79,7 +79,7 @@ public partial class MainWindow
     /// True quando a última leitura do histórico falhou. Enquanto for
     /// verdade, a próxima tentativa espera o intervalo.
     /// </summary>
-    private bool _explicacaoFalhou;
+    private volatile bool _explicacaoFalhou;
 
     /// <summary>As opções de severidade mostradas na tela (o enum cru fica feio).</summary>
     private static readonly SeveridadeOpcao[] Severidades =
@@ -582,12 +582,6 @@ public partial class MainWindow
     /// por dia). Vem em ordem cronológica, para a regra achar quem estava
     /// em frente na hora do aviso.
     /// </summary>
-    private static List<TrocaUso> TrocasDe(IEnumerable<DateTime> dias)
-    {
-        var trocas = new List<TrocaUso>();
-        foreach (var dia in dias)
-            trocas.AddRange(UsoHistorico.Ler(dia));
-        trocas.Sort((a, b) => a.Momento.CompareTo(b.Momento));
-        return trocas;
-    }
+    private static List<TrocaUso> TrocasDe(IEnumerable<DateTime> dias) =>
+        UsoHistorico.LerVarios(dias);
 }

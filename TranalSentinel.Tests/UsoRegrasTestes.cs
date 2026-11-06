@@ -539,4 +539,30 @@ public class UsoRegrasTestes : IDisposable
         Assert.Equal("code", code.Processo);
         Assert.Equal(TimeSpan.FromMinutes(20), code.Tempo);
     }
+    [Fact]
+    public void LerVariosTrazATrocaQueAtravessaAMeiaNoite()
+    {
+        // A regra do núcleo: o primeiro dia (o mais antigo) traz também a
+        // última troca do dia anterior. Sem ela, um aviso que começou de
+        // madrugada não sabe dizer quem estava em frente.
+        UsarPastaTemporaria();
+
+        UsoHistorico.Gravar(new TrocaUso(MomentoDia(1, 23, 0), "chrome", "Painel"));
+        UsoHistorico.Gravar(new TrocaUso(MomentoDia(0, 9, 0), "code", "Projeto"));
+
+        var trocas = UsoHistorico.LerVarios(new[] { MomentoDia(1, 0, 0), MomentoDia(0, 0, 0) });
+
+        Assert.Equal(2, trocas.Count);
+        Assert.Equal("chrome", trocas[0].Processo);
+        Assert.Equal("code", trocas[1].Processo);
+        Assert.True(trocas[0].Momento < trocas[1].Momento);
+    }
+
+    [Fact]
+    public void OMonitorApareceNoHistoricoComONomeQueOUsuarioConhece()
+    {
+        // O nome do executavel ("TranalSentinel") nao aparece em lugar
+        // nenhum da tela.
+        Assert.Equal("TRANAL SENTINEL", UsoJanela.NomeDoApp);
+    }
 }

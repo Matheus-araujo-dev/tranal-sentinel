@@ -195,7 +195,7 @@ public partial class MainWindow
     private static List<AmostraSensor> AmostrasDoDia(DateTime dia)
     {
         DateTime inicio = dia.Date;
-        DateTime fim = inicio.AddDays(1).AddSeconds(-1);
+        DateTime fim = inicio.AddDays(1).AddMilliseconds(-1);
         return SensorHistorico.Ler(inicio, fim);
     }
 
