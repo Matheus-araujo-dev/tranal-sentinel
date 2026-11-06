@@ -298,6 +298,12 @@
                                     <TextBlock Text="Linha do tempo" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="NavUso" Style="{StaticResource NavItem}" Tag="PageUso" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE823;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Uso" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
                             </StackPanel>
                             <ToggleButton x:Name="GrpGames" Style="{StaticResource NavGroup}" Content="TRANAL JOGOS"/>
                             <StackPanel x:Name="GrpGamesItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpGames, Converter={StaticResource BoolVis}}">
@@ -1432,6 +1438,105 @@
                                            TextWrapping="Wrap" Margin="0,10,0,0" Text="Nada registrado ainda hoje."/>
                             </StackPanel>
                         </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== TRANAL ASSISTENTE (uso da tela: quem ficou em frente e quanto tempo) ===== -->
+                <ScrollViewer x:Name="PageUso" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Margin="0,0,300,0">
+                                <TextBlock Text="USO DA TELA" Style="{StaticResource H1}"/>
+                                <TextBlock Text="Que programa ficou em frente, quanto tempo, e quem estava na frente quando a máquina ficou mais quente." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBlock Text="DIA" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="UsoDia" Style="{StaticResource DarkCombo}" Width="180" DisplayMemberPath="Rotulo" SelectionChanged="UsoDia_SelectionChanged"/>
+                                </StackPanel>
+                                <Button x:Name="BtnUsoAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="18,9" VerticalAlignment="Bottom" Click="BtnUsoAtualizar_Click"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="TEMPO DE TELA" Style="{StaticResource Label}"/>
+
+                                <TextBlock x:Name="UsoVazio" Text="O app só registra o uso enquanto está rodando: ainda não há nada registrado para este dia. É um recurso de leitura — o histórico fica neste computador e nada sai daqui."
+                                           Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="240"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="TEMPO OBSERVADO" Foreground="{DynamicResource Muted}" FontSize="11"/>
+                                        <TextBlock x:Name="UsoTotal" Text="—" FontSize="26" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                        <TextBlock x:Name="UsoTotalObs" Text="" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock x:Name="UsoDestaqueRotulo" Text="EM FRENTE AGORA" Foreground="{DynamicResource Muted}" FontSize="11"/>
+                                        <TextBlock x:Name="UsoDestaque" Text="o app não sabe" FontSize="15" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        <TextBlock x:Name="UsoDestaqueTitulo" Text="" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        <TextBlock x:Name="UsoDestaqueQuando" Text="" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <DataGrid x:Name="UsoRanking" AutoGenerateColumns="False" IsReadOnly="True"
+                                          CanUserResizeColumns="False" FontSize="11" Margin="0,16,0,0" Visibility="Collapsed">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="PROGRAMA" Binding="{Binding Processo}" Width="*"/>
+                                        <DataGridTextColumn Header="TEMPO" Binding="{Binding Tempo}" Width="110" ElementStyle="{StaticResource MonoCell}"/>
+                                        <DataGridTextColumn Header="DO TOTAL" Binding="{Binding Percentual}" Width="90" ElementStyle="{StaticResource MutedMonoCell}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="SESSÕES MAIS LONGAS" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="UsoSessoesVazio" Text="Nenhuma sessão registrada neste dia: o app não sabe quanto tempo cada programa ficou em frente."
+                                           Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+                                <ItemsControl x:Name="UsoSessoes" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,10,0,10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="150"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="80"/>
+                                                        <ColumnDefinition Width="100"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Processo}" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Titulo}" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,0,12,0"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Inicio}" FontFamily="{StaticResource Mono}" FontSize="11.5" Foreground="{DynamicResource Muted}" VerticalAlignment="Top"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding Duracao}" FontFamily="{StaticResource Mono}" FontSize="11.5" VerticalAlignment="Top"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0">
+                                    A sessão é o período em que um mesmo programa ficou em frente, sem que outra janela tomasse a frente.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="QUEM FEZ O CALOR" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="UsoCalor" Text="O app não sabe: ainda não há histórico de sensores deste dia." FontSize="15" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                <TextBlock x:Name="UsoCalorTemp" Text="" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                <TextBlock x:Name="UsoCalorDica" Text="" Foreground="{DynamicResource Faint}" FontSize="11.5" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,14,0,0">
+                            O histórico de uso fica em %AppData%\TranalSentinel\uso\, um arquivo por dia, apagado depois de 30 dias. É somente leitura: o app registra qual programa estava em frente, nada mais, e nada sai do computador.
+                        </TextBlock>
                     </StackPanel>
                 </ScrollViewer>
 

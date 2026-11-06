@@ -169,6 +169,28 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   "este teste só existe aqui", que seria mentira. Nota errada é pior que
   nota ausente.
 
+- **O histórico de uso é um arquivo por dia, e o evento é a troca de programa.**
+  `UsoHistorico` grava em `%AppData%\TranalSentinel\uso\uso-AAAA-MM-DD.csv`: uma
+  linha quando outro programa passa para a frente — não uma linha por instante.
+  A duração vem da distância até a próxima troca; o que estava em frente é o
+  título da janela no momento da troca. Guardar o instante todocia vez encheria
+  o disco sem responder pergunta nenhuma.
+- **A regra do uso é pura** (`UsoRegras`): entra a lista de trocas e a de
+  amostras, sai o relatório (ranking, sessões mais longas, quem fez o calor).
+  Quem lê o arquivo é a coleta; quem formata o texto é `UsoTexto`. A tela e a
+  explicação do alerta consomem as duas, não cada uma com o seu texto.
+- **O resumo dos sensores tem um lugar só** (`ResumoAmostras.Descrever`): a
+  retrospectiva do travamento e a explicação de por que o alerta disparou
+  usam a mesma frase. Duas frases para o mesmo número é o jeito mais rápido de
+  o app se contradizer.
+- **A explicação do alerta é honesta quando falta dado.** Sem amostra de
+  sensor na janela, a resposta é "o app não estava gravando sensores nesse
+  momento" — nunca um número inventado e nunca um motivo chutado.
+- **A janela em foco é lida, nunca adivinhada.** `UsoJanela` usa
+  `GetForegroundWindow`/`GetWindowThreadProcessId` do user32 e ignora o próprio
+  processo (o app não deve aparecer como programa em uso). A leitura nunca
+  lança: falha na coleta de uso não pode derrubar o app.
+
 ## Publicar
 
 ```powershell
@@ -200,6 +222,9 @@ auto-update procura.
 | `Mudancas.cs` | A linha do tempo do PC: retrato, comparação pura e coleta do retrato. |
 | `PoliticaRecursos.cs` | Perfil Completo / Equilibrado / Economia. Funções puras. |
 | `RegistroDiario.cs` | O log diário (um arquivo por dia). |
+| `UsoHistorico.cs` / `UsoJanela.cs` / `UsoAmostrador.cs` | O histórico de uso: o arquivo do dia (CSV), a leitura da janela em foco (user32) e o amostrador que grava só na troca de programa. |
+| `UsoRegras.cs` / `UsoTexto.cs` | A regra pura do histórico de uso (ranking, sessões, quem fez o calor) e os textos da tela. |
+| `ResumoAmostras.cs` | A frase única do resumo dos sensores (usada pela retrospectiva do travamento e pela explicação do alerta). |
 | `Bandeja.cs` | Ícone na bandeja por P/Invoke direto (sem Windows Forms, que criaria ambiguidade de nomes). |
 | `SensorValor.cs` | Regra única do valor de sensor: finito ou nada (`Finito`) e as opções de JSON (`OpcoesJson`). |
 | `SensorHistorico.cs` | O log contínuo de sensores (CSV de 5 em 5 segundos): o que o PC estava fazendo antes de travar. |

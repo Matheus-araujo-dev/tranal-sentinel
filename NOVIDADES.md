@@ -1,3 +1,50 @@
+## Novidades da v0.27 — o que ficou em frente na tela e por que cada alerta disparou
+
+O app já sabia o que estava acontecendo na máquina (a temperatura, a carga, o
+disco). Agora ele também guarda **quem estava em frente na tela**, e usa isso
+para responder a duas perguntas que sempre sobraram: "quanto tempo eu passei
+neste programa?" e "por que esse aviso disparou?".
+
+**Novo · TRANAL USO (menu TRANAL ASSISTENTE)**
+- TEMPO DE TELA: quanto tempo o app observou a tela no dia (em horas e
+  minutos), o programa que está em frente agora (com o título da janela) e o
+  ranking de tudo que ficou em frente, com o tempo de cada um e o percentual
+  do total.
+- SESSÕES MAIS LONGAS: as 5 sessões mais longas do dia, com programa, título
+  da janela, hora de início e duração. A sessão é o período em que um mesmo
+  programa ficou em frente, sem que outra janela tomasse a frente.
+- QUEM FEZ O CALOR: o programa que estava em frente quando a CPU ficou mais
+  quente, a temperatura máxima e o que fazer com isso. Sem histórico de
+  sensores, o app diz que não sabe — número inventado é pior que número
+  ausente.
+- O seletor DIA troca o dia (hoje vem primeiro, e os dias com histórico
+  embaixo) e o botão ATUALIZAR recarrega a página.
+- O histórico fica em %AppData%\TranalSentinel\uso\, um arquivo por dia, e é
+  apagado depois de 30 dias. O app anota só o nome do programa e o título da
+  janela: nunca a imagem da tela, o conteúdo dos arquivos ou o que foi
+  digitado. Nada sai do computador.
+- O app só registra enquanto está rodando. Se ele não estava aberto, o dia
+  aparece sem histórico, e a aba explica isso em vez de mostrar número
+  errado.
+
+**Novo · o "por que disparou" no TRANAL ALERTAS**
+- Cada aviso ativo mostra agora por que disparou: o que os sensores faziam
+  nos dois minutos antes (CPU a 81,5 °C, carga da CPU 92 %) e qual programa
+  estava em frente na hora.
+- Quando o app não estava gravando sensores naquele momento, o aviso diz
+  exatamente isso. O que o aviso mostra hoje não muda: a explicação vem
+  embaixo, como uma linha a mais.
+
+**O que continua igual**
+- A regra do aviso é uma só (`RegraAlerta` + `SensorCatalogo` +
+  `MonitorAlertas`): a tela, a vigia e o TRANAL SAÚDE usam a mesma. A
+  explicação só consome o que o histórico já tem.
+- A aba é somente leitura. O app não muda nada no sistema por causa dela.
+- O núcleo do histórico (coletor, arquivo do dia e a regra que interpreta) é
+  função pura e tem teste próprio; a tela só mostra.
+
+---
+
 ## Novidades da v0.26 — comparar os benchmarks de um PC com o de outro
 
 O TRANAL BENCH mostra o quanto a sua máquina é rápida. Agora dá para **comparar

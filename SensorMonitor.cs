@@ -578,6 +578,8 @@ public sealed class SensorMonitor : IDisposable
                 catch { }
                 try { GravarAmostraPendente(); }
                 catch { /* O log de sensores é um extra: a leitura continua. */ }
+                try { UsoAmostrador.Amostrar(DateTime.Now); }
+                catch { /* O histórico de uso é um extra: a leitura continua. */ }
                 try { Thread.Sleep(500); }
                 catch { break; }
             }

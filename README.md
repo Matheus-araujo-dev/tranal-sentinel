@@ -105,6 +105,10 @@ Os instantâneos ficam em `%AppData%\TranalSentinel\saude\`.
 | `SaudeCli.cs` | O diagnóstico por linha de comando (`--saude`), reaproveitando as mesmas regras da aba. |
 | `Wmi.cs` | As consultas WMI compartilhadas entre a aba de saúde e a linha do tempo. |
 | `MainWindow.Assistente.cs` | A aba do assistente: bandeja, perfil de recursos, retrato periódico e diário. |
+| `UsoHistorico.cs` | O histórico de uso: um arquivo por dia em `%AppData%\TranalSentinel\uso\`, 30 dias. |
+| `UsoRegras.cs` | A regra do uso da tela (função pura): quanto tempo cada programa ficou em frente, as sessões mais longas e quem estava em frente quando a CPU ficou mais quente. |
+| `UsoTexto.cs` | Os textos da aba "Uso" (duração, percentual, temperatura): função pura, padrão brasileiro. |
+| `MainWindow.Uso.cs` | A aba "Uso": tempo de tela, ranking, sessões mais longas e o "quem fez o calor". |
 
 ### Sensores: por que a coleta roda num processo separado
 

@@ -30,6 +30,44 @@ public partial class MainWindow
     /// <summary>Assinatura da lista de alertas ativos (evita redesenhar a tela à toa).</summary>
     private string _assinaturaAtivos = "";
 
+    /// <summary>
+    /// As amostras de sensores em cache: é o que a explicação do alerta olha.
+    /// A leitura é I/O de arquivo e não é feita a cada tique.
+    /// </summary>
+    private List<AmostraSensor> _explicacaoAmostras = new();
+
+    /// <summary>
+    /// As trocas de uso em cache: é o que diz quem estava em frente na hora
+    /// do aviso.
+    /// </summary>
+    private List<TrocaUso> _explicacaoTrocas = new();
+
+    /// <summary>
+    /// A explicação de cada aviso ("por que disparou"), por aviso e por
+    /// episódio.
+    ///
+    /// <para>
+    /// A chave é o id do aviso e o valor carrega o instante do episódio: a
+    /// janela que vem antes do episódio não muda, então a explicação é
+    /// calculada uma vez só. Sem este cache, a tela varreria o log inteiro
+    /// de sensores a cada tique — e esse log chega a meio milhão de linhas.
+    /// </para>
+    /// </summary>
+    private readonly Dictionary<string, (long desde, ExplicacaoAlerta explicacao)> _explicacoes = new();
+
+    /// <summary>Trava da recarga (a tela e o tique podem pedir a explicação ao mesmo tempo).</summary>
+    private bool _explicacaoCarregando;
+
+    /// <summary>
+    /// De quanto em quanto tempo uma nova leitura do histórico é tentada.
+    /// A leitura só acontece quando falta a explicação de algum aviso; o
+    /// intervalo é o prazo de retentativa quando a leitura falha.
+    /// </summary>
+    private static readonly TimeSpan IntervaloExplicacao = TimeSpan.FromSeconds(30);
+
+    /// <summary>Quando foi a última tentativa de ler o histórico.</summary>
+    private DateTime _explicacaoEm = DateTime.MinValue;
+
     /// <summary>As opções de severidade mostradas na tela (o enum cru fica feio).</summary>
     private static readonly SeveridadeOpcao[] Severidades =
     {
@@ -371,10 +409,20 @@ public partial class MainWindow
         try { ativos = _alertas.Ativos; }
         catch { return; }   // a vigia pode estar mudando a lista neste instante
 
+        // A explicação ("por que disparou") precisa do histórico, que é um
+        // arquivo grande. Ela é lida só quando aparece um aviso sem
+        // explicação — o que é raro — e o resultado fica em cache por
+        // episódio. Sem isso, a tela leria meio milhão de linhas a cada
+        // tique.
+        bool faltaExplicacao = ativos.Any(a => ExplicacaoDe(a) == null);
+        if (faltaExplicacao && DateTime.Now - _explicacaoEm > IntervaloExplicacao)
+            _ = RecarregarExplicacaoAsync();
+
         // Só redesenha quando a lista muda (a tela é atualizada a cada tique).
         // O texto entra na assinatura: o valor do sensor muda a cada ciclo e
-        // o aviso ativo mostra o valor de agora, não o do disparo.
-        string assinatura = string.Join("|", ativos.Select(a => a.Id + "|" + a.Texto));
+        // o aviso ativo mostra o valor de agora, não o do disparo. O começo
+        // do episódio entra também: é ele que a explicação olha.
+        string assinatura = string.Join("|", ativos.Select(a => a.Id + "|" + a.Texto + "|" + a.Desde.Ticks));
         if (assinatura == _assinaturaAtivos) return;
         _assinaturaAtivos = assinatura;
 
@@ -386,7 +434,122 @@ public partial class MainWindow
             var linha = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
             linha.Children.Add(new TextBlock { Text = alerta.Titulo, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
             linha.Children.Add(new TextBlock { Text = alerta.Texto, Foreground = (System.Windows.Media.Brush)FindResource("Muted"), FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) });
+
+            // Por que este aviso disparou: o que os sensores faziam na janela
+            // antes do começo do episódio e quem estava em frente. Sem
+            // histórico, o app diz que não sabe.
+            var explicacao = ExplicacaoDe(alerta);
+            if (explicacao != null)
+            {
+                linha.Children.Add(new TextBlock
+                {
+                    Text = "Por que disparou: " + explicacao.Resumo,
+                    Foreground = (System.Windows.Media.Brush)FindResource(explicacao.TemDados ? "Muted" : "Faint"),
+                    FontSize = 11.5,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 3, 0, 0),
+                });
+            }
+
             AlertasAtivos.Children.Add(linha);
         }
+    }
+
+    /// <summary>
+    /// A explicação de um aviso (null enquanto ela não foi calculada).
+    ///
+    /// <para>
+    /// O cache é por episódio: quando o mesmo aviso dispara de novo, é outro
+    /// instante e a explicação é refeita.
+    /// </para>
+    /// </summary>
+    private ExplicacaoAlerta? ExplicacaoDe(Alerta alerta) =>
+        _explicacoes.TryGetValue(alerta.Id, out var entrada) && entrada.desde == alerta.Desde.Ticks
+            ? entrada.explicacao
+            : null;
+
+    /// <summary>
+    /// Recarrega o histórico que a explicação do alerta usa: as amostras de
+    /// sensores e as trocas de uso.
+    ///
+    /// <para>
+    /// O instante que a explicação olha é o começo do episódio do aviso
+    /// (<see cref="Alerta.Desde"/>): é a janela antes dele que levou o
+    /// sensor ao limite. A leitura é I/O de arquivo e vai para fora da
+    /// thread da tela. Quando não há histórico, a explicação diz exatamente
+    /// isso — o aviso continua mostrando o que mostra hoje, e nada some.
+    /// </para>
+    /// </summary>
+    private async Task RecarregarExplicacaoAsync()
+    {
+        if (_explicacaoCarregando) return;
+        _explicacaoCarregando = true;
+
+        try
+        {
+            IReadOnlyList<Alerta> ativos;
+            try { ativos = _alertas.Ativos; }
+            catch { return; }   // a vigia pode estar mudando a lista neste instante
+
+            // Os dias que a explicação pode precisar: o de hoje e o dia em
+            // que cada aviso começou. A partir do começo do dia mais antigo
+            // (e não do instante do aviso) é o que garante que a janela
+            // inteira do episódio esteja no cache.
+            var dias = new HashSet<DateTime> { DateTime.Today };
+            foreach (var alerta in ativos) dias.Add(alerta.Desde.Date);
+
+            DateTime maisAntigo = dias.Min();
+
+            var dados = await Task.Run(() => (
+                Amostras: SensorHistorico.Ler(maisAntigo.Date),
+                Trocas: TrocasDe(dias))).ConfigureAwait(false);
+
+            _explicacaoAmostras = dados.Amostras;
+            _explicacaoTrocas = dados.Trocas;
+
+            // A explicação de cada aviso que ainda não tem (o episódio novo é
+            // o que precisa de histórico novo). Ela fica em cache: a janela
+            // que vem antes do episódio não muda mais.
+            foreach (var alerta in ativos)
+            {
+                if (ExplicacaoDe(alerta) != null) continue;
+                _explicacoes[alerta.Id] = (alerta.Desde.Ticks,
+                    UsoRegras.ExplicarAlerta(alerta.Desde, _explicacaoAmostras, _explicacaoTrocas));
+            }
+        }
+        catch (Exception)
+        {
+            // Histórico ilegível: o aviso continua como está, sem a linha de
+            // explicação. Nada é inventado, e a leitura é tentada de novo
+            // depois (a tentativa entra no intervalo, não no tique).
+            _explicacaoAmostras = new List<AmostraSensor>();
+            _explicacaoTrocas = new List<TrocaUso>();
+        }
+        finally
+        {
+            _explicacaoEm = DateTime.Now;
+            _explicacaoCarregando = false;
+        }
+
+        // A tela precisa repintar com a explicação nova.
+        _ = Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _assinaturaAtivos = "";
+            AtualizarAlertasAtivos();
+        }));
+    }
+
+    /// <summary>
+    /// As trocas de uso dos dias indicados (o histórico de uso é um arquivo
+    /// por dia). Vem em ordem cronológica, para a regra achar quem estava
+    /// em frente na hora do aviso.
+    /// </summary>
+    private static List<TrocaUso> TrocasDe(IEnumerable<DateTime> dias)
+    {
+        var trocas = new List<TrocaUso>();
+        foreach (var dia in dias)
+            trocas.AddRange(UsoHistorico.Ler(dia));
+        trocas.Sort((a, b) => a.Momento.CompareTo(b.Momento));
+        return trocas;
     }
 }

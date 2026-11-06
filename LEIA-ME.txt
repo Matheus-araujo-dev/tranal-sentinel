@@ -102,6 +102,9 @@ TRANAL ALERTAS
 - Se você mudar o que a regra vigia (o sensor, a comparação ou o limite), o
   aviso antigo sai da tela e a contagem recomeça.
 - As regras ficam em %AppData%\TranalSentinel\settings.json (campo "Alertas").
+- Cada aviso ativo mostra por que disparou: o que os sensores faziam na hora
+  (CPU a 81,5 °C, carga da CPU 92 %) e qual programa estava em frente. Quando
+  o app não estava gravando naquele momento, o aviso diz que não sabe.
 
 TRANAL S.M.A.R.T.
 - No menu lateral, grupo "TRANAL SAÚDE" -> aba "S.M.A.R.T.". Clique em LER AGORA.
@@ -124,6 +127,26 @@ TRANAL ASSISTENTE
 - O app fica com ícone na bandeja (ao lado do relógio) e continua olhando o PC em
   segundo plano. Fechar a janela não fecha o programa; o menu do ícone tem Sair.
 - O diário de cada dia fica em %AppData%\TranalSentinel\log\.
+- A aba "Uso" (no mesmo grupo) mostra quanto tempo cada programa ficou em
+  frente na tela e quem estava na frente quando a máquina ficou quente.
+
+TRANAL USO
+- No menu lateral, grupo "TRANAL ASSISTENTE" -> aba "Uso".
+- O app anota qual programa ficou em frente na tela enquanto está rodando: o
+  nome do programa e o título da janela. A aba mostra quanto tempo o app
+  observou a tela no dia, o ranking dos programas (tempo e percentual do
+  total) e as 5 sessões mais longas (programa, título, hora de início e
+  duração).
+- O seletor DIA troca o dia (hoje vem primeiro) e o botão ATUALIZAR recarrega.
+- O cartão "QUEM FEZ O CALOR" diz qual programa estava em frente quando a CPU
+  ficou mais quente, a temperatura máxima e o que fazer com isso. Sem
+  histórico de sensores, o app diz que não sabe: ele nunca inventa número.
+- O histórico fica em %AppData%\TranalSentinel\uso\, um arquivo por dia, e é
+  apagado depois de 30 dias. É um recurso de leitura: o app registra só o
+  nome do programa e o título da janela (nunca a imagem da tela, o conteúdo
+  dos arquivos nem o que foi digitado) e nada sai do computador.
+- O app só registra enquanto está rodando. Se ele não estava aberto, o dia
+  aparece sem histórico - a aba diz isso em vez de mostrar número errado.
 
 INSTALAÇÃO
 - Portátil: abra o TranalSentinel.exe direto, sem instalar nada.

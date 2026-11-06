@@ -11,10 +11,10 @@
     Para subir a versão, mude só aqui.
   -->
   <PropertyGroup>
-    <Version>0.26.0</Version>
-    <AssemblyVersion>0.26.0.0</AssemblyVersion>
-    <FileVersion>0.26.0.0</FileVersion>
-    <InformationalVersion>0.26.0</InformationalVersion>
+    <Version>0.27.0</Version>
+    <AssemblyVersion>0.27.0.0</AssemblyVersion>
+    <FileVersion>0.27.0.0</FileVersion>
+    <InformationalVersion>0.27.0</InformationalVersion>
     <Product>TRANAL SENTINEL</Product>
     <Company>TRANAL</Company>
   </PropertyGroup>

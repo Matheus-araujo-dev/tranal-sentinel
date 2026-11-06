@@ -11,6 +11,18 @@ public sealed class Alerta
     public string Titulo { get; init; } = "";
     public string Texto { get; init; } = "";
     public Severidade Severidade { get; init; } = Severidade.Medio;
+
+    /// <summary>
+    /// Desde quando a condição está valendo (o começo do episódio).
+    ///
+    /// <para>
+    /// É o instante que o "por que disparou" usa para olhar o histórico: a
+    /// janela que vem antes dele é o que levou o sensor ao limite. Sem este
+    /// campo, a tela só poderia explicar o momento atual — que é outra coisa,
+    /// e a explicação mentiria.
+    /// </para>
+    /// </summary>
+    public DateTime Desde { get; init; }
 }
 
 /// <summary>
@@ -151,14 +163,14 @@ public sealed class MonitorAlertas
                     // O aviso continua valendo, mas o texto acompanha a
                     // regra e o valor de agora (o usuário não pode ver um
                     // limite velho na tela). Isso não avisa de novo.
-                    var atualizado = MontarAlerta(chave, regra, valor.Value);
+                    var atualizado = MontarAlerta(chave, regra, valor.Value, inicio);
                     if (atualizado.Texto != ativo.Texto || atualizado.Titulo != ativo.Titulo
                         || atualizado.Severidade != ativo.Severidade)
                         _ativos[chave] = atualizado;
                     continue;
                 }
 
-                var alerta = MontarAlerta(chave, regra, valor.Value);
+                var alerta = MontarAlerta(chave, regra, valor.Value, inicio);
                 _ativos[chave] = alerta;
                 novos.Add(alerta);
             }
@@ -214,8 +226,12 @@ public sealed class MonitorAlertas
         return item.Ler(contexto);
     }
 
-    /// <summary>Monta o aviso da regra (o texto sai do catálogo do sensor).</summary>
-    private static Alerta MontarAlerta(string chave, RegraAlerta regra, float valor)
+    /// <summary>
+    /// Monta o aviso da regra (o texto sai do catálogo do sensor).
+    ///
+    /// <param name="desde">Desde quando a condição está valendo (o começo do episódio).</param>
+    /// </summary>
+    private static Alerta MontarAlerta(string chave, RegraAlerta regra, float valor, DateTime desde)
     {
         string rotuloCatalogo, unidade, dica;
         if (regra.Sensor == SensorBateria)
@@ -241,6 +257,7 @@ public sealed class MonitorAlertas
             Titulo = titulo,
             Texto = texto,
             Severidade = regra.Severidade,
+            Desde = desde,
         };
     }
 }

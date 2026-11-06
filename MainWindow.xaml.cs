@@ -318,12 +318,13 @@ public partial class MainWindow : Window
             case "PageSmart": InitSmart(); break;
             case "PageComparar": InitComparar(); break;
             case "PageTimeline": InitTimeline(); break;
+            case "PageUso": InitUso(); break;
         }
     }
 
     private void ShowPage(string name)
     {
-        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline })
+        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline, PageUso })
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
     }
 
