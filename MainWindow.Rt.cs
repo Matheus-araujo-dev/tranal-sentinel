@@ -100,7 +100,12 @@ public partial class MainWindow
                 if (mo["Name"] is string n && adapter.Contains(n.Trim(), StringComparison.OrdinalIgnoreCase) || mo["Name"] is string n2 && n2.Contains(adapter, StringComparison.OrdinalIgnoreCase))
                     return mo["DriverVersion"]?.ToString() ?? "";
         }
-        catch { }
+        catch
+        {
+            // O WMI pode não responder: a versão do driver é informação
+            // extra (a tela mostra "—" quando não vem), então seguir sem ela
+            // é seguro.
+        }
         return "";
     }
 }

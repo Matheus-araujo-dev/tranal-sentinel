@@ -164,8 +164,10 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
 - **Nota de benchmark só existe se for finita e maior que zero.** A regra
   mora em `BenchResultado.NotaUtilizavel` e vale para exportar, importar e
   comparar: benchmark que falhou (nota zero) e nota quebrada (NaN, infinito)
-  não viram número na tela — a linha é descartada e o app avisa quantas
-  foram. Nota errada é pior que nota ausente.
+  não viram número na tela. A linha **não** some: ela fica com a nota nula,
+  para o app poder dizer "no outro PC este benchmark falhou" — em vez de
+  "este teste só existe aqui", que seria mentira. Nota errada é pior que
+  nota ausente.
 
 ## Publicar
 

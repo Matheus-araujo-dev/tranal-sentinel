@@ -113,6 +113,12 @@ public static class CompararCli
         Console.WriteLine($"PC: {arquivo.Maquina.Nome} · {arquivo.Maquina.Cpu}");
         Console.WriteLine($"Resultados exportados: {arquivo.Resultados.Count}");
 
+        int semNota = arquivo.Resultados.Count(r => !BenchResultado.NotaUtilizavel(r.Nota));
+        if (semNota > 0)
+        {
+            Console.WriteLine($"Benchmark(s) que falharam, exportados sem nota: {semNota}");
+        }
+
         if (arquivo.Resultados.Count == 0)
         {
             Console.WriteLine();
@@ -146,7 +152,7 @@ public static class CompararCli
 
         if (descartados > 0)
         {
-            Console.WriteLine($"{descartados} resultado(s) do arquivo com nota inválida foram ignorados.");
+            Console.WriteLine($"{descartados} resultado(s) sem identificação de teste foram ignorados.");
             Console.WriteLine();
         }
 
@@ -185,7 +191,7 @@ public static class CompararCli
 
         // Sem app e sem data no arquivo: o app diz que não sabe, em vez de
         // mostrar 01/01/0001.
-        Console.WriteLine($"Origem: {(relatorio.AppOrigem.Length > 0 ? relatorio.AppOrigem : "origem desconhecida")}");
+        Console.WriteLine($"Origem: {(string.IsNullOrEmpty(relatorio.AppOrigem) ? "origem desconhecida" : relatorio.AppOrigem)}");
         if (relatorio.ExportadoEm.Year > 2000)
         {
             Console.WriteLine($"Exportado em: {relatorio.ExportadoEm:dd/MM/yyyy HH:mm}");
@@ -238,13 +244,13 @@ public static class CompararCli
         if (relatorio.SemNotaLocal.Count > 0)
         {
             Console.WriteLine();
-            Console.WriteLine("No PC A o benchmark falhou (nota zero): " + string.Join(", ", relatorio.SemNotaLocal));
+            Console.WriteLine("No PC A o benchmark falhou (sem nota): " + string.Join(", ", relatorio.SemNotaLocal));
         }
 
         if (relatorio.SemNotaImportado.Count > 0)
         {
             Console.WriteLine();
-            Console.WriteLine("No PC B o benchmark falhou (nota zero): " + string.Join(", ", relatorio.SemNotaImportado));
+            Console.WriteLine("No PC B o benchmark falhou (sem nota): " + string.Join(", ", relatorio.SemNotaImportado));
         }
     }
 }

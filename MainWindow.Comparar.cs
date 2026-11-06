@@ -93,6 +93,14 @@ public partial class MainWindow
         string texto = $"Exportado: {arquivo.Resultados.Count} resultado(s) para {dlg.FileName}. " +
                        "Leve esse arquivo para o outro PC e importe lá.";
 
+        // Benchmark que falhou vai no arquivo sem nota — o outro PC precisa
+        // saber que o teste rodou lá e deu errado.
+        int semNota = arquivo.Resultados.Count(r => !BenchResultado.NotaUtilizavel(r.Nota));
+        if (semNota > 0)
+        {
+            texto += $" {semNota} benchmark(s) falharam e foram exportados sem nota.";
+        }
+
         if (arquivo.Resultados.Count == 0)
         {
             texto += " Nenhum benchmark foi rodado nesta máquina ainda: rode o TRANAL BENCH antes de exportar.";
@@ -153,7 +161,7 @@ public partial class MainWindow
 
         if (descartados > 0)
         {
-            CompararStatus.Text += $" {descartados} resultado(s) do arquivo com nota inválida foram ignorados.";
+            CompararStatus.Text += $" {descartados} resultado(s) sem identificação de teste foram ignorados.";
         }
 
         if (locais.Count == 0)
@@ -191,12 +199,12 @@ public partial class MainWindow
 
         if (relatorio.SemNotaLocal.Count > 0)
         {
-            observacoes.Add($"Nesta máquina o benchmark falhou (nota zero): {string.Join(", ", relatorio.SemNotaLocal)}.");
+            observacoes.Add($"Nesta máquina o benchmark falhou (sem nota): {string.Join(", ", relatorio.SemNotaLocal)}.");
         }
 
         if (relatorio.SemNotaImportado.Count > 0)
         {
-            observacoes.Add($"No PC importado o benchmark falhou (nota zero): {string.Join(", ", relatorio.SemNotaImportado)}.");
+            observacoes.Add($"No PC importado o benchmark falhou (sem nota): {string.Join(", ", relatorio.SemNotaImportado)}.");
         }
 
         observacoes.Add($"Comparado o melhor resultado de cada teste (a variação de uma execução para a outra é de poucos por cento).");
@@ -207,7 +215,7 @@ public partial class MainWindow
 
         // Sem data e sem app de origem no arquivo: o app diz que não sabe,
         // em vez de mostrar 01/01/0001.
-        string origem = relatorio.AppOrigem.Length > 0 ? relatorio.AppOrigem : "origem desconhecida";
+        string origem = !string.IsNullOrEmpty(relatorio.AppOrigem) ? relatorio.AppOrigem : "origem desconhecida";
         string status = $"{relatorio.Linhas.Count} teste(s) comparado(s) · arquivo de {origem}";
         if (relatorio.ExportadoEm.Year > 2000)
         {

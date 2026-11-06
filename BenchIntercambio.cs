@@ -41,23 +41,39 @@ public sealed record BenchResultado
     /// </summary>
     public string Chave { get; init; } = "";
 
-    /// <summary>A nota. Em todos os testes, maior é melhor.</summary>
-    public double Nota { get; init; }
+    /// <summary>
+    /// A nota do teste. Nula = o teste rodou, mas não tem nota (falhou, ou
+    /// veio quebrado do outro PC).
+    ///
+    /// <para>
+    /// A nota é explícita aqui em vez de a linha sumir: assim o app pode
+    /// dizer "no outro PC este benchmark falhou" em vez de "este teste só
+    /// existe aqui" — que seria mentira.
+    /// </para>
+    /// </summary>
+    public double? Nota { get; init; }
 
     /// <summary>O detalhe do resultado, em texto.</summary>
     public string Resumo { get; init; } = "";
 
     /// <summary>
-    /// A nota só existe se for um número finito e maior que zero.
+    /// A nota só vale se for um número finito e maior que zero. Nota
+    /// quebrada (NaN, infinito) e zero são benchmark que falhou — e
+    /// benchmark que falhou não é resultado.
     ///
     /// <para>
-    /// Nota quebrada (NaN, infinito) ou zero é benchmark que falhou — e
-    /// benchmark que falhou não é resultado. A regra mora aqui para que
-    /// exportar, importar e comparar usem o mesmo critério: melhor sem
-    /// resultado do que com resultado errado.
+    /// A regra mora aqui para que exportar, importar e comparar usem o
+    /// mesmo critério: melhor sem nota do que com nota errada.
     /// </para>
     /// </summary>
-    public static bool NotaUtilizavel(double nota) => double.IsFinite(nota) && nota > 0;
+    public static bool NotaUtilizavel(double? nota) =>
+        nota.HasValue && double.IsFinite(nota.Value) && nota.Value > 0;
+
+    /// <summary>
+    /// A nota quando ela vale. Nula (ou zero) quando não vale — o chamador
+    /// decide o que fazer com isso.
+    /// </summary>
+    public double NotaOuZero => NotaUtilizavel(Nota) ? Nota!.Value : 0;
 }
 
 /// <summary>
@@ -97,6 +113,13 @@ public sealed record BenchArquivo
 /// O arquivo é um JSON legível: se um dia o formato precisar mudar, a
 /// <see cref="Versao"/> diz o que o leitor está lendo, e o app diz na tela
 /// quando o arquivo veio de uma versão que ele não conhece.
+///
+/// <para>
+/// A versão 1 é a primeira publicada deste formato — ela já inclui a chave
+/// do render sustentado ("render:sustained:multi"), o nome do preset de ray
+/// tracing e a nota nula para benchmark que falhou. Nada com a semântica
+/// antiga foi publicado, então a versão 1 é esta.
+/// </para>
 /// </para>
 /// </summary>
 public static class BenchIntercambio
@@ -119,9 +142,9 @@ public static class BenchIntercambio
         WriteIndented = true,
 
         // Aceita "NaN" e "Infinity" na LEITURA para que um arquivo com uma
-        // linha quebrada ainda traga as linhas boas — a linha quebrada é
-        // descartada pela regra da nota, não pelo arquivo inteiro. Na
-        // escrita os valores são saneados, então nada disso vai para o disco.
+        // linha quebrada ainda traga as linhas boas — a linha quebrada vira
+        // "sem nota" (nula), não o arquivo inteiro. Na escrita os valores
+        // são saneados, então nada disso vai para o disco.
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
     };
 
@@ -129,6 +152,11 @@ public static class BenchIntercambio
     /// Converte o que o app guardou em resultados de intercâmbio. É a mesma
     /// função dos dois lados — o local e o importado —, para que a comparação
     /// seja justa por construção.
+    ///
+    /// <para>
+    /// Benchmark que falhou entra na lista sem nota (em vez de sumir): é o
+    /// que permite ao outro PC dizer "este teste rodou lá e falhou".
+    /// </para>
     /// </summary>
     public static List<BenchResultado> Resultados(IEnumerable<BenchRun> renders, IEnumerable<BenchRecord> registros)
     {
@@ -136,24 +164,24 @@ public static class BenchIntercambio
 
         foreach (BenchRun run in renders ?? Enumerable.Empty<BenchRun>())
         {
-            if (run.Multi is double multi && BenchResultado.NotaUtilizavel(multi))
+            if (run.Multi is double multi)
             {
                 lista.Add(new BenchResultado
                 {
                     Data = run.Date,
                     Chave = ChaveRender("multi", run.Sustained),
-                    Nota = multi,
+                    Nota = NotaDe(multi),
                     Resumo = ResumoRender("multi-core", run)
                 });
             }
 
-            if (run.Single is double single && BenchResultado.NotaUtilizavel(single))
+            if (run.Single is double single)
             {
                 lista.Add(new BenchResultado
                 {
                     Data = run.Date,
                     Chave = ChaveRender("single", run.Sustained),
-                    Nota = single,
+                    Nota = NotaDe(single),
                     Resumo = ResumoRender("single-core", run)
                 });
             }
@@ -163,15 +191,11 @@ public static class BenchIntercambio
         {
             if (registro == null || string.IsNullOrEmpty(registro.Test)) continue;
 
-            // Benchmark que falhou (nota zero ou quebrada) não vira resultado:
-            // ele sai da lista e a tela avisa que este PC não tem nota.
-            if (!BenchResultado.NotaUtilizavel(registro.Score)) continue;
-
             lista.Add(new BenchResultado
             {
                 Data = registro.Date,
                 Chave = registro.Test,
-                Nota = registro.Score,
+                Nota = NotaDe(registro.Score),
                 Resumo = registro.Summary
             });
         }
@@ -203,17 +227,18 @@ public static class BenchIntercambio
         if (!string.IsNullOrEmpty(pasta)) Directory.CreateDirectory(pasta);
 
         // O que vai para o arquivo é o que é aproveitável: nota quebrada
-        // (NaN, infinito) ou zero é benchmark que falhou, e benchmark que
-        // falhou não é resultado. A memória fora do normal também vira zero
-        // em vez de NaN.
+        // (NaN, infinito) vira "sem nota" e a memória fora do normal vira
+        // zero, em vez de virar lixo no JSON.
         BenchMaquina maquina = arquivo.Maquina ?? new BenchMaquina();
         if (!double.IsFinite(maquina.MemoriaGb)) maquina = maquina with { MemoriaGb = 0 };
 
         BenchArquivo saneado = arquivo with
         {
+            App = arquivo.App ?? "",
             Maquina = maquina,
             Resultados = (arquivo.Resultados ?? new List<BenchResultado>())
-                .Where(r => r != null && !string.IsNullOrEmpty(r.Chave) && BenchResultado.NotaUtilizavel(r.Nota))
+                .Where(r => r != null && !string.IsNullOrEmpty(r.Chave))
+                .Select(r => r with { Nota = NotaDe(r.Nota) })
                 .ToList()
         };
 
@@ -228,8 +253,7 @@ public static class BenchIntercambio
 
     /// <summary>
     /// Lê o arquivo de intercâmbio, dizendo quantos resultados foram
-    /// descartados por terem nota inválida (NaN, infinito, zero ou chave
-    /// vazia).
+    /// descartados por não terem identificação de teste (a chave vazia).
     /// </summary>
     public static BenchArquivo? Ler(string caminho, out string? erro, out int descartados)
     {
@@ -254,20 +278,25 @@ public static class BenchIntercambio
                 using JsonDocument documento = JsonDocument.Parse(texto);
                 JsonElement raiz = documento.RootElement;
 
-                if (!raiz.TryGetProperty("Formato", out JsonElement formato) || formato.GetString() != Formato)
+                if (raiz.ValueKind != JsonValueKind.Object ||
+                    !raiz.TryGetProperty("Formato", out JsonElement formato) ||
+                    formato.ValueKind != JsonValueKind.String ||
+                    formato.GetString() != Formato)
                 {
                     erro = "Este arquivo não é de benchmarks do TRANAL SENTINEL.";
                     return null;
                 }
 
                 if (raiz.TryGetProperty("Versao", out JsonElement versao) &&
-                    versao.TryGetInt32(out int numero) && numero > Versao)
+                    versao.ValueKind == JsonValueKind.Number &&
+                    versao.TryGetInt32(out int numero) &&
+                    numero > Versao)
                 {
                     erro = $"O arquivo é da versão {numero} do formato e este app entende até a {Versao}. Atualize o TRANAL SENTINEL.";
                     return null;
                 }
             }
-            catch (JsonException)
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
             {
                 erro = "Não deu para ler o arquivo: o conteúdo não é um arquivo de benchmarks válido.";
                 return null;
@@ -292,24 +321,29 @@ public static class BenchIntercambio
 
             if (!double.IsFinite(maquina.MemoriaGb)) maquina = maquina with { MemoriaGb = 0 };
 
-            // Resultado sem nota aproveitável é resultado ausente: fica fora
-            // da comparação, e o app avisa quantos foram.
+            // Resultado sem chave não é resultado de teste nenhum: fica fora.
+            // Resultado com nota quebrada continua na lista, mas sem nota —
+            // o app avisa "este benchmark falhou lá" em vez de esconder.
             var validos = new List<BenchResultado>();
             foreach (BenchResultado resultado in arquivo.Resultados ?? new List<BenchResultado>())
             {
-                if (resultado == null || string.IsNullOrEmpty(resultado.Chave) ||
-                    !BenchResultado.NotaUtilizavel(resultado.Nota))
+                if (resultado == null || string.IsNullOrEmpty(resultado.Chave))
                 {
                     descartados++;
                     continue;
                 }
 
-                validos.Add(resultado);
+                validos.Add(resultado with { Nota = NotaDe(resultado.Nota) });
             }
 
-            return arquivo with { Maquina = maquina, Resultados = validos };
+            return arquivo with
+            {
+                App = arquivo.App ?? "",
+                Maquina = maquina,
+                Resultados = validos
+            };
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException or FormatException or InvalidOperationException)
         {
             erro = "Não deu para ler o arquivo: o conteúdo não é um arquivo de benchmarks válido.";
             return null;
@@ -342,6 +376,13 @@ public static class BenchIntercambio
 
         return informational ?? typeof(BenchIntercambio).Assembly.GetName().Version?.ToString() ?? "";
     }
+
+    /// <summary>
+    /// A nota que vale: a que é finita e maior que zero. As outras viram
+    /// "sem nota" (nula), nunca um número errado na tela.
+    /// </summary>
+    private static double? NotaDe(double? nota) =>
+        BenchResultado.NotaUtilizavel(nota) ? nota : null;
 
     /// <summary>
     /// A chave do render. O teste sustentado (10 minutos, limitado

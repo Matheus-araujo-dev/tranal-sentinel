@@ -16,7 +16,7 @@ public class BenchComparacaoTestes
         => new() { Nome = "PC-TESTE", Cpu = cpu, Gpu = gpu, MemoriaGb = memoria, Sistema = so };
 
     private static BenchArquivo Arquivo(BenchMaquina maquina, params BenchResultado[] resultados)
-        => new() { App = "TRANAL SENTINEL 0.25.0", ExportadoEm = new DateTime(2026, 11, 6, 10, 0, 0), Maquina = maquina, Resultados = resultados.ToList() };
+        => new() { App = "TRANAL SENTINEL 0.26.0", ExportadoEm = new DateTime(2026, 11, 6, 10, 0, 0), Maquina = maquina, Resultados = resultados.ToList() };
 
     /// <summary>Escreve um arquivo de intercâmbio e devolve o caminho.</summary>
     private static void Escrever(string conteudo, out string caminho)
@@ -272,7 +272,7 @@ public class BenchComparacaoTestes
     {
         // "Maquina": null deixa a propriedade nula (o inicializador do
         // registro só vale quando a propriedade está AUSENTE): sem esta
-        // guarda, a comparação estourava com NullReferenceException.
+        // guarda, a comparação estouraria com NullReferenceException.
         Escrever("""{ "Formato": "tranal-bench", "Versao": 1, "Maquina": null, "Resultados": [] }""", out string caminho);
 
         try
@@ -312,10 +312,74 @@ public class BenchComparacaoTestes
     }
 
     [Fact]
+    public void ArquivoSemNomeDoAppNaoQuebra()
+    {
+        // "App": null deixava a propriedade nula e a tela quebrava ao ler o
+        // tamanho da string do app de origem.
+        Escrever("""{ "Formato": "tranal-bench", "Versao": 1, "App": null, "Maquina": { "Nome": "PC-B" }, "Resultados": [] }""", out string caminho);
+
+        try
+        {
+            BenchArquivo? lido = BenchIntercambio.Ler(caminho, out string? erro);
+
+            Assert.NotNull(lido);
+            Assert.Null(erro);
+            Assert.Equal("", lido!.App);
+
+            RelatorioComparacao relatorio = BenchComparacao.Comparar(Maquina(), lido, Array.Empty<BenchResultado>());
+            Assert.Equal("", relatorio.AppOrigem);
+        }
+        finally
+        {
+            if (File.Exists(caminho)) File.Delete(caminho);
+        }
+    }
+
+    [Fact]
+    public void FormatoComTipoErradoEReceusadoEmPortugues()
+    {
+        // "Formato": 123 — o erro do .NET em inglês não pode chegar ao
+        // usuário; o arquivo só não é do formato.
+        Escrever("""{ "Formato": 123, "Versao": 1, "Resultados": [] }""", out string caminho);
+
+        try
+        {
+            BenchArquivo? lido = BenchIntercambio.Ler(caminho, out string? erro);
+
+            Assert.Null(lido);
+            Assert.Contains("não é de benchmarks", erro);
+            Assert.DoesNotContain("JsonElement", erro);
+        }
+        finally
+        {
+            if (File.Exists(caminho)) File.Delete(caminho);
+        }
+    }
+
+    [Fact]
+    public void ArquivoQueNaoEUmObjetoJsonEReceusadoEmPortugues()
+    {
+        Escrever("[1, 2, 3]", out string caminho);
+
+        try
+        {
+            BenchArquivo? lido = BenchIntercambio.Ler(caminho, out string? erro);
+
+            Assert.Null(lido);
+            Assert.Contains("não é de benchmarks", erro);
+            Assert.DoesNotContain("JsonElement", erro);
+        }
+        finally
+        {
+            if (File.Exists(caminho)) File.Delete(caminho);
+        }
+    }
+
+    [Fact]
     public void NotaQueNaoEFinitoNaoViraNumeroNaTela()
     {
-        // Nota "NaN" no arquivo importado: a linha é descartada, e o teste
-        // NÃO aparece como "empate (0%)" na comparação.
+        // Nota "NaN" no arquivo importado: a linha vira "sem nota" e o
+        // teste NÃO aparece como "empate (0%)" na comparação.
         Escrever(
             """
             { "Formato": "tranal-bench", "Versao": 1, "Maquina": { "Nome": "PC-B" },
@@ -325,19 +389,23 @@ public class BenchComparacaoTestes
 
         try
         {
-            BenchArquivo? lido = BenchIntercambio.Ler(caminho, out string? erro, out int descartados);
+            BenchArquivo? lido = BenchIntercambio.Ler(caminho, out string? erro);
 
             Assert.NotNull(lido);
             Assert.Null(erro);
-            Assert.Equal(1, descartados);
-            Assert.Single(lido!.Resultados);
-            Assert.Equal("mem", lido.Resultados[0].Chave);
+
+            // A linha quebrada continua na lista, mas sem nota: o app pode
+            // dizer que o benchmark falhou lá.
+            Assert.Equal(2, lido!.Resultados.Count);
+            Assert.Null(lido.Resultados[0].Nota);
+            Assert.Equal(500, lido.Resultados[1].Nota);
 
             var locais = new List<BenchResultado> { new() { Chave = "gpu", Nota = 100 } };
             RelatorioComparacao relatorio = BenchComparacao.Comparar(Maquina(), lido, locais);
 
             Assert.DoesNotContain(relatorio.Linhas, l => l.Chave == "gpu");
             Assert.All(relatorio.Linhas, l => Assert.True(double.IsFinite(l.DiferencaPercentual)));
+            Assert.Contains("Cena de jogo (GPU)", relatorio.SemNotaImportado);
         }
         finally
         {
@@ -363,7 +431,10 @@ public class BenchComparacaoTestes
 
             BenchArquivo? lido = BenchIntercambio.Ler(caminho, out string? erro);
             Assert.NotNull(lido);
-            Assert.Empty(lido!.Resultados);
+
+            // A linha continua (o teste rodou), mas sem nota.
+            Assert.Single(lido!.Resultados);
+            Assert.Null(lido.Resultados[0].Nota);
         }
         finally
         {
@@ -430,7 +501,7 @@ public class BenchComparacaoTestes
     }
 
     [Fact]
-    public void BenchmarkQueFalhouNaoSaiDaListaDeResultados()
+    public void BenchmarkQueFalhouContinuaNaListaSemNota()
     {
         var registros = new[]
         {
@@ -440,8 +511,43 @@ public class BenchComparacaoTestes
 
         List<BenchResultado> resultados = BenchIntercambio.Resultados(Array.Empty<BenchRun>(), registros);
 
-        Assert.Single(resultados);
-        Assert.Equal("mem", resultados[0].Chave);
+        // O que falhou fica na lista (sem nota) para o outro PC saber que o
+        // teste rodou lá e deu errado.
+        Assert.Equal(2, resultados.Count);
+        Assert.Null(resultados.Single(r => r.Chave == "gpu").Nota);
+        Assert.Equal(500, resultados.Single(r => r.Chave == "mem").Nota);
+    }
+
+    [Fact]
+    public void BenchmarkQueFalhouNosDoisLadosNaoSome()
+    {
+        // Falhou aqui e falhou lá: o app diz "sem nota" nos dois lados, e
+        // NÃO diz que o teste "só existe nesta máquina".
+        var locais = new List<BenchResultado> { new() { Chave = "sim", Nota = null } };
+        var importado = Arquivo(Maquina(), new BenchResultado { Chave = "sim", Nota = null });
+
+        RelatorioComparacao relatorio = BenchComparacao.Comparar(Maquina(), importado, locais);
+
+        Assert.Empty(relatorio.Linhas);
+        Assert.Contains("Simulação de jogo (CPU)", relatorio.SemNotaLocal);
+        Assert.Contains("Simulação de jogo (CPU)", relatorio.SemNotaImportado);
+        Assert.Empty(relatorio.SoLocal);
+        Assert.Empty(relatorio.SoImportado);
+    }
+
+    [Fact]
+    public void TesteQueRodouBemEmUmaExecucaoTemNota()
+    {
+        // Uma execução boa vale o teste: a falha antiga não vira "sem nota".
+        var locais = new List<BenchResultado>
+        {
+            new() { Chave = "gpu", Nota = null },
+            new() { Chave = "gpu", Nota = 120 }
+        };
+
+        RelatorioComparacao relatorio = BenchComparacao.Comparar(Maquina(), Arquivo(Maquina()), locais);
+
+        Assert.Empty(relatorio.SemNotaLocal);
     }
 
     // ---------- O render sustentado é outro teste ----------

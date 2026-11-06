@@ -72,12 +72,12 @@ public sealed class RelatorioComparacao
     public List<string> SoImportado { get; init; } = new();
 
     /// <summary>
-    /// Os testes que existem nesta máquina, mas sem nota utilizável (o
+    /// Os testes que rodaram nesta máquina, mas não têm nota utilizável (o
     /// benchmark falhou). Não dá para comparar o que não tem nota.
     /// </summary>
     public List<string> SemNotaLocal { get; init; } = new();
 
-    /// <summary>Os testes do PC importado que estão sem nota utilizável.</summary>
+    /// <summary>Os testes do PC importado que rodaram, mas ficaram sem nota.</summary>
     public List<string> SemNotaImportado { get; init; } = new();
 }
 
@@ -136,14 +136,18 @@ public static class BenchComparacao
                 continue;
             }
 
-            double diferenca = (local_.Nota - importado_.Nota) / importado_.Nota * 100.0;
+            double notaLocal = local_.NotaOuZero;
+            double notaImportada = importado_.NotaOuZero;
+            double diferenca = notaImportada > 0
+                ? (notaLocal - notaImportada) / notaImportada * 100.0
+                : 0;
 
             linhas.Add(new LinhaComparacao
             {
                 Chave = chave,
                 Teste = BenchCatalogo.Nome(chave),
-                NotaLocal = local_.Nota,
-                NotaImportada = importado_.Nota,
+                NotaLocal = notaLocal,
+                NotaImportada = notaImportada,
                 DiferencaPercentual = diferenca,
                 DataLocal = local_.Data,
                 DataImportada = importado_.Data,
@@ -171,7 +175,7 @@ public static class BenchComparacao
             Diferencas = DiferencasDeHardware(local, maquinaImportada),
             Linhas = linhas,
             ExportadoEm = importado.ExportadoEm,
-            AppOrigem = importado.App,
+            AppOrigem = importado.App ?? "",
             SoLocal = soLocal,
             SoImportado = soImportado,
             SemNotaLocal = semNotaLocal,
@@ -184,9 +188,10 @@ public static class BenchComparacao
     /// melhor). É o que se compara: o pico de cada PC, como no Cinebench.
     ///
     /// <para>
-    /// Resultado sem nota utilizável (o benchmark falhou) fica fora: comparar
-    /// nota quebrada ou zero seria mostrar número errado. O teste entra na
-    /// lista de "sem nota" para o app avisar, em vez de sumir.
+    /// Resultado sem nota utilizável (o benchmark rodou, mas falhou) fica
+    /// fora da comparação — comparar nota quebrada ou zero seria mostrar
+    /// número errado. O teste entra na lista de "sem nota" para o app
+    /// avisar, em vez de sumir.
     /// </para>
     /// </summary>
     private static Dictionary<string, BenchResultado> Melhores(IEnumerable<BenchResultado> resultados, List<string> semNota, HashSet<string> chavesSemNota)
@@ -204,7 +209,7 @@ public static class BenchComparacao
                 continue;
             }
 
-            if (!melhores.TryGetValue(resultado.Chave, out BenchResultado? atual) || resultado.Nota > atual.Nota)
+            if (!melhores.TryGetValue(resultado.Chave, out BenchResultado? atual) || resultado.NotaOuZero > atual.NotaOuZero)
             {
                 melhores[resultado.Chave] = resultado;
             }
