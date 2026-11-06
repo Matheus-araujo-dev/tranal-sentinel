@@ -40,8 +40,8 @@ neste programa?" e "por que esse aviso disparou?".
   `MonitorAlertas`): a tela, a vigia e o TRANAL SAÚDE usam a mesma. A
   explicação só consome o que o histórico já tem.
 - A aba é somente leitura. O app não muda nada no sistema por causa dela.
-- O núcleo do histórico (coletor, arquivo do dia e a regra que interpreta) é
-  função pura e tem teste próprio; a tela só mostra.
+- A regra que interpreta o histórico é função pura e tem teste próprio; a
+  coleta é a parte que olha a tela e grava o arquivo. A tela só mostra.
 
 ---
 

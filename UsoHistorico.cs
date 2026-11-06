@@ -45,9 +45,17 @@ public static class UsoHistorico
     /// <summary>UTF-8 sem BOM: o BOM no começo da linha quebraria a leitura.</summary>
     private static readonly Encoding SemBom = new UTF8Encoding(false);
 
-    /// <summary>O arquivo de um dia.</summary>
+    /// <summary>
+    /// O arquivo de um dia.
+    ///
+    /// <para>
+    /// A data sai em cultura invariante: o nome do arquivo é lido de volta
+    /// (<see cref="DiasComUso"/>) com o mesmo critério, e um Windows em outra
+    /// língua não pode escrever um nome que ninguém consegue ler.
+    /// </para>
+    /// </summary>
     public static string ArquivoDe(DateTime dia) =>
-        Path.Combine(Pasta, $"uso-{dia:yyyy-MM-dd}.csv");
+        Path.Combine(Pasta, "uso-" + dia.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".csv");
 
     /// <summary>
     /// Acrescenta uma troca ao histórico do dia. Nunca lança: o registro de
