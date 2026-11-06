@@ -268,6 +268,18 @@
                                     <TextBlock Text="Diagnóstico" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="NavAlertas" Style="{StaticResource NavItem}" Tag="PageAlertas" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE946;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Alertas" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="NavSmart" Style="{StaticResource NavItem}" Tag="PageSmart" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xEDA2;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="S.M.A.R.T." VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
                             </StackPanel>
                             <ToggleButton x:Name="GrpMemoria" Style="{StaticResource NavGroup}" Content="TRANAL MEMÓRIA"/>
                             <StackPanel x:Name="GrpMemoriaItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpMemoria, Converter={StaticResource BoolVis}}">
@@ -1093,6 +1105,158 @@
 
                         <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
                             A análise é somente leitura: nada é instalado, alterado ou reiniciado. Os dados vêm do log de eventos do Windows, do WMI, do registro e da lista de inicialização automática.
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== TRANAL ALERTAS (regras configuráveis de aviso) ===== -->
+                <ScrollViewer x:Name="PageAlertas" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Margin="0,0,250,0">
+                                <TextBlock Text="TRANAL ALERTAS" Style="{StaticResource H1}"/>
+                                <TextBlock Text="As regras que o app vigia em segundo plano: escolha o sensor, o limite e quanto tempo a condição precisa valer antes do aviso." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                <Button x:Name="BtnNovaRegra" Style="{StaticResource PrimaryButton}" Content="NOVA REGRA" Padding="18,9" Margin="0,0,10,0" Click="BtnNovaRegra_Click"/>
+                                <Button x:Name="BtnPadroes" Style="{StaticResource OutlineButton}" Content="RESTAURAR PADRÕES" Padding="18,9" Click="BtnPadroes_Click"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="REGRAS DE ALERTA" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="AlertasVazio" Text="Nenhuma regra: o app não avisa de nada. Use NOVA REGRA para vigiar um sensor." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+                                <StackPanel x:Name="AlertasLista" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="ALERTAS ATIVOS AGORA" Style="{StaticResource Label}"/>
+                                <TextBlock x:Name="AlertasAtivosVazio" Text="Nenhum aviso valendo agora." Foreground="{DynamicResource Muted}" Margin="0,10,0,0"/>
+                                <StackPanel x:Name="AlertasAtivos" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
+                            Os alertas aparecem como aviso na tela (sem roubar o foco). O app não mexe em nada no sistema: a regra é só um aviso, quem decide o que fazer é o usuário.
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== TRANAL S.M.A.R.T. (a tabela de atributos de cada disco) ===== -->
+                <ScrollViewer x:Name="PageSmart" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Margin="0,0,220,0">
+                                <TextBlock Text="S.M.A.R.T." Style="{StaticResource H1}"/>
+                                <TextBlock Text="A tabela de atributos de cada disco: id, nome, flags, valor, pior, limiar e valor cru. É o que mostra quanto da vida útil do disco já foi gasto." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button x:Name="BtnSmartLer" Style="{StaticResource PrimaryButton}" Content="LER AGORA" Padding="20,9"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnSmartLer_Click"/>
+                        </Grid>
+
+                        <TextBlock x:Name="SmartStatus" Text="Clique em LER AGORA para ler o S.M.A.R.T. de cada disco. A leitura só informa: nada é enviado ao disco." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                        <ItemsControl x:Name="SmartDiscos">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <Grid>
+                                                <StackPanel Margin="0,0,160,0">
+                                                    <TextBlock Text="{Binding Modelo}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding Meta}" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <Border HorizontalAlignment="Right" VerticalAlignment="Top" BorderBrush="{DynamicResource Fg}" BorderThickness="1" Padding="12,4">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="Transparent"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Alerta}" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource Fg}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding Selo}" FontSize="11" FontWeight="SemiBold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Alerta}" Value="True">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                            </Grid>
+                                            <TextBlock Text="{Binding Resumo}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                            <TextBlock Text="{Binding Observacao}" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                                            <!-- A tabela de atributos (discos ATA/SATA) -->
+                                            <StackPanel Margin="0,12,0,0">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TemAtributos}" Value="False">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <DataGrid ItemsSource="{Binding Atributos}" AutoGenerateColumns="False" IsReadOnly="True"
+                                                          CanUserResizeColumns="False" FontSize="11" MaxHeight="440">
+                                                    <DataGrid.Columns>
+                                                        <DataGridTextColumn Header="ID" Binding="{Binding IdTexto}" Width="46" ElementStyle="{StaticResource MonoCell}"/>
+                                                        <DataGridTextColumn Header="ATRIBUTO" Binding="{Binding Nome}" Width="*"/>
+                                                        <DataGridTextColumn Header="FLAGS" Binding="{Binding FlagsTexto}" Width="72" ElementStyle="{StaticResource MutedMonoCell}"/>
+                                                        <DataGridTextColumn Header="VALOR" Binding="{Binding Valor}" Width="52"/>
+                                                        <DataGridTextColumn Header="PIOR" Binding="{Binding Pior}" Width="48" ElementStyle="{StaticResource MutedCell}"/>
+                                                        <DataGridTextColumn Header="LIMIAR" Binding="{Binding LimiarTexto}" Width="58" ElementStyle="{StaticResource MutedCell}"/>
+                                                        <DataGridTextColumn Header="TIPO" Binding="{Binding TipoTexto}" Width="74" ElementStyle="{StaticResource MutedCell}"/>
+                                                        <DataGridTextColumn Header="VALOR CRU" Binding="{Binding CruTexto}" Width="180" ElementStyle="{StaticResource MonoCell}"/>
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                            </StackPanel>
+
+                                            <!-- Os contadores (discos NVMe) -->
+                                            <StackPanel Margin="0,12,0,0">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TemContadores}" Value="False">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <ItemsControl ItemsSource="{Binding Contadores}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,8,16,8">
+                                                                <StackPanel>
+                                                                    <TextBlock Text="{Binding Nome}" Foreground="{DynamicResource Muted}" FontSize="11"/>
+                                                                    <TextBlock Text="{Binding Valor}" FontFamily="{StaticResource Mono}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
+                            O S.M.A.R.T. é lido, nunca enviado: o app não manda comando nenhum para o disco. Os ids 0xA0 ou acima são específicos do fabricante (o app mostra o id e o nome padrão quando existir, nunca um nome inventado). Discos NVMe não expõem o SMART pelo Windows: o app lê a página de saúde direto do disco, o que exige execução como administrador.
                         </TextBlock>
                     </StackPanel>
                 </ScrollViewer>

@@ -118,6 +118,7 @@ public partial class MainWindow : Window
             UpdateBottleneck();
             if (PageBench.IsVisible) UpdateBenchLive();
             if (PageOptimize.IsVisible) UpdateRamStatus();
+            if (PageAlertas.IsVisible) AtualizarAlertasAtivos();
         };
         _timer.Start();
 
@@ -313,13 +314,15 @@ public partial class MainWindow : Window
             case "PageOptimize": InitOptimize(); break;
             case "PageSaude": InitSaude(); break;
             case "PageMemoria": InitMemoria(); break;
+            case "PageAlertas": InitAlertas(); break;
+            case "PageSmart": InitSmart(); break;
             case "PageTimeline": InitTimeline(); break;
         }
     }
 
     private void ShowPage(string name)
     {
-        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageTimeline })
+        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageTimeline })
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
     }
 

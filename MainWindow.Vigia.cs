@@ -159,8 +159,12 @@ public partial class MainWindow
     {
         try
         {
-            float? cpu = _monitor.CpuTemperature;
-            float? disco = MonitorAlertas.TemperaturaMaximaDisco(_monitor.Rows);
+            // Cada sensor é lido por conta: a lista de sensores muda na thread
+            // da tela e uma leitura pode falhar no meio. Um sensor que falha
+            // não pode derrubar o ciclo inteiro de avisos.
+            float? cpu = LerSensor(() => _monitor.CpuTemperature);
+            List<SensorRow> linhas = LinhasDosSensores();
+            float? disco = MonitorAlertas.TemperaturaMaximaDisco(linhas);
 
             // Bateria: valem todas as baterias do PC (um notebook pode ter
             // mais de uma). O alerta usa a menor carga.
@@ -168,7 +172,7 @@ public partial class MainWindow
             bool carregando = false;
             try
             {
-                foreach (var cartao in BatteryInfo.Read(_monitor.Rows.ToList()))
+                foreach (var cartao in BatteryInfo.Read(linhas))
                 {
                     if (!cartao.Title.Contains("Bateria", StringComparison.OrdinalIgnoreCase)) continue;
 
@@ -189,12 +193,87 @@ public partial class MainWindow
                 // Sem bateria (PC de mesa) é o normal.
             }
 
-            _alertas.Verificar(new MonitorAlertas.Estado(cpu, disco, bateria, carregando));
+            var contexto = new ContextoSensores
+            {
+                TemperaturaCpu = cpu,
+                TemperaturaGpu = LerSensor(() => _monitor.GpuTemperature),
+                TemperaturaDisco = disco,
+                CargaCpu = LerSensor(() => _monitor.CpuLoad),
+                CargaGpu = LerSensor(() => _monitor.GpuLoad),
+                ClockCpu = LerSensor(() => _monitor.CpuClocks().Avg),
+                ClockGpu = LerSensor(() => _monitor.GpuClock),
+                UsoRam = LerSensor(() => _monitor.RamUso),
+                Bateria = bateria,
+                Carregando = carregando,
+            };
+
+            // A cópia evita que a tela (que edita as regras ao mesmo tempo)
+            // estrague a leitura da vigia.
+            List<RegraAlerta> regras = CopiaRegras();
+
+            _alertas.Verificar(DateTime.Now, regras, contexto);
         }
         catch
         {
             // Alerta que falha não pode derrubar o app.
         }
+    }
+
+    /// <summary>
+    /// Lê um sensor sem derrubar a vigia: a lista de sensores é atualizada na
+    /// thread da tela e uma leitura pode falhar no meio da contagem.
+    /// </summary>
+    private static float? LerSensor(Func<float?> leitura)
+    {
+        try { return leitura(); }
+        catch { return null; }
+    }
+
+    /// <summary>
+    /// Uma cópia das linhas dos sensores (a vigia roda em outra thread e a
+    /// lista muda na thread da tela).
+    /// </summary>
+    private List<SensorRow> LinhasDosSensores()
+    {
+        try { return _monitor.Rows.ToList(); }
+        catch { return new List<SensorRow>(); }
+    }
+
+    /// <summary>
+    /// As regras de alerta que valem agora.
+    ///
+    /// <para>
+    /// Se o usuário nunca mexeu nas regras (<c>null</c>), as três regras
+    /// padrão entram no lugar — e são gravadas para o usuário ver e poder
+    /// editar. Uma lista vazia é o usuário apagando tudo: isso é respeitado.
+    /// </para>
+    ///
+    /// <para>
+    /// Devolve a lista viva das configurações: quem for mudar tem que estar
+    /// dentro do <see cref="TravaAlertas"/>. Quem for só ler usa
+    /// <see cref="CopiaRegras"/>.
+    /// </para>
+    /// </summary>
+    private List<RegraAlerta> RegrasAtivas()
+    {
+        lock (TravaAlertas)
+        {
+            if (_settings.Alertas is null)
+            {
+                _settings.Alertas = RegrasAlertaPadrao.Criar();
+                _settings.Save();
+            }
+            return _settings.Alertas;
+        }
+    }
+
+    /// <summary>
+    /// Uma cópia das regras (a vigia lê de outra thread e a tela pode estar
+    /// mudando a lista no mesmo instante).
+    /// </summary>
+    private List<RegraAlerta> CopiaRegras()
+    {
+        lock (TravaAlertas) return new List<RegraAlerta>(RegrasAtivas());
     }
 
     private void AoAlertar(Alerta alerta)

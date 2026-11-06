@@ -217,6 +217,12 @@ public sealed class ColetaSaude
     public List<DispositivoOrfao> Orfaos { get; } = new();
     public List<InfoNvme> Nvmes { get; } = new();
 
+    /// <summary>
+    /// O que o S.M.A.R.T. disse de cada disco (a tabela de atributos).
+    /// Vazio quando o disco não expõe SMART — e aí nada muda na nota.
+    /// </summary>
+    public List<SmartDisco> DiscosSmart { get; } = new();
+
     // segurança
     public string? ModoDefender { get; set; }
     public string? DriverAntivirus { get; set; }

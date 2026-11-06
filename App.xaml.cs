@@ -49,6 +49,14 @@ public partial class App : Application
             return;
         }
 
+        // S.M.A.R.T. pela linha de comando: lê a tabela de atributos dos
+        // discos e mostra em texto.
+        if (Array.Exists(e.Args, a => string.Equals(a, "--smart", StringComparison.OrdinalIgnoreCase)))
+        {
+            Shutdown(SmartCli.Executar(e.Args));
+            return;
+        }
+
         // Processo filho da coleta de sensores: não abre janela e não trava
         // a instância única (é quem grava as leituras para o app pai ler).
         int indiceWorker = Array.FindIndex(e.Args, a => string.Equals(a, SensorWorker.Argumento, StringComparison.OrdinalIgnoreCase));

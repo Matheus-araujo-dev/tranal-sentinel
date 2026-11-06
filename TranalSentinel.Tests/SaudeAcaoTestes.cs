@@ -955,11 +955,11 @@ public class SaudeAcaoTestes : IDisposable
         var avisos = new List<Alerta>();
         monitor.Alertar += a => avisos.Add(a);
 
-        monitor.Verificar(new MonitorAlertas.Estado(90, null, null, true));
-        monitor.Verificar(new MonitorAlertas.Estado(91, null, null, true));
+        monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { TemperaturaCpu = 90 });
+        monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { TemperaturaCpu = 91 });
 
         Assert.Single(avisos);
-        Assert.Equal("temperatura-cpu", avisos[0].Id);
+        Assert.Equal("regra:padrao-cpu", avisos[0].Id);
     }
 
     [Fact]
@@ -969,12 +969,12 @@ public class SaudeAcaoTestes : IDisposable
         var avisos = new List<Alerta>();
         monitor.Alertar += a => avisos.Add(a);
 
-        monitor.Verificar(new MonitorAlertas.Estado(90, null, null, true));
-        monitor.Verificar(new MonitorAlertas.Estado(60, null, null, true));
+        monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { TemperaturaCpu = 90 });
+        monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { TemperaturaCpu = 60 });
         Assert.Single(avisos);
         Assert.Empty(monitor.Ativos);
 
-        monitor.Verificar(new MonitorAlertas.Estado(90, null, null, true));
+        monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { TemperaturaCpu = 90 });
         Assert.Equal(2, avisos.Count);
     }
 
@@ -983,7 +983,7 @@ public class SaudeAcaoTestes : IDisposable
     {
         var monitor = new MonitorAlertas();
 
-        var novos = monitor.Verificar(new MonitorAlertas.Estado(70, null, null, true));
+        var novos = monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { TemperaturaCpu = 70 });
 
         Assert.Empty(novos);
     }
@@ -995,12 +995,12 @@ public class SaudeAcaoTestes : IDisposable
         var avisos = new List<Alerta>();
         monitor.Alertar += a => avisos.Add(a);
 
-        monitor.Verificar(new MonitorAlertas.Estado(60, null, 10, true));    // carregando
+        monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { Bateria = 10, Carregando = true });
         Assert.Empty(avisos);
 
-        monitor.Verificar(new MonitorAlertas.Estado(60, null, 10, false));   // na bateria
+        monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { Bateria = 10, Carregando = false });
         Assert.Single(avisos);
-        Assert.Equal("bateria-baixa", avisos[0].Id);
+        Assert.Equal("regra:padrao-bateria", avisos[0].Id);
     }
 
     [Fact]
@@ -1008,10 +1008,10 @@ public class SaudeAcaoTestes : IDisposable
     {
         var monitor = new MonitorAlertas();
 
-        var novos = monitor.Verificar(new MonitorAlertas.Estado(60, 65, null, true));
+        var novos = monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { TemperaturaDisco = 65 });
 
         Assert.Single(novos);
-        Assert.Equal("temperatura-disco", novos[0].Id);
+        Assert.Equal("regra:padrao-disco", novos[0].Id);
     }
 
     [Fact]
@@ -1019,6 +1019,6 @@ public class SaudeAcaoTestes : IDisposable
     {
         var monitor = new MonitorAlertas();
 
-        Assert.Empty(monitor.Verificar(new MonitorAlertas.Estado(60, 45, null, true)));
+        Assert.Empty(monitor.Verificar(DateTime.Now, RegrasAlertaPadrao.Criar(), new ContextoSensores { TemperaturaDisco = 45 }));
     }
 }

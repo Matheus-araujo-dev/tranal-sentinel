@@ -23,6 +23,7 @@ internal static class SaudeColeta
         ColetarHardware(dados);
         ColetarPcie(dados);
         ColetarDiscos(dados);
+        ColetarSmart(dados);
         ColetarAntivirus(dados);
         ColetarMemoria(dados);
         ColetarLentidao(dados);
@@ -489,6 +490,25 @@ internal static class SaudeColeta
         {
             foreach (var orfao in SaudePnp.OrfaosArmazenamento())
                 dados.Orfaos.Add(orfao);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// O S.M.A.R.T. de cada disco (a tabela de atributos).
+    ///
+    /// <para>
+    /// Só leitura: o SMART é lido, nunca enviado. Disco que não expõe SMART
+    /// aparece na lista com a observação dizendo por quê — e, sem dado, não
+    /// entra nenhum achado novo no diagnóstico.
+    /// </para>
+    /// </summary>
+    private static void ColetarSmart(ColetaSaude dados)
+    {
+        try
+        {
+            foreach (var disco in SmartLeitor.LerTodos())
+                dados.DiscosSmart.Add(disco);
         }
         catch { }
     }

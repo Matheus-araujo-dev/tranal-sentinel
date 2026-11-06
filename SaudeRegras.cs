@@ -39,6 +39,7 @@ public static class SaudeRegras
         Hardware(c, achados);
         Pcie(c, achados);
         Discos(c, achados);
+        DiscosSmart(c, achados);
         Antivirus(c, achados);
         Memoria(c, achados);
         Lentidao(c, achados);
@@ -218,6 +219,100 @@ public static class SaudeRegras
         return degraus;
     }
     // -------------------------------------------------------------------- discos
+
+    /// <summary>
+    /// O que o S.M.A.R.T. diz de cada disco.
+    ///
+    /// <para>
+    /// A regra é pura: recebe a fotografia (com a lista de discos lida do
+    /// SMART) e devolve os achados. Disco sem dado de SMART não vira achado
+    /// nenhum — a nota de quem não tem SMART não muda por causa disso.
+    /// </para>
+    /// </summary>
+    public static List<Achado> AvaliarDiscosSmart(ColetaSaude c)
+    {
+        var achados = new List<Achado>();
+
+        foreach (var disco in c.DiscosSmart)
+        {
+            string nome = disco.Modelo.Length > 0 ? disco.Modelo : $"Disco {disco.Numero}";
+
+            if (disco.FalhaPrevista)
+            {
+                achados.Add(new Achado
+                {
+                    Severidade = Severidade.Critico,
+                    Area = "Disco",
+                    Mensagem = $"{nome}: o próprio disco avisa (S.M.A.R.T.) que deve falhar em breve",
+                    Acao = "Faça backup agora e troque o disco"
+                });
+            }
+
+            // O aviso crítico do log SMART/Health do NVMe: o próprio disco
+            // avisa que está em risco (reserva baixa, temperatura alta,
+            // confiabilidade degradada). Sem isto, um NVMe em aviso crítico
+            // apareceria com o selo "OK".
+            if (!string.IsNullOrWhiteSpace(disco.AvisoCritico))
+            {
+                achados.Add(new Achado
+                {
+                    Severidade = Severidade.Critico,
+                    Area = "Disco",
+                    Mensagem = $"{nome}: o disco avisa {disco.AvisoCritico}",
+                    Acao = "Faça backup agora e prepare a troca do disco"
+                });
+            }
+
+            long realocados = disco.ValorCru(5) ?? 0;   // Reallocated_Sector_Ct
+            if (realocados > 0)
+            {
+                achados.Add(new Achado
+                {
+                    Severidade = Severidade.Alto,
+                    Area = "Disco",
+                    Mensagem = $"{nome}: {realocados} setor(es) realocado(s) pelo disco",
+                    Acao = "O disco já perdeu setores: faça backup e prepare a troca"
+                });
+            }
+
+            long pendentes = disco.ValorCru(197) ?? 0;   // Current_Pending_Sector
+            if (pendentes > 0)
+            {
+                achados.Add(new Achado
+                {
+                    Severidade = Severidade.Medio,
+                    Area = "Disco",
+                    Mensagem = $"{nome}: {pendentes} setor(es) pendente(s) (para realocar)",
+                    Acao = "Vigie o disco: pendência que vira realocação é aviso de que ele está cedendo"
+                });
+            }
+
+            // Desgaste alto: NVMe (vida útil que resta) ou ATA (atributo 232).
+            int? vida = disco.VidaRestantePercent;
+            if (!vida.HasValue)
+            {
+                // O atributo 232 (Remaining_Lifetime_Perc) é a vida útil que
+                // resta, em % — quando o disco tem esse atributo.
+                long? cru = disco.ValorCru(232);
+                if (cru is long valor && valor > 0) vida = (int)Math.Min(valor, 100);
+            }
+
+            if (vida is int restante && restante <= 10)
+            {
+                achados.Add(new Achado
+                {
+                    Severidade = Severidade.Medio,
+                    Area = "Disco",
+                    Mensagem = $"{nome}: {restante}% de vida útil restante",
+                    Acao = "O SSD está no fim da vida útil: compre o outro antes"
+                });
+            }
+        }
+
+        return achados;
+    }
+
+    private static void DiscosSmart(ColetaSaude c, List<Achado> saida) => saida.AddRange(AvaliarDiscosSmart(c));
 
     private static void Discos(ColetaSaude c, List<Achado> saida)
     {

@@ -99,6 +99,17 @@ public sealed class AppSettings
     /// <summary>Itens escolhidos para o overlay (chaves de OverlayMetrics); null = padrão.</summary>
     public List<string>? OverlayItems { get; set; }
 
+    /// <summary>
+    /// As regras de alerta do usuário.
+    ///
+    /// <para>
+    /// Null = o usuário nunca configurou (o app usa as regras padrão);
+    /// lista vazia = o usuário apagou tudo, e isso é respeitado (não volta
+    /// o padrão).
+    /// </para>
+    /// </summary>
+    public List<RegraAlerta>? Alertas { get; set; }
+
     // Sensores: a GPU do LibreHardwareMonitor é lida por código nativo do driver da AMD.
     // Se esse caminho derrubar o app, o SensorGuard desliga a GPU sozinho; aqui o usuário
     // pode deixar desligado de vez.
@@ -149,6 +160,13 @@ public sealed class AppSettings
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     };
 
+    /// <summary>
+    /// Trava da gravação: as configurações são gravadas de vários lugares
+    /// (a tela e a vigia, em threads diferentes) e duas gravações ao mesmo
+    /// tempo podem deixar o arquivo pela metade.
+    /// </summary>
+    private static readonly object TravaGravacao = new();
+
     public static AppSettings Load()
     {
         try
@@ -166,16 +184,37 @@ public sealed class AppSettings
     /// </summary>
     public void Save()
     {
-        try
+        lock (TravaGravacao)
         {
-            Directory.CreateDirectory(Folder);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, OpcoesJson));
-        }
-        catch
-        {
-            // Disco cheio, arquivo bloqueado pelo antivírus, pasta sem
-            // permissão: o app segue funcionando com as configurações em
-            // memória. Perder a gravação não pode derrubar o programa.
+            try
+            {
+                Directory.CreateDirectory(Folder);
+                string json = JsonSerializer.Serialize(this, OpcoesJson);
+
+                // Grava num arquivo temporário e troca: o arquivo bom nunca
+                // fica pela metade (se o app for encerrado no meio da
+                // gravação, o anterior continua inteiro).
+                string temporario = FilePath + ".tmp";
+                File.WriteAllText(temporario, json);
+                try
+                {
+                    File.Move(temporario, FilePath, overwrite: true);
+                }
+                catch
+                {
+                    // Antivírus ou gerenciador de arquivos travando o
+                    // arquivo: grava direto. É mais arriscado, mas perder a
+                    // configuração é pior.
+                    try { File.Delete(temporario); } catch { }
+                    File.WriteAllText(FilePath, json);
+                }
+            }
+            catch
+            {
+                // Disco cheio, arquivo bloqueado pelo antivírus, pasta sem
+                // permissão: o app segue funcionando com as configurações em
+                // memória. Perder a gravação não pode derrubar o programa.
+            }
         }
     }
 }

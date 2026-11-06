@@ -105,7 +105,31 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   LibreHardwareMonitor entra pelo adaptador `HardwareLibre`.
 - **`AppSettings.Save()` nunca lança.** Gravar configuração é uma conveniência;
   derrubar o app, não. E o `settings.json` aceita literal nomeado (`NaN`, `Infinity`):
-  uma nota de benchmark estranha não pode estragar o arquivo inteiro.
+  uma nota de benchmark estranha não pode estragar o arquivo inteiro. A gravação
+  é **atômica** (arquivo temporário + troca) e serializada por uma trava: a tela e
+  a vigia gravam de threads diferentes, e duas gravações ao mesmo tempo deixavam o
+  arquivo pela metade — o que faria a leitura engolir o erro e devolver o padrão,
+  apagando as preferências do usuário.
+- **A regra de alerta é uma só** (`RegraAlerta` + `SensorCatalogo` + `MonitorAlertas`).
+  A tela, a vigia e o TRANAL SAÚDE consomem os mesmos; não existe constante de
+  limite no meio do código. O motor trata **mudança de configuração como episódio
+  novo**: quando o usuário muda o sensor, a operação ou o limite, o aviso antigo
+  sai da tela e a contagem recomeça (o aviso com o limite velho mentia).
+  `AppSettings.Alertas` é anulável: `null` = nunca configurado (semeia os padrões),
+  lista vazia = o usuário apagou tudo (é respeitado).
+- **O S.M.A.R.T. é lido, nunca escrito.** A tabela de atributos vem do WMI
+  (`root\wmi`) para o SATA e do IOCTL de protocolo do NVMe; o caminho NVMe
+  (`IOCTL_STORAGE_QUERY_PROPERTY`, `StorageDeviceProtocolSpecificProperty`) usa o
+  layout do **winioctl.h** (10 `DWORD`, 40 bytes — o de user-mode; o de kernel, de
+  20 bytes, é diferente e não funciona). A struct do protocolo é um buffer de
+  memória: offset errado quebra. Em máquina onde o driver recusa, o disco aparece
+  como "sem SMART" com o motivo — **nunca** com número inventado.
+- **Número que a spec não garante, o app não mostra.** O log NVMe é decodificado
+  só nos campos estáveis (aviso crítico, temperatura composta, reserva,
+  percentual de uso e as 8 temperaturas, quando são plausíveis). Os contadores
+  grandes ficam em blocos de 128 bits cujo tamanho muda entre revisões da spec:
+  número errado é pior que número ausente. O "percentual de uso" é quanto o disco
+  foi usado — a vida que resta é o complemento.
 - **A comparação de snapshots** (`Mudancas.Comparar`) é função pura e não tem
   I/O — é o que os testes cobrem.
 
@@ -127,6 +151,10 @@ auto-update procura.
 | `MainWindow.*.cs` | Uma partial class por aba. `MainWindow.Assistente.cs` é o modo assistente (bandeja, perfil de recursos, linha do tempo). |
 | `Saude*.cs` | O diagnóstico de travamentos e lentidão: modelo, coleta, regras (funções puras), orquestrador. |
 | `SaudeCli.cs` | O mesmo diagnóstico pela linha de comando (`--saude`). Reaproveita as mesmas regras. |
+| `SmartLeitor.cs` / `SmartDisco.cs` / `SmartNomes.cs` | A leitura do S.M.A.R.T. (WMI para SATA, IOCTL de protocolo para NVMe), o modelo e os nomes padrão dos atributos. |
+| `SmartCli.cs` | A tabela do S.M.A.R.T. pela linha de comando (`--smart`). |
+| `RegraAlerta.cs` / `SensorCatalogo.cs` | A regra de alerta do usuário e o catálogo dos 8 sensores que podem ser vigiados. |
+| `MainWindow.Alertas.cs` / `MainWindow.Smart.cs` | As páginas de configuração de alertas e de S.M.A.R.T. |
 | `Mudancas.cs` | A linha do tempo do PC: retrato, comparação pura e coleta do retrato. |
 | `PoliticaRecursos.cs` | Perfil Completo / Equilibrado / Economia. Funções puras. |
 | `RegistroDiario.cs` | O log diário (um arquivo por dia). |

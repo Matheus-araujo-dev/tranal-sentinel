@@ -30,6 +30,51 @@ public sealed class DiskHealthCard
 }
 
 /// <summary>
+/// Um disco físico como o Windows o enxerga.
+///
+/// <para>
+/// É a base de duas coisas: a saúde dos discos (a página "Discos") e a
+/// leitura do S.M.A.R.T. (a página "S.M.A.R.T."). O Windows é consultado
+/// uma vez só — as duas usam esta mesma lista.
+/// </para>
+/// </summary>
+public sealed record DiscoFisico
+{
+    /// <summary>O número do disco (0 = PhysicalDrive0).</summary>
+    public int Index { get; init; }
+
+    /// <summary>O modelo que o Windows mostra.</summary>
+    public string Modelo { get; init; } = "";
+
+    /// <summary>O número de série.</summary>
+    public string Serial { get; init; } = "";
+
+    /// <summary>A versão do firmware.</summary>
+    public string Firmware { get; init; } = "";
+
+    /// <summary>O barramento ("SATA", "NVMe", "USB"...).</summary>
+    public string Barramento { get; init; } = "";
+
+    /// <summary>O tipo de mídia ("HDD", "SSD"...).</summary>
+    public string Midia { get; init; } = "";
+
+    /// <summary>A capacidade em bytes.</summary>
+    public long TamanhoBytes { get; init; }
+
+    /// <summary>O id do dispositivo no PnP (é ele que casa com o SMART do WMI).</summary>
+    public string PnpDeviceId { get; init; } = "";
+
+    /// <summary>A saúde segundo o Windows (0 saudável, 1 atenção, 2 não saudável, 5 desconhecido).</summary>
+    public int SaudeWindows { get; init; } = 5;
+
+    /// <summary>True quando o disco é NVMe.</summary>
+    public bool EhNvme =>
+        Barramento.Equals("NVMe", StringComparison.OrdinalIgnoreCase) ||
+        Modelo.Contains("NVMe", StringComparison.OrdinalIgnoreCase) ||
+        PnpDeviceId.Contains("NVME", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
 /// Lê a saúde dos discos pelo próprio Windows (API de armazenamento + S.M.A.R.T. do WMI) e, quando faltar dado,
 /// completa com os sensores do LibreHardwareMonitor. Nada é escrito no disco.
 /// </summary>
@@ -52,56 +97,105 @@ public static class DiskHealth
         public string? Error;
     }
 
-    public static List<DiskHealthCard> Read(IEnumerable<SensorRow>? sensors = null)
+    /// <summary>
+    /// Os discos físicos que o Windows enxerga (modelo, serial, tamanho,
+    /// barramento, mídia e o id do PnP).
+    ///
+    /// <para>
+    /// É a lista que a página de saúde e a leitura de S.M.A.R.T. usam: o
+    /// Windows é consultado uma vez só.
+    /// </para>
+    /// </summary>
+    /// <param name="erro">A mensagem do erro quando a enumeração falha (null = deu certo).</param>
+    public static List<DiscoFisico> LerDiscos(out string? erro)
     {
-        var raws = new Dictionary<int, Raw>();
+        erro = null;
+        var lista = new List<DiscoFisico>();
 
-        // 1) Base: Win32_DiskDrive (existe em qualquer Windows)
+        // Base: Win32_DiskDrive (existe em qualquer Windows)
         try
         {
-            using var s = new ManagementObjectSearcher("SELECT Index, Model, SerialNumber, FirmwareRevision, InterfaceType, Size, PNPDeviceID, MediaType FROM Win32_DiskDrive");
+            using var s = new ManagementObjectSearcher("SELECT Index, Model, SerialNumber, FirmwareRevision, InterfaceType, Size, PNPDeviceID FROM Win32_DiskDrive");
             foreach (ManagementObject d in s.Get())
             {
                 int idx = Convert.ToInt32(d["Index"] ?? 0);
                 string pnp = d["PNPDeviceID"]?.ToString() ?? "";
-                raws[idx] = new Raw
+                lista.Add(new DiscoFisico
                 {
                     Index = idx,
-                    Model = d["Model"]?.ToString()?.Trim() ?? $"Disco {idx}",
+                    Modelo = d["Model"]?.ToString()?.Trim() ?? $"Disco {idx}",
                     Serial = d["SerialNumber"]?.ToString()?.Trim() ?? "",
                     Firmware = d["FirmwareRevision"]?.ToString()?.Trim() ?? "",
-                    Bus = pnp.StartsWith("USBSTOR", StringComparison.OrdinalIgnoreCase) ? "USB" : (d["InterfaceType"]?.ToString() ?? ""),
-                    Size = Convert.ToInt64(d["Size"] ?? 0L),
-                    Pnp = pnp,
-                };
+                    Barramento = pnp.StartsWith("USBSTOR", StringComparison.OrdinalIgnoreCase) ? "USB" : (d["InterfaceType"]?.ToString() ?? ""),
+                    TamanhoBytes = Convert.ToInt64(d["Size"] ?? 0L),
+                    PnpDeviceId = pnp,
+                });
             }
         }
-        catch (Exception ex) { return new List<DiskHealthCard> { ErrorCard(ex.Message) }; }
+        catch (Exception ex) { erro = ex.Message; return lista; }
 
-        // 2) API de armazenamento: tipo de mídia, saúde geral e contadores de confiabilidade (temperatura, desgaste, horas...)
+        // API de armazenamento: tipo de mídia, saúde geral e barramento
         try
         {
             var scope = new ManagementScope(StorageScope);
             scope.Connect();
-            var idByDeviceId = new Dictionary<string, int>();
             using (var s = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT * FROM MSFT_PhysicalDisk")))
                 foreach (ManagementObject d in s.Get())
                 {
                     string devId = d["DeviceId"]?.ToString() ?? "";
-                    if (!int.TryParse(devId, out int idx) || !raws.TryGetValue(idx, out var r)) continue;
-                    idByDeviceId[devId] = idx;
-                    r.Health = Convert.ToInt32(d["HealthStatus"] ?? 5);
-                    r.Media = Convert.ToInt32(d["MediaType"] ?? 0) switch { 3 => "HDD", 4 => "SSD", 5 => "SCM", _ => "" };
+                    if (!int.TryParse(devId, out int idx)) continue;
+                    int pos = lista.FindIndex(x => x.Index == idx);
+                    if (pos < 0) continue;
+                    string midia = Convert.ToInt32(d["MediaType"] ?? 0) switch { 3 => "HDD", 4 => "SSD", 5 => "SCM", _ => "" };
                     int bus = Convert.ToInt32(d["BusType"] ?? 0);
-                    r.Bus = bus switch { 17 => "NVMe", 11 => "SATA", 7 => "USB", 10 => "SAS", 8 => "RAID", _ => r.Bus };
+                    string barramento = bus switch { 17 => "NVMe", 11 => "SATA", 7 => "USB", 10 => "SAS", 8 => "RAID", _ => lista[pos].Barramento };
+                    lista[pos] = lista[pos] with
+                    {
+                        Midia = midia,
+                        Barramento = barramento,
+                        SaudeWindows = Convert.ToInt32(d["HealthStatus"] ?? 5),
+                    };
                 }
+        }
+        catch { /* sem a API de armazenamento (ou sem permissão): segue só com o resto */ }
 
+        return lista;
+    }
+
+    public static List<DiskHealthCard> Read(IEnumerable<SensorRow>? sensors = null)
+    {
+        var raws = new Dictionary<int, Raw>();
+
+        // 1 e 2) Base: Win32_DiskDrive + API de armazenamento (tipo de mídia,
+        // saúde geral e barramento). A mesma lista que o leitor de SMART usa.
+        var discos = LerDiscos(out string? erro);
+        if (erro != null) return new List<DiskHealthCard> { ErrorCard(erro) };
+
+        foreach (var d in discos)
+            raws[d.Index] = new Raw
+            {
+                Index = d.Index,
+                Model = d.Modelo,
+                Serial = d.Serial,
+                Firmware = d.Firmware,
+                Bus = d.Barramento,
+                Media = d.Midia,
+                Size = d.TamanhoBytes,
+                Pnp = d.PnpDeviceId,
+                Health = d.SaudeWindows,
+            };
+
+        // 2b) Contadores de confiabilidade (temperatura, desgaste, horas...):
+        // vêm da API de armazenamento e nem sempre existem (neste PC, não).
+        try
+        {
+            var scope = new ManagementScope(StorageScope);
+            scope.Connect();
             using (var s = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT * FROM MSFT_StorageReliabilityCounter")))
                 foreach (ManagementObject c in s.Get())
                 {
                     string devId = c["DeviceId"]?.ToString() ?? "";
-                    if (!idByDeviceId.TryGetValue(devId, out int idx)) continue;
-                    var r = raws[idx];
+                    if (!int.TryParse(devId, out int idx) || !raws.TryGetValue(idx, out var r)) continue;
                     r.Temp = Num(c["Temperature"]);
                     r.TempMax = Num(c["TemperatureMax"]);
                     r.Wear = Num(c["Wear"]);
@@ -113,7 +207,7 @@ public static class DiskHealth
                     r.StartStop = (long?)Num(c["StartStopCycleCount"]);
                 }
         }
-        catch { /* sem a API de armazenamento (ou sem permissão): segue só com o resto */ }
+        catch { /* sem os contadores de confiabilidade (ou sem permissão): segue sem eles */ }
 
         // 3) S.M.A.R.T. "falha prevista" (o disco avisa que vai falhar)
         try
