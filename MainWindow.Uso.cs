@@ -155,7 +155,15 @@ public partial class MainWindow
         // pode pintar a tela com o dia errado.
         if (dados.Dia != _usoDia) return;
 
-        MostrarUso(dados);
+        try
+        {
+            MostrarUso(dados);
+        }
+        catch (Exception)
+        {
+            // A aba do uso é uma leitura: se a montagem falhar, a página fica
+            // como está. Derrubar o app por causa de um texto seria absurdo.
+        }
     }
 
     /// <summary>

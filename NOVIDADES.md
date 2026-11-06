@@ -29,7 +29,8 @@ neste programa?" e "por que esse aviso disparou?".
 
 **Novo · o "por que disparou" no TRANAL ALERTAS**
 - Cada aviso ativo mostra agora por que disparou: o que os sensores faziam
-  nos dois minutos antes (CPU a 81,5 °C, carga da CPU 92 %) e qual programa
+  nos dois minutos antes de a condição começar (CPU a 81,5 °C, carga da
+  CPU 92 %) e qual programa
   estava em frente na hora.
 - Quando o app não estava gravando sensores naquele momento, o aviso diz
   exatamente isso. O que o aviso mostra hoje não muda: a explicação vem

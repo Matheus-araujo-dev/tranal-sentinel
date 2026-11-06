@@ -102,9 +102,10 @@ TRANAL ALERTAS
 - Se você mudar o que a regra vigia (o sensor, a comparação ou o limite), o
   aviso antigo sai da tela e a contagem recomeça.
 - As regras ficam em %AppData%\TranalSentinel\settings.json (campo "Alertas").
-- Cada aviso ativo mostra por que disparou: o que os sensores faziam na hora
-  (CPU a 81,5 °C, carga da CPU 92 %) e qual programa estava em frente. Quando
-  o app não estava gravando naquele momento, o aviso diz que não sabe.
+- Cada aviso ativo mostra por que disparou: o que os sensores faziam nos dois
+  minutos antes de a condição começar (CPU a 81,5 °C, carga da CPU 92 %) e
+  qual programa estava em frente. Quando o app não estava gravando naquele
+  momento, o aviso diz que não sabe.
 
 TRANAL S.M.A.R.T.
 - No menu lateral, grupo "TRANAL SAÚDE" -> aba "S.M.A.R.T.". Clique em LER AGORA.
