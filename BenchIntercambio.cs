@@ -164,6 +164,8 @@ public static class BenchIntercambio
 
         foreach (BenchRun run in renders ?? Enumerable.Empty<BenchRun>())
         {
+            if (run == null) continue;
+
             if (run.Multi is double multi)
             {
                 lista.Add(new BenchResultado
@@ -343,6 +345,11 @@ public static class BenchIntercambio
                 Resultados = validos
             };
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            erro = "Não deu para ler o arquivo: ele pode estar aberto por outro programa ou sem permissão.";
+            return null;
+        }
         catch (Exception ex) when (ex is JsonException or NotSupportedException or FormatException or InvalidOperationException)
         {
             erro = "Não deu para ler o arquivo: o conteúdo não é um arquivo de benchmarks válido.";
@@ -375,6 +382,19 @@ public static class BenchIntercambio
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
         return informational ?? typeof(BenchIntercambio).Assembly.GetName().Version?.ToString() ?? "";
+    }
+
+    /// <summary>
+    /// De onde veio o arquivo, em uma frase só. A tela e a CLI usam esta
+    /// frase para que o mesmo fato não apareça com duas redações.
+    /// </summary>
+    public static string DescreverOrigem(string? appOrigem, DateTime exportadoEm)
+    {
+        string origem = string.IsNullOrWhiteSpace(appOrigem) ? "origem desconhecida" : appOrigem.Trim();
+
+        return exportadoEm.Year > 2000
+            ? $"{origem} · exportado em {exportadoEm:dd/MM/yyyy HH:mm}"
+            : origem;
     }
 
     /// <summary>

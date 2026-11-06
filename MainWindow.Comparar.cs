@@ -161,7 +161,8 @@ public partial class MainWindow
 
         if (descartados > 0)
         {
-            CompararStatus.Text += $" {descartados} resultado(s) sem identificação de teste foram ignorados.";
+            CompararStatus.Text +=
+                $" · {descartados} resultado(s) sem identificação de teste foram ignorados (não dá para compará-los).";
         }
 
         if (locais.Count == 0)
@@ -214,15 +215,9 @@ public partial class MainWindow
         CardCompararTabela.Visibility = Visibility.Visible;
 
         // Sem data e sem app de origem no arquivo: o app diz que não sabe,
-        // em vez de mostrar 01/01/0001.
-        string origem = !string.IsNullOrEmpty(relatorio.AppOrigem) ? relatorio.AppOrigem : "origem desconhecida";
-        string status = $"{relatorio.Linhas.Count} teste(s) comparado(s) · arquivo de {origem}";
-        if (relatorio.ExportadoEm.Year > 2000)
-        {
-            status += $" · exportado em {relatorio.ExportadoEm:dd/MM/yyyy HH:mm}";
-        }
-
-        CompararStatus.Text = status;
+        // em vez de mostrar 01/01/0001. A frase é a mesma que a CLI usa.
+        CompararStatus.Text =
+            $"{relatorio.Linhas.Count} teste(s) comparado(s) · arquivo de {BenchIntercambio.DescreverOrigem(relatorio.AppOrigem, relatorio.ExportadoEm)}";
     }
 
     /// <summary>Descreve uma máquina em linhas curtas.</summary>

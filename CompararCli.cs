@@ -152,7 +152,7 @@ public static class CompararCli
 
         if (descartados > 0)
         {
-            Console.WriteLine($"{descartados} resultado(s) sem identificação de teste foram ignorados.");
+            Console.WriteLine($"{descartados} resultado(s) sem identificação de teste foram ignorados (não dá para compará-los).");
             Console.WriteLine();
         }
 
@@ -190,12 +190,8 @@ public static class CompararCli
         Console.WriteLine($"Arquivo: {origem}");
 
         // Sem app e sem data no arquivo: o app diz que não sabe, em vez de
-        // mostrar 01/01/0001.
-        Console.WriteLine($"Origem: {(string.IsNullOrEmpty(relatorio.AppOrigem) ? "origem desconhecida" : relatorio.AppOrigem)}");
-        if (relatorio.ExportadoEm.Year > 2000)
-        {
-            Console.WriteLine($"Exportado em: {relatorio.ExportadoEm:dd/MM/yyyy HH:mm}");
-        }
+        // mostrar 01/01/0001. A frase é a mesma que a tela usa.
+        Console.WriteLine($"Origem: {BenchIntercambio.DescreverOrigem(relatorio.AppOrigem, relatorio.ExportadoEm)}");
 
         Console.WriteLine();
         Console.WriteLine($"PC A: {relatorio.MaquinaLocal.Nome} · {relatorio.MaquinaLocal.Cpu} · {MemoriaTexto.Numero(relatorio.MaquinaLocal.MemoriaGb)} GB · {relatorio.MaquinaLocal.Sistema}");
@@ -218,7 +214,7 @@ public static class CompararCli
             // A coluna do teste acompanha o nome mais longo: senão o render
             // sustentado ("Render (CPU) · multi-core · sustentado") desalinha
             // a tabela inteira.
-            int largura = Math.Min(38, Math.Max(20, relatorio.Linhas.Max(l => l.Teste.Length)));
+            int largura = Math.Max(20, relatorio.Linhas.Max(l => l.Teste.Length));
 
             Console.WriteLine($"{"Teste".PadRight(largura)} {"PC A",12} {"PC B",12}  Diferença");
             Console.WriteLine(new string('-', largura + 30));

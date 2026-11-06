@@ -482,6 +482,56 @@ public class BenchComparacaoTestes
         }
     }
 
+    [Fact]
+    public void ArquivoTrancadoEReceusadoComMensagemEmPortugues()
+    {
+        // Arquivo aberto sem compartilhamento: a leitura falha com IOException
+        // e o texto do .NET em inglês não pode chegar ao usuário.
+        string caminho = Path.Combine(Path.GetTempPath(), $"tranal-bench-{Guid.NewGuid():N}.tranalbench.json");
+        File.WriteAllText(caminho, """{ "Formato": "tranal-bench", "Versao": 1, "Resultados": [] }""");
+
+        try
+        {
+            using (new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                BenchArquivo? lido = BenchIntercambio.Ler(caminho, out string? erro);
+
+                Assert.Null(lido);
+                Assert.NotNull(erro);
+                Assert.Contains("Não deu para ler", erro);
+                Assert.DoesNotContain("Exception", erro);
+            }
+        }
+        finally
+        {
+            if (File.Exists(caminho)) File.Delete(caminho);
+        }
+    }
+
+    [Fact]
+    public void ExecucaoDeRenderNulaNaoQuebra()
+    {
+        var renders = new BenchRun?[] { null, new BenchRun(new DateTime(2026, 5, 1), 1234.5, 567.8, false, "AMD Ryzen 7 5700X") };
+
+        List<BenchResultado> resultados = BenchIntercambio.Resultados(renders!, Array.Empty<BenchRecord>());
+
+        Assert.Equal(2, resultados.Count);
+    }
+
+    [Fact]
+    public void AOrigemDoArquivoTemUmaFraseSo()
+    {
+        // A tela e a CLI usam a mesma frase para o mesmo fato.
+        Assert.Equal("TRANAL SENTINEL 0.26.0 · exportado em 06/11/2026 10:00",
+            BenchIntercambio.DescreverOrigem("TRANAL SENTINEL 0.26.0", new DateTime(2026, 11, 6, 10, 0, 0)));
+
+        Assert.Equal("origem desconhecida · exportado em 06/11/2026 10:00",
+            BenchIntercambio.DescreverOrigem("", new DateTime(2026, 11, 6, 10, 0, 0)));
+
+        Assert.Equal("origem desconhecida",
+            BenchIntercambio.DescreverOrigem(null, DateTime.MinValue));
+    }
+
     // ---------- Nota que não existe não é comparada ----------
 
     [Fact]
