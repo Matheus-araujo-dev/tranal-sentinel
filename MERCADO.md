@@ -86,9 +86,10 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
 - **Comparar benchmarks entre PCs**: **entrou na v0.26** (ver abaixo). O que
   ficou de fora: comparar com um resultado publicado na internet, e o
   histórico de cada máquina além das dez últimas execuções de cada teste.
-- **Leitura de SPD / Super I/O**: **entrou na v0.22** (ver abaixo). O que
-  ficou de fora: os *timings ativos* (registradores do controlador de
-  memória do AMD) e o instalador do driver PawnIO embutido no app.
+- **Leitura de SPD / Super I/O**: **entrou na v0.22** (ver abaixo). Os *timings
+  ativos* (registradores do controlador de memória do AMD) entraram na v0.25, e
+  o driver PawnIO é instalado pelo próprio app, com um clique (winget), quando
+  o Windows não o tem.
 - **Assinatura digital do instalador**: exige certificado pago.
 
 ## Por que continuar em C#
