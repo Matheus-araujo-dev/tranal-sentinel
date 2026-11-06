@@ -200,7 +200,7 @@ public partial class MainWindow
             if (r.Multi is double mt) parts.Add($"multi-core {mt:N0} pts");
             if (r.Single is double st) parts.Add($"single-core {st:N0} pts");
             if (r.Sustained) parts.Add("sustentado");
-            list.Add(new ReportBench(r.Date, "Render (CPU)", string.Join(" · ", parts) + (string.IsNullOrEmpty(r.Cpu) ? "" : $" · {r.Cpu}")));
+            list.Add(new ReportBench(r.Date, BenchCatalogo.Nome("render"), string.Join(" · ", parts) + (string.IsNullOrEmpty(r.Cpu) ? "" : $" · {r.Cpu}")));
         }
         return list.OrderByDescending(b => b.Date).ToList();
     }

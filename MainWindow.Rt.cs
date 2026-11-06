@@ -8,7 +8,9 @@ public partial class MainWindow
 {
     private GpuRtBench? _rtBench;
 
-    private static string PresetName(string p) => p switch { "normal" => "Normal", "extrema" => "Extrema", _ => "Alta" };
+    // O nome do preset mora no catálogo: a tela e a comparação entre PCs
+    // precisam chamá-lo do mesmo jeito.
+    private static string PresetName(string p) => BenchCatalogo.PresetRt(p);
 
     /// <summary>Histórico: cada barra compara com o melhor resultado do MESMO preset e resolução (só isso é comparável).</summary>
     private List<MeterItem> RtHistoryItems()

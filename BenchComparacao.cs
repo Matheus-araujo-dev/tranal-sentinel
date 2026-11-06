@@ -70,6 +70,15 @@ public sealed class RelatorioComparacao
 
     /// <summary>Os testes que só existem no PC importado.</summary>
     public List<string> SoImportado { get; init; } = new();
+
+    /// <summary>
+    /// Os testes que existem nesta máquina, mas sem nota utilizável (o
+    /// benchmark falhou). Não dá para comparar o que não tem nota.
+    /// </summary>
+    public List<string> SemNotaLocal { get; init; } = new();
+
+    /// <summary>Os testes do PC importado que estão sem nota utilizável.</summary>
+    public List<string> SemNotaImportado { get; init; } = new();
 }
 
 /// <summary>
@@ -101,8 +110,15 @@ public static class BenchComparacao
         ArgumentNullException.ThrowIfNull(importado);
         ArgumentNullException.ThrowIfNull(resultadosLocais);
 
-        var melhoresLocais = Melhores(resultadosLocais);
-        var melhoresImportados = Melhores(importado.Resultados);
+        BenchMaquina maquinaImportada = importado.Maquina ?? new BenchMaquina();
+
+        var semNotaLocal = new List<string>();
+        var semNotaImportado = new List<string>();
+        var chavesSemNotaLocal = new HashSet<string>(StringComparer.Ordinal);
+        var chavesSemNotaImportado = new HashSet<string>(StringComparer.Ordinal);
+
+        var melhoresLocais = Melhores(resultadosLocais, semNotaLocal, chavesSemNotaLocal);
+        var melhoresImportados = Melhores(importado.Resultados ?? new List<BenchResultado>(), semNotaImportado, chavesSemNotaImportado);
 
         var linhas = new List<LinhaComparacao>();
         var soLocal = new List<string>();
@@ -114,13 +130,13 @@ public static class BenchComparacao
 
             if (!melhoresImportados.TryGetValue(chave, out BenchResultado? importado_))
             {
-                soLocal.Add(BenchCatalogo.Nome(chave));
+                // O teste existe no outro PC, mas falhou lá: isso já é dito
+                // como "sem nota", não como "só existe nesta máquina".
+                if (!chavesSemNotaImportado.Contains(chave)) soLocal.Add(BenchCatalogo.Nome(chave));
                 continue;
             }
 
-            double diferenca = importado_.Nota > 0
-                ? (local_.Nota - importado_.Nota) / importado_.Nota * 100.0
-                : 0;
+            double diferenca = (local_.Nota - importado_.Nota) / importado_.Nota * 100.0;
 
             linhas.Add(new LinhaComparacao
             {
@@ -142,38 +158,64 @@ public static class BenchComparacao
         foreach (string chave in melhoresImportados.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
             if (melhoresLocais.ContainsKey(chave)) continue;
-            soImportado.Add(BenchCatalogo.Nome(chave));
+
+            // Mesma regra do outro lado: o teste existe aqui, mas falhou
+            // nesta máquina — já é dito como "sem nota".
+            if (!chavesSemNotaLocal.Contains(chave)) soImportado.Add(BenchCatalogo.Nome(chave));
         }
 
         return new RelatorioComparacao
         {
             MaquinaLocal = local,
-            MaquinaImportada = importado.Maquina,
-            Diferencas = DiferencasDeHardware(local, importado.Maquina),
+            MaquinaImportada = maquinaImportada,
+            Diferencas = DiferencasDeHardware(local, maquinaImportada),
             Linhas = linhas,
             ExportadoEm = importado.ExportadoEm,
             AppOrigem = importado.App,
             SoLocal = soLocal,
-            SoImportado = soImportado
+            SoImportado = soImportado,
+            SemNotaLocal = semNotaLocal,
+            SemNotaImportado = semNotaImportado
         };
     }
 
     /// <summary>
     /// O melhor resultado de cada teste (em todos os benchmarks, nota maior é
     /// melhor). É o que se compara: o pico de cada PC, como no Cinebench.
+    ///
+    /// <para>
+    /// Resultado sem nota utilizável (o benchmark falhou) fica fora: comparar
+    /// nota quebrada ou zero seria mostrar número errado. O teste entra na
+    /// lista de "sem nota" para o app avisar, em vez de sumir.
+    /// </para>
     /// </summary>
-    private static Dictionary<string, BenchResultado> Melhores(IEnumerable<BenchResultado> resultados)
+    private static Dictionary<string, BenchResultado> Melhores(IEnumerable<BenchResultado> resultados, List<string> semNota, HashSet<string> chavesSemNota)
     {
         var melhores = new Dictionary<string, BenchResultado>(StringComparer.Ordinal);
+        var invalidas = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (BenchResultado resultado in resultados)
         {
             if (resultado == null || string.IsNullOrEmpty(resultado.Chave)) continue;
 
+            if (!BenchResultado.NotaUtilizavel(resultado.Nota))
+            {
+                invalidas.Add(resultado.Chave);
+                continue;
+            }
+
             if (!melhores.TryGetValue(resultado.Chave, out BenchResultado? atual) || resultado.Nota > atual.Nota)
             {
                 melhores[resultado.Chave] = resultado;
             }
+        }
+
+        // Só entra na lista de "sem nota" o teste que NÃO tem nota boa em
+        // nenhuma das execuções — um teste que rodou bem uma vez tem nota.
+        foreach (string chave in invalidas.OrderBy(c => c, StringComparer.Ordinal))
+        {
+            chavesSemNota.Add(chave);
+            if (!melhores.ContainsKey(chave)) semNota.Add(BenchCatalogo.Nome(chave));
         }
 
         return melhores;

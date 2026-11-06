@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
@@ -30,9 +31,28 @@ public partial class MainWindow
 
         CompararStatus.Text =
             "O arquivo exportado leva os resultados e a identificação do PC de origem. Nada sai do computador: o arquivo é seu, e você decide para quem vai.";
+
+        // A consulta ao WMI é lenta: começa a buscar as specs desta máquina
+        // assim que a página abre, para o clique não esperar por ela.
+        if (_compararMaquinaLocal == null)
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    BenchMaquina maquina = BenchIntercambio.MaquinaAtual();
+                    Dispatcher.Invoke(() => _compararMaquinaLocal = maquina);
+                }
+                catch
+                {
+                    // A janela pode ter fechado antes da consulta terminar:
+                    // sem cache, o export volta a consultar as specs.
+                }
+            });
+        }
     }
 
-    private void BtnCompararExportar_Click(object sender, RoutedEventArgs e)
+    private async void BtnCompararExportar_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new SaveFileDialog
         {
@@ -44,26 +64,44 @@ public partial class MainWindow
 
         if (dlg.ShowDialog(this) != true) return;
 
+        CompararStatus.Text = "Exportando…";
+
+        // Tirada da tela do app: se o histórico mudar enquanto o arquivo é
+        // montado, o arquivo leva os resultados de um instante só.
+        List<BenchRun> renders = _settings.BenchRuns.ToList();
+        List<BenchRecord> registros = _settings.BenchRecords.ToList();
+
+        BenchArquivo arquivo;
         try
         {
-            BenchArquivo arquivo = BenchIntercambio.Montar(
-                _settings.BenchRuns,
-                _settings.BenchRecords,
-                MaquinaLocal());
+            // O WMI e a escrita do arquivo demoram: fora da thread da
+            // interface, senão a janela congela sem dar nenhum retorno.
+            arquivo = await Task.Run(() =>
+            {
+                BenchArquivo montado = BenchIntercambio.Montar(renders, registros, MaquinaLocal());
 
-            BenchIntercambio.Gravar(arquivo, dlg.FileName);
-
-            CompararStatus.Text =
-                $"Exportado: {arquivo.Resultados.Count} resultado(s) para {dlg.FileName}. " +
-                "Leve esse arquivo para o outro PC e importe lá.";
+                BenchIntercambio.Gravar(montado, dlg.FileName);
+                return montado;
+            });
         }
         catch (Exception ex)
         {
             CompararStatus.Text = "Falhou ao exportar: " + ex.Message;
+            return;
         }
+
+        string texto = $"Exportado: {arquivo.Resultados.Count} resultado(s) para {dlg.FileName}. " +
+                       "Leve esse arquivo para o outro PC e importe lá.";
+
+        if (arquivo.Resultados.Count == 0)
+        {
+            texto += " Nenhum benchmark foi rodado nesta máquina ainda: rode o TRANAL BENCH antes de exportar.";
+        }
+
+        CompararStatus.Text = texto;
     }
 
-    private void BtnCompararImportar_Click(object sender, RoutedEventArgs e)
+    private async void BtnCompararImportar_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog
         {
@@ -73,7 +111,34 @@ public partial class MainWindow
 
         if (dlg.ShowDialog(this) != true) return;
 
-        BenchArquivo? arquivo = BenchIntercambio.Ler(dlg.FileName, out string? erro);
+        CompararStatus.Text = "Lendo o arquivo…";
+
+        BenchArquivo? arquivo;
+        string? erro;
+        int descartados;
+        List<BenchResultado> locais;
+        BenchMaquina maquinaLocal;
+
+        try
+        {
+            List<BenchRun> renders = _settings.BenchRuns.ToList();
+            List<BenchRecord> registros = _settings.BenchRecords.ToList();
+
+            // Fora da thread da interface: ler o arquivo e consultar o WMI
+            // pode levar segundos, e a janela não pode travar nesse meio.
+            (arquivo, erro, descartados, locais, maquinaLocal) = await Task.Run(() =>
+            {
+                BenchArquivo? lido = BenchIntercambio.Ler(dlg.FileName, out string? motivo, out int descartadosLidos);
+                List<BenchResultado> resultados = BenchIntercambio.Resultados(renders, registros);
+                return (lido, motivo, descartadosLidos, resultados, MaquinaLocal());
+            });
+        }
+        catch (Exception ex)
+        {
+            CompararStatus.Text = "Falhou ao importar: " + ex.Message;
+            return;
+        }
+
         if (arquivo == null)
         {
             CompararStatus.Text = erro ?? "Não deu para ler o arquivo.";
@@ -82,15 +147,18 @@ public partial class MainWindow
             return;
         }
 
-        List<BenchResultado> locais = BenchIntercambio.Resultados(_settings.BenchRuns, _settings.BenchRecords);
-        RelatorioComparacao relatorio = BenchComparacao.Comparar(MaquinaLocal(), arquivo, locais);
+        RelatorioComparacao relatorio = BenchComparacao.Comparar(maquinaLocal, arquivo, locais);
 
         MostrarComparacao(relatorio);
 
+        if (descartados > 0)
+        {
+            CompararStatus.Text += $" {descartados} resultado(s) do arquivo com nota inválida foram ignorados.";
+        }
+
         if (locais.Count == 0)
         {
-            CompararStatus.Text +=
-                " Esta máquina ainda não rodou nenhum benchmark: rode o TRANAL BENCH para ter com o que comparar.";
+            CompararStatus.Text += " Esta máquina ainda não rodou nenhum benchmark: rode o TRANAL BENCH para ter com o que comparar.";
         }
     }
 
@@ -121,14 +189,32 @@ public partial class MainWindow
             observacoes.Add($"Só existem no PC importado: {string.Join(", ", relatorio.SoImportado)}.");
         }
 
+        if (relatorio.SemNotaLocal.Count > 0)
+        {
+            observacoes.Add($"Nesta máquina o benchmark falhou (nota zero): {string.Join(", ", relatorio.SemNotaLocal)}.");
+        }
+
+        if (relatorio.SemNotaImportado.Count > 0)
+        {
+            observacoes.Add($"No PC importado o benchmark falhou (nota zero): {string.Join(", ", relatorio.SemNotaImportado)}.");
+        }
+
         observacoes.Add($"Comparado o melhor resultado de cada teste (a variação de uma execução para a outra é de poucos por cento).");
         CompararObservacao.Text = string.Join(" ", observacoes);
 
         CardCompararMaquinas.Visibility = Visibility.Visible;
         CardCompararTabela.Visibility = Visibility.Visible;
 
-        CompararStatus.Text =
-            $"{relatorio.Linhas.Count} teste(s) comparado(s) · arquivo de {relatorio.AppOrigem} · exportado em {relatorio.ExportadoEm:dd/MM/yyyy HH:mm}";
+        // Sem data e sem app de origem no arquivo: o app diz que não sabe,
+        // em vez de mostrar 01/01/0001.
+        string origem = relatorio.AppOrigem.Length > 0 ? relatorio.AppOrigem : "origem desconhecida";
+        string status = $"{relatorio.Linhas.Count} teste(s) comparado(s) · arquivo de {origem}";
+        if (relatorio.ExportadoEm.Year > 2000)
+        {
+            status += $" · exportado em {relatorio.ExportadoEm:dd/MM/yyyy HH:mm}";
+        }
+
+        CompararStatus.Text = status;
     }
 
     /// <summary>Descreve uma máquina em linhas curtas.</summary>

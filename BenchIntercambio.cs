@@ -35,8 +35,9 @@ public sealed record BenchResultado
     public DateTime Data { get; init; }
 
     /// <summary>
-    /// A chave do teste: "render:multi", "render:single", "gpu", "mem",
-    /// "disk", "sim" ou "rt:preset:altura".
+    /// A chave do teste: "render:multi", "render:single",
+    /// "render:sustained:multi", "gpu", "mem", "disk", "sim" ou
+    /// "rt:preset:altura".
     /// </summary>
     public string Chave { get; init; } = "";
 
@@ -45,6 +46,18 @@ public sealed record BenchResultado
 
     /// <summary>O detalhe do resultado, em texto.</summary>
     public string Resumo { get; init; } = "";
+
+    /// <summary>
+    /// A nota só existe se for um número finito e maior que zero.
+    ///
+    /// <para>
+    /// Nota quebrada (NaN, infinito) ou zero é benchmark que falhou — e
+    /// benchmark que falhou não é resultado. A regra mora aqui para que
+    /// exportar, importar e comparar usem o mesmo critério: melhor sem
+    /// resultado do que com resultado errado.
+    /// </para>
+    /// </summary>
+    public static bool NotaUtilizavel(double nota) => double.IsFinite(nota) && nota > 0;
 }
 
 /// <summary>
@@ -104,6 +117,11 @@ public static class BenchIntercambio
     private static readonly JsonSerializerOptions Opcoes = new()
     {
         WriteIndented = true,
+
+        // Aceita "NaN" e "Infinity" na LEITURA para que um arquivo com uma
+        // linha quebrada ainda traga as linhas boas — a linha quebrada é
+        // descartada pela regra da nota, não pelo arquivo inteiro. Na
+        // escrita os valores são saneados, então nada disso vai para o disco.
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
     };
 
@@ -118,31 +136,37 @@ public static class BenchIntercambio
 
         foreach (BenchRun run in renders ?? Enumerable.Empty<BenchRun>())
         {
-            if (run.Multi is double multi)
+            if (run.Multi is double multi && BenchResultado.NotaUtilizavel(multi))
             {
                 lista.Add(new BenchResultado
                 {
                     Data = run.Date,
-                    Chave = "render:multi",
+                    Chave = ChaveRender("multi", run.Sustained),
                     Nota = multi,
-                    Resumo = $"multi-core · {run.Cpu}".Trim(' ', '·')
+                    Resumo = ResumoRender("multi-core", run)
                 });
             }
 
-            if (run.Single is double single)
+            if (run.Single is double single && BenchResultado.NotaUtilizavel(single))
             {
                 lista.Add(new BenchResultado
                 {
                     Data = run.Date,
-                    Chave = "render:single",
+                    Chave = ChaveRender("single", run.Sustained),
                     Nota = single,
-                    Resumo = $"single-core · {run.Cpu}".Trim(' ', '·')
+                    Resumo = ResumoRender("single-core", run)
                 });
             }
         }
 
         foreach (BenchRecord registro in registros ?? Enumerable.Empty<BenchRecord>())
         {
+            if (registro == null || string.IsNullOrEmpty(registro.Test)) continue;
+
+            // Benchmark que falhou (nota zero ou quebrada) não vira resultado:
+            // ele sai da lista e a tela avisa que este PC não tem nota.
+            if (!BenchResultado.NotaUtilizavel(registro.Score)) continue;
+
             lista.Add(new BenchResultado
             {
                 Data = registro.Date,
@@ -178,16 +202,39 @@ public static class BenchIntercambio
         string? pasta = Path.GetDirectoryName(caminho);
         if (!string.IsNullOrEmpty(pasta)) Directory.CreateDirectory(pasta);
 
-        File.WriteAllText(caminho, JsonSerializer.Serialize(arquivo, Opcoes));
+        // O que vai para o arquivo é o que é aproveitável: nota quebrada
+        // (NaN, infinito) ou zero é benchmark que falhou, e benchmark que
+        // falhou não é resultado. A memória fora do normal também vira zero
+        // em vez de NaN.
+        BenchMaquina maquina = arquivo.Maquina ?? new BenchMaquina();
+        if (!double.IsFinite(maquina.MemoriaGb)) maquina = maquina with { MemoriaGb = 0 };
+
+        BenchArquivo saneado = arquivo with
+        {
+            Maquina = maquina,
+            Resultados = (arquivo.Resultados ?? new List<BenchResultado>())
+                .Where(r => r != null && !string.IsNullOrEmpty(r.Chave) && BenchResultado.NotaUtilizavel(r.Nota))
+                .ToList()
+        };
+
+        File.WriteAllText(caminho, JsonSerializer.Serialize(saneado, Opcoes));
     }
 
     /// <summary>
     /// Lê o arquivo de intercâmbio. Devolve null com o motivo quando o
     /// arquivo não é do formato ou a versão é de um app mais novo.
     /// </summary>
-    public static BenchArquivo? Ler(string caminho, out string? erro)
+    public static BenchArquivo? Ler(string caminho, out string? erro) => Ler(caminho, out erro, out _);
+
+    /// <summary>
+    /// Lê o arquivo de intercâmbio, dizendo quantos resultados foram
+    /// descartados por terem nota inválida (NaN, infinito, zero ou chave
+    /// vazia).
+    /// </summary>
+    public static BenchArquivo? Ler(string caminho, out string? erro, out int descartados)
     {
         erro = null;
+        descartados = 0;
 
         try
         {
@@ -197,26 +244,75 @@ public static class BenchIntercambio
                 return null;
             }
 
-            BenchArquivo? arquivo = JsonSerializer.Deserialize<BenchArquivo>(File.ReadAllText(caminho), Opcoes);
+            string texto = File.ReadAllText(caminho);
+
+            // Formato e versão primeiro: um arquivo de uma versão futura é
+            // recusado com a explicação, antes de o app tentar entender o
+            // conteúdo dele (que é de outro formato e não vai entender).
+            try
+            {
+                using JsonDocument documento = JsonDocument.Parse(texto);
+                JsonElement raiz = documento.RootElement;
+
+                if (!raiz.TryGetProperty("Formato", out JsonElement formato) || formato.GetString() != Formato)
+                {
+                    erro = "Este arquivo não é de benchmarks do TRANAL SENTINEL.";
+                    return null;
+                }
+
+                if (raiz.TryGetProperty("Versao", out JsonElement versao) &&
+                    versao.TryGetInt32(out int numero) && numero > Versao)
+                {
+                    erro = $"O arquivo é da versão {numero} do formato e este app entende até a {Versao}. Atualize o TRANAL SENTINEL.";
+                    return null;
+                }
+            }
+            catch (JsonException)
+            {
+                erro = "Não deu para ler o arquivo: o conteúdo não é um arquivo de benchmarks válido.";
+                return null;
+            }
+
+            BenchArquivo? arquivo = JsonSerializer.Deserialize<BenchArquivo>(texto, Opcoes);
             if (arquivo == null)
             {
                 erro = "O arquivo está vazio ou não é um arquivo de benchmarks.";
                 return null;
             }
 
-            if (!string.Equals(arquivo.Formato, Formato, StringComparison.Ordinal))
+            // O JSON pode trazer "Maquina": null — o inicializador do registro
+            // só vale quando a propriedade está AUSENTE. Sem esta guarda, a
+            // comparação estouraria com NullReferenceException.
+            BenchMaquina? maquina = arquivo.Maquina;
+            if (maquina == null)
             {
-                erro = "Este arquivo não é de benchmarks do TRANAL SENTINEL.";
+                erro = "O arquivo não tem a identificação da máquina de origem.";
                 return null;
             }
 
-            if (arquivo.Versao > Versao)
+            if (!double.IsFinite(maquina.MemoriaGb)) maquina = maquina with { MemoriaGb = 0 };
+
+            // Resultado sem nota aproveitável é resultado ausente: fica fora
+            // da comparação, e o app avisa quantos foram.
+            var validos = new List<BenchResultado>();
+            foreach (BenchResultado resultado in arquivo.Resultados ?? new List<BenchResultado>())
             {
-                erro = $"O arquivo é da versão {arquivo.Versao} do formato e este app entende até a {Versao}. Atualize o TRANAL SENTINEL.";
-                return null;
+                if (resultado == null || string.IsNullOrEmpty(resultado.Chave) ||
+                    !BenchResultado.NotaUtilizavel(resultado.Nota))
+                {
+                    descartados++;
+                    continue;
+                }
+
+                validos.Add(resultado);
             }
 
-            return arquivo;
+            return arquivo with { Maquina = maquina, Resultados = validos };
+        }
+        catch (JsonException)
+        {
+            erro = "Não deu para ler o arquivo: o conteúdo não é um arquivo de benchmarks válido.";
+            return null;
         }
         catch (Exception ex)
         {
@@ -232,7 +328,7 @@ public static class BenchIntercambio
         {
             Nome = Environment.MachineName,
             Cpu = PrimeiroValor("SELECT Name FROM Win32_Processor", "Name"),
-            Gpu = PrimeiroValor("SELECT Name FROM Win32_VideoController", "Name"),
+            Gpu = GpuInfoCollector.NomeDaPlacaPrincipal(),
             MemoriaGb = MemoriaTotalGb(),
             Sistema = PrimeiroValor("SELECT Caption FROM Win32_OperatingSystem", "Caption")
         };
@@ -247,6 +343,18 @@ public static class BenchIntercambio
         return informational ?? typeof(BenchIntercambio).Assembly.GetName().Version?.ToString() ?? "";
     }
 
+    /// <summary>
+    /// A chave do render. O teste sustentado (10 minutos, limitado
+    /// termicamente) é OUTRO teste que a passada curta — sem isso na chave, a
+    /// comparação confrontaria uma passada curta com uma de 10 minutos.
+    /// </summary>
+    private static string ChaveRender(string nucleo, bool sustentado) =>
+        sustentado ? $"render:sustained:{nucleo}" : $"render:{nucleo}";
+
+    /// <summary>O resumo do render: o núcleo, se foi sustentado e a CPU do dia.</summary>
+    private static string ResumoRender(string nucleo, BenchRun run) =>
+        $"{nucleo}{(run.Sustained ? " · sustentado" : "")} · {run.Cpu}".Trim(' ', '·');
+
     private static string PrimeiroValor(string consulta, string propriedade)
     {
         try
@@ -258,7 +366,12 @@ public static class BenchIntercambio
                 if (!string.IsNullOrWhiteSpace(valor)) return valor.Trim();
             }
         }
-        catch { }
+        catch
+        {
+            // O WMI pode não responder (serviço parado, máquina sob carga):
+            // o campo fica vazio e a comparação avisa que a informação não
+            // veio, em vez de o app inventar um valor.
+        }
 
         return "";
     }
@@ -276,7 +389,11 @@ public static class BenchIntercambio
                 }
             }
         }
-        catch { }
+        catch
+        {
+            // Sem resposta do WMI: a memória vai como zero, e a comparação
+            // trata memória desconhecida como "não sei", sem alarme falso.
+        }
 
         return 0;
     }

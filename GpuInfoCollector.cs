@@ -74,6 +74,54 @@ public static class GpuInfoCollector
         return result.OrderByDescending(g => g.VramBytes).ToList();
     }
 
+    /// <summary>
+    /// O nome da placa de vídeo principal: a mesma regra da tela (a dedicada
+    /// primeiro, pela VRAM).
+    ///
+    /// <para>
+    /// A comparação entre PCs consome este nome — e não a primeira linha do
+    /// WMI, que num PC com display virtual ou placa devírgada seria o
+    /// adaptador errado.
+    /// </para>
+    /// </summary>
+    public static string NomeDaPlacaPrincipal()
+    {
+        try
+        {
+            List<GpuInfo> placas = Collect();
+            string? nome = placas.FirstOrDefault(g => !string.IsNullOrWhiteSpace(g.Name))?.Name;
+            if (!string.IsNullOrWhiteSpace(nome)) return nome.Trim();
+        }
+        catch
+        {
+            // Sem DXGI/NVML (ou com o driver reiniciando): cai para o WMI,
+            // que é mais lento, mas sempre responde.
+        }
+
+        return PrimeiroAdaptadorWmi();
+    }
+
+    /// <summary>O primeiro adaptador que o WMI informa (último recurso).</summary>
+    private static string PrimeiroAdaptadorWmi()
+    {
+        try
+        {
+            using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_VideoController");
+            foreach (ManagementObject objeto in searcher.Get())
+            {
+                string? valor = objeto["Name"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(valor)) return valor.Trim();
+            }
+        }
+        catch
+        {
+            // WMI sem resposta: sem GPU, sem comparação de placa. A regra
+            // continua valendo para os outros campos.
+        }
+
+        return "";
+    }
+
     private static InfoNode Also(this InfoNode n, Action<InfoNode> a) { a(n); return n; }
 
     private static GpuInfo Build(ManagementObject vc, List<Dxgi.Adapter> adapters, List<(IntPtr Handle, Nvml.PciInfo Pci)> nvDevices)

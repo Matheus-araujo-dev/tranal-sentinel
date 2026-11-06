@@ -26,7 +26,7 @@ public static class BenchCatalogo
             "mem" => "Memória e carregamento",
             "disk" => "Disco",
             "oc" => "TRANAL OC (estabilidade)",
-            _ => teste
+            _ => base_
         };
 
         // O resto da chave entra no nome: sem isso, o render de multi-core e o
@@ -49,6 +49,18 @@ public static class BenchCatalogo
     };
 
     /// <summary>
+    /// O nome do preset de ray tracing. Mora aqui para que a tela do RT e a
+    /// comparação entre PCs chamem o preset do mesmo jeito.
+    /// </summary>
+    public static string PresetRt(string preset) => (preset ?? "").ToLowerInvariant() switch
+    {
+        "normal" => "Normal",
+        "extrema" => "Extrema",
+        "alta" => "Alta",
+        _ => preset ?? ""
+    };
+
+    /// <summary>
     /// A parte do teste antes dos detalhes (no ray tracing, o preset e a
     /// resolução vêm depois dos dois-pontos).
     /// </summary>
@@ -65,7 +77,34 @@ public static class BenchCatalogo
         int pos = teste.IndexOf(':');
         if (pos < 0) return "";
 
-        string resto = teste[(pos + 1)..].Replace(':', ' ').Trim();
+        string base_ = Base(teste);
+        string[] partes = teste[(pos + 1)..].Split(':', StringSplitOptions.RemoveEmptyEntries);
+
+        if (base_ == "render")
+        {
+            // render:multi | render:single | render:sustained:multi | render:sustained:single
+            bool sustentado = Array.IndexOf(partes, "sustained") >= 0;
+            string nucleo = Array.Find(partes, p => p is "multi" or "single") ?? "";
+
+            string nome = nucleo switch
+            {
+                "multi" => "multi-core",
+                "single" => "single-core",
+                _ => ""
+            };
+
+            if (nome.Length == 0) return "";
+            return sustentado ? $"{nome} · sustentado" : nome;
+        }
+
+        if (base_ == "rt")
+        {
+            // rt:preset:altura — o preset com o nome da tela e a altura em p.
+            if (partes.Length < 2) return "";
+            return $"{PresetRt(partes[0])} {partes[1]}p";
+        }
+
+        string resto = string.Join(' ', partes).Trim();
         if (resto.Length == 0) return "";
 
         return resto switch

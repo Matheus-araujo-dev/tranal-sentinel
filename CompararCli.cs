@@ -124,7 +124,7 @@ public static class CompararCli
 
     private static int Importar(string caminho)
     {
-        BenchArquivo? arquivo = BenchIntercambio.Ler(caminho, out string? erro);
+        BenchArquivo? arquivo = BenchIntercambio.Ler(caminho, out string? erro, out int descartados);
         if (arquivo == null)
         {
             Console.WriteLine(erro ?? "Não deu para ler o arquivo.");
@@ -141,6 +141,12 @@ public static class CompararCli
         {
             Console.WriteLine("Esta máquina ainda não rodou nenhum benchmark: rode o TRANAL BENCH para ter com o que comparar.");
             Console.WriteLine("Para comparar dois arquivos sem benchmark aqui, use: --comparar comparar <arquivoA> <arquivoB>");
+            Console.WriteLine();
+        }
+
+        if (descartados > 0)
+        {
+            Console.WriteLine($"{descartados} resultado(s) do arquivo com nota inválida foram ignorados.");
             Console.WriteLine();
         }
 
@@ -165,7 +171,8 @@ public static class CompararCli
             return CodigoErro;
         }
 
-        RelatorioComparacao relatorio = BenchComparacao.Comparar(arquivoA.Maquina, arquivoB, arquivoA.Resultados);
+        BenchMaquina maquinaA = arquivoA.Maquina ?? new BenchMaquina();
+        RelatorioComparacao relatorio = BenchComparacao.Comparar(maquinaA, arquivoB, arquivoA.Resultados ?? new List<BenchResultado>());
         ImprimirRelatorio(relatorio, $"{caminhoA} × {caminhoB}");
         return CodigoOk;
     }
@@ -175,9 +182,13 @@ public static class CompararCli
     {
         Console.WriteLine("TRANAL SENTINEL · COMPARAÇÃO DE BENCHMARKS");
         Console.WriteLine($"Arquivo: {origem}");
-        if (relatorio.AppOrigem.Length > 0)
+
+        // Sem app e sem data no arquivo: o app diz que não sabe, em vez de
+        // mostrar 01/01/0001.
+        Console.WriteLine($"Origem: {(relatorio.AppOrigem.Length > 0 ? relatorio.AppOrigem : "origem desconhecida")}");
+        if (relatorio.ExportadoEm.Year > 2000)
         {
-            Console.WriteLine($"Origem: {relatorio.AppOrigem} · exportado em {relatorio.ExportadoEm:dd/MM/yyyy HH:mm}");
+            Console.WriteLine($"Exportado em: {relatorio.ExportadoEm:dd/MM/yyyy HH:mm}");
         }
 
         Console.WriteLine();
@@ -198,12 +209,17 @@ public static class CompararCli
         }
         else
         {
-            Console.WriteLine($"{"Teste",-26} {"PC A",12} {"PC B",12}  Diferença");
-            Console.WriteLine(new string('-', 78));
+            // A coluna do teste acompanha o nome mais longo: senão o render
+            // sustentado ("Render (CPU) · multi-core · sustentado") desalinha
+            // a tabela inteira.
+            int largura = Math.Min(38, Math.Max(20, relatorio.Linhas.Max(l => l.Teste.Length)));
+
+            Console.WriteLine($"{"Teste".PadRight(largura)} {"PC A",12} {"PC B",12}  Diferença");
+            Console.WriteLine(new string('-', largura + 30));
 
             foreach (LinhaComparacao linha in relatorio.Linhas)
             {
-                Console.WriteLine($"{linha.Teste,-26} {MemoriaTexto.Numero(linha.NotaLocal),12} {MemoriaTexto.Numero(linha.NotaImportada),12}  {linha.Veredito} ({MemoriaTexto.Numero(linha.DiferencaPercentual)}%)");
+                Console.WriteLine($"{linha.Teste.PadRight(largura)} {MemoriaTexto.Numero(linha.NotaLocal),12} {MemoriaTexto.Numero(linha.NotaImportada),12}  {linha.Veredito} ({MemoriaTexto.Numero(linha.DiferencaPercentual)}%)");
             }
         }
 
@@ -217,6 +233,18 @@ public static class CompararCli
         {
             Console.WriteLine();
             Console.WriteLine("Só existem no PC B: " + string.Join(", ", relatorio.SoImportado));
+        }
+
+        if (relatorio.SemNotaLocal.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("No PC A o benchmark falhou (nota zero): " + string.Join(", ", relatorio.SemNotaLocal));
+        }
+
+        if (relatorio.SemNotaImportado.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("No PC B o benchmark falhou (nota zero): " + string.Join(", ", relatorio.SemNotaImportado));
         }
     }
 }
