@@ -482,4 +482,53 @@ public class AlertasSegundoPlanoTestes
         Assert.Single(novos);
         Assert.Contains(MonitorAlertas.BateriaRotulo, novos[0].Texto);
     }
+
+    // ------------------------------------------------------- o instante do episódio
+
+    [Fact]
+    public void AlertaGuardaDesdeQuandoACondicaoComecou()
+    {
+        // O "por que disparou" olha o histórico antes do disparo: o instante
+        // que o app guarda é o começo da condição, não o do aviso.
+        var monitor = new MonitorAlertas();
+        var avisos = new List<Alerta>();
+        monitor.Alertar += a => avisos.Add(a);
+
+        var regra = Regra("cpu", "cpu-temp", ">=", 85);
+        var inicio = new DateTime(2026, 1, 1, 12, 0, 0);
+
+        monitor.Verificar(inicio, new[] { regra }, new ContextoSensores { TemperaturaCpu = 90 });
+
+        Assert.Single(avisos);
+        Assert.Equal(inicio, avisos[0].Desde);
+    }
+
+    [Fact]
+    public void AlertaQueContinuaMantemOMesmoDesde()
+    {
+        var monitor = new MonitorAlertas();
+        var regra = Regra("cpu", "cpu-temp", ">=", 85);
+        var inicio = new DateTime(2026, 1, 1, 12, 0, 0);
+
+        monitor.Verificar(inicio, new[] { regra }, new ContextoSensores { TemperaturaCpu = 90 });
+        monitor.Verificar(inicio.AddSeconds(30), new[] { regra }, new ContextoSensores { TemperaturaCpu = 95 });
+
+        var ativo = Assert.Single(monitor.Ativos);
+        Assert.Equal(inicio, ativo.Desde);
+    }
+
+    [Fact]
+    public void EpisodioNovoTemDesdeNovo()
+    {
+        var monitor = new MonitorAlertas();
+        var regra = Regra("cpu", "cpu-temp", ">=", 85);
+        var inicio = new DateTime(2026, 1, 1, 12, 0, 0);
+
+        monitor.Verificar(inicio, new[] { regra }, new ContextoSensores { TemperaturaCpu = 90 });
+        monitor.Verificar(inicio.AddSeconds(20), new[] { regra }, new ContextoSensores { TemperaturaCpu = 60 });   // passou
+        monitor.Verificar(inicio.AddSeconds(40), new[] { regra }, new ContextoSensores { TemperaturaCpu = 90 });   // novo episódio
+
+        var ativo = Assert.Single(monitor.Ativos);
+        Assert.Equal(inicio.AddSeconds(40), ativo.Desde);
+    }
 }

@@ -68,6 +68,12 @@ public partial class MainWindow
     /// <summary>Quando foi a última tentativa de ler o histórico.</summary>
     private DateTime _explicacaoEm = DateTime.MinValue;
 
+    /// <summary>
+    /// True quando a última leitura do histórico falhou. Enquanto for
+    /// verdade, a próxima tentativa espera o intervalo.
+    /// </summary>
+    private bool _explicacaoFalhou;
+
     /// <summary>As opções de severidade mostradas na tela (o enum cru fica feio).</summary>
     private static readonly SeveridadeOpcao[] Severidades =
     {
@@ -415,7 +421,12 @@ public partial class MainWindow
         // episódio. Sem isso, a tela leria meio milhão de linhas a cada
         // tique.
         bool faltaExplicacao = ativos.Any(a => ExplicacaoDe(a) == null);
-        if (faltaExplicacao && DateTime.Now - _explicacaoEm > IntervaloExplicacao)
+
+        // Depois de uma leitura bem-sucedida, um aviso novo pede a
+        // explicação na hora. Depois de uma falha, a retentativa espera o
+        // intervalo (senão seria uma leitura a cada tique).
+        bool podeTentar = !_explicacaoFalhou || DateTime.Now - _explicacaoEm > IntervaloExplicacao;
+        if (faltaExplicacao && podeTentar)
             _ = RecarregarExplicacaoAsync();
 
         // Só redesenha quando a lista muda (a tela é atualizada a cada tique).
@@ -500,8 +511,12 @@ public partial class MainWindow
 
             DateTime maisAntigo = dias.Min();
 
+            // A leitura para no aviso mais recente: as amostras depois
+            // dele não entram em nenhuma explicação.
+            DateTime maisRecente = ativos.Count > 0 ? ativos.Max(a => a.Desde) : DateTime.Now;
+
             var dados = await Task.Run(() => (
-                Amostras: SensorHistorico.Ler(maisAntigo.Date),
+                Amostras: SensorHistorico.Ler(maisAntigo.Date, maisRecente),
                 Trocas: TrocasDe(dias))).ConfigureAwait(false);
 
             _explicacaoAmostras = dados.Amostras;
@@ -516,6 +531,8 @@ public partial class MainWindow
                 _explicacoes[alerta.Id] = (alerta.Desde.Ticks,
                     UsoRegras.ExplicarAlerta(alerta.Desde, _explicacaoAmostras, _explicacaoTrocas));
             }
+
+            _explicacaoFalhou = false;
         }
         catch (Exception)
         {
@@ -524,6 +541,7 @@ public partial class MainWindow
             // depois (a tentativa entra no intervalo, não no tique).
             _explicacaoAmostras = new List<AmostraSensor>();
             _explicacaoTrocas = new List<TrocaUso>();
+            _explicacaoFalhou = true;
         }
         finally
         {

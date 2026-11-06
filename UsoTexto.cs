@@ -89,6 +89,11 @@ public static class UsoTexto
     private static CultureInfo CultureBrasil()
     {
         try { return CultureInfo.GetCultureInfo("pt-BR"); }
-        catch { return CultureInfo.InvariantCulture; }
+        catch
+        {
+            // Windows sem a cultura pt-BR: a invariante mostra a vírgula
+            // como ponto, o que é feio mas não quebra nada.
+            return CultureInfo.InvariantCulture;
+        }
     }
 }

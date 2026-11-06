@@ -32,7 +32,7 @@ public sealed record RelatorioUso
     /// <summary>O título da janela em foco (vazio quando não há).</summary>
     public string EmDestaqueTitulo { get; init; } = "";
 
-    /// <summary>Quanto tempo o app ficou observing a tela, no total.</summary>
+    /// <summary>Quanto tempo o app ficou observando a tela, no total.</summary>
     public TimeSpan Total { get; init; }
 
     /// <summary>
@@ -163,6 +163,65 @@ public static class UsoRegras
     }
 
     /// <summary>
+    /// O fim do período que se pode contar para um dia.
+    ///
+    /// <para>
+    /// Hoje é <paramref name="agora"/>: o app está rodando e o dia ainda não
+    /// acabou. Num dia passado, o fim é a **última evidência de que o app
+    /// estava vivo** — a última amostra de sensor gravada (o log escreve de
+    /// 5 em 5 segundos enquanto o app roda) ou, sem ela, a última troca de
+    /// uso registrada.
+    /// </para>
+    ///
+    /// <para>
+    /// Sem isso, a última sessão do dia se estenderia até a meia-noite e as
+    /// horas em que o app estava fechado seriam creditadas ao programa que
+    /// estava em frente. Tempo inflado é pior que tempo ausente.
+    /// </para>
+    /// </summary>
+    /// <param name="dia">O dia que a tela está mostrando.</param>
+    /// <param name="agora">O momento atual.</param>
+    /// <param name="amostras">As amostras de sensor do período.</param>
+    /// <param name="trocas">As trocas de uso do período.</param>
+    public static DateTime FimDoDia(DateTime dia, DateTime agora, IReadOnlyList<AmostraSensor> amostras, IReadOnlyList<TrocaUso> trocas)
+    {
+        DateTime inicio = dia.Date;
+
+        // Hoje (ou um dia que ainda não aconteceu): o período vai até agora.
+        if (inicio >= agora.Date) return agora;
+
+        DateTime? ultimaAmostra = UltimoDoDia(amostras, inicio, a => a.Momento);
+        DateTime? ultimaTroca = UltimoDoDia(trocas, inicio, t => t.Momento);
+
+        DateTime? evidencia = ultimaAmostra.HasValue && ultimaTroca.HasValue
+            ? (ultimaAmostra.Value > ultimaTroca.Value ? ultimaAmostra : ultimaTroca)
+            : (ultimaAmostra ?? ultimaTroca);
+
+        // Sem nenhuma evidência, o app não rodou naquele dia: nada a contar.
+        if (!evidencia.HasValue) return inicio;
+
+        return evidencia.Value;
+    }
+
+    /// <summary>
+    /// O instante mais recente de um dia (null quando não há item desse dia).
+    /// </summary>
+    private static DateTime? UltimoDoDia<T>(IReadOnlyList<T>? itens, DateTime dia, Func<T, DateTime> momento)
+    {
+        if (itens == null || itens.Count == 0) return null;
+
+        DateTime? ultimo = null;
+        foreach (var item in itens)
+        {
+            DateTime instante = momento(item);
+            if (instante.Date != dia) continue;
+            if (ultimo == null || instante > ultimo.Value) ultimo = instante;
+        }
+
+        return ultimo;
+    }
+
+    /// <summary>
     /// Explica um alerta: o que os sensores faziam nos dois minutos antes e
     /// qual programa estava em frente na hora.
     /// </summary>
@@ -194,7 +253,9 @@ public static class UsoRegras
         return new ExplicacaoAlerta(true,
             sensores.Length > 0
                 ? $"{sensores}{comPrograma}"
-                : $"sem número de sensor na janela, mas {programa} estava em frente");
+                : programa.Length > 0
+                    ? $"sem número de sensor na janela, mas {programa} estava em frente"
+                    : "sem número de sensor na janela");
     }
 
     /// <summary>

@@ -191,6 +191,23 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   processo (o app não deve aparecer como programa em uso). A leitura nunca
   lança: falha na coleta de uso não pode derrubar o app.
 
+- **O fim do período de um dia é a última evidência de que o app estava
+  vivo** (`UsoRegras.FimDoDia`): hoje é "agora"; num dia passado, é a última
+  amostra de sensor gravada (o log escreve de 5 em 5 segundos enquanto o app
+  roda) ou, sem ela, a última troca de uso. Sem essa regra, a última sessão
+  do dia se estenderia até a meia-noite e as horas em que o app estava
+  fechado seriam creditadas a um programa. Tempo inflado é pior que tempo
+  ausente.
+- **O log de sensores é lido limitado à janela pedida**
+  (`SensorHistorico.Ler(desde, ate)`): o arquivo guarda 15 dias e chega a
+  dezoito megabytes; interpretar tudo custa meio segundo. A leitura compara
+  o prefixo da data antes de interpretar a linha, e o arquivo (cronológico)
+  é abandonado assim que passa do fim pedido.
+- **A explicação do alerta fica em cache por episódio.** O instante do
+  episódio não muda enquanto o aviso está na tela, então a explicação é
+  calculada uma vez — e o histórico só é lido quando aparece um aviso sem
+  explicação.
+
 ## Publicar
 
 ```powershell

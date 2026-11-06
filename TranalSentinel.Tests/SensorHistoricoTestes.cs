@@ -211,6 +211,27 @@ public class SensorHistoricoTestes : IDisposable
     }
 
     [Fact]
+    public void Ler_ComInicioEFim_SoDevolveODentroDaJanela()
+    {
+        // A leitura limitada é o que permite abrir a aba "Uso" sem reparsear
+        // o log inteiro (que chega a dezoito megabytes).
+        UsarPastaTemporaria();
+
+        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 1, 10, 0, 0, DateTimeKind.Local)));
+        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local)));
+        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 12, 0, 0, DateTimeKind.Local)));
+        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 6, 10, 0, 0, DateTimeKind.Local)));
+
+        var lidas = SensorHistorico.Ler(
+            new DateTime(2026, 11, 5, 0, 0, 0, DateTimeKind.Local),
+            new DateTime(2026, 11, 5, 23, 59, 59, DateTimeKind.Local));
+
+        Assert.Equal(2, lidas.Count);
+        Assert.Equal(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local), lidas[0].Momento);
+        Assert.Equal(new DateTime(2026, 11, 5, 12, 0, 0, DateTimeKind.Local), lidas[1].Momento);
+    }
+
+    [Fact]
     public void Ler_SemArquivo_NaoErra()
     {
         UsarPastaTemporaria();

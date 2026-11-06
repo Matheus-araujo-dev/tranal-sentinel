@@ -165,27 +165,28 @@ public partial class MainWindow
     {
         var trocas = UsoHistorico.Ler(dia);
         var amostras = AmostrasDoDia(dia);
-        var relatorio = UsoRegras.Calcular(trocas, FimDoDia(dia), amostras);
+
+        // O fim do período é uma regra do núcleo: num dia antigo, ele para
+        // na última evidência de que o app estava vivo (senão as horas em
+        // que o app estava fechado seriam creditadas a um programa).
+        var fim = UsoRegras.FimDoDia(dia, DateTime.Now, amostras, trocas);
+
+        var relatorio = UsoRegras.Calcular(trocas, fim, amostras);
         return new DadosUso(dia, trocas, relatorio);
     }
 
     /// <summary>
     /// As amostras de sensores do dia. O log de sensores é um arquivo só (com
-    /// vários dias dentro), então o que é de outro dia é descartado aqui.
+    /// vários dias dentro), então a leitura é limitada ao dia pedido: o
+    /// arquivo chega a dezoito megabytes e interpretá-lo inteiro custa meio
+    /// segundo.
     /// </summary>
     private static List<AmostraSensor> AmostrasDoDia(DateTime dia)
     {
         DateTime inicio = dia.Date;
-        DateTime fim = inicio.AddDays(1);
-        return SensorHistorico.Ler(inicio).Where(a => a.Momento < fim).ToList();
+        DateTime fim = inicio.AddDays(1).AddSeconds(-1);
+        return SensorHistorico.Ler(inicio, fim);
     }
-
-    /// <summary>
-    /// O fim do período que a tela conta: agora, para o dia de hoje; o fim
-    /// do dia, para um dia antigo — senão a última sessão duraria dias.
-    /// </summary>
-    private static DateTime FimDoDia(DateTime dia) =>
-        dia.Date == DateTime.Today ? DateTime.Now : dia.Date.AddDays(1).AddSeconds(-1);
 
     /// <summary>
     /// Coloca o que foi lido na tela.

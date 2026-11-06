@@ -99,6 +99,8 @@ public static class UsoJanela
         }
         catch
         {
+            // Título de janela protegida não vem: fica sem título, e o
+            // registro do programa segue valendo.
             return "";
         }
     }

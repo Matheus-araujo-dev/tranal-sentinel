@@ -192,7 +192,27 @@ public static class SensorHistorico
     /// Lê as amostras gravadas a partir de <paramref name="desde"/>.
     /// Não lança: um arquivo ilegível devolve lista vazia.
     /// </summary>
-    public static List<AmostraSensor> Ler(DateTime desde)
+    public static List<AmostraSensor> Ler(DateTime desde) =>
+        Ler(desde, DateTime.MaxValue);
+
+    /// <summary>
+    /// Lê as amostras gravadas entre <paramref name="desde"/> e
+    /// <paramref name="ate"/>.
+    ///
+    /// <para>
+    /// O arquivo guarda 15 dias de amostras (de 5 em 5 segundos) e chega a
+    /// dezoito megabytes. Interpretar linha por linha o arquivo inteiro
+    /// custa meio segundo — por isso a leitura compara o **prefixo da data**
+    /// antes de interpretar a linha: dia anterior é pulado sem tocar nos
+    /// números, e o arquivo (que é cronológico) é abandonado assim que passa
+    /// do fim pedido.
+    /// </para>
+    ///
+    /// <para>
+    /// Não lança: um arquivo ilegível devolve lista vazia.
+    /// </para>
+    /// </summary>
+    public static List<AmostraSensor> Ler(DateTime desde, DateTime ate)
     {
         var resultado = new List<AmostraSensor>();
         try
@@ -201,11 +221,25 @@ public static class SensorHistorico
             {
                 if (!File.Exists(CaminhoArquivo)) return resultado;
 
+                string diaDesde = desde.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                string diaAte = ate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
                 foreach (var linha in File.ReadLines(CaminhoArquivo))
                 {
+                    if (linha.Length < 10) continue;
+
+                    string dia = linha.Substring(0, 10);
+
+                    // Dia anterior ao pedido: não precisa ser interpretado.
+                    if (string.CompareOrdinal(dia, diaDesde) < 0) continue;
+
+                    // O arquivo é cronológico: passou do fim, acabou.
+                    if (string.CompareOrdinal(dia, diaAte) > 0) break;
+
                     var amostra = LerLinha(linha);
                     if (amostra is null) continue;
                     if (amostra.Momento < desde) continue;
+                    if (amostra.Momento > ate) continue;
                     resultado.Add(amostra);
                 }
             }

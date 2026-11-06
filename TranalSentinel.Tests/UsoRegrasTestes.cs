@@ -399,4 +399,87 @@ public class UsoRegrasTestes : IDisposable
 
         UsoHistorico.Gravar(new TrocaUso(Momento(10, 0), "chrome", "Painel"));
     }
+
+    // ------------------------------------------------- o fim do período do dia
+
+    /// <summary>Um instante de um dia qualquer (0 = hoje, 1 = ontem).</summary>
+    private static DateTime MomentoDia(int diasAtras, int hora, int minuto) =>
+        Dia.AddDays(-diasAtras).Date.AddHours(hora).AddMinutes(minuto);
+
+    private static TrocaUso TrocaEm(DateTime momento, string processo, string titulo = "") =>
+        new(momento, processo, titulo);
+
+    private static AmostraSensor AmostraEm(DateTime momento, float? tempCpu) => new(
+        momento,
+        tempCpu, 50f, 90f, 4000f,
+        60f, 30f, 2000f, 1000f,
+        50f, 0f, 0f);
+
+    [Fact]
+    public void FimDoDiaDeHojeEAgora()
+    {
+        var agora = Momento(15, 0);
+
+        var fim = UsoRegras.FimDoDia(Momento(14, 0), agora, new List<AmostraSensor>(), new List<TrocaUso>());
+
+        Assert.Equal(agora, fim);
+    }
+
+    [Fact]
+    public void FimDoDiaPassadoParaNaUltimaAmostraDeSensor()
+    {
+        // O app rodou das 8h às 9h ontem. O período não pode ir até a
+        // meia-noite: as horas em que o app estava fechado não são tempo
+        // de ninguém.
+        var amostras = new List<AmostraSensor>
+        {
+            AmostraEm(MomentoDia(1, 8, 0), 80f),
+            AmostraEm(MomentoDia(1, 8, 30), 81f),
+            AmostraEm(MomentoDia(1, 9, 0), 82f),
+        };
+
+        var fim = UsoRegras.FimDoDia(MomentoDia(1, 0, 0), Momento(15, 0), amostras, new List<TrocaUso>());
+
+        Assert.Equal(MomentoDia(1, 9, 0), fim);
+    }
+
+    [Fact]
+    public void FimDoDiaPassadoSemSensorUsaAUltimaTroca()
+    {
+        var trocas = new List<TrocaUso> { TrocaEm(MomentoDia(1, 8, 0), "chrome") };
+
+        var fim = UsoRegras.FimDoDia(MomentoDia(1, 0, 0), Momento(15, 0), new List<AmostraSensor>(), trocas);
+
+        Assert.Equal(MomentoDia(1, 8, 0), fim);
+    }
+
+    [Fact]
+    public void FimDoDiaPassadoSemNadaNaoContaNada()
+    {
+        // Sem amostra e sem troca, o app não rodou naquele dia: o período
+        // fica vazio em vez de fingir que o dia inteiro foi observado.
+        var inicio = MomentoDia(1, 0, 0);
+
+        var fim = UsoRegras.FimDoDia(inicio, Momento(15, 0), new List<AmostraSensor>(), new List<TrocaUso>());
+
+        Assert.Equal(inicio, fim);
+    }
+
+    [Fact]
+    public void DiaPassadoNaoViraSessaoDeAteMeiaNoite()
+    {
+        // O defeito que a revisão adversarial achou: com o período indo
+        // até a meia-noite, o chrome ficava com 15 horas de "tempo em
+        // frente" — sendo que o app rodou só das 8h às 9h.
+        var trocas = new List<TrocaUso> { TrocaEm(MomentoDia(1, 8, 0), "chrome") };
+        var amostras = new List<AmostraSensor> { AmostraEm(MomentoDia(1, 9, 0), 80f) };
+
+        var agora = Momento(15, 0);
+        var fim = UsoRegras.FimDoDia(MomentoDia(1, 0, 0), agora, amostras, trocas);
+        var relatorio = UsoRegras.Calcular(trocas, fim, amostras);
+
+        var uso = Assert.Single(relatorio.PorApp);
+        Assert.Equal("chrome", uso.Processo);
+        Assert.Equal(TimeSpan.FromHours(1), uso.Tempo);
+    }
 }

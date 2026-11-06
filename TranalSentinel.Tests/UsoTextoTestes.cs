@@ -20,10 +20,15 @@ public class UsoTextoTestes
     [InlineData(0, 0, 0, "0 s")]
     [InlineData(-5, 0, 0, "0 s")]      // relógio que andou para trás
     [InlineData(0, 0, 30, "30 s")]
+    [InlineData(0, 0, 59, "59 s")]
+    [InlineData(0, 1, 0, "1 min")]
     [InlineData(0, 45, 0, "45 min")]
+    [InlineData(0, 59, 59, "59 min")]
     [InlineData(1, 0, 0, "1 h")]
     [InlineData(2, 15, 0, "2 h 15 min")]
     [InlineData(10, 0, 0, "10 h")]
+    [InlineData(25, 0, 0, "25 h")]
+    [InlineData(25, 30, 0, "25 h 30 min")]
     public void Duracao_escreve_no_padrao_brasileiro(int horas, int minutos, int segundos, string esperado)
     {
         var duracao = new TimeSpan(horas, minutos, segundos);
