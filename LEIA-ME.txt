@@ -58,6 +58,32 @@ TRANAL MEMÓRIA
   o arquivo .bin nessa pasta.
 - Para conferir sem abrir a janela:  TranalSentinel.exe --memoria
 
+TRANAL ALERTAS
+- No menu lateral, grupo "TRANAL SAÚDE" -> aba "Alertas".
+- Cada regra diz o que vigiar (temperatura da CPU, da GPU e do disco, uso da
+  memória, carga da CPU e da GPU, clock da CPU e da GPU e a carga da bateria),
+  a comparação (>= ou <=), o limite, quanto tempo a condição precisa valer
+  antes de avisar e a gravidade do aviso.
+- Começa com as três regras de sempre: CPU a 85 °C, disco a 60 °C e bateria
+  a 20 % (a bateria só avisa fora da tomada). O botão RESTAURAR PADRÕES volta
+  a elas.
+- O aviso sai uma vez por episódio: enquanto a condição valer, não repete; e
+  some da lista de "Alertas ativos" quando a condição passa.
+- Se você mudar o que a regra vigia (o sensor, a comparação ou o limite), o
+  aviso antigo sai da tela e a contagem recomeça.
+- As regras ficam em %AppData%\TranalSentinel\settings.json (campo "Alertas").
+
+TRANAL S.M.A.R.T.
+- No menu lateral, grupo "TRANAL SAÚDE" -> aba "S.M.A.R.T.". Clique em LER AGORA.
+- Mostra a tabela de atributos de cada disco: id, nome, flags, valor
+  normalizado, pior valor, limiar, se é atributo de pré-falha e o valor cru.
+  É a mesma tabela que o CrystalDiskInfo mostra.
+- O TRANAL SAÚDE usa esses dados: setores realocados, setores pendentes, a
+  falha prevista e a vida útil do disco entram no diagnóstico.
+- O disco NVMe depende do driver: se o Windows recusar o pedido, o disco
+  aparece como "sem SMART" com o motivo. O app nunca inventa número.
+- É somente leitura: nada é gravado no disco.
+- Para conferir sem abrir a janela:  TranalSentinel.exe --smart
 TRANAL ASSISTENTE
 - No menu lateral, grupo "TRANAL ASSISTENTE" -> aba "Linha do tempo".
 - O app tira um retrato do PC de tempos em tempos (Windows, BIOS, drivers, plano de
