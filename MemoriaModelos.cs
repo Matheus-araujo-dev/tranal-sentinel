@@ -28,3 +28,19 @@ public sealed class MemoriaModuloVm
     /// <summary>Tabela de tempos.</summary>
     public List<MemoriaLinhaVm> Tempos { get; init; } = new();
 }
+
+/// <summary>Uma linha da tabela de tempos ativos comparados com o perfil.</summary>
+public sealed class MemoriaAtivoLinhaVm
+{
+    /// <summary>Nome do tempo ("tCL", "tRCD"...).</summary>
+    public string Nome { get; init; } = "";
+
+    /// <summary>Valor ativo, em ciclos.</summary>
+    public string Ativo { get; init; } = "";
+
+    /// <summary>Valor do perfil de referência, em ciclos.</summary>
+    public string Referencia { get; init; } = "";
+
+    /// <summary>Como o ativo se compara com a referência.</summary>
+    public string Situacao { get; init; } = "";
+}

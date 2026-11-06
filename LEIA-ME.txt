@@ -47,12 +47,22 @@ TRANAL MEMÓRIA
 - Lê o SPD (o "cartão de visita" de 512 bytes) de cada módulo de memória pelo barramento
   SMBus do processador e mostra: fabricante, part number, número de série, capacidade,
   ranks, os tempos do padrão JEDEC e o perfil XMP/EXPO gravado no módulo.
+- Além do SPD, o app agora lê os TEMPOS ATIVOS: o que a BIOS programou de verdade no
+  controlador de memória, lido dos registradores do processador (AMD). Aparece no
+  cartão "TEMPOS ATIVOS", com o clock real e a comparação de cada tempo com o perfil
+  do módulo (ou com o padrão JEDEC, quando a memória está rodando no padrão).
+- Essa comparação é a que aponta o ajuste manual: tempo mais apertado que o perfil
+  é a causa mais comum de travamento por memória. Tempo igual ou mais solto significa
+  que a memória está no perfil e o que está acima é só o clock.
 - O TRANAL SAÚDE compara o clock que a BIOS configurou com o que o módulo oferece e
   avisa quando a memória está no perfil, no padrão JEDEC ou ajustada à mão (overclock
   manual, fora do perfil do módulo).
+- Os tempos ativos só existem em processador AMD (famílias Zen 2, Zen 3 e Zen 4) com
+  memória DDR4. Em processador Intel ou com DDR5, o app diz que não conseguiu ler.
 - Precisa do driver PawnIO instalado (o mesmo que o app usa para a temperatura do
   CPU). Se ele faltar, o botão CORRIGIR do menu lateral instala com um clique.
-- É somente leitura: nada do que está gravado no módulo de memória é alterado.
+- É somente leitura: nada do que está gravado no módulo de memória é alterado, e
+  nenhum registro do processador é escrito.
 - Os módulos PawnIO usados para a leitura ficam em %LOCALAPPDATA%\TranalSentinel\PawnIO\,
   com a licença e o aviso de origem ao lado. Trocar por uma versão mais nova é substituir
   o arquivo .bin nessa pasta.

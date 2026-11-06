@@ -74,6 +74,7 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
 | **Alertas em segundo plano** | (ideia própria) | Temperatura da CPU, do disco e carga da bateria, com aviso que não repete enquanto a condição continua valendo. |
 | **Relatório em CSV** | (ideia própria) | O relatório exportado sai também em CSV no padrão do Excel em português, para abrir em planilha e filtrar. |
 | **SPD e timings de memória** | CPU-Z, HWiNFO | Aba TRANAL MEMÓRIA: lê o SPD de cada módulo pelo SMBus (driver PawnIO) e mostra fabricante, part number, serial, capacidade, ranks, os tempos do padrão JEDEC e o perfil XMP/EXPO gravado no módulo. O TRANAL SAÚDE compara o clock configurado na BIOS com o que o módulo oferece: perfil ativo, padrão JEDEC ou overclock manual. |
+| **Tempos ativos de memória** | CPU-Z, HWiNFO, Ryzen Master | Lê os registradores do controlador de memória do AMD (SMN, pelo módulo PawnIO do SMN) e mostra os tempos que a BIOS programou de verdade, lado a lado com o perfil do módulo. É o que separa "a memória está no perfil e o clock é que está alto" de "a BIOS apertou os tempos à mão" — a causa mais comum de travamento por memória. |
 
 ## O que ficou na lista (não cabe nesta versão)
 

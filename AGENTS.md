@@ -132,6 +132,24 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   foi usado — a vida que resta é o complemento.
 - **A comparação de snapshots** (`Mudancas.Comparar`) é função pura e não tem
   I/O — é o que os testes cobrem.
+- **Os tempos ativos de memória são lidos, nunca escritos.** O módulo PawnIO do
+  AMD (`AMDFamily17.bin`) expõe funções de escrita (`ioctl_write_msr` e
+  afins): **nenhuma delas é usada**. A única chamada é `ioctl_read_smn`, que lê
+  os registradores do UMC — é de onde saem os tempos que a BIOS programou, que
+  não são os mesmos que o SPD oferece. Cada handle do driver PawnIO guarda o
+  seu próprio módulo, então o leitor de SMN e o de SMBus convivem.
+- **O decodificador dos tempos ativos é função pura** (`TimingsAtivosDecoder`),
+  e o que ele recusa é regra, não acidente: tipo de memória que não seja DDR4
+  (o mapa de DDR5 ainda não foi conferido), clock que não bate com o que o
+  Windows informa como configurado, e tempos incoerentes entre si. Número
+  ausente é melhor que número errado — a mesma regra do S.M.A.R.T.
+- **A comparação com o perfil é em ciclos, não em nanossegundos.** Quando a
+  BIOS sobe o clock, ela mantém a contagem de ciclos do perfil: é mexer
+  nessa contagem que caracteriza ajuste manual. Nos tempos primários
+  (tCL, tRCD, tRP, tRAS, tRC) qualquer diferença conta; nos secundários a
+  diferença de um ciclo é ruído de revisão de BIOS. A regra mora em
+  `MemoriaRegras.CompararTimings` — a tela, o `--memoria` e o TRANAL SAÚDE
+  consomem o mesmo relatório.
 
 ## Publicar
 
@@ -154,6 +172,9 @@ auto-update procura.
 | `SmartLeitor.cs` / `SmartDisco.cs` / `SmartNomes.cs` | A leitura do S.M.A.R.T. (WMI para SATA, IOCTL de protocolo para NVMe), o modelo e os nomes padrão dos atributos. |
 | `SmartCli.cs` | A tabela do S.M.A.R.T. pela linha de comando (`--smart`). |
 | `RegraAlerta.cs` / `SensorCatalogo.cs` | A regra de alerta do usuário e o catálogo dos 8 sensores que podem ser vigiados. |
+| `TimingsAtivos.cs` / `TimingsAtivosDecoder.cs` | O modelo dos tempos ativos de memória e o decodificador puro dos registradores do UMC do AMD. |
+| `SmnPawnIo.cs` / `MemoriaAtivos.cs` | A leitura do SMN pelo módulo PawnIO do AMD (só leitura) e a coleta dos registradores. |
+| `MemoriaRegras.cs` | A regra da memória: modo (JEDEC, perfil, acima do perfil) e a comparação dos tempos ativos com o perfil. |
 | `MainWindow.Alertas.cs` / `MainWindow.Smart.cs` | As páginas de configuração de alertas e de S.M.A.R.T. |
 | `Mudancas.cs` | A linha do tempo do PC: retrato, comparação pura e coleta do retrato. |
 | `PoliticaRecursos.cs` | Perfil Completo / Equilibrado / Economia. Funções puras. |

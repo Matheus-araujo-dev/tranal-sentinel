@@ -35,6 +35,9 @@ public partial class MainWindow
 
         MemoriaResumo.ItemsSource = null;
         MemoriaModulos.ItemsSource = null;
+        MemoriaAtivos.ItemsSource = null;
+        MemoriaAtivosResumo.Text = string.Empty;
+        CardMemoriaAtivos.Visibility = Visibility.Collapsed;
         MemoriaStatus.Text =
             "Clique em LER MÓDULOS para ler o SPD de cada módulo pelo SMBus. Nada do que está gravado na memória é alterado.";
     }
@@ -57,6 +60,8 @@ public partial class MainWindow
         {
             MemoriaResumo.ItemsSource = null;
             MemoriaModulos.ItemsSource = null;
+            MemoriaAtivos.ItemsSource = null;
+            CardMemoriaAtivos.Visibility = Visibility.Collapsed;
             MemoriaStatus.Text = "Falhou na leitura da memória: " + ex.Message;
         }
         finally
@@ -72,6 +77,8 @@ public partial class MainWindow
         {
             MemoriaResumo.ItemsSource = null;
             MemoriaModulos.ItemsSource = null;
+            MemoriaAtivos.ItemsSource = null;
+            CardMemoriaAtivos.Visibility = Visibility.Collapsed;
             MemoriaStatus.Text = resultado.Erro ?? "Não foi possível ler os módulos de memória.";
             return;
         }
@@ -115,13 +122,49 @@ public partial class MainWindow
             });
         }
 
-        if (resultado.VelocidadeConfigMts is int configurada && primeiro != null)
+        // Tempos ativos: o que a BIOS programou de verdade, lido dos
+        // registradores do controlador. A comparação com o perfil é feita por
+        // MemoriaRegras — a tela não recalcula nada.
+        int? velocidadeConfig = resultado.VelocidadeConfigMts;
+        RelatorioTimings? relatorio = null;
+        if (resultado.TimingsAtivos is TimingsAtivos ativos && primeiro != null)
+        {
+            relatorio = MemoriaRegras.CompararTimings(ativos, primeiro, velocidadeConfig ?? 0);
+
+            resumo.Add(new InfoNode
+            {
+                Header = "Tempos ativos",
+                Value = MemoriaAtivosTexto.Resumo(ativos)
+            });
+
+            MemoriaAtivosResumo.Text =
+                $"Lidos dos registradores do controlador de memória (SMN). Contra o {relatorio.Referencia}: {relatorio.Resumo}";
+            MemoriaAtivos.ItemsSource = MemoriaAtivosTexto.Linhas(relatorio);
+            CardMemoriaAtivos.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            MemoriaAtivos.ItemsSource = null;
+            MemoriaAtivosResumo.Text = string.Empty;
+            CardMemoriaAtivos.Visibility = Visibility.Collapsed;
+
+            if (!string.IsNullOrWhiteSpace(resultado.ErroTimingsAtivos))
+            {
+                resumo.Add(new InfoNode
+                {
+                    Header = "Tempos ativos",
+                    Value = "não disponíveis — " + resultado.ErroTimingsAtivos
+                });
+            }
+        }
+
+        if (velocidadeConfig is int configurada && primeiro != null)
         {
             ModoMemoria modo = MemoriaRegras.Classificar(configurada, primeiro);
             resumo.Add(new InfoNode
             {
                 Header = "Configurado na BIOS",
-                Value = $"{configurada} MT/s · {MemoriaRegras.Descrever(modo, configurada, primeiro)}"
+                Value = $"{configurada} MT/s · {MemoriaRegras.Descrever(modo, configurada, primeiro, relatorio)}"
             });
         }
         else if (resultado.VelocidadeMaximaMts is int maxima)

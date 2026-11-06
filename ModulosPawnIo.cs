@@ -35,6 +35,9 @@ public static class ModulosPawnIo
     /// <summary>Recurso do módulo PawnIO da Intel (ICH/PCH).</summary>
     public const string RecursoModuloIntel = "TranalSentinel.Assets.PawnIO.SmbusI801.bin";
 
+    /// <summary>Recurso do módulo PawnIO do AMD para leitura de SMN (famílias 17h a 1Ah).</summary>
+    public const string RecursoModuloAmdFamilia17 = "TranalSentinel.Assets.PawnIO.AMDFamily17.bin";
+
     /// <summary>Recurso do texto da licença LGPL dos módulos.</summary>
     public const string RecursoLicenca = "TranalSentinel.Assets.PawnIO.COPYING";
 

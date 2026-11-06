@@ -1,3 +1,41 @@
+## Novidades da v0.25 — o app agora lê os tempos que a BIOS programou de verdade
+
+Até aqui o TRANAL MEMÓRIA mostrava o que o módulo de memória **oferece**: o
+padrão JEDEC e o perfil XMP/EXPO gravados no SPD. Agora ele mostra também o
+que está **rodando**: os tempos ativos, lidos dos registradores do
+controlador de memória do processador.
+
+A diferença entre os dois é o que explica travamento. Tempo mais apertado
+que o perfil é ajuste manual na BIOS — e é a causa mais comum de
+instabilidade por memória.
+
+**Novo · tempos ativos de memória**
+- O app lê os registradores do UMC do AMD pelo módulo PawnIO do SMN: clock
+  real, taxa de comando, gear down, tCL, tRCD, tRP, tRAS, tRC, tFAW, tWR,
+  tWTR, tCKE, tREFI e mais.
+- Cada tempo aparece lado a lado com o do perfil do módulo (ou com o padrão JEDEC,
+  quando é o que está rodando), e a coluna "situação" diz se está igual, mais
+  apertado ou mais solto.
+- No TRANAL SAÚDE, tempo primário mais apertado que o perfil vira achado
+  próprio, na área Memória, com a ação sugerida.
+- Funciona em processador AMD das famílias Zen 2, Zen 3 e Zen 4 com memória
+  DDR4. Em processador Intel ou com DDR5 o app diz honestamente que não
+  conseguiu ler, em vez de mostrar número inventado.
+
+**Prova real (PC do owner, Ryzen 7 5700X)**
+- Lido de verdade: 3466 MT/s (1733 MHz), 1T, gear down, 18-22-22-42.
+- O perfil XMP 2.0 do módulo é 18-22-22-42: os tempos ativos são exatamente
+  os do perfil. A BIOS aplicou o XMP e só subiu o clock de 3200 para
+  3466 MT/s — não há ajuste manual nos tempos.
+
+**Como usar**
+- TRANAL MEMÓRIA -> aba "Módulos" -> LER MÓDULOS. O cartão "TEMPOS ATIVOS"
+  aparece logo abaixo do resumo.
+- Pelo terminal: `TranalSentinel.exe --memoria`.
+- Continua sendo somente leitura: nenhum registro do processador é escrito.
+
+---
+
 ## Novidades da v0.23 — o app agora conta o que a máquina estava fazendo antes de travar
 
 O TRANAL SAÚDE já contava os travamentos (o evento Kernel-Power 41, que o

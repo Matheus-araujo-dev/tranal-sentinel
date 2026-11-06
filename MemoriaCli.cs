@@ -78,15 +78,41 @@ public static class MemoriaCli
         sb.AppendLine($"Barramento: {(resultado.Barramento == SmbusModelo.AmdFch ? "AMD FCH (SMBus do processador)" : "Intel ICH/PCH (SMBus do processador)")}");
         sb.AppendLine($"Módulos: {resultado.Modulos.Count} · Capacidade total: {MemoriaTexto.Bytes(resultado.CapacidadeTotalBytes)}");
 
-        if (resultado.VelocidadeConfigMts is int configurada)
+        // Quem manda é o módulo mais fraco: a mesma regra que a tela usa.
+        SpdModulo? moduloManda = MemoriaRegras.ModuloQueManda(resultado.Modulos.Select(m => m.Modulo));
+
+        // Tempos ativos: o que a BIOS programou de verdade. A comparação com
+        // o perfil é feita uma vez e usada pelas duas seções.
+        int velocidadeConfig = resultado.VelocidadeConfigMts ?? 0;
+        RelatorioTimings? relatorio = null;
+        if (resultado.TimingsAtivos is TimingsAtivos ativos && moduloManda != null)
         {
-            SpdModulo? primeiro = resultado.Modulos.FirstOrDefault()?.Modulo;
-            if (primeiro != null)
+            relatorio = MemoriaRegras.CompararTimings(ativos, moduloManda, velocidadeConfig);
+        }
+
+        if (velocidadeConfig > 0 && moduloManda != null)
+        {
+            ModoMemoria modo = MemoriaRegras.Classificar(velocidadeConfig, moduloManda);
+            sb.AppendLine($"Clock configurado na BIOS: {velocidadeConfig} MT/s");
+            sb.AppendLine($"Situação: {MemoriaRegras.Descrever(modo, velocidadeConfig, moduloManda, relatorio)}");
+        }
+
+        if (relatorio != null && resultado.TimingsAtivos is TimingsAtivos temposAtivos)
+        {
+            sb.AppendLine();
+            sb.AppendLine("TEMPOS ATIVOS (lidos dos registradores do controlador de memória)");
+            sb.AppendLine($"  {MemoriaAtivosTexto.Resumo(temposAtivos)}");
+            sb.AppendLine($"  Contra o {relatorio.Referencia}: {relatorio.Resumo}");
+            sb.AppendLine("  (tempos em ciclos: a coluna ativa usa o clock do controlador, a do perfil o clock do perfil)");
+            foreach (MemoriaAtivoLinhaVm linha in MemoriaAtivosTexto.Linhas(relatorio))
             {
-                ModoMemoria modo = MemoriaRegras.Classificar(configurada, primeiro);
-                sb.AppendLine($"Clock configurado na BIOS: {configurada} MT/s");
-                sb.AppendLine($"Situação: {MemoriaRegras.Descrever(modo, configurada, primeiro)}");
+                sb.AppendLine($"  {linha.Nome,-9} ativo {linha.Ativo,4} · perfil {linha.Referencia,4} · {linha.Situacao}");
             }
+        }
+        else if (!string.IsNullOrWhiteSpace(resultado.ErroTimingsAtivos))
+        {
+            sb.AppendLine();
+            sb.AppendLine($"TEMPOS ATIVOS: não disponíveis — {resultado.ErroTimingsAtivos}");
         }
 
         foreach (MemoriaSpd modulo in resultado.Modulos)

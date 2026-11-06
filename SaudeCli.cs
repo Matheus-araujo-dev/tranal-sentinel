@@ -853,12 +853,21 @@ public static class SaudeCli
         sb.AppendLine();
     }
 
-    /// <summary>Deixa o console em UTF-8, para os acentos saírem certainhos (quando há console).</summary>
+    /// <summary>
+    /// Deixa o console em UTF-8, para os acentos saírem certainhos.
+    ///
+    /// <para>
+    /// Vale também quando a saída está redirecionada para arquivo, como já
+    /// fazia o <c>--memoria</c> e o <c>--smart</c>: assim o relatório gravado
+    /// em <c>--saude relatar &gt; arquivo.txt</c> sai com os acentos certos,
+    /// independentemente da página de código do console.
+    /// </para>
+    /// </summary>
     private static void PrepararConsole()
     {
         try
         {
-            if (!Console.IsOutputRedirected) Console.OutputEncoding = Encoding.UTF8;
+            Console.OutputEncoding = Encoding.UTF8;
         }
         catch { }
     }

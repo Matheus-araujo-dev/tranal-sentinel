@@ -688,7 +688,9 @@ internal static class SaudeColeta
         // regras de memória continuam funcionando com o que o Windows informa.
         try
         {
-            dados.ModulosSpd.AddRange(MemoriaColeta.Coletar().Modulos);
+            MemoriaColetaResultado memoria = MemoriaColeta.Coletar();
+            dados.ModulosSpd.AddRange(memoria.Modulos);
+            dados.TimingsAtivosMemoria = memoria.TimingsAtivos;
         }
         catch { }
     }

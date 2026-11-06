@@ -428,7 +428,10 @@ public static class SaudeRegras
 
             if (configurada > 0)
             {
-                Achado? achado = MemoriaRegras.Avaliar(configurada, modulo);
+                // Os tempos ativos entram na regra: é deles que se descobre se
+                // a BIOS apertou os tempos à mão (a causa mais comum de
+                // travamento por memória) ou se só subiu o clock.
+                Achado? achado = MemoriaRegras.Avaliar(configurada, modulo, c.TimingsAtivosMemoria);
                 if (achado != null) saida.Add(achado);
             }
 

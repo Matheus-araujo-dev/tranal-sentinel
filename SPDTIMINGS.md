@@ -230,8 +230,6 @@ Duas decisões de decodificação que vieram dessa conferência:
 
 ### O que ainda não entra
 
-- **Timings ativos** (registradores do UMC do AMD): exige os offsets do
-  controlador de memória, que ainda não são públicos.
 - **EXPO**: o cabeçalho "EXPO" fica no offset 768 (1024 bytes de SPD). O
   módulo do owner tem XMP 2.0, não EXPO; o decodificador de EXPO fica
   para quando houver um módulo EXPO para testar.
@@ -239,6 +237,90 @@ Duas decisões de decodificação que vieram dessa conferência:
 O driver PawnIO **não** é um bloqueio: o app já o instala com um clique
 (mesmo caminho usado para a temperatura da CPU), então a aba TRANAL MEMÓRIA
 funciona em qualquer máquina onde os sensores de CPU já funcionam.
+
+
+## 8-bis. Timings ativos (o que a BIOS programou) — implementado na v0.25
+
+O que o SPD oferece é o **papel**; o que o controlador está fazendo é a
+**reality**. A diferença entre os dois é o que explica travamento: tempo
+mais apertado do que o perfil é ajuste manual, e é a causa mais comum de
+instabilidade por memória.
+
+### O caminho
+
+O módulo PawnIO do AMD (`AMDFamily17.bin`, do projeto PawnIO.Modules)
+exporta `ioctl_read_smn`, que lê os registradores do **SMN** (System
+Management Network) do processador — o mesmo caminho que o `ryzen_smu` usa
+no Linux. O módulo cobre as famílias **17h a 1Ah** (Zen 2, Zen 3 e Zen 4) e
+aceita o processador do owner, que é **Zen 3** (família 19h, modelo 21h).
+
+Cada handle do driver PawnIO guarda o seu próprio módulo carregado, então o
+leitor de SMN e o leitor de SMBus convivem na mesma máquina.
+
+**Só leitura.** As funções de escrita do módulo (`ioctl_write_msr` e
+afins) não são usadas em lugar nenhum.
+
+### O mapa dos registradores (bloco do UMC)
+
+O bloco vive em `0x50200` (canal 0) e `0x150200` (canal 1). O canal 0
+responde `0x300` quando está vazio — nesse caso o bloco de verdade é o do
+canal 1 (regra do ryzen_smu).
+
+| Endereço | Conteúdo |
+|---|---|
+| `0x50100` | tipo de memória (bits 1-0: 00 = DDR4, 01 = DDR5) |
+| `0x50200` | clock da memória (bits 6-0), taxa de comando (bit 10), gear down (bit 11) |
+| `0x50204` | tCL, tRAS, tRCD de leitura, tRCD de escrita |
+| `0x50208` | tRC, tRP |
+| `0x5020C` | tRRDS, tRRDL, tRTP |
+| `0x50210` | tFAW |
+| `0x50214` | tCWL, tWTRS, tWTRL |
+| `0x50218` | tWR |
+| `0x50230` | tREFI (o intervalo de refresh) |
+| `0x50250` | tSTAG |
+| `0x50254` | tCKE |
+| `0x50050` / `0x50058` | troca de banco/grupo de bancos |
+
+Referências: `ryzen_smu` (`userspace/monitor_cpu.c`) e o `zencli.c` do
+projeto MemTimings-Linux — as duas descrevem o mesmo bloco.
+
+### O que foi medido no PC do owner
+
+Ryzen 7 5700X, 2×16 GB Asgard 3200 (XMP 2.0), BIOS com o clock em 3466 MT/s:
+
+| Tempo | Ativo (ciclos) | Perfil XMP 2.0 (ciclos) | Situação |
+|---|---|---|---|
+| tCL | 18 | 18 | igual |
+| tRCD | 22 | 22 | igual |
+| tRP | 22 | 22 | igual |
+| tRAS | 42 | 42 | igual |
+| tRC | 80 | 67 | mais solto |
+| tFAW | 37 | 34 | mais solto |
+
+Clock lido: 1733 MHz = 3466 MT/s, 1T, gear down ligado. tREFI: 13495
+ciclos = 7786 ns ≈ 7,8 µs — o valor canônico do DDR4.
+
+**O veredito:** os tempos ativos são exatamente os do perfil XMP 2.0. A BIOS
+aplicou o perfil e só subiu o clock de 3200 para 3466 MT/s. Não há ajuste
+manual nos tempos.
+
+### Duas coisas que a análise estática não deu, e como foram resolvidas
+
+1. **O tRFC não é mostrado.** Em `0x50260` está o valor `0x21060138`, que é
+   o *default* do registrador, e em `0x50264` o valor `0x7092F3B8`. As duas
+   referências discordam sobre o que extrair: o `ryzen_smu` tem uma
+   regra de sentinela que troca um pelo outro; o `zencli.c` usa a mesma
+   regra para DDR4 e lê quatro registradores para DDR5. Aplicando as duas,
+   os valores ficam em 312/192/132 (ordenados ao contrário do esperado) ou
+   em 952/606/898 (também ao contrário). Nenhum dos dois conjuntos é
+   plausível para tRFC1/tRFC2/tRFC4, que precisam crescer. Como não dá para
+   validar nesta máquina, o app **não mostra tRFC** — número ausente é
+   melhor que número errado. Os valores crus estão na fixture
+   `RegistrosUmcRyzen5700X`, prontos para quando houver como conferir.
+2. **O segundo canal é alcançável.** A sonda inicial parecia ler o mesmo
+   valor em `0x50200` e `0x150200`, o que sugeria máscara de endereço.
+   Não é: `0x250200` devolve `0xFFFFFFFF` (endereço inexistente), e os dois
+   canais têm valores **idênticos** porque os dois módulos são iguais.
 
 
 ## 9. Alternativas avaliadas

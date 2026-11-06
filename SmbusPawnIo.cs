@@ -186,9 +186,19 @@ public sealed class SmbusPawnIo : ISmbusLeitor, IDisposable
         bool entrou = false;
         try
         {
-            // O mutex pode ser abandonado por outra ferramenta: nesse caso
-            // seguimos, porque o estado do barramento é reconectado a cada uso.
-            entrou = _mutex.WaitOne(TimeSpan.FromSeconds(5));
+            try
+            {
+                // O mutex pode estar abandonado por outra ferramenta: nesse
+                // caso o Windows entrega a posse a quem espera, e ela tem que
+                // ser devolvida no finally — senão este thread fica dono do
+                // mutex e trava as outras ferramentas.
+                entrou = _mutex.WaitOne(TimeSpan.FromSeconds(5));
+            }
+            catch (AbandonedMutexException)
+            {
+                entrou = true;
+            }
+
             return acao();
         }
         finally

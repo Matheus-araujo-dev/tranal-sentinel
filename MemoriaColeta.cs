@@ -25,6 +25,16 @@ public sealed class MemoriaColetaResultado
 
     /// <summary>Capacidade total, em bytes.</summary>
     public long CapacidadeTotalBytes => Modulos.Sum(m => m.Modulo.CapacidadeBytes);
+
+    /// <summary>
+    /// Os tempos que estão ativos agora no controlador de memória (lidos dos
+    /// registradores do UMC). Null quando o processador não é AMD ou quando
+    /// o driver não deixou ler.
+    /// </summary>
+    public TimingsAtivos? TimingsAtivos { get; init; }
+
+    /// <summary>Motivo pelo qual os tempos ativos não puderam ser lidos.</summary>
+    public string? ErroTimingsAtivos { get; init; }
 }
 
 /// <summary>
@@ -61,6 +71,30 @@ public static class MemoriaColeta
 
     private static MemoriaColetaResultado Ler()
     {
+        int? velocidadeConfig = VelocidadeConfigMts();
+
+        // Os tempos ativos vêm do SMN, que é um caminho independente do
+        // SMBus: dá para ler os tempos mesmo quando o SPD não foi lido, e
+        // vice-versa. Por isso os dois erros são guardados separados.
+        TimingsAtivos? ativos = MemoriaAtivos.Coletar(velocidadeConfig ?? 0, out string? erroAtivos);
+
+        MemoriaColetaResultado modulos = LerModulos(velocidadeConfig);
+
+        return new MemoriaColetaResultado
+        {
+            Disponivel = modulos.Disponivel,
+            Erro = modulos.Erro,
+            Barramento = modulos.Barramento,
+            Modulos = modulos.Modulos,
+            VelocidadeConfigMts = modulos.VelocidadeConfigMts,
+            VelocidadeMaximaMts = modulos.VelocidadeMaximaMts,
+            TimingsAtivos = ativos,
+            ErroTimingsAtivos = ativos == null ? erroAtivos : null
+        };
+    }
+
+    private static MemoriaColetaResultado LerModulos(int? velocidadeConfig)
+    {
         byte[]? moduloAmd = ModulosPawnIo.Obter("SmbusPIIX4.bin", ModulosPawnIo.RecursoModuloAmd);
         byte[]? moduloIntel = ModulosPawnIo.Obter("SmbusI801.bin", ModulosPawnIo.RecursoModuloIntel);
 
@@ -95,7 +129,7 @@ public static class MemoriaColeta
                 Disponivel = true,
                 Barramento = smbus.Modelo,
                 Modulos = modulos,
-                VelocidadeConfigMts = VelocidadeConfigMts(),
+                VelocidadeConfigMts = velocidadeConfig,
                 VelocidadeMaximaMts = VelocidadeMaximaMts()
             };
         }

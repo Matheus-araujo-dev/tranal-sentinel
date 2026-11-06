@@ -245,6 +245,12 @@ public sealed class ColetaSaude
     /// </summary>
     public List<MemoriaSpd> ModulosSpd { get; } = new();
 
+    /// <summary>
+    /// Os tempos que estão ativos agora no controlador de memória (lidos dos
+    /// registradores do UMC do AMD). Null quando não deu para ler.
+    /// </summary>
+    public TimingsAtivos? TimingsAtivosMemoria { get; set; }
+
     // lentidão
     public int AutostartAtivos { get; set; }
     public int AutostartTotal { get; set; }
