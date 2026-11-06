@@ -161,6 +161,11 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   mesma tabela. E o nome inclui o detalhe da chave (multi-core, single-core,
   preset e resolução do ray tracing) para duas linhas nunca saírem com o
   mesmo rótulo.
+- **Nota de benchmark só existe se for finita e maior que zero.** A regra
+  mora em `BenchResultado.NotaUtilizavel` e vale para exportar, importar e
+  comparar: benchmark que falhou (nota zero) e nota quebrada (NaN, infinito)
+  não viram número na tela — a linha é descartada e o app avisa quantas
+  foram. Nota errada é pior que nota ausente.
 
 ## Publicar
 

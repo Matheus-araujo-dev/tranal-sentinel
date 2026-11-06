@@ -17,6 +17,10 @@ do PC) para o outro computador, e lá a tabela mostra os dois lado a lado.
   o app avisa: a diferença de nota não é só de hardware.
 - Os testes que existem em um dos PCs só (o outro não rodou aquele
   benchmark) são mostrados à parte, em vez de sumirem.
+- Benchmark que falhou (nota zero) não vira "empate (0%)": o app avisa que
+  aquele teste não tem nota com que comparar. O mesmo vale para arquivo
+  danificado ou de uma versão mais nova do formato — o app recusa com
+  explicação, em vez de mostrar número errado.
 
 **Novo · linha de comando**
 - `TranalSentinel.exe --comparar exportar <arquivo>` — exporta os
@@ -30,6 +34,11 @@ do PC) para o outro computador, e lá a tabela mostra os dois lado a lado.
 - O nome de cada benchmark passou a ter um lugar só (o TRANAL BENCH, o
   relatório exportável e a comparação usam a mesma tabela), para os três
   não divergirem na primeira edição em um deles.
+- O render de 10 minutos (sustentado, limitado termicamente) passou a ser um
+  teste à parte do render curto: os dois não são comparados um contra o
+  outro.
+- A placa de vídeo do arquivo sai da mesma regra que a tela do app usa
+  (a dedicada primeiro, pela VRAM), e não da primeira linha do WMI.
 
 ---
 

@@ -37,6 +37,9 @@ TRANAL COMPARAR
   avisa: a diferença de nota não é só de hardware.
 - Os testes que existem em um dos PCs só (o outro não rodou aquele benchmark) aparecem
   à parte, em vez de sumirem.
+- Benchmark que falhou (nota zero) ou arquivo danificado: o app avisa e recusa, em vez
+  de mostrar um número errado. Arquivo de uma versão mais nova do formato pede a
+  atualização do app.
 - Para comparar pela linha de comando:
       TranalSentinel.exe --comparar exportar  benchmarks.json
       TranalSentinel.exe --comparar importar  benchmarks-do-outro-pc.json
