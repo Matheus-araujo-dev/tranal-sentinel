@@ -56,6 +56,22 @@ pergunta que o Windows faz quando mostra o "Não responder") e o menu do ícone
 ganha a opção de **encerrar**; avisa também de **temperatura alta** da CPU
 (85 °C), do disco (60 °C) e de **bateria acabando** (20 % fora da tomada).
 
+**TRANAL USO** — o app passa a lembrar **qual programa ficou em frente na tela**
+e a responder as duas perguntas que sempre sobraram: *"quanto tempo eu passei
+neste programa?"* e *"por que esse aviso disparou?"*.
+
+- O histórico é **um arquivo por dia** em `%AppData%\TranalSentinel\uso\`,
+  apagado depois de 30 dias. O app anota **só o nome do programa e o título da
+  janela** — nunca a imagem da tela, o conteúdo dos arquivos ou o que foi
+  digitado — e **nada sai do computador**.
+- A aba mostra o tempo observado no dia, o ranking de tudo que ficou em frente
+  (tempo e percentual), as 5 sessões mais longas e **quem estava em frente
+  quando a CPU ficou mais quente**.
+- Cada aviso da vigia passa a dizer **por que disparou**: o que os sensores
+  faziam na janela antes do disparo e qual programa estava em frente na hora.
+  Sem histórico, o app diz que não sabe — número inventado é pior que número
+  ausente.
+
 **Relatório em CSV** — o relatório exportado sai também em CSV no padrão do
 Excel em português (separador `;`, decimal com vírgula, acentuação correta),
 para abrir numa planilha e filtrar.
@@ -500,11 +516,14 @@ um `.exe` em uso.
 - ✔ Atualização automática a partir das releases do GitHub (v0.17)
 - ✔ Diagnóstico pela linha de comando: `--saude coletar|comparar|relatar` (v0.17)
 - ✔ Instalador com pasta de instalação à escolha do usuário (v0.18)
+- ✔ TRANAL MEMÓRIA: SPD lido pelo SMBus (PawnIO) e tempos ativos lidos do controlador de memória do AMD (v0.25)
+- ✔ TRANAL COMPARAR: os benchmarks de um PC lado a lado com os de outro (v0.26)
+- ✔ TRANAL USO: tempo de tela por programa, "quem fez o calor" e o "por que disparou" de cada alerta (v0.27)
 
 ## Próximas ideias
 - Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina
-- Comparar resultados de benchmark entre PCs / histórico de relatórios
-- Leitura direta de SPD / Super I/O
+- Histórico de relatórios do TRANAL SAÚDE ao longo das semanas
+- Leitura direta de Super I/O
 - TRANAL INTEGRAÇÃO: perfis salvos, efeitos por jogo, SDKs nativos da MSI/ASUS/Gigabyte se forem liberados
 - Assinatura digital do instalador
 - Ver [MERCADO.md](MERCADO.md) para a pesquisa de concorrentes e o que foi adotado aqui
