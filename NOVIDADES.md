@@ -12,7 +12,7 @@ neste programa?" e "por que esse aviso disparou?".
   do total.
 - SESSÕES MAIS LONGAS: as 5 sessões mais longas do dia, com programa, título
   da janela, hora de início e duração. A sessão é o período em que um mesmo
-  programa ficou em frente, sem que outra janela tomasse a frente.
+  programa ficou em frente, sem que outro programa tomasse a frente.
 - QUEM FEZ O CALOR: o programa que estava em frente quando a CPU ficou mais
   quente, a temperatura máxima e o que fazer com isso. Sem histórico de
   sensores, o app diz que não sabe — número inventado é pior que número
@@ -23,15 +23,15 @@ neste programa?" e "por que esse aviso disparou?".
   apagado depois de 30 dias. O app anota só o nome do programa e o título da
   janela: nunca a imagem da tela, o conteúdo dos arquivos ou o que foi
   digitado. Nada sai do computador.
-- O app só registra enquanto está rodando. Se ele não estava aberto, o dia
-  aparece sem histórico, e a aba explica isso em vez de mostrar número
-  errado.
+- O tempo só é contado de onde o app começou a observar até onde parou: as
+  horas em que ele estava fechado (PC desligado, app fechado) não entram na
+  conta. E o próprio TRANAL SENTINEL aparece na lista quando ele está em
+  frente — o tempo em que você olha o monitor é dele.
 
 **Novo · o "por que disparou" no TRANAL ALERTAS**
 - Cada aviso ativo mostra agora por que disparou: o que os sensores faziam
-  nos dois minutos antes de a condição começar (CPU a 81,5 °C, carga da
-  CPU 92 %) e qual programa
-  estava em frente na hora.
+  nos dois minutos antes de a condição começar (CPU a 81,5 °C, carga da CPU
+  92 %) e qual programa estava em frente na hora.
 - Quando o app não estava gravando sensores naquele momento, o aviso diz
   exatamente isso. O que o aviso mostra hoje não muda: a explicação vem
   embaixo, como uma linha a mais.
@@ -45,7 +45,6 @@ neste programa?" e "por que esse aviso disparou?".
   coleta é a parte que olha a tela e grava o arquivo. A tela só mostra.
 
 ---
-
 ## Novidades da v0.26 — comparar os benchmarks de um PC com o de outro
 
 O TRANAL BENCH mostra o quanto a sua máquina é rápida. Agora dá para **comparar
