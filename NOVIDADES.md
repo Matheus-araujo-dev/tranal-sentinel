@@ -1,3 +1,38 @@
+## Novidades da v0.26 — comparar os benchmarks de um PC com o de outro
+
+O TRANAL BENCH mostra o quanto a sua máquina é rápida. Agora dá para **comparar
+com a de outra pessoa**: um arquivo leve leva os resultados (e a identificação
+do PC) para o outro computador, e lá a tabela mostra os dois lado a lado.
+
+**Novo · TRANAL COMPARAR (menu TRANAL DESEMPENHO)**
+- EXPORTAR grava um arquivo `.tranalbench.json` com os resultados de
+  benchmark da máquina e a identificação dela (CPU, placa de vídeo, memória,
+  sistema). É um arquivo seu: nada sai do computador.
+- IMPORTAR lê o arquivo de outro PC e compara com os resultados desta
+  máquina, teste a teste.
+- A tabela mostra a nota de cada lado, a diferença em porcentagem e o
+  veredito ("mais rápido", "mais lento", "empate"). Compara o melhor
+  resultado de cada teste, como o Cinebench faz.
+- Quando as máquinas são diferentes (CPU, placa de vídeo, memória, sistema),
+  o app avisa: a diferença de nota não é só de hardware.
+- Os testes que existem em um dos PCs só (o outro não rodou aquele
+  benchmark) são mostrados à parte, em vez de sumirem.
+
+**Novo · linha de comando**
+- `TranalSentinel.exe --comparar exportar <arquivo>` — exporta os
+  benchmarks da máquina.
+- `TranalSentinel.exe --comparar importar <arquivo>` — compara o arquivo de
+  outro PC com os benchmarks desta máquina.
+- `TranalSentinel.exe --comparar comparar <arquivoA> <arquivoB>` — compara
+  dois arquivos, sem precisar de benchmark rodado aqui.
+
+**Ajuste interno**
+- O nome de cada benchmark passou a ter um lugar só (o TRANAL BENCH, o
+  relatório exportável e a comparação usam a mesma tabela), para os três
+  não divergirem na primeira edição em um deles.
+
+---
+
 ## Novidades da v0.25 — o app agora lê os tempos que a BIOS programou de verdade
 
 Até aqui o TRANAL MEMÓRIA mostrava o que o módulo de memória **oferece**: o

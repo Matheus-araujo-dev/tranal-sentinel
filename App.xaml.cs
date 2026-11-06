@@ -57,6 +57,14 @@ public partial class App : Application
             return;
         }
 
+        // Comparação de benchmarks entre PCs pela linha de comando: exporta
+        // os resultados desta máquina ou importa o arquivo de outro PC.
+        if (Array.Exists(e.Args, a => string.Equals(a, "--comparar", StringComparison.OrdinalIgnoreCase)))
+        {
+            Shutdown(CompararCli.Executar(e.Args));
+            return;
+        }
+
         // Processo filho da coleta de sensores: não abre janela e não trava
         // a instância única (é quem grava as leituras para o app pai ler).
         int indiceWorker = Array.FindIndex(e.Args, a => string.Equals(a, SensorWorker.Argumento, StringComparison.OrdinalIgnoreCase));

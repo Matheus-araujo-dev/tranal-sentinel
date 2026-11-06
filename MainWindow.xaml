@@ -346,6 +346,12 @@
                                     <TextBlock Text="Overclock" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="NavComparar" Style="{StaticResource NavItem}" Tag="PageComparar" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8AB;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Comparar" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
                             </StackPanel>
                             <ToggleButton x:Name="GrpTools" Style="{StaticResource NavGroup}" Content="TRANAL FERRAMENTAS"/>
                             <StackPanel x:Name="GrpToolsItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpTools, Converter={StaticResource BoolVis}}">
@@ -3269,6 +3275,92 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== COMPARAR BENCHMARKS ===== -->
+                <ScrollViewer x:Name="PageComparar" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <StackPanel Margin="0,0,0,20">
+                            <TextBlock Text="COMPARAR" Style="{StaticResource H1}"/>
+                            <TextBlock Text="Leve os resultados de benchmark de um PC para o outro e veja a comparação" Style="{StaticResource Sub}"/>
+                        </StackPanel>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="COMO COMPARAR" Style="{StaticResource Label}"/>
+                                <TextBlock TextWrapping="Wrap" Margin="0,8,0,0"
+                                           Text="No PC de origem, clique em EXPORTAR e guarde o arquivo. Depois, no outro PC, clique em IMPORTAR e escolha esse arquivo. A tabela mostra os testes que existem nos dois PCs e avisa quando as máquinas são diferentes demais para a comparação valer."/>
+                                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                    <Button x:Name="BtnCompararExportar" Style="{StaticResource PrimaryButton}" Content="EXPORTAR MEUS RESULTADOS" Padding="12,6" FontSize="11"
+                                            Click="BtnCompararExportar_Click"/>
+                                    <Button x:Name="BtnCompararImportar" Style="{StaticResource OutlineButton}" Content="IMPORTAR DE OUTRO PC" Padding="12,6" FontSize="11" Margin="10,0,0,0"
+                                            Click="BtnCompararImportar_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="CompararStatus" TextWrapping="Wrap" Margin="0,12,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CardCompararMaquinas" Style="{StaticResource CardBorder}" Margin="0,0,0,14" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="AS DUAS MÁQUINAS" Style="{StaticResource Label}"/>
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                        <TextBlock Text="ESTE PC" Foreground="{DynamicResource Muted}" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="CompararLocalTexto" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="PC IMPORTADO" Foreground="{DynamicResource Muted}" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="CompararImportadoTexto" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock x:Name="CompararAvisos" TextWrapping="Wrap" Margin="0,12,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CardCompararTabela" Style="{StaticResource CardBorder}" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="COMPARAÇÃO" Style="{StaticResource Label}"/>
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="130"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Teste" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="0"/>
+                                    <TextBlock Text="Este PC" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="1"/>
+                                    <TextBlock Text="Outro PC" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="2"/>
+                                    <TextBlock Text="Diferença" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="3"/>
+                                </Grid>
+                                <ItemsControl x:Name="CompararTabela" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Teste}"/>
+                                                    <TextBlock Text="{Binding Detalhe}" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding NotaLocal}" Grid.Column="1"/>
+                                                <TextBlock Text="{Binding NotaImportada}" Grid.Column="2"/>
+                                                <TextBlock Text="{Binding Diferenca}" Grid.Column="3"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock x:Name="CompararObservacao" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{DynamicResource Muted}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

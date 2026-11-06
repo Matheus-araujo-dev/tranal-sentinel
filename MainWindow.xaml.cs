@@ -316,13 +316,14 @@ public partial class MainWindow : Window
             case "PageMemoria": InitMemoria(); break;
             case "PageAlertas": InitAlertas(); break;
             case "PageSmart": InitSmart(); break;
+            case "PageComparar": InitComparar(); break;
             case "PageTimeline": InitTimeline(); break;
         }
     }
 
     private void ShowPage(string name)
     {
-        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageTimeline })
+        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline })
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -1090,15 +1091,7 @@ public partial class MainWindow : Window
         BenchPanelMem.Visibility = test == "mem" ? Visibility.Visible : Visibility.Collapsed;
         BenchPanelDisk.Visibility = test == "disk" ? Visibility.Visible : Visibility.Collapsed;
         if (test == "disk") InitDiskBench();
-        BenchSub.Text = test switch
-        {
-            "gpu" => "Cena de jogo em Direct3D 11 para medir a placa de vídeo, no estilo 3DMark / Unigine",
-            "rt" => "Ray tracing por hardware (DXR 1.1, Direct3D 12): usa os núcleos de RT da placa, com 3 passadas e nota pela mediana",
-            "sim" => "Quanto FPS a CPU aguenta numa simulação de jogo com milhares de unidades",
-            "mem" => "Latência e banda da RAM e velocidade de carregamento do disco",
-            "disk" => "Velocidade de leitura e escrita do disco: sequencial e acessos aleatórios de 4 KB, no estilo CrystalDiskMark",
-            _ => "Benchmark de CPU por renderização 3D (path tracing), no mesmo princípio do Cinebench",
-        };
+        BenchSub.Text = BenchCatalogo.Descricao(test);
         UpdateGameBenchHistory();
     }
 

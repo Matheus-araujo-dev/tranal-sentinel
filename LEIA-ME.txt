@@ -25,6 +25,23 @@ COMO USAR
   e depois em "Executar assim mesmo" (o programa não tem assinatura digital paga).
 - Overlay: Ctrl + Shift + O liga e desliga.
 
+TRANAL COMPARAR
+- No menu lateral, grupo "TRANAL DESEMPENHO" -> aba "Comparar".
+- EXPORTAR grava um arquivo .tranalbench.json com os resultados de benchmark da sua
+  máquina e a identificação dela (CPU, placa de vídeo, memória, sistema). O arquivo
+  é seu: nada sai do computador.
+- IMPORTAR lê o arquivo de outro PC e compara com os resultados desta máquina, teste
+  a teste: a nota dos dois lados, a diferença em porcentagem e o veredito (mais rápido,
+  mais lento ou empate).
+- Se os dois PCs forem diferentes (CPU, placa de vídeo, memória ou sistema), o app
+  avisa: a diferença de nota não é só de hardware.
+- Os testes que existem em um dos PCs só (o outro não rodou aquele benchmark) aparecem
+  à parte, em vez de sumirem.
+- Para comparar pela linha de comando:
+      TranalSentinel.exe --comparar exportar  benchmarks.json
+      TranalSentinel.exe --comparar importar  benchmarks-do-outro-pc.json
+      TranalSentinel.exe --comparar comparar arquivoA.json arquivoB.json
+
 TRANAL SAÚDE
 - No menu lateral, grupo "TRANAL SAÚDE" -> aba "Diagnóstico". Clique em ANALISAR.
 - A aba olha o histórico do Windows (últimos 90 dias) e aponta o que está causando

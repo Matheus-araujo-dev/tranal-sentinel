@@ -193,12 +193,7 @@ public partial class MainWindow
 
     private List<ReportBench> BuildBenchList()
     {
-        string TestName(string t) => t switch
-        {
-            "gpu" => "Cena de jogo (GPU)", "sim" => "Simulação de jogo (CPU)", "mem" => "Memória e carregamento",
-            "disk" => "Disco", "oc" => "TRANAL OC (estabilidade)", _ => t
-        };
-        var list = _settings.BenchRecords.Select(r => new ReportBench(r.Date, TestName(r.Test), r.Summary)).ToList();
+        var list = _settings.BenchRecords.Select(r => new ReportBench(r.Date, BenchCatalogo.Nome(r.Test), r.Summary)).ToList();
         foreach (var r in _settings.BenchRuns)
         {
             var parts = new List<string>();

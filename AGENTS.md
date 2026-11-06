@@ -150,6 +150,17 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   diferença de um ciclo é ruído de revisão de BIOS. A regra mora em
   `MemoriaRegras.CompararTimings` — a tela, o `--memoria` e o TRANAL SAÚDE
   consomem o mesmo relatório.
+- **O formato de intercâmbio de benchmarks é versionado e tem um dono.**
+  `BenchIntercambio` é o único lugar que sabe ler e gravar o
+  `.tranalbench.json`; a regra da comparação mora em `BenchComparacao` (função
+  pura). A tela e a CLI (`--comparar`) consomem as duas. Um arquivo de uma
+  versão mais nova do formato é recusado com a explicação, nunca lido pela
+  metade.
+- **O nome de cada benchmark tem um lugar só** (`BenchCatalogo`): a tela do
+  TRANAL BENCH, o relatório exportável e a comparação entre PCs usam a
+  mesma tabela. E o nome inclui o detalhe da chave (multi-core, single-core,
+  preset e resolução do ray tracing) para duas linhas nunca saírem com o
+  mesmo rótulo.
 
 ## Publicar
 
@@ -175,6 +186,9 @@ auto-update procura.
 | `TimingsAtivos.cs` / `TimingsAtivosDecoder.cs` | O modelo dos tempos ativos de memória e o decodificador puro dos registradores do UMC do AMD. |
 | `SmnPawnIo.cs` / `MemoriaAtivos.cs` | A leitura do SMN pelo módulo PawnIO do AMD (só leitura) e a coleta dos registradores. |
 | `MemoriaRegras.cs` | A regra da memória: modo (JEDEC, perfil, acima do perfil) e a comparação dos tempos ativos com o perfil. |
+| `BenchCatalogo.cs` | O nome e a descrição de cada benchmark, em um lugar só (tela, relatório e comparação consomem). |
+| `BenchIntercambio.cs` | O formato `.tranalbench.json`: modelo, leitura, gravação e as specs da máquina. |
+| `BenchComparacao.cs` | A regra da comparação entre dois PCs (função pura: recebe os resultados e devolve o relatório). |
 | `MainWindow.Alertas.cs` / `MainWindow.Smart.cs` | As páginas de configuração de alertas e de S.M.A.R.T. |
 | `Mudancas.cs` | A linha do tempo do PC: retrato, comparação pura e coleta do retrato. |
 | `PoliticaRecursos.cs` | Perfil Completo / Equilibrado / Economia. Funções puras. |

@@ -75,6 +75,7 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
 | **Relatório em CSV** | (ideia própria) | O relatório exportado sai também em CSV no padrão do Excel em português, para abrir em planilha e filtrar. |
 | **SPD e timings de memória** | CPU-Z, HWiNFO | Aba TRANAL MEMÓRIA: lê o SPD de cada módulo pelo SMBus (driver PawnIO) e mostra fabricante, part number, serial, capacidade, ranks, os tempos do padrão JEDEC e o perfil XMP/EXPO gravado no módulo. O TRANAL SAÚDE compara o clock configurado na BIOS com o que o módulo oferece: perfil ativo, padrão JEDEC ou overclock manual. |
 | **Tempos ativos de memória** | CPU-Z, HWiNFO, Ryzen Master | Lê os registradores do controlador de memória do AMD (SMN, pelo módulo PawnIO do SMN) e mostra os tempos que a BIOS programou de verdade, lado a lado com o perfil do módulo. É o que separa "a memória está no perfil e o clock é que está alto" de "a BIOS apertou os tempos à mão" — a causa mais comum de travamento por memória. |
+| **Comparar benchmarks entre PCs** | 3DMark (resultado on-line), Benchmark dos amigos | Aba TRANAL COMPARAR: um arquivo `.tranalbench.json` leva os resultados e a identificação do PC para o outro computador, e lá a tabela mostra os dois lado a lado (nota, diferença em %, veredito), avisando quando as máquinas são diferentes demais para a comparação valer. |
 
 ## O que ficou na lista (não cabe nesta versão)
 
@@ -82,8 +83,9 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
   (Ollama/LM Studio) sobre o relatório, com a mesma promessa de privacidade —
   nada sai da máquina. É o próximo passo natural, porque o TRANAL SAÚDE já
   produz o texto que ele responderia. **Ficou de fora por decisão do dono.**
-- **Comparar benchmarks entre PCs**: precisa de um formato de intercâmbio e de
-  uma tela de importação — é trabalho de produto, não de uma versão.
+- **Comparar benchmarks entre PCs**: **entrou na v0.26** (ver abaixo). O que
+  ficou de fora: comparar com um resultado publicado na internet, e o
+  histórico de cada máquina além das dez últimas execuções de cada teste.
 - **Leitura de SPD / Super I/O**: **entrou na v0.22** (ver abaixo). O que
   ficou de fora: os *timings ativos* (registradores do controlador de
   memória do AMD) e o instalador do driver PawnIO embutido no app.
