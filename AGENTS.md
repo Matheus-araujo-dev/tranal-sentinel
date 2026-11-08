@@ -190,12 +190,26 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   confere a integridade, copia o que der para ler para um banco novo e
   troca o arquivo no lugar — e o banco estragado vira uma cópia datada
   (`historico.db.avariado-AAAAMMDD-HHMMSS`), que é o **desfazer**. O que
-  não pôde ser lido é perdido, e o relato diz isso.
+  não pôde ser lido é perdido, e o relato diz isso (quantas linhas se
+  perderam, e não só que "deu problema").
+- **O reparo não troca o arquivo sem ler.** Se a leitura falhou (e o
+  arquivo não é "não é um banco de dados"), o reparo cancela e mantém o
+  arquivo; se o banco tinha linhas e o novo ficou vazio, cancela também.
+  Trocar histórico por vazio é pior do que ficar com o banco estragado.
+- **A migração é uma transação só**, e o `PRAGMA user_version` só é
+  gravado quando ela fecha bem. Gravar a versão com a importação pela
+  metade faria o app nunca mais tentar importar o CSV — e o histórico
+  antigo ficaria órfão, sem aviso.
+- **Cada tabela tem o seu prazo de poda**: as amostras ficam 15 dias e o
+  histórico de uso fica 30. Uma poda com o prazo errado perde dado que a
+  regra promete guardar.
+- **Tudo que lê ou escreve no banco passa pela trava** (`Banco.EmBanco`):
+  o reparo fecha a instância e troca o arquivo, e uma leitura fora da
+  trava leria um arquivo que está sendo trocado (ou pior: usaria um
+  handle já fechado).
 - **Um banco que não abre não derruba o app.** A abertura é uma instância
   única, com retentativa a cada 30 s; se falhar, o app continua funcionando
-  e a tela diz que o histórico não está disponível. O reparo só troca o
-  arquivo quando a leitura foi confiável — um banco cheio que a consulta
-  não conseguiu ler não pode virar um banco vazio.
+  e a tela diz que o histórico não está disponível.
 - **O dia local é uma faixa de instantes, e a faixa muda no horário de
   verão.** Por isso a lista de dias com histórico é montada em C#
   (`Banco.DiasComUso`), e não com `date(...,'localtime')` do SQLite (que
@@ -234,8 +248,7 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   (`SensorHistorico.Ler(desde, ate)`): a consulta vai direto ao índice do
   instante, então o histórico inteiro não é varrido para saber o que
   aconteceu na janela. O banco guarda 15 dias de amostras e o histórico de
-  uso guarda 30 dias; o que passa disso é apagado.
-- **A explicação do alerta fica em cache por episódio.** O instante do
+  uso guarda 30 dias; o que passa disso é apagado.- **A explicação do alerta fica em cache por episódio.** O instante do
   episódio não muda enquanto o aviso está na tela, então a explicação é
   calculada uma vez — e o histórico só é lido quando aparece um aviso sem
   explicação.
