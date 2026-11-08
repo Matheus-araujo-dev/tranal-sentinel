@@ -88,6 +88,14 @@ TranalSentinel.exe --saude relatar      # só o relatório em texto
 
 Os instantâneos ficam em `%AppData%\TranalSentinel\saude\`.
 
+O banco de dados do histórico também se confere pela linha de comando:
+
+```
+TranalSentinel.exe --banco                # estado, tamanho e o que tem dentro
+TranalSentinel.exe --banco --reparar      # reconstrói o banco estragado (guarda o velho como cópia)
+TranalSentinel.exe --banco --pasta <dir>  # olha outra pasta (uma cópia do banco)
+```
+
 ### Como o código está organizado
 
 | Arquivo | O que faz |
@@ -522,6 +530,7 @@ um `.exe` em uso.
 - ✔ TRANAL MEMÓRIA: SPD lido pelo SMBus (PawnIO) e tempos ativos lidos do controlador de memória do AMD (v0.25)
 - ✔ TRANAL COMPARAR: os benchmarks de um PC lado a lado com os de outro (v0.26)
 - ✔ TRANAL USO: tempo de tela por programa, "quem fez o calor" e o "por que disparou" de cada alerta (v0.27)
+- ✔ Banco de dados do histórico em SQLite (sem dependência nova), com verificação de integridade, reparo e restauração da cópia (v0.28)
 
 ## Próximas ideias
 - Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina

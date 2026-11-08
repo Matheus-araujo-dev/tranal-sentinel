@@ -77,9 +77,18 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
 | **Tempos ativos de memória** | CPU-Z, HWiNFO, Ryzen Master | Lê os registradores do controlador de memória do AMD (SMN, pelo módulo PawnIO do SMN) e mostra os tempos que a BIOS programou de verdade, lado a lado com o perfil do módulo. É o que separa "a memória está no perfil e o clock é que está alto" de "a BIOS apertou os tempos à mão" — a causa mais comum de travamento por memória. |
 | **Comparar benchmarks entre PCs** | 3DMark (resultado on-line), Benchmark dos amigos | Aba TRANAL COMPARAR: um arquivo `.tranalbench.json` leva os resultados e a identificação do PC para o outro computador, e lá a tabela mostra os dois lado a lado (nota, diferença em %, veredito), avisando quando as máquinas são diferentes demais para a comparação valer. |
 | **Tempo de tela e "quem fez o calor"** | RigSight | Aba TRANAL USO: o app registra a troca de programa em frente na tela (só leitura, nada sai do computador) e mostra quanto tempo cada programa ficou em frente, as sessões mais longas e **quem estava em frente quando a CPU ficou mais quente**. O alerta passou a explicar por que disparou. (Auditoria de 06/11/2026 em `AUDITORIA_CONCORRENTES.md`.) |
+| **Banco de dados do histórico, com reparo** | RigSight (SQLite) | O histórico (sensores e trocas de programa) mora num banco SQLite — sem dependência nova, porque o SQLite vem do próprio Windows. A aba TRANAL SAÚDE mostra o estado do banco e tem botão para **verificar**, **reparar** (reconstrói o que der para ler) e **restaurar a cópia** do banco estragado. O CSV antigo foi importado e continua no disco como cópia. (v0.28) |
 
 ## O que ficou na lista (não cabe nesta versão)
 
+- **Tráfego de internet com histórico** (RigSight): quanto cada programa
+  puxou da rede, com histórico. **Entra na v0.29.**
+- **Degradação de ventoinhas** (RigSight): o RPM com o tempo, para dizer que a
+  ventoinha está gasta. **Entra na v0.30** — com a ressalva de que a leitura
+  confiável de RPM só existe pela GPU: CPU e placa-mãe exigiriam um driver
+  Super I/O que ainda não existe.
+- **Widgets e presença na barra de tarefas** (RigSight, Kinetik Stats): painel
+  flutuante com os números sempre à vista. **Entra na v0.31.**
 - **Assistente de IA local** (Pulse Diagnostics): rodar um modelo local
   (Ollama/LM Studio) sobre o relatório, com a mesma promessa de privacidade —
   nada sai da máquina. É o próximo passo natural, porque o TRANAL SAÚDE já

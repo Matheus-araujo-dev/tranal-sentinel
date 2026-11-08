@@ -18,6 +18,9 @@ verificação de integridade e uma rotina de reparo.
   apagados**: continuam no disco como cópia do histórico anterior.
 - O histórico do uso continua sendo apagado depois de 30 dias, e o dos sensores
   depois de 15.
+- Pela linha de comando: `TranalSentinel.exe --banco` mostra o estado do
+  banco (integridade, tamanho, quantas amostras e quantos registros de uso ele
+  tem), e `--banco --reparar` reconstrói o banco estragado.
 
 **Novo · verificação e reparo no TRANAL SAÚDE**
 - O TRANAL SAÚDE ganhou o cartão **BANCO DE DADOS DO HISTÓRICO**: o estado do
