@@ -339,7 +339,15 @@ public partial class MainWindow
     /// <summary>Botão de verificar: confere a integridade do banco de novo.</summary>
     private async void BtnSaudeBancoVerificar_Click(object sender, RoutedEventArgs e)
     {
-        await MostrarBancoAsync();
+        try
+        {
+            await MostrarBancoAsync();
+        }
+        catch (Exception ex)
+        {
+            // Handler assíncrono: uma exceção aqui derrubaria o app inteiro.
+            SaudeBancoEstado.Text = "Não foi possível verificar o banco de dados: " + ex.Message;
+        }
     }
 
     /// <summary>
@@ -385,6 +393,13 @@ public partial class MainWindow
                 // isso não pode virar mais um erro na tela.
             }
         }
+        catch (Exception ex)
+        {
+            // Handler assíncrono: uma exceção aqui derrubaria o app inteiro.
+            MessageBox.Show(this,
+                "Não foi possível reparar o banco de dados: " + ex.Message,
+                "TRANAL SENTINEL", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         finally
         {
             BtnSaudeBancoReparar.IsEnabled = true;
@@ -428,6 +443,13 @@ public partial class MainWindow
                 // O diário é um extra: se falhar, a restauração já foi
                 // aplicada e isso não pode virar mais um erro na tela.
             }
+        }
+        catch (Exception ex)
+        {
+            // Handler assíncrono: uma exceção aqui derrubaria o app inteiro.
+            MessageBox.Show(this,
+                "Não foi possível restaurar a cópia do banco de dados: " + ex.Message,
+                "TRANAL SENTINEL", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {

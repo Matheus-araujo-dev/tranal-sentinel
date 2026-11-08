@@ -865,7 +865,13 @@ public static class Banco
                 // O banco novo fica sem WAL de propósito: assim ele é um
                 // arquivo só, e trocar o arquivo no lugar não deixa
                 // journaling para trás.
-                CriarEsquema(novo);
+                if (!CriarEsquema(novo))
+                {
+                    // Sem esquema não cabe linha nenhuma: trocar o arquivo
+                    // aqui esvaziaria um banco que talvez ainda tivesse
+                    // dado para ler.
+                    return new ResultadoReparo(false, "Não foi possível criar o esquema do banco novo: o reparo foi cancelado e o arquivo antigo foi mantido.", 0, 0, null);
+                }
 
                 novo.EmTransacao(b =>
                 {
@@ -898,6 +904,17 @@ public static class Banco
             return new ResultadoReparo(false, "Não foi possível reconstruir o banco de dados.", 0, 0, null);
         }
 
+        // Tinha linha para copiar e nenhuma entrou: alguma coisa deu errado
+        // (disco cheio, arquivo trancado). Trocar o banco agora trocaria
+        // histórico por um banco vazio — o cancelamento é mais honesto.
+        int lidas = amostras.Count + usos.Count;
+        if (lidas > 0 && salvasAmostras == 0 && salvosUsos == 0)
+        {
+            return new ResultadoReparo(false,
+                $"O reparo foi cancelado: {lidas} linhas foram lidas do banco antigo, mas nenhuma entrou no banco novo. O arquivo antigo foi mantido como está.",
+                0, 0, null);
+        }
+
         // O banco estragado vira cópia datada: é o desfazer do reparo.
         string? copia = null;
         try
@@ -906,6 +923,12 @@ public static class Banco
             {
                 copia = Caminho + ".avariado-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
                 File.Move(Caminho, copia);
+
+                // O WAL e o índice do banco velho vão junto com ele: a cópia
+                // só vale alguma coisa se trouxer os dados que ainda estavam
+                // no WAL.
+                MoverArquivoDoWal(Caminho + "-wal", copia + "-wal");
+                MoverArquivoDoWal(Caminho + "-shm", copia + "-shm");
             }
 
             ApagarArquivosDoWal(Caminho);
@@ -965,6 +988,23 @@ public static class Banco
                 // Arquivo trancado pelo Windows: o banco novo funciona
                 // mesmo assim (o SQLite recria o WAL no próximo uso).
             }
+        }
+    }
+
+    /// <summary>
+    /// Move um arquivo do banco velho para junto da cópia datada. Falha não
+    /// é problema: a cópia do banco principal já está salva.
+    /// </summary>
+    private static void MoverArquivoDoWal(string origem, string destino)
+    {
+        try
+        {
+            if (File.Exists(origem)) File.Move(origem, destino);
+        }
+        catch
+        {
+            // O WAL não foi para a cópia: o arquivo principal do banco
+            // estragado continua guardado, que é o que importa.
         }
     }
 
