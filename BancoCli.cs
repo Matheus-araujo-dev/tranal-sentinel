@@ -87,6 +87,10 @@ public static class BancoCli
             var dados = Banco.Ver();
             Console.WriteLine(MontarRelatorio(dados));
 
+            // O processo termina logo depois: sem o flush, a saída pode
+            // ficar no buffer quando a saída for um arquivo (redirecionada).
+            Console.Out.Flush();
+
             return CodigoOk;
         }
         catch (Exception ex)
