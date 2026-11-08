@@ -46,6 +46,7 @@ public static class Banco
     private static readonly object Tranca = new();
 
     private static Sqlite? _instancia;
+    private static string _caminhoInstancia = "";
     private static DateTime _ultimaTentativa = DateTime.MinValue;
     private static DateTime _ultimaPoda = DateTime.MinValue;
     private static string _estado = "";
@@ -78,6 +79,16 @@ public static class Banco
         {
             lock (Tranca)
             {
+                // O caminho mudou (a pasta do banco foi apontada para outro
+                // lugar): a instância aberta é de outro arquivo, e usá-la
+                // seria ler e escrever no banco errado.
+                if (_instancia != null && _caminhoInstancia != Caminho)
+                {
+                    _instancia.Dispose();
+                    _instancia = null;
+                    _caminhoInstancia = "";
+                }
+
                 if (_instancia != null) return _instancia;
 
                 // Uma falha na abertura não pode virar uma tentativa a cada
@@ -87,6 +98,7 @@ public static class Banco
 
                 _ultimaTentativa = DateTime.Now;
                 _instancia = Abrir();
+                _caminhoInstancia = _instancia != null ? Caminho : "";
 
                 if (_instancia == null && _estado.Length == 0)
                     _estado = "Não foi possível abrir o banco de dados.";
@@ -1052,6 +1064,7 @@ public static class Banco
         {
             _instancia?.Dispose();
             _instancia = null;
+            _caminhoInstancia = "";
             _ultimaTentativa = DateTime.MinValue;
             _ultimaPoda = DateTime.MinValue;
             _estado = "";

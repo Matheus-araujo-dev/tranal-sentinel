@@ -20,33 +20,20 @@ namespace TranalSentinel.Tests;
 public class UsoRegrasTestes : IDisposable
 {
     private string? _pasta;
-    private string? _pastaLegado;
+    private string? _pastaLegada;
 
     private string UsarPastaTemporaria()
     {
-        _pasta = Path.Combine(Path.GetTempPath(), "tranal-uso-" + Guid.NewGuid());
-        _pastaLegado = Path.Combine(Path.GetTempPath(), "tranal-uso-legado-" + Guid.NewGuid());
-
-        Banco.PastaOverride = _pasta;
-        // O CSV antigo também é apontado para o vazio: sem isso a migração
-        // importaria o histórico de uso do PC de verdade para o banco de
-        // teste.
-        LegadoCsv.PastaSensoresOverride = _pastaLegado;
-        LegadoCsv.PastaUsoOverride = _pastaLegado;
-
-        Banco.Fechar();
+        (_pasta, _pastaLegada) = BancoDeTeste.Isolar();
         return _pasta;
     }
 
     public void Dispose()
     {
-        Banco.Fechar();
-        Banco.PastaOverride = null;
-        LegadoCsv.PastaSensoresOverride = null;
-        LegadoCsv.PastaUsoOverride = null;
+        BancoDeTeste.Restaurar();
         UsoAmostrador.ZerarEstado();
 
-        foreach (string? pasta in new[] { _pasta, _pastaLegado })
+        foreach (string? pasta in new[] { _pasta, _pastaLegada })
         {
             if (pasta == null) continue;
             try
@@ -378,8 +365,7 @@ public class UsoRegrasTestes : IDisposable
         }
         finally
         {
-            Banco.Fechar();
-            Banco.PastaOverride = null;
+            BancoDeTeste.Restaurar();
         }
     }
 

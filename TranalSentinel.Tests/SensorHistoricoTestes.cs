@@ -20,35 +20,22 @@ namespace TranalSentinel.Tests;
 public class SensorHistoricoTestes : IDisposable
 {
     private string? _pasta;
-    private string? _pastaLegado;
+    private string? _pastaLegada;
 
     /// <summary>
     /// Aponta o banco para uma pasta temporária e devolve o caminho dela.
     /// </summary>
     private string UsarPastaTemporaria()
     {
-        _pasta = Path.Combine(Path.GetTempPath(), "tranal-sensor-" + Guid.NewGuid());
-        _pastaLegado = Path.Combine(Path.GetTempPath(), "tranal-sensor-legado-" + Guid.NewGuid());
-
-        Banco.PastaOverride = _pasta;
-        // O CSV antigo também é apontado para o vazio: sem isso a migração
-        // importaria o histórico de sensores do PC de verdade para o banco
-        // de teste.
-        LegadoCsv.PastaSensoresOverride = _pastaLegado;
-        LegadoCsv.PastaUsoOverride = _pastaLegado;
-
-        Banco.Fechar();
+        (_pasta, _pastaLegada) = BancoDeTeste.Isolar();
         return _pasta;
     }
 
     public void Dispose()
     {
-        Banco.Fechar();
-        Banco.PastaOverride = null;
-        LegadoCsv.PastaSensoresOverride = null;
-        LegadoCsv.PastaUsoOverride = null;
+        BancoDeTeste.Restaurar();
 
-        foreach (string? pasta in new[] { _pasta, _pastaLegado })
+        foreach (string? pasta in new[] { _pasta, _pastaLegada })
         {
             if (pasta == null) continue;
             try
@@ -158,8 +145,7 @@ public class SensorHistoricoTestes : IDisposable
         }
         finally
         {
-            Banco.Fechar();
-            Banco.PastaOverride = null;
+            BancoDeTeste.Restaurar();
         }
     }
 

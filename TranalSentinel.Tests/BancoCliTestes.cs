@@ -17,28 +17,18 @@ namespace TranalSentinel.Tests;
 public class BancoCliTestes : IDisposable
 {
     private string? _pasta;
-    private string? _pastaLegado;
+    private string? _pastaLegada;
 
     private void UsarPastasTemporarias()
     {
-        _pasta = Path.Combine(Path.GetTempPath(), "tranal-banco-cli-" + Guid.NewGuid());
-        _pastaLegado = Path.Combine(Path.GetTempPath(), "tranal-banco-cli-legado-" + Guid.NewGuid());
-
-        Banco.PastaOverride = _pasta;
-        LegadoCsv.PastaSensoresOverride = _pastaLegado;
-        LegadoCsv.PastaUsoOverride = _pastaLegado;
-
-        Banco.Fechar();
+        (_pasta, _pastaLegada) = BancoDeTeste.Isolar();
     }
 
     public void Dispose()
     {
-        Banco.Fechar();
-        Banco.PastaOverride = null;
-        LegadoCsv.PastaSensoresOverride = null;
-        LegadoCsv.PastaUsoOverride = null;
+        BancoDeTeste.Restaurar();
 
-        foreach (string? pasta in new[] { _pasta, _pastaLegado })
+        foreach (string? pasta in new[] { _pasta, _pastaLegada })
         {
             if (pasta == null) continue;
             try

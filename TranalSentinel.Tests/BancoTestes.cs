@@ -21,33 +21,22 @@ namespace TranalSentinel.Tests;
 public class BancoTestes : IDisposable
 {
     private string? _pastaBanco;
-    private string? _pastaLegadoSensores;
-    private string? _pastaLegadoUso;
+    private string? _pastaLegada;
 
     /// <summary>
-    /// Aponta o banco (e as pastas do CSV antigo) para pastas temporárias.
+    /// Aponta o banco (e as pastas do CSV antigo) para pastas temporárias
+    /// só deste teste.
     /// </summary>
     private void UsarPastasTemporarias()
     {
-        _pastaBanco = Path.Combine(Path.GetTempPath(), "tranal-banco-" + Guid.NewGuid());
-        _pastaLegadoSensores = Path.Combine(Path.GetTempPath(), "tranal-legado-sens-" + Guid.NewGuid());
-        _pastaLegadoUso = Path.Combine(Path.GetTempPath(), "tranal-legado-uso-" + Guid.NewGuid());
-
-        Banco.PastaOverride = _pastaBanco;
-        LegadoCsv.PastaSensoresOverride = _pastaLegadoSensores;
-        LegadoCsv.PastaUsoOverride = _pastaLegadoUso;
-
-        Banco.Fechar();
+        (_pastaBanco, _pastaLegada) = BancoDeTeste.Isolar();
     }
 
     public void Dispose()
     {
-        Banco.Fechar();
-        Banco.PastaOverride = null;
-        LegadoCsv.PastaSensoresOverride = null;
-        LegadoCsv.PastaUsoOverride = null;
+        BancoDeTeste.Restaurar();
 
-        foreach (string? pasta in new[] { _pastaBanco, _pastaLegadoSensores, _pastaLegadoUso })
+        foreach (string? pasta in new[] { _pastaBanco, _pastaLegada })
         {
             if (pasta == null) continue;
             try
@@ -282,8 +271,8 @@ public class BancoTestes : IDisposable
         UsarPastasTemporarias();
 
         // O log antigo: duas amostras em CSV, como o app gravava antes.
-        Directory.CreateDirectory(_pastaLegadoSensores!);
-        File.WriteAllLines(Path.Combine(_pastaLegadoSensores!, "historico.csv"), new[]
+        Directory.CreateDirectory(_pastaLegada!);
+        File.WriteAllLines(Path.Combine(_pastaLegada!, "historico.csv"), new[]
         {
             "2026-11-05T14:31:22.500;78.5;43;92.4;3200;71;100;2010;2048;87.4;12.5;0.3",
             "2026-11-05T14:31:27.500;79;44;93;3200;72;100;2010;2048;87.5;12.5;0.3"
@@ -301,8 +290,8 @@ public class BancoTestes : IDisposable
     {
         UsarPastasTemporarias();
 
-        Directory.CreateDirectory(_pastaLegadoUso!);
-        File.WriteAllLines(Path.Combine(_pastaLegadoUso!, "uso-2026-11-05.csv"), new[]
+        Directory.CreateDirectory(_pastaLegada!);
+        File.WriteAllLines(Path.Combine(_pastaLegada!, "uso-2026-11-05.csv"), new[]
         {
             "2026-11-05T10:00:00.000;chrome;Painel",
             "2026-11-05T10:30:00.000;code;projeto.cs"
@@ -320,8 +309,8 @@ public class BancoTestes : IDisposable
     {
         UsarPastasTemporarias();
 
-        string arquivo = Path.Combine(_pastaLegadoUso!, "uso-2026-11-05.csv");
-        Directory.CreateDirectory(_pastaLegadoUso!);
+        string arquivo = Path.Combine(_pastaLegada!, "uso-2026-11-05.csv");
+        Directory.CreateDirectory(_pastaLegada!);
         File.WriteAllLines(arquivo, new[] { "2026-11-05T10:00:00.000;chrome;Painel" });
 
         Banco.LerUso(Momento(5, 10, 0));
@@ -335,8 +324,8 @@ public class BancoTestes : IDisposable
     {
         UsarPastasTemporarias();
 
-        Directory.CreateDirectory(_pastaLegadoUso!);
-        File.WriteAllLines(Path.Combine(_pastaLegadoUso!, "uso-2026-11-05.csv"), new[]
+        Directory.CreateDirectory(_pastaLegada!);
+        File.WriteAllLines(Path.Combine(_pastaLegada!, "uso-2026-11-05.csv"), new[]
         {
             "2026-11-05T10:00:00.000;chrome;Painel",
             "2026-11-05T10:30:00.000;code;projeto.cs"
@@ -479,8 +468,7 @@ public class BancoTestes : IDisposable
         }
         finally
         {
-            Banco.Fechar();
-            Banco.PastaOverride = null;
+            BancoDeTeste.Restaurar();
         }
     }
 

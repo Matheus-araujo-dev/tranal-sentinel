@@ -46,6 +46,19 @@ public sealed class Sqlite : IDisposable
     private IntPtr _banco;
     private bool _fechado;
 
+    /// <summary>
+    /// Serializa o uso do handle.
+    ///
+    /// <para>
+    /// O reparo fecha o banco e troca o arquivo no lugar. Se outra thread
+    /// estivesse no meio de um <c>sqlite3_step</c> nesse instante, o handle
+    /// fecharia por baixo dela — e um handle freed é acesso inválido, que o
+    /// .NET não consegue pegar: o processo inteiro cai. Com a trava, o
+    /// fechamento espera a operação em curso terminar.
+    /// </para>
+    /// </summary>
+    private readonly object _tranca = new();
+
     private Sqlite(IntPtr banco) => _banco = banco;
 
     // ------------------------------------------------------------------ P/Invoke
@@ -154,21 +167,24 @@ public sealed class Sqlite : IDisposable
     /// <summary>Fecha o banco. Nunca lança.</summary>
     public void Dispose()
     {
-        if (_fechado) return;
-        _fechado = true;
+        lock (_tranca)
+        {
+            if (_fechado) return;
+            _fechado = true;
 
-        try
-        {
-            if (_banco != IntPtr.Zero) sqlite3_close(_banco);
-        }
-        catch
-        {
-            // Fechar o banco é a última coisa que o app faz com ele: uma
-            // falha aqui não pode virar exceção na frente do usuário.
-        }
-        finally
-        {
-            _banco = IntPtr.Zero;
+            try
+            {
+                if (_banco != IntPtr.Zero) sqlite3_close(_banco);
+            }
+            catch
+            {
+                // Fechar o banco é a última coisa que o app faz com ele: uma
+                // falha aqui não pode virar exceção na frente do usuário.
+            }
+            finally
+            {
+                _banco = IntPtr.Zero;
+            }
         }
     }
 
@@ -177,9 +193,12 @@ public sealed class Sqlite : IDisposable
     {
         get
         {
-            if (_banco == IntPtr.Zero) return "banco fechado";
-            IntPtr msg = sqlite3_errmsg(_banco);
-            return msg == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(msg) ?? "";
+            lock (_tranca)
+            {
+                if (_banco == IntPtr.Zero) return "banco fechado";
+                IntPtr msg = sqlite3_errmsg(_banco);
+                return msg == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(msg) ?? "";
+            }
         }
     }
 
@@ -188,7 +207,16 @@ public sealed class Sqlite : IDisposable
     /// que ignorou a linha (o registro já existia) altera zero — e é assim
     /// que a coleta sabe que a troca não foi gravada.
     /// </summary>
-    public int Alteracoes => _banco == IntPtr.Zero ? 0 : sqlite3_changes(_banco);
+    public int Alteracoes
+    {
+        get
+        {
+            lock (_tranca)
+            {
+                return _banco == IntPtr.Zero ? 0 : sqlite3_changes(_banco);
+            }
+        }
+    }
 
     // ------------------------------------------------------------------ comandos
 
@@ -205,26 +233,29 @@ public sealed class Sqlite : IDisposable
     /// </summary>
     public bool Executar(string sql, IReadOnlyList<object?> argumentos)
     {
-        if (_banco == IntPtr.Zero) return false;
+        lock (_tranca)
+        {
+            if (_banco == IntPtr.Zero) return false;
 
-        IntPtr stmt = IntPtr.Zero;
-        try
-        {
-            stmt = Preparar(sql, argumentos);
-            if (stmt == IntPtr.Zero) return false;
+            IntPtr stmt = IntPtr.Zero;
+            try
+            {
+                stmt = Preparar(sql, argumentos);
+                if (stmt == IntPtr.Zero) return false;
 
-            int rc = sqlite3_step(stmt);
-            return rc == Feito || rc == Linha;
-        }
-        catch
-        {
-            // Falha de SQL não derruba o app: quem chama decide o que fazer
-            // (o histórico é acessório, o diagnóstico não pode quebrar).
-            return false;
-        }
-        finally
-        {
-            if (stmt != IntPtr.Zero) sqlite3_finalize(stmt);
+                int rc = sqlite3_step(stmt);
+                return rc == Feito || rc == Linha;
+            }
+            catch
+            {
+                // Falha de SQL não derruba o app: quem chama decide o que fazer
+                // (o histórico é acessório, o diagnóstico não pode quebrar).
+                return false;
+            }
+            finally
+            {
+                if (stmt != IntPtr.Zero) sqlite3_finalize(stmt);
+            }
         }
     }
 
@@ -232,43 +263,47 @@ public sealed class Sqlite : IDisposable
     public List<SqliteLinha> Consultar(string sql, params object?[] argumentos)
     {
         var linhas = new List<SqliteLinha>();
-        if (_banco == IntPtr.Zero) return linhas;
 
-        IntPtr stmt = IntPtr.Zero;
-        try
+        lock (_tranca)
         {
-            stmt = Preparar(sql, argumentos);
-            if (stmt == IntPtr.Zero) return linhas;
+            if (_banco == IntPtr.Zero) return linhas;
 
-            int colunas = sqlite3_column_count(stmt);
-            var nomes = new string[colunas];
-            for (int c = 0; c < colunas; c++)
+            IntPtr stmt = IntPtr.Zero;
+            try
             {
-                IntPtr nome = sqlite3_column_name(stmt, c);
-                nomes[c] = nome == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(nome) ?? "";
-            }
+                stmt = Preparar(sql, argumentos);
+                if (stmt == IntPtr.Zero) return linhas;
 
-            while (true)
-            {
-                int rc = sqlite3_step(stmt);
-                if (rc != Linha) break;
-
-                var valores = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                int colunas = sqlite3_column_count(stmt);
+                var nomes = new string[colunas];
                 for (int c = 0; c < colunas; c++)
-                    valores[nomes[c]] = ValorDaColuna(stmt, c);
+                {
+                    IntPtr nome = sqlite3_column_name(stmt, c);
+                    nomes[c] = nome == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(nome) ?? "";
+                }
 
-                linhas.Add(new SqliteLinha(nomes, valores));
+                while (true)
+                {
+                    int rc = sqlite3_step(stmt);
+                    if (rc != Linha) break;
+
+                    var valores = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                    for (int c = 0; c < colunas; c++)
+                        valores[nomes[c]] = ValorDaColuna(stmt, c);
+
+                    linhas.Add(new SqliteLinha(nomes, valores));
+                }
             }
-        }
-        catch
-        {
-            // Consulta que falha devolve lista vazia: a tela mostra o que
-            // sabe, sem número errado.
-            return new List<SqliteLinha>();
-        }
-        finally
-        {
-            if (stmt != IntPtr.Zero) sqlite3_finalize(stmt);
+            catch
+            {
+                // Consulta que falha devolve lista vazia: a tela mostra o que
+                // sabe, sem número errado.
+                return new List<SqliteLinha>();
+            }
+            finally
+            {
+                if (stmt != IntPtr.Zero) sqlite3_finalize(stmt);
+            }
         }
 
         return linhas;
@@ -279,18 +314,21 @@ public sealed class Sqlite : IDisposable
     /// </summary>
     public bool EmTransacao(Action<Sqlite> acao)
     {
-        if (_banco == IntPtr.Zero) return false;
+        lock (_tranca)
+        {
+            if (_banco == IntPtr.Zero) return false;
 
-        if (!Executar("BEGIN IMMEDIATE")) return false;
-        try
-        {
-            acao(this);
-            return Executar("COMMIT");
-        }
-        catch
-        {
-            Executar("ROLLBACK");
-            return false;
+            if (!Executar("BEGIN IMMEDIATE")) return false;
+            try
+            {
+                acao(this);
+                return Executar("COMMIT");
+            }
+            catch
+            {
+                Executar("ROLLBACK");
+                return false;
+            }
         }
     }
 
