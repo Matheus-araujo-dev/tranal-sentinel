@@ -104,6 +104,9 @@ public sealed class Sqlite : IDisposable
     [DllImport(Biblioteca, CallingConvention = CallingConvention.Cdecl)]
     private static extern int sqlite3_busy_timeout(IntPtr db, int ms);
 
+    [DllImport(Biblioteca, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int sqlite3_changes(IntPtr db);
+
     // ------------------------------------------------------------------ ciclo de vida
 
     /// <summary>
@@ -179,6 +182,13 @@ public sealed class Sqlite : IDisposable
             return msg == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(msg) ?? "";
         }
     }
+
+    /// <summary>
+    /// Quantas linhas a última execução alterou. Um <c>INSERT OR IGNORE</c>
+    /// que ignorou a linha (o registro já existia) altera zero — e é assim
+    /// que a coleta sabe que a troca não foi gravada.
+    /// </summary>
+    public int Alteracoes => _banco == IntPtr.Zero ? 0 : sqlite3_changes(_banco);
 
     // ------------------------------------------------------------------ comandos
 
@@ -287,13 +297,24 @@ public sealed class Sqlite : IDisposable
     /// <summary>
     /// Verifica se o banco está inteiro ("ok" quando está). A rotina de
     /// reparo usa isso para decidir se precisa reconstruir.
+    ///
+    /// <para>
+    /// Quando a verificação não roda, o motivo do SQLite volta em vez de
+    /// um "não foi possível verificar" genérico: é a diferença entre "o
+    /// arquivo não é um banco" (estragado) e "o banco está trancado"
+    /// (temporário), e o reparo trata os dois de jeitos diferentes.
+    /// </para>
     /// </summary>
     public string VerificarIntegridade()
     {
         if (_banco == IntPtr.Zero) return "banco fechado";
 
         var linhas = Consultar("PRAGMA integrity_check");
-        if (linhas.Count == 0) return "não foi possível verificar";
+        if (linhas.Count == 0)
+        {
+            string erro = UltimoErro;
+            return erro.Length > 0 ? erro : "não foi possível verificar";
+        }
 
         string coluna = linhas[0].Colunas.Count > 0 ? linhas[0].Colunas[0] : "integrity_check";
         string texto = linhas[0].Texto(coluna);
@@ -411,9 +432,22 @@ public sealed class Sqlite : IDisposable
         }
     }
 
-    /// <summary>Converte um instante local para epoch em milissegundos.</summary>
-    public static long MomentoParaUnix(DateTime instante) =>
-        new DateTimeOffset(instante.ToUniversalTime(), TimeSpan.Zero).ToUnixTimeMilliseconds();
+    /// <summary>
+    /// Converte um instante local para epoch em milissegundos.
+    ///
+    /// <para>
+    /// As pontas do dia (<see cref="DateTime.MinValue"/> e
+    /// <see cref="DateTime.MaxValue"/}) viram o menor e o maior número: são
+    /// elas que o SQL usa como "sem limite", e elas não cabem em epoch.
+    /// </para>
+    /// </summary>
+    public static long MomentoParaUnix(DateTime instante)
+    {
+        if (instante <= DateTime.MinValue.AddDays(1)) return long.MinValue;
+        if (instante >= DateTime.MaxValue.AddDays(-1)) return long.MaxValue;
+
+        return new DateTimeOffset(instante.ToUniversalTime(), TimeSpan.Zero).ToUnixTimeMilliseconds();
+    }
 
     /// <summary>Converte epoch em milissegundos de volta para hora local.</summary>
     public static DateTime UnixParaMomento(long epoch) =>

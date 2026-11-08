@@ -60,8 +60,9 @@ ganha a opção de **encerrar**; avisa também de **temperatura alta** da CPU
 e a responder as duas perguntas que sempre sobraram: *"quanto tempo eu passei
 neste programa?"* e *"por que esse aviso disparou?"*.
 
-- O histórico é **um arquivo por dia** em `%AppData%\TranalSentinel\uso\`,
-  apagado depois de 30 dias. O app anota **só o nome do programa e o título da
+- O histórico mora num **banco SQLite** em
+  `%LOCALAPPDATA%\TranalSentinel\historico\historico.db`, e o que é mais velho
+  que 30 dias é apagado. O app anota **só o nome do programa e o título da
   janela** — nunca a imagem da tela, o conteúdo dos arquivos ou o que foi
   digitado — e **nada sai do computador**.
 - A aba mostra o tempo observado no dia, o ranking de tudo que ficou em frente
@@ -121,7 +122,9 @@ Os instantâneos ficam em `%AppData%\TranalSentinel\saude\`.
 | `SaudeCli.cs` | O diagnóstico por linha de comando (`--saude`), reaproveitando as mesmas regras da aba. |
 | `Wmi.cs` | As consultas WMI compartilhadas entre a aba de saúde e a linha do tempo. |
 | `MainWindow.Assistente.cs` | A aba do assistente: bandeja, perfil de recursos, retrato periódico e diário. |
-| `UsoHistorico.cs` | O histórico de uso: um arquivo por dia em `%AppData%\TranalSentinel\uso\`, 30 dias. |
+| `UsoHistorico.cs` | O histórico de uso: a troca de programa gravada no banco, 30 dias. |
+| `Banco.cs` | O banco de dados do histórico: esquema, migração do CSV antigo, consulta por período, poda e o reparo (que guarda cópia do banco estragado). |
+| `Sqlite.cs` | O SQLite do próprio Windows, chamado por P/Invoke (`winsqlite3.dll`) — sem dependência nova no app. |
 | `UsoRegras.cs` | A regra do uso da tela (função pura): quanto tempo cada programa ficou em frente, as sessões mais longas e quem estava em frente quando a CPU ficou mais quente. |
 | `UsoTexto.cs` | Os textos da aba "Uso" (duração, percentual, temperatura): função pura, padrão brasileiro. |
 | `MainWindow.Uso.cs` | A aba "Uso": tempo de tela, ranking, sessões mais longas e o "quem fez o calor". |

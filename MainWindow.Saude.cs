@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -30,6 +31,10 @@ public partial class MainWindow
         SaudeResumo.ItemsSource = null;
         SaudeProgress.ScaleX = 0;
         SaudeStatus.Text = "Clique em ANALISAR para varrer o histórico do sistema. Nada é alterado sem você confirmar.";
+
+        // O estado do banco é lido fora da thread da tela: a verificação de
+        // integridade percorre o arquivo inteiro do histórico.
+        _ = MostrarBancoAsync();
     }
 
     private async void BtnSaudeScan_Click(object sender, RoutedEventArgs e)
@@ -287,6 +292,148 @@ public partial class MainWindow
 
         var janela = new JanelaServicos(_settings, servicos) { Owner = this };
         janela.ShowDialog();
+    }
+
+    /// <summary>
+    /// Mostra o estado do banco de dados do histórico: se está íntegro,
+    /// quanto ocupa e quantas linhas tem.
+    /// </summary>
+    private async Task MostrarBancoAsync()
+    {
+        try
+        {
+            var dados = await Task.Run(Banco.Ver);
+
+            SaudeBancoEstado.Text = dados.Estado == "ok"
+                ? "O banco de dados do histórico está íntegro."
+                : dados.Estado;
+
+            SaudeBancoResumo.ItemsSource = new List<InfoNode>
+            {
+                new InfoNode { Header = "Tamanho do histórico", Value = TamanhoLegivel(dados.TamanhoBytes) },
+                new InfoNode { Header = "Amostras de sensor", Value = dados.Amostras.ToString(CultureInfo.InvariantCulture) },
+                new InfoNode { Header = "Registros de uso", Value = dados.Uso.ToString(CultureInfo.InvariantCulture) },
+                new InfoNode { Header = "Arquivo", Value = dados.Caminho }
+            };
+
+            BtnSaudeBancoRestaurar.Visibility = dados.CopiaAvariada != null
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch (Exception ex)
+        {
+            SaudeBancoEstado.Text = "Não foi possível ler o banco de dados: " + ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// O tamanho em kilobytes ou megabytes (sem locale: a tela do Windows
+    /// é em português, mas o número não pode depender do Windows).
+    /// </summary>
+    private static string TamanhoLegivel(long bytes)
+    {
+        if (bytes < 1024) return bytes.ToString(CultureInfo.InvariantCulture) + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024.0).ToString("0.#", CultureInfo.InvariantCulture) + " KB";
+        return (bytes / (1024.0 * 1024.0)).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
+    }
+
+    /// <summary>Botão de verificar: confere a integridade do banco de novo.</summary>
+    private async void BtnSaudeBancoVerificar_Click(object sender, RoutedEventArgs e)
+    {
+        await MostrarBancoAsync();
+    }
+
+    /// <summary>
+    /// Botão de reparar: reconstrói o banco com o que der para ler.
+    ///
+    /// <para>
+    /// Muda o arquivo do histórico, então pede confirmação e fica
+    /// registrado no diário. O banco velho não é apagado: ele fica guardado
+    /// como cópia datada, e é o que o botão "restaurar cópia" devolve.
+    /// </para>
+    /// </summary>
+    private async void BtnSaudeBancoReparar_Click(object sender, RoutedEventArgs e)
+    {
+        var resposta = MessageBox.Show(
+            this,
+            "O reparo reconstrói o banco de dados do histórico.\n\n" +
+            "O banco atual é guardado como cópia datada na mesma pasta, e o que estiver legível é copiado para um banco novo. " +
+            "O que não der para ler se perde — a cópia antiga continua no disco.\n\nQuer reparar agora?",
+            "TRANAL SENTINEL",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+
+        if (resposta != MessageBoxResult.OK) return;
+
+        BtnSaudeBancoReparar.IsEnabled = false;
+        try
+        {
+            var resultado = await Task.Run(Banco.Reparar);
+
+            MessageBox.Show(this,
+                resultado.Relato,
+                "TRANAL SENTINEL",
+                MessageBoxButton.OK,
+                resultado.Sucesso ? MessageBoxImage.Information : MessageBoxImage.Warning);
+
+            try
+            {
+                RegistroDiario.Registrar($"banco: reparo — {(resultado.Sucesso ? "ok" : "falhou")}: {resultado.Relato}");
+            }
+            catch
+            {
+                // O diário é um extra: se falhar, o reparo já foi aplicado e
+                // isso não pode virar mais um erro na tela.
+            }
+        }
+        finally
+        {
+            BtnSaudeBancoReparar.IsEnabled = true;
+            await MostrarBancoAsync();
+        }
+    }
+
+    /// <summary>
+    /// Botão de restaurar a cópia: desfaz o reparo, devolvendo o banco
+    /// antigo (com o problema que ele tinha).
+    /// </summary>
+    private async void BtnSaudeBancoRestaurar_Click(object sender, RoutedEventArgs e)
+    {
+        var resposta = MessageBox.Show(
+            this,
+            "A cópia avariada mais recente volta para o lugar, e o banco atual fica guardado como cópia datada.\n\n" +
+            "Atenção: o banco volta com o mesmo problema que tinha antes do reparo.\n\nQuer restaurar?",
+            "TRANAL SENTINEL",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+
+        if (resposta != MessageBoxResult.OK) return;
+
+        BtnSaudeBancoRestaurar.IsEnabled = false;
+        try
+        {
+            var resultado = await Task.Run(Banco.RestaurarCopia);
+
+            MessageBox.Show(this,
+                resultado.Relato,
+                "TRANAL SENTINEL",
+                MessageBoxButton.OK,
+                resultado.Sucesso ? MessageBoxImage.Information : MessageBoxImage.Warning);
+
+            try
+            {
+                RegistroDiario.Registrar($"banco: restauracao da copia — {(resultado.Sucesso ? "ok" : "falhou")}: {resultado.Relato}");
+            }
+            catch
+            {
+                // O diário é um extra: se falhar, a restauração já foi
+                // aplicada e isso não pode virar mais um erro na tela.
+            }
+        }
+        finally
+        {
+            BtnSaudeBancoRestaurar.IsEnabled = true;
+            await MostrarBancoAsync();
+        }
     }
 
     /// <summary>Leva para uma aba (usado pelas ações de navegação).</summary>

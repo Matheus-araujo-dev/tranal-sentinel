@@ -1,3 +1,47 @@
+## Novidades da v0.28 — o histórico do TRANAL SENTINEL agora mora num banco de verdade
+
+Até a v0.27 o histórico (o que o PC estava fazendo e qual programa estava em
+frente) era um arquivo CSV que o app só sabia acrescentar no fim. A partir de
+agora ele mora num **banco SQLite de verdade**: consulta por período,
+verificação de integridade e uma rotina de reparo.
+
+**Novo · o banco de dados do histórico**
+- Os sensores (uma amostra de 5 em 5 segundos) e as trocas de programa passam
+  a ser gravados num banco SQLite, em
+  `%LOCALAPPDATA%\TranalSentinel\historico\historico.db`.
+- O app **não ganha dependência nenhuma**: o SQLite vem do próprio Windows
+  (`winsqlite3.dll`), e o app chama a API C dele direto.
+- Consultar o histórico por período virou uma consulta ao índice, e não uma
+  varredura do arquivo inteiro: a aba TRANAL USO abre na hora.
+- O que já existia em CSV (o log de sensores e o histórico de uso) foi
+  importado na primeira vez que o banco foi aberto. **Os CSV antigos não foram
+  apagados**: continuam no disco como cópia do histórico anterior.
+- O histórico do uso continua sendo apagado depois de 30 dias, e o dos sensores
+  depois de 15.
+
+**Novo · verificação e reparo no TRANAL SAÚDE**
+- O TRANAL SAÚDE ganhou o cartão **BANCO DE DADOS DO HISTÓRICO**: o estado do
+  banco, o tamanho, quantas amostras e quantos registros de uso ele tem, e
+  onde o arquivo está.
+- O botão **VERIFICAR** confere a integridade na hora.
+- O botão **REPARAR** reconstrói o banco com o que der para ler quando ele está
+  estragado. O banco velho **não é apagado**: ele fica guardado como cópia
+  datada na mesma pasta, e o botão **RESTAURAR CÓPIA** devolve ele — é o
+  desfazer.
+- Tudo que mexe no banco pede confirmação e fica registrado no diário.
+- O reparo é honesto: quando não dá para ler nada do banco estragado, o
+  relato diz que o banco novo começa vazio, e a cópia antiga continua no disco.
+
+**O que continua igual**
+- A aba TRANAL USO mostra as mesmas coisas (tempo de tela, sessões mais longas,
+  quem fez o calor), e o "por que disparou" dos alertas continua usando o mesmo
+  histórico.
+- O app nunca fica sem funcionar por causa do banco: se ele não abre, a coleta
+  continua, o diagnóstico continua, e a tela avisa que o histórico não está
+  disponível.
+- Nada sai do computador: o histórico continua sendo só números de sensor e o
+  nome/título do programa que estava em frente.
+
 ## Novidades da v0.27 — o que ficou em frente na tela e por que cada alerta disparou
 
 O app já sabia o que estava acontecendo na máquina (a temperatura, a carga, o

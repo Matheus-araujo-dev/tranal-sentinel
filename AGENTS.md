@@ -169,12 +169,37 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   "este teste só existe aqui", que seria mentira. Nota errada é pior que
   nota ausente.
 
-- **O histórico de uso é um arquivo por dia, e o evento é a troca de programa.**
-  `UsoHistorico` grava em `%AppData%\TranalSentinel\uso\uso-AAAA-MM-DD.csv`: uma
-  linha quando outro programa passa para a frente — não uma linha por instante.
-  A duração vem da distância até a próxima troca; o que estava em frente é o
-  título da janela no momento da troca. Guardar o instante todocia vez encheria
-  o disco sem responder pergunta nenhuma.
+- **O histórico mora num banco SQLite, e só nele** (`Banco`). Os sensores
+  (5 em 5 segundos) e as trocas de programa são gravados em
+  `%LOCALAPPDATA%\TranalSentinel\historico\historico.db`. O evento do uso é a
+  **troca de programa** — não uma linha por instante: guardar o instante
+  todocia vez encheria o disco sem responder pergunta nenhuma. O que estava
+  em frente é o título da janela no momento da troca.
+- **O SQLite vem do próprio Windows**, por P/Invoke em `Sqlite`
+  (`System32\winsqlite3.dll`): o app **não ganha dependência nova**. É a
+  mesma biblioteca que o Windows usa internamente.
+- **O instante é epoch em milissegundos** (`INTEGER` no banco): ordenável,
+  indexável e imune a horário de verão. A hora local volta por
+  `DateTimeOffset`.
+- **O CSV antigo é legado, e só a migração o toca.** `LegadoCsv` lê o que
+  já existia em `%LOCALAPPDATA%\TranalSentinel\sensores\historico.csv` e em
+  `%AppData%\TranalSentinel\uso\usage-AAAA-MM-DD.csv` **uma vez só**, na
+  primeira vez que o banco é aberto (`PRAGMA user_version`). Os CSV **não
+  são apagados**: eles ficam como cópia do histórico anterior.
+- **O reparo reconstrói o banco e guarda o velho.** `Banco.Reparar()`
+  confere a integridade, copia o que der para ler para um banco novo e
+  troca o arquivo no lugar — e o banco estragado vira uma cópia datada
+  (`historico.db.avariado-AAAAMMDD-HHMMSS`), que é o **desfazer**. O que
+  não pôde ser lido é perdido, e o relato diz isso.
+- **Um banco que não abre não derruba o app.** A abertura é uma instância
+  única, com retentativa a cada 30 s; se falhar, o app continua funcionando
+  e a tela diz que o histórico não está disponível. O reparo só troca o
+  arquivo quando a leitura foi confiável — um banco cheio que a consulta
+  não conseguiu ler não pode virar um banco vazio.
+- **O dia local é uma faixa de instantes, e a faixa muda no horário de
+  verão.** Por isso a lista de dias com histórico é montada em C#
+  (`Banco.DiasComUso`), e não com `date(...,'localtime')` do SQLite (que
+  depois de `'unixepoch'` não devolve nada na biblioteca do Windows).
 - **A regra do uso é pura** (`UsoRegras`): entra a lista de trocas e a de
   amostras, sai o relatório (ranking, sessões mais longas, quem fez o calor).
   Quem lê o arquivo é a coleta; quem formata o texto é `UsoTexto`. A tela e a
@@ -206,10 +231,10 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   atravessa a meia-noite. Sem ela, a noite inteira ficaria sem dono quando o
   app rodou a noite toda sem trocar de programa.
 - **O log de sensores é lido limitado à janela pedida**
-  (`SensorHistorico.Ler(desde, ate)`): o arquivo guarda 15 dias e chega a
-  dezoito megabytes; interpretar tudo custa meio segundo. A leitura compara
-  o prefixo da data antes de interpretar a linha, e o arquivo (cronológico)
-  é abandonado assim que passa do fim pedido.
+  (`SensorHistorico.Ler(desde, ate)`): a consulta vai direto ao índice do
+  instante, então o histórico inteiro não é varrido para saber o que
+  aconteceu na janela. O banco guarda 15 dias de amostras e o histórico de
+  uso guarda 30 dias; o que passa disso é apagado.
 - **A explicação do alerta fica em cache por episódio.** O instante do
   episódio não muda enquanto o aviso está na tela, então a explicação é
   calculada uma vez — e o histórico só é lido quando aparece um aviso sem
@@ -246,12 +271,15 @@ auto-update procura.
 | `Mudancas.cs` | A linha do tempo do PC: retrato, comparação pura e coleta do retrato. |
 | `PoliticaRecursos.cs` | Perfil Completo / Equilibrado / Economia. Funções puras. |
 | `RegistroDiario.cs` | O log diário (um arquivo por dia). |
-| `UsoHistorico.cs` / `UsoJanela.cs` / `UsoAmostrador.cs` | O histórico de uso: o arquivo do dia (CSV), a leitura da janela em foco (user32) e o amostrador que grava só na troca de programa. |
+| `UsoHistorico.cs` / `UsoJanela.cs` / `UsoAmostrador.cs` | O histórico de uso: a gravação da troca de programa no banco, a leitura da janela em foco (user32) e o amostrador que grava só na troca de programa. |
+| `Banco.cs` | O banco de dados do histórico: esquema, migração do CSV antigo, consulta por período, contagem, poda e a rotina de reparo (que guarda a cópia do banco estragado). |
+| `Sqlite.cs` / `SqliteLinha.cs` | O acesso ao SQLite do Windows por P/Invoke (`winsqlite3.dll`), sem dependência nova, e a linha tipada da consulta. |
+| `LegadoCsv.cs` | O formato do histórico antigo em CSV. Só a migração o usa — e só para ler. |
 | `UsoRegras.cs` / `UsoTexto.cs` | A regra pura do histórico de uso (ranking, sessões, quem fez o calor) e os textos da tela. |
 | `ResumoAmostras.cs` | A frase única do resumo dos sensores (usada pela retrospectiva do travamento e pela explicação do alerta). |
 | `Bandeja.cs` | Ícone na bandeja por P/Invoke direto (sem Windows Forms, que criaria ambiguidade de nomes). |
 | `SensorValor.cs` | Regra única do valor de sensor: finito ou nada (`Finito`) e as opções de JSON (`OpcoesJson`). |
-| `SensorHistorico.cs` | O log contínuo de sensores (CSV de 5 em 5 segundos): o que o PC estava fazendo antes de travar. |
+| `SensorHistorico.cs` | O histórico contínuo de sensores (uma amostra de 5 em 5 segundos): o que o PC estava fazendo antes de travar. |
 | `RetrospectivaTravamento.cs` | Correlaciona o log de sensores com os travamentos (função pura): vira a frase da tela. |
 | `HardwareColeta.cs` / `HardwareLibre.cs` | O que a coleta precisa de um hardware (interface) e o adaptador do LibreHardwareMonitor. |
 | `AutoUpdate.cs` / `Atualizador.cs` | Checagem de versão nova, download e troca do executável. |

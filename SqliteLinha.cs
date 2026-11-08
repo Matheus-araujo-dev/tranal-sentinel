@@ -67,6 +67,26 @@ public sealed class SqliteLinha
         };
     }
 
+    /// <summary>
+    /// O valor de uma coluna numérica real, ou null quando a coluna não
+    /// existe ou é nula. Zero é um valor válido e não pode servir de
+    /// "não li" — por isso a diferença entre esta e <see cref="Real"/>.
+    /// </summary>
+    public double? RealNulo(string coluna)
+    {
+        object? valor = Valor(coluna);
+        return valor switch
+        {
+            null => null,
+            double numero => numero,
+            long numero => numero,
+            int numero => numero,
+            float numero => numero,
+            string texto when double.TryParse(texto, NumberStyles.Float, CultureInfo.InvariantCulture, out double convertido) => convertido,
+            _ => null,
+        };
+    }
+
     /// <summary>O valor de uma coluna de texto ("" quando não há).</summary>
     public string Texto(string coluna)
     {

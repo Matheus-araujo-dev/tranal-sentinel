@@ -10,37 +10,54 @@ namespace TranalSentinel.Tests;
 /// o interpreta.
 ///
 /// <para>
-/// Os testes que gravam arquivo apontam o histórico para uma pasta
-/// temporária (<see cref="UsoHistorico.PastaOverride"/>): nada aqui toca o
-/// %APPDATA% do usuário. Como essa pasta é estado global, a classe fica na
-/// coleção "Uso" — o xUnit executa as classes da mesma coleção em série.
+/// Os testes que gravam apontam o banco de dados para uma pasta temporária
+/// (<see cref="Banco.PastaOverride"/>): nada aqui toca o %APPDATA% do
+/// usuário. Como essa pasta é estado global, a classe fica na coleção
+/// "Banco" — o xUnit executa as classes da mesma coleção em série.
 /// </para>
 /// </summary>
-[Collection("Uso")]
+[Collection("Banco")]
 public class UsoRegrasTestes : IDisposable
 {
     private string? _pasta;
+    private string? _pastaLegado;
 
     private string UsarPastaTemporaria()
     {
         _pasta = Path.Combine(Path.GetTempPath(), "tranal-uso-" + Guid.NewGuid());
-        UsoHistorico.PastaOverride = _pasta;
+        _pastaLegado = Path.Combine(Path.GetTempPath(), "tranal-uso-legado-" + Guid.NewGuid());
+
+        Banco.PastaOverride = _pasta;
+        // O CSV antigo também é apontado para o vazio: sem isso a migração
+        // importaria o histórico de uso do PC de verdade para o banco de
+        // teste.
+        LegadoCsv.PastaSensoresOverride = _pastaLegado;
+        LegadoCsv.PastaUsoOverride = _pastaLegado;
+
+        Banco.Fechar();
         return _pasta;
     }
 
     public void Dispose()
     {
-        UsoHistorico.PastaOverride = null;
+        Banco.Fechar();
+        Banco.PastaOverride = null;
+        LegadoCsv.PastaSensoresOverride = null;
+        LegadoCsv.PastaUsoOverride = null;
         UsoAmostrador.ZerarEstado();
-        if (_pasta == null) return;
-        try
+
+        foreach (string? pasta in new[] { _pasta, _pastaLegado })
         {
-            if (Directory.Exists(_pasta)) Directory.Delete(_pasta, true);
-        }
-        catch
-        {
-            // A pasta é temporária: se o Windows ainda estiver segurando o
-            // arquivo, ela some sozinha depois.
+            if (pasta == null) continue;
+            try
+            {
+                if (Directory.Exists(pasta)) Directory.Delete(pasta, true);
+            }
+            catch
+            {
+                // A pasta é temporária: se o Windows ainda estiver segurando o
+                // arquivo, ela some sozinha depois.
+            }
         }
     }
 
@@ -277,50 +294,7 @@ public class UsoRegrasTestes : IDisposable
         Assert.Equal("", UsoRegras.ProgramaEm(Momento(9, 0), trocas));
     }
 
-    // ------------------------------------------------------------------ arquivo
-
-    [Fact]
-    public void LinhaMontadaELida_VoltaAMesmaTroca()
-    {
-        var original = new TrocaUso(Momento(14, 31), "chrome", "Painel - TRANAL");
-
-        var lida = UsoHistorico.LerLinha(UsoHistorico.MontarLinha(original));
-
-        Assert.NotNull(lida);
-        Assert.Equal(original.Momento, lida!.Momento);
-        Assert.Equal(original.Processo, lida.Processo);
-        Assert.Equal(original.Titulo, lida.Titulo);
-    }
-
-    [Fact]
-    public void TituloComSeparadorEDeQuebraDeLinhaNaoQuebraOCsv()
-    {
-        var original = new TrocaUso(Momento(14, 31), "code", "a;b\r\nc");
-
-        var linha = UsoHistorico.MontarLinha(original);
-        var lida = UsoHistorico.LerLinha(linha);
-
-        Assert.Equal(3, linha.Split(';').Length);
-        Assert.NotNull(lida);
-
-        // O que importa é que o título não quebra o CSV: nem separador, nem
-        // quebra de linha sobram dentro do campo.
-        Assert.DoesNotContain(';', lida!.Titulo);
-        Assert.DoesNotContain('\r', lida.Titulo);
-        Assert.DoesNotContain('\n', lida.Titulo);
-        Assert.Contains("a b", lida.Titulo);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData("isto nao e uma linha")]
-    [InlineData("2026-11-06T14:31:22.500")]
-    [InlineData("2026-11-06 14:31:22;chrome;Painel")]
-    public void LinhaInvalida_DevolveNulo(string linha)
-    {
-        Assert.Null(UsoHistorico.LerLinha(linha));
-    }
+    // ------------------------------------------------------------------ histórico
 
     [Fact]
     public void GravarELer_DevolveAsTrocasDoDia()
@@ -376,18 +350,18 @@ public class UsoRegrasTestes : IDisposable
     }
 
     [Fact]
-    public void PodarApagaODiaAntigo()
+    public void PodarApagaOQueEAntigo()
     {
         UsarPastaTemporaria();
 
-        string antigo = UsoHistorico.ArquivoDe(DateTime.Now.Date.AddDays(-40));
-        Directory.CreateDirectory(UsoHistorico.Pasta);
-        File.WriteAllText(antigo, "2026-10-01T10:00:00.000;chrome;Painel");
-        File.SetLastWriteTime(antigo, DateTime.Now.AddDays(-40));
+        var antigo = Momento(10, 0).AddDays(-40);
+        UsoHistorico.Gravar(new TrocaUso(antigo, "chrome", "Painel"));
+        UsoHistorico.Gravar(new TrocaUso(Momento(10, 0), "code", "Painel"));
 
         UsoHistorico.Podar();
 
-        Assert.False(File.Exists(antigo));
+        Assert.Empty(UsoHistorico.Ler(antigo));
+        Assert.Single(UsoHistorico.Ler(Momento(10, 0)));
     }
 
     [Fact]
@@ -395,9 +369,18 @@ public class UsoRegrasTestes : IDisposable
     {
         // Pasta que não pode ser criada: o registro de uso é um extra e não
         // pode derrubar o app.
-        UsoHistorico.PastaOverride = "Z:\\\\inexistente\\pasta\\que\\nao\\existe";
+        Banco.PastaOverride = "Z:\\\\inexistente\\pasta\\que\\nao\\existe";
+        Banco.Fechar();
 
-        UsoHistorico.Gravar(new TrocaUso(Momento(10, 0), "chrome", "Painel"));
+        try
+        {
+            Assert.False(UsoHistorico.Gravar(new TrocaUso(Momento(10, 0), "chrome", "Painel")));
+        }
+        finally
+        {
+            Banco.Fechar();
+            Banco.PastaOverride = null;
+        }
     }
 
     // ------------------------------------------------- o fim do período do dia
