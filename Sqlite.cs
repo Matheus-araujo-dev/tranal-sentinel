@@ -45,6 +45,7 @@ public sealed class Sqlite : IDisposable
 
     private IntPtr _banco;
     private bool _fechado;
+    private string _ultimoErro = "";
 
     /// <summary>
     /// Serializa o uso do handle.
@@ -188,7 +189,16 @@ public sealed class Sqlite : IDisposable
         }
     }
 
-    /// <summary>A mensagem de erro da última operação ("" quando não houve).</summary>
+    /// <summary>
+    /// A mensagem de erro da última operação ("" quando não houve).
+    ///
+    /// <para>
+    /// A consulta que falha devolve lista vazia — e lista vazia também é
+    /// o resultado de uma tabela sem linhas. O motivo do erro é o que
+    /// separa as duas coisas, e é o que permite ao reparo saber se a
+    /// leitura falhou ou se a tabela estava mesmo vazia.
+    /// </para>
+    /// </summary>
     public string UltimoErro
     {
         get
@@ -196,6 +206,8 @@ public sealed class Sqlite : IDisposable
             lock (_tranca)
             {
                 if (_banco == IntPtr.Zero) return "banco fechado";
+                if (_ultimoErro.Length > 0) return _ultimoErro;
+
                 IntPtr msg = sqlite3_errmsg(_banco);
                 return msg == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(msg) ?? "";
             }
@@ -241,15 +253,21 @@ public sealed class Sqlite : IDisposable
             try
             {
                 stmt = Preparar(sql, argumentos);
-                if (stmt == IntPtr.Zero) return false;
+                if (stmt == IntPtr.Zero)
+                {
+                    _ultimoErro = ErroDoSqlite();
+                    return false;
+                }
 
                 int rc = sqlite3_step(stmt);
+                _ultimoErro = "";
                 return rc == Feito || rc == Linha;
             }
             catch
             {
                 // Falha de SQL não derruba o app: quem chama decide o que fazer
                 // (o histórico é acessório, o diagnóstico não pode quebrar).
+                _ultimoErro = ErroDoSqlite();
                 return false;
             }
             finally
@@ -272,7 +290,11 @@ public sealed class Sqlite : IDisposable
             try
             {
                 stmt = Preparar(sql, argumentos);
-                if (stmt == IntPtr.Zero) return linhas;
+                if (stmt == IntPtr.Zero)
+                {
+                    _ultimoErro = ErroDoSqlite();
+                    return new List<SqliteLinha>();
+                }
 
                 int colunas = sqlite3_column_count(stmt);
                 var nomes = new string[colunas];
@@ -293,11 +315,15 @@ public sealed class Sqlite : IDisposable
 
                     linhas.Add(new SqliteLinha(nomes, valores));
                 }
+
+                _ultimoErro = "";
             }
             catch
             {
                 // Consulta que falha devolve lista vazia: a tela mostra o que
-                // sabe, sem número errado.
+                // sabe, sem número errado. O motivo fica registrado, que é
+                // o que separa "a tabela está vazia" de "a consulta falhou".
+                _ultimoErro = ErroDoSqlite();
                 return new List<SqliteLinha>();
             }
             finally
@@ -333,6 +359,18 @@ public sealed class Sqlite : IDisposable
     }
 
     /// <summary>
+    /// A mensagem que o SQLite devolveu na última falha ("" quando o
+    /// SQLite não reclamou de nada).
+    /// </summary>
+    private string ErroDoSqlite()
+    {
+        if (_banco == IntPtr.Zero) return "banco fechado";
+
+        IntPtr msg = sqlite3_errmsg(_banco);
+        return msg == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(msg) ?? "";
+    }
+
+    /// <summary>
     /// Verifica se o banco está inteiro ("ok" quando está). A rotina de
     /// reparo usa isso para decidir se precisa reconstruir.
     ///
@@ -342,12 +380,20 @@ public sealed class Sqlite : IDisposable
     /// arquivo não é um banco" (estragado) e "o banco está trancado"
     /// (temporário), e o reparo trata os dois de jeitos diferentes.
     /// </para>
+    ///
+    /// <para>
+    /// <paramref name="completo"/> escolhe entre a verificação completa
+    /// (<c>integrity_check</c>, que percorre o arquivo inteiro) e a rápida
+    /// (<c>quick_check</c>). O retrato automático do banco usa a rápida: o
+    /// arquivo tem 15 dias de amostras e a completa demoraria segundos
+    /// numa tela que só quer mostrar o estado.
+    /// </para>
     /// </summary>
-    public string VerificarIntegridade()
+    public string VerificarIntegridade(bool completo = true)
     {
         if (_banco == IntPtr.Zero) return "banco fechado";
 
-        var linhas = Consultar("PRAGMA integrity_check");
+        var linhas = Consultar(completo ? "PRAGMA integrity_check" : "PRAGMA quick_check");
         if (linhas.Count == 0)
         {
             string erro = UltimoErro;

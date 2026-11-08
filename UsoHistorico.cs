@@ -131,7 +131,7 @@ public static class UsoHistorico
     {
         try
         {
-            Banco.ApagarAntigos(DateTime.Now.AddDays(-DiasRetidos));
+            Banco.ApagarUsosAntigos(DateTime.Now.AddDays(-DiasRetidos));
         }
         catch
         {

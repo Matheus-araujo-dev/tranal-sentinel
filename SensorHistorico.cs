@@ -91,7 +91,7 @@ public static class SensorHistorico
     {
         try
         {
-            Banco.ApagarAntigos(DateTime.Now.AddDays(-DiasRetidos));
+            Banco.ApagarAmostrasAntigas(DateTime.Now.AddDays(-DiasRetidos));
         }
         catch
         {

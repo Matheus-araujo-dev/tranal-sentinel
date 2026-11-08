@@ -111,28 +111,39 @@ public static class Banco
     /// <summary>
     /// O que o app sabe sobre o banco ("ok" quando está tudo bem). É o que
     /// a tela mostra e o que a rotina de reparo conserta.
+    ///
+    /// <para>
+    /// A verificação aqui é a rápida (<c>quick_check</c>): o retrato do
+    /// banco aparece na tela e não pode custar segundos. A completa fica
+    /// para o botão de verificar e para o reparo.
+    /// </para>
     /// </summary>
-    public static string Estado
+    public static string Estado => EstadoDaIntegridade(completo: false);
+
+    /// <summary>
+    /// O estado do banco com a verificação de integridade escolhida: a
+    /// completa (percorre o arquivo inteiro) ou a rápida.
+    /// </summary>
+    private static string EstadoDaIntegridade(bool completo)
     {
-        get
+        // A leitura acontece com a trava do banco: o reparo fecha a
+        // instância e troca o arquivo, e uma verificação fora da trava
+        // leria um arquivo que está sendo trocado por baixo.
+        string estado = EmBanco(b =>
         {
-            var banco = Instancia;
-            if (banco == null)
-            {
-                // O banco não abriu: se o arquivo existe, ele está
-                // estragado (ou trancado) — e a tela precisa dizer que há
-                // reparo a fazer, não que o histórico sumiu.
-                if (File.Exists(Caminho))
-                    return "O banco de dados precisa de reparo: o arquivo não pôde ser aberto.";
+            string integridade = b.VerificarIntegridade(completo);
+            return integridade == "ok"
+                ? "ok"
+                : "O banco de dados precisa de reparo: " + TraduzirIntegridade(integridade);
+        }, "");
 
-                return _estado.Length > 0 ? _estado : "O banco de dados não está disponível.";
-            }
+        if (estado.Length > 0) return estado;
 
-            string integridade = banco.VerificarIntegridade();
-            if (integridade == "ok") return "ok";
+        // Sem instância: ou não há banco, ou o arquivo não abriu.
+        if (File.Exists(Caminho))
+            return "O banco de dados precisa de reparo: o arquivo não pôde ser aberto.";
 
-            return "O banco de dados precisa de reparo: " + TraduzirIntegridade(integridade);
-        }
+        return _estado.Length > 0 ? _estado : "O banco de dados não está disponível.";
     }
 
     /// <summary>
@@ -157,13 +168,18 @@ public static class Banco
     /// Junta o retrato do banco. Nunca lança: a tela do TRANAL SAÚDE mostra
     /// o que deu, e nunca um número inventado.
     /// </summary>
-    public static Diagnostico Ver()
+    /// <param name="completo">
+    /// True para a verificação de integridade completa (percorre o arquivo
+    /// inteiro). O retrato automático usa a rápida, que é o bastante para
+    /// dizer se o banco está de pé.
+    /// </param>
+    public static Diagnostico Ver(bool completo = false)
     {
         try
         {
             var (amostras, uso) = Contagem();
             return new Diagnostico(
-                Estado,
+                EstadoDaIntegridade(completo),
                 Tamanho,
                 amostras,
                 uso,
@@ -345,19 +361,28 @@ public static class Banco
     /// </summary>
     public static bool GravarUso(TrocaUso troca)
     {
+        long momento = Sqlite.MomentoParaUnix(troca.Momento);
+        string processo = Higienizar(troca.Processo);
+        string titulo = Higienizar(troca.Titulo);
+
         bool ok = EmBanco(b =>
         {
             if (!b.Executar(
                     "INSERT OR IGNORE INTO uso (momento, processo, titulo) VALUES (?, ?, ?)",
-                    Sqlite.MomentoParaUnix(troca.Momento),
-                    Higienizar(troca.Processo),
-                    Higienizar(troca.Titulo)))
+                    momento, processo, titulo))
                 return false;
 
             // O INSERT OR IGNORE pode ignorar a linha (a mesma troca
-            // repetida): nesse caso não foi gravada, e a troca tem que ser
-            // tentada de novo.
-            return b.Alteracoes > 0;
+            // repetida): nesse caso a troca JÁ está registrada, e o
+            // amostrador não precisa ficar tentando de novo (e adiar a
+            // troca seguinte).
+            if (b.Alteracoes > 0) return true;
+
+            var existe = b.Consultar(
+                "SELECT 1 AS ok FROM uso WHERE momento = ? AND processo = ? AND titulo = ?",
+                momento, processo, titulo);
+
+            return existe.Count > 0;
         }, false);
 
         if (ok) PodarSeEstourou();
@@ -447,44 +472,50 @@ public static class Banco
     /// <summary>Lista os dias que têm histórico, do mais novo para o mais antigo.</summary>
     public static List<DateTime> DiasComUso()
     {
-        var dias = new List<DateTime>();
-
-        var banco = Instancia;
-        if (banco == null) return dias;
-
-        var limites = banco.Consultar("SELECT MIN(momento) AS primeiro, MAX(momento) AS ultimo FROM uso");
-        if (limites.Count == 0) return dias;
-
-        long primeiro = limites[0].Inteiro("primeiro");
-        long ultimo = limites[0].Inteiro("ultimo");
-        if (primeiro <= 0 || ultimo <= 0) return dias;
-
-        DateTime dia = Sqlite.UnixParaMomento(primeiro).Date;
-        DateTime fim = Sqlite.UnixParaMomento(ultimo).Date;
-
-        // O dia local é uma faixa de instantes — e a faixa muda no horário
-        // de verão. Por isso a conta é feita aqui, com a data local do
-        // .NET, e não no SQLite (lá o 'localtime' depois do 'unixepoch'
-        // não devolve nada).
-        int conferidos = 0;
-        while (dia <= fim && conferidos < 800)
+        // A leitura inteira (inclusive as contagens) acontece com a trava do
+        // banco: o reparo pode trocar o arquivo no meio, e ler um arquivo
+        // que está sendo trocado dá número errado na tela.
+        return EmBanco(b =>
         {
-            long inicio = Sqlite.MomentoParaUnix(dia);
-            long fimDia = Sqlite.MomentoParaUnix(dia.AddDays(1));
+            var dias = new List<DateTime>();
 
-            var existe = banco.Consultar(
-                "SELECT 1 AS dia FROM uso WHERE momento >= ? AND momento < ? LIMIT 1",
-                inicio, fimDia);
+            var limites = b.Consultar("SELECT MIN(momento) AS primeiro, MAX(momento) AS ultimo FROM uso");
+            if (limites.Count == 0) return dias;
 
-            if (existe.Count > 0) dias.Add(dia);
+            long primeiro = limites[0].Inteiro("primeiro");
+            long ultimo = limites[0].Inteiro("ultimo");
+            if (primeiro <= 0 || ultimo <= 0) return dias;
 
-            dia = dia.AddDays(1);
-            conferidos++;
-        }
+            DateTime dia = Sqlite.UnixParaMomento(primeiro).Date;
+            DateTime fim = Sqlite.UnixParaMomento(ultimo).Date;
 
-        // Do mais novo para o mais antigo (a lista da tela começa por hoje).
-        dias.Sort((a, b) => b.CompareTo(a));
-        return dias;
+            // O dia local é uma faixa de instantes — e a faixa muda no
+            // horário de verão. Por isso a conta é feita aqui, com a data
+            // local do .NET, e não no SQLite (lá o 'localtime' depois do
+            // 'unixepoch' não devolve nada na biblioteca do Windows).
+            //
+            // O limite de dias conferidos é uma rede de segurança: a poda
+            // mantém 30 dias de uso, então a lista é curta.
+            int conferidos = 0;
+            while (dia <= fim && conferidos < 800)
+            {
+                long inicio = Sqlite.MomentoParaUnix(dia);
+                long fimDia = Sqlite.MomentoParaUnix(dia.AddDays(1));
+
+                var existe = b.Consultar(
+                    "SELECT 1 AS dia FROM uso WHERE momento >= ? AND momento < ? LIMIT 1",
+                    inicio, fimDia);
+
+                if (existe.Count > 0) dias.Add(dia);
+
+                dia = dia.AddDays(1);
+                conferidos++;
+            }
+
+            // Do mais novo para o mais antigo (a lista da tela começa por hoje).
+            dias.Sort((a, b) => b.CompareTo(a));
+            return dias;
+        }, new List<DateTime>());
     }
 
     /// <summary>
@@ -503,28 +534,46 @@ public static class Banco
     // ------------------------------------------------------------------ poda
 
     /// <summary>
-    /// Apaga do banco o que é mais velho que o prazo (para o histórico não
-    /// crescer sem fim).
+    /// Apaga do banco o que é mais velho que o prazo, nas duas tabelas.
+    ///
+    /// <para>
+    /// Cada tabela tem o seu prazo (as amostras ficam 15 dias, o uso fica
+    /// 30). O método existe para quem quer cortar os dois de uma vez; a
+    /// poda automática usa os prazos separados, porque cortar o histórico
+    /// de uso aos 15 dias seria perder dado que a regra promete guardar.
+    /// </para>
     /// </summary>
-    public static int ApagarAntigos(DateTime antesDe)
+    public static int ApagarAntigos(DateTime antesDe) =>
+        ApagarAmostrasAntigas(antesDe) + ApagarUsosAntigos(antesDe);
+
+    /// <summary>Apaga as amostras de sensor mais velhas que o prazo.</summary>
+    public static int ApagarAmostrasAntigas(DateTime antesDe)
     {
         long limite = Sqlite.MomentoParaUnix(antesDe);
 
-        return EmBanco(b =>
-        {
-            int amostras = b.Executar("DELETE FROM amostras WHERE momento < ?", limite)
-                ? b.Alteracoes : 0;
-            int uso = b.Executar("DELETE FROM uso WHERE momento < ?", limite)
-                ? b.Alteracoes : 0;
+        return EmBanco(b => b.Executar("DELETE FROM amostras WHERE momento < ?", limite)
+            ? b.Alteracoes : 0, 0);
+    }
 
-            return amostras + uso;
-        }, 0);
+    /// <summary>Apaga os registros de uso mais velhos que o prazo.</summary>
+    public static int ApagarUsosAntigos(DateTime antesDe)
+    {
+        long limite = Sqlite.MomentoParaUnix(antesDe);
+
+        return EmBanco(b => b.Executar("DELETE FROM uso WHERE momento < ?", limite)
+            ? b.Alteracoes : 0, 0);
     }
 
     /// <summary>
     /// Corta o histórico velho, no máximo uma vez por hora. A poda é uma
     /// escrita no banco, e a coleta acontece a cada 5 segundos: fazer isso a
     /// cada amostra só gastaria I/O.
+    ///
+    /// <para>
+    /// Cada tabela é cortada com o seu prazo: as amostras ficam 15 dias e o
+    /// histórico de uso fica 30. Cortar o uso junto com as amostras
+    /// perderia meio mês de dado que a regra promete guardar.
+    /// </para>
     /// </summary>
     private static void PodarSeEstourou()
     {
@@ -534,7 +583,8 @@ public static class Banco
             _ultimaPoda = DateTime.Now;
         }
 
-        ApagarAntigos(DateTime.Now.AddDays(-DiasRetidosAmostras));
+        ApagarAmostrasAntigas(DateTime.Now.AddDays(-DiasRetidosAmostras));
+        ApagarUsosAntigos(DateTime.Now.AddDays(-DiasRetidosUso));
     }
 
     // ------------------------------------------------------------------ contagem e tamanho
@@ -589,8 +639,8 @@ public static class Banco
     }
 
     /// <summary>
-    /// Apaga tudo do banco (usado pelo botão de "começar de novo" e pelos
-    /// testes).
+    /// Apaga tudo do banco (as duas tabelas). Usado pelos testes — e pelo
+    /// que precisar de um banco limpo.
     /// </summary>
     public static bool Limpar()
     {
@@ -607,6 +657,13 @@ public static class Banco
     /// <summary>
     /// Importa o que ainda está em CSV (uma vez só). Os CSV não são
     /// apagados: o arquivo antigo fica como cópia de segurança.
+    ///
+    /// <para>
+    /// A importação é <b>uma transação só</b> e o <c>user_version</c> só é
+    /// gravado quando ela fecha bem. Gravar a versão com a importação
+    /// pela metade faria o app nunca mais tentar importar o CSV — e o
+    /// histórico antigo ficaria órfão para sempre, sem aviso.
+    /// </para>
     /// </summary>
     private static void Migrar(Sqlite banco)
     {
@@ -615,8 +672,50 @@ public static class Banco
             int versao = VersaoDoEsquema(banco);
             if (versao >= VersaoEsquema) return;
 
-            ImportarAmostras(banco);
-            ImportarUso(banco);
+            var amostras = LegadoCsv.LerAmostras();
+            var trocas = LegadoCsv.LerTrocas();
+
+            if (amostras.Count > 0 || trocas.Count > 0)
+            {
+                bool entrouTudo = true;
+
+                bool fechou = banco.EmTransacao(b =>
+                {
+                    foreach (var amostra in amostras)
+                    {
+                        if (!b.Executar(
+                            @"INSERT OR REPLACE INTO amostras
+                              (momento, cpu_temp, cpu_carga, cpu_consumo, cpu_clock,
+                               gpu_temp, gpu_carga, gpu_clock, gpu_vram, ram_uso,
+                               disco_leitura, disco_escrita)
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            Sqlite.MomentoParaUnix(amostra.Momento),
+                            amostra.CpuTemp, amostra.CpuCarga, amostra.CpuConsumo, amostra.CpuClock,
+                            amostra.GpuTemp, amostra.GpuCarga, amostra.GpuClock, amostra.GpuVram,
+                            amostra.RamUso, amostra.DiscoLeitura, amostra.DiscoEscrita))
+                            entrouTudo = false;
+                    }
+
+                    foreach (var troca in trocas)
+                    {
+                        if (!b.Executar(
+                            "INSERT OR IGNORE INTO uso (momento, processo, titulo) VALUES (?, ?, ?)",
+                            Sqlite.MomentoParaUnix(troca.Momento),
+                            Higienizar(troca.Processo),
+                            Higienizar(troca.Titulo)))
+                            entrouTudo = false;
+                    }
+                });
+
+                if (!fechou || !entrouTudo)
+                {
+                    // A transação foi desfeita: o banco continua vazio e a
+                    // migração é tentada de novo na próxima abertura (a
+                    // versão do esquema continua atrás).
+                    _estado = "Não foi possível migrar o histórico antigo para o banco de dados.";
+                    return;
+                }
+            }
 
             banco.Executar($"PRAGMA user_version = {VersaoEsquema}");
         }
@@ -639,46 +738,6 @@ public static class Banco
         return (int)linhas[0].Inteiro(coluna);
     }
 
-    private static void ImportarAmostras(Sqlite banco)
-    {
-        var amostras = LegadoCsv.LerAmostras();
-        if (amostras.Count == 0) return;
-
-        banco.EmTransacao(b =>
-        {
-            foreach (var amostra in amostras)
-            {
-                b.Executar(
-                    @"INSERT OR REPLACE INTO amostras
-                      (momento, cpu_temp, cpu_carga, cpu_consumo, cpu_clock,
-                       gpu_temp, gpu_carga, gpu_clock, gpu_vram, ram_uso,
-                       disco_leitura, disco_escrita)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    Sqlite.MomentoParaUnix(amostra.Momento),
-                    amostra.CpuTemp, amostra.CpuCarga, amostra.CpuConsumo, amostra.CpuClock,
-                    amostra.GpuTemp, amostra.GpuCarga, amostra.GpuClock, amostra.GpuVram,
-                    amostra.RamUso, amostra.DiscoLeitura, amostra.DiscoEscrita);
-            }
-        });
-    }
-
-    private static void ImportarUso(Sqlite banco)
-    {
-        var trocas = LegadoCsv.LerTrocas();
-        if (trocas.Count == 0) return;
-
-        banco.EmTransacao(b =>
-        {
-            foreach (var troca in trocas)
-            {
-                b.Executar(
-                    "INSERT OR IGNORE INTO uso (momento, processo, titulo) VALUES (?, ?, ?)",
-                    Sqlite.MomentoParaUnix(troca.Momento),
-                    Higienizar(troca.Processo),
-                    Higienizar(troca.Titulo));
-            }
-        });
-    }
 
     // ------------------------------------------------------------------ reparo
 
@@ -742,7 +801,7 @@ public static class Banco
                 }
             }
 
-            integridade = banco.VerificarIntegridade();
+            integridade = banco.VerificarIntegridade(completo: true);
             if (integridade == "ok")
             {
                 if (abertoAgora) banco.Dispose();
@@ -756,12 +815,22 @@ public static class Banco
                 "SELECT momento, cpu_temp, cpu_carga, cpu_consumo, cpu_clock, gpu_temp, gpu_carga, gpu_clock, gpu_vram, ram_uso, disco_leitura, disco_escrita FROM amostras");
             usos = LerLinhas(banco, "SELECT momento, processo, titulo FROM uso");
 
-            // Uma leitura que falha por qualquer motivo não pode
-            // autorizar a troca do arquivo: um banco cheio que a consulta
-            // não conseguiu ler viraria um banco vazio.
-            bool leituraConfiavel = banco.Consultar("SELECT COUNT(*) AS total FROM amostras").Count > 0;
+            // A contagem diz quantas linhas o banco tem; a leitura diz
+            // quantas vieram. Se a leitura falhou (ou veio pela metade), o
+            // reparo não pode trocar o arquivo achando que leu tudo — e o
+            // que faltar tem que aparecer no relato.
+            long totalAmostras = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM amostras");
+            long totalUso = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM uso");
 
-            if (!leituraConfiavel && !ArquivoEstragado(integridade))
+            bool leituraFalhou = totalAmostras < 0 || totalUso < 0;
+
+            // O arquivo que nem é um banco não tem nada a ler: reconstruí-lo
+            // é o único caminho. Qualquer outro problema (banco trancado,
+            // banco em uso) cancela o reparo, porque trocar o arquivo sem
+            // ler é trocar histórico por vazio.
+            bool arquivoNaoEBanco = ArquivoEstragado(integridade);
+
+            if (leituraFalhou && !arquivoNaoEBanco)
             {
                 banco.Dispose();
                 _instancia = null;
@@ -776,8 +845,21 @@ public static class Banco
             _instancia = null;
             _ultimaTentativa = DateTime.MinValue;
 
-            return Reconstruir(amostras, usos, integridade);
+            return Reconstruir(amostras, usos, integridade, totalAmostras, totalUso);
         }
+    }
+
+    /// <summary>
+    /// Conta as linhas de uma tabela. Devolve -1 quando a consulta falhou
+    /// (a tabela vazia devolve 0 — as duas coisas precisam ser diferentes).
+    /// </summary>
+    private static long ContarParaReparo(Sqlite banco, string sql)
+    {
+        var linhas = banco.Consultar(sql);
+        if (linhas.Count == 0) return banco.UltimoErro.Length > 0 ? -1 : 0;
+
+        string coluna = linhas[0].Colunas.Count > 0 ? linhas[0].Colunas[0] : "total";
+        return linhas[0].Inteiro(coluna);
     }
 
     /// <summary>
@@ -837,7 +919,7 @@ public static class Banco
     /// Cria um banco novo e copia o que foi lido do velho. Devolve o
     /// relato do que se salvou.
     /// </summary>
-    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, string integridade)
+    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, string integridade, long totalAmostras, long totalUso)
     {
         string novoCaminho = Caminho + ".reparo";
 
@@ -953,9 +1035,21 @@ public static class Banco
             _ultimaTentativa = DateTime.MinValue;
         }
 
+        // O que o banco tinha é o que a contagem diz; o que ficou no banco
+        // novo é o que foi salvo. A diferença é o que se perdeu — e ela
+        // precisa aparecer no relato.
+        long perdidasAmostras = Math.Max(0, totalAmostras - salvasAmostras);
+        long perdidosUsos = Math.Max(0, totalUso - salvosUsos);
+
         string relato =
             $"O banco estava com problema ({TraduzirIntegridade(integridade)}). Foi reconstruído: " +
             $"{salvasAmostras} amostras de sensor e {salvosUsos} registros de uso foram salvos.";
+
+        if (perdidasAmostras > 0 || perdidosUsos > 0)
+        {
+            relato += $" Se perderam {perdidasAmostras} amostras de sensor e {perdidosUsos} registros de uso.";
+            relato += " O banco antigo, com o que ficou nele, está guardado na cópia.";
+        }
 
         if (salvasAmostras == 0 && salvosUsos == 0)
         {
@@ -1051,7 +1145,11 @@ public static class Banco
             _instancia = null;
             _ultimaTentativa = DateTime.MinValue;
 
-            string guardar = copia + ".restaurado-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            // O banco atual é guardado com um nome FORA do padrão das cópias
+            // avariadas: se ele entrasse nesse padrão, a "cópia avariada mais
+            // recente" passaria a apontar para o banco bom — e o desfazer
+            // viraria um "restaurar por cima de si mesmo".
+            string guardar = Caminho + ".substituido-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
 
             try
             {

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace TranalSentinel;
@@ -58,10 +59,20 @@ public static class BancoCli
             Console.OutputEncoding = Encoding.UTF8;
 
             // Apontar para outra pasta serve para conferir uma cópia do
-            // banco (e reparar a cópia, sem mexer no banco de verdade).
+            // banco (e reparar a cópia, sem mexer no banco de verdade do
+            // usuário).
             string? pasta = ValorDoArgumento(args, "--pasta");
             if (!string.IsNullOrWhiteSpace(pasta))
+            {
                 Banco.PastaOverride = pasta;
+
+                // O CSV antigo também é isolado: a pasta indicada não pode
+                // receber o histórico do usuário de verdade (o que seria
+                // copiar o histórico para fora da máquina).
+                string legado = Path.Combine(pasta, "legado");
+                LegadoCsv.PastaSensoresOverride = legado;
+                LegadoCsv.PastaUsoOverride = legado;
+            }
 
             bool reparar = Array.Exists(args, a => string.Equals(a, "--reparar", StringComparison.OrdinalIgnoreCase));
 

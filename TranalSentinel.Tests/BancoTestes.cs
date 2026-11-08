@@ -192,7 +192,11 @@ public class BancoTestes : IDisposable
         var troca = new TrocaUso(Momento(5, 10, 0), "chrome", "Painel");
 
         Assert.True(Banco.GravarUso(troca));
-        Assert.False(Banco.GravarUso(troca));
+
+        // A segunda vez a linha já está lá: a troca ESTÁ registrada, e o
+        // amostrador não precisa ficar tentando de novo (e adiar a troca
+        // seguinte).
+        Assert.True(Banco.GravarUso(troca));
 
         Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
     }
@@ -258,9 +262,35 @@ public class BancoTestes : IDisposable
         int apagados = Banco.ApagarAntigos(Momento(3, 0, 0));
 
         Assert.Equal(2, apagados);
-        Assert.Equal(1, Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue).Count);
+        Assert.Single(Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue));
         Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
         Assert.Empty(Banco.LerUso(Momento(1, 10, 0)));
+    }
+
+    [Fact]
+    public void ApagarAntigos_CadaTabelaTemOPrazoDela()
+    {
+        UsarPastasTemporarias();
+
+        // As amostras ficam 15 dias; o histórico de uso fica 30. Cortar o
+        // uso junto com as amostras perderia meio mês de dado que a regra
+        // promete guardar.
+        var agora = DateTime.Now;
+
+        Banco.GravarAmostra(Amostra(agora.AddDays(-20)));
+        Banco.GravarAmostra(Amostra(agora.AddDays(-2)));
+        Banco.GravarUso(new TrocaUso(agora.AddDays(-20), "chrome", "Painel"));
+        Banco.GravarUso(new TrocaUso(agora.AddDays(-20), "code", "Painel"));
+
+        int apagados = Banco.ApagarAntigos(agora.AddDays(-15));
+
+        // Uma amostra e um registro de uso saem (ambos têm mais de 15 dias).
+        Assert.Equal(2, apagados);
+
+        Banco.ApagarUsosAntigos(agora.AddDays(-30));
+
+        // Com 30 dias, o registro de uso antigo também sai.
+        Assert.Empty(Banco.LerUso(agora.AddDays(-20)));
     }
 
     // ------------------------------------------------------------------ migração
@@ -340,7 +370,53 @@ public class BancoTestes : IDisposable
         Assert.Equal(2, Banco.LerUso(Momento(5, 10, 0)).Count);
     }
 
+    [Fact]
+    public void Migracao_Retomada_ReimportaOCsvAntigo()
+    {
+        UsarPastasTemporarias();
+
+        Directory.CreateDirectory(_pastaLegada!);
+        File.WriteAllLines(Path.Combine(_pastaLegada!, "uso-2026-11-05.csv"), new[]
+        {
+            "2026-11-05T10:00:00.000;chrome;Painel"
+        });
+
+        Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
+
+        // A versão do esquema volta atrás: é o caminho da retentativa (a
+        // importação falhou no meio e o histórico antigo ainda precisa
+        // entrar). O CSV antigo tem de entrar de novo.
+        Banco.Instancia!.Executar("PRAGMA user_version = 0");
+        Banco.Fechar();
+
+        Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
+    }
+
     // ------------------------------------------------------------------ reparo
+
+    [Fact]
+    public void Estado_ComArquivoEstragado_AvisaQuePrecisaDeReparo()
+    {
+        UsarPastasTemporarias();
+
+        Banco.GravarAmostra(Amostra(Momento(5, 10, 0)));
+        Banco.Fechar();
+        File.WriteAllBytes(Banco.Caminho, LixoDeArquivo());
+
+        // O banco não abre: a tela precisa dizer que há reparo a fazer, e
+        // não que o histórico sumiu.
+        Assert.Contains("reparo", Banco.Estado);
+    }
+
+    [Fact]
+    public void Estado_ComBancoIntegro_DizQueEstaIntegro()
+    {
+        UsarPastasTemporarias();
+
+        Banco.GravarAmostra(Amostra(Momento(5, 10, 0)));
+
+        Assert.Equal("ok", Banco.Estado);
+    }
 
     [Fact]
     public void Reparar_ComBancoIntegro_NaoFazNada()
@@ -431,7 +507,15 @@ public class BancoTestes : IDisposable
         var resultado = Banco.RestaurarCopia();
 
         Assert.True(resultado.Sucesso);
-        Assert.NotNull(Banco.CopiaAvariadaRecente());
+
+        // A cópia avariada voltou para o lugar: o banco volta a estar
+        // estragado (é o desfazer do reparo), e o banco que estava no
+        // lugar ficou guardado com outro nome — fora do padrão das cópias
+        // avariadas, para o desfazer não apontar para o banco bom.
+        Assert.Null(Banco.CopiaAvariadaRecente());
+        Assert.Contains("precisa de reparo", Banco.Estado);
+        Assert.NotNull(resultado.Copia);
+        Assert.True(File.Exists(resultado.Copia!));
     }
 
     [Fact]
