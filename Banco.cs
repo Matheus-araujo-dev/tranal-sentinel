@@ -544,8 +544,14 @@ public static class Banco
     }
 
     /// <summary>
-    /// O tamanho do arquivo do banco, em bytes (0 quando não existe). Para
+    /// O tamanho do banco no disco, em bytes (0 quando não existe). Para
     /// a tela mostrar quanto o histórico ocupa.
+    ///
+    /// <para>
+    /// A conta inclui o arquivo de WAL (<c>-wal</c>): em modo WAL os dados
+    /// mais recentes ficam nele até o checkpoint, e mostrar só o arquivo
+    /// principal diria que o banco está vazio quando não está.
+    /// </para>
     /// </summary>
     public static long Tamanho
     {
@@ -553,8 +559,15 @@ public static class Banco
         {
             try
             {
+                long total = 0;
+
                 var info = new FileInfo(Caminho);
-                return info.Exists ? info.Length : 0;
+                if (info.Exists) total += info.Length;
+
+                var wal = new FileInfo(Caminho + "-wal");
+                if (wal.Exists) total += wal.Length;
+
+                return total;
             }
             catch
             {
@@ -910,7 +923,10 @@ public static class Banco
             $"{salvasAmostras} amostras de sensor e {salvosUsos} registros de uso foram salvos.";
 
         if (salvasAmostras == 0 && salvosUsos == 0)
+        {
             relato += " Nada pôde ser lido do banco estragado: o banco novo começa vazio.";
+            relato += " Se o histórico antigo em CSV ainda estiver no disco, apagar o arquivo do banco faz o app importá-lo de novo.";
+        }
 
         if (copia != null)
             relato += $" O banco antigo ficou guardado em {copia}.";

@@ -65,6 +65,14 @@ public partial class App : Application
             return;
         }
 
+        // Banco de dados do histórico pela linha de comando: mostra o estado
+        // do banco e repara o que estiver estragado.
+        if (Array.Exists(e.Args, a => string.Equals(a, "--banco", StringComparison.OrdinalIgnoreCase)))
+        {
+            Shutdown(BancoCli.Executar(e.Args));
+            return;
+        }
+
         // Processo filho da coleta de sensores: não abre janela e não trava
         // a instância única (é quem grava as leituras para o app pai ler).
         int indiceWorker = Array.FindIndex(e.Args, a => string.Equals(a, SensorWorker.Argumento, StringComparison.OrdinalIgnoreCase));
