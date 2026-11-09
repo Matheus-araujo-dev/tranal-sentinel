@@ -883,7 +883,10 @@
 
                         <ItemsControl x:Name="TrafegoCards" ItemTemplate="{StaticResource CardTemplate}"/>
 
-                        <TextBlock x:Name="TrafegoVazio" Text="Nenhum programa registrou tráfego neste dia. O app só mede enquanto está rodando."
+                        <!-- O texto deste aviso e escrito pelo codigo (TrafegoRegras): ele sabe
+                                     se o dia e o de hoje (medicao ao vivo) ou um dia guardado no
+                                     banco. Um texto fixo aqui falharia com o cartao. -->
+                        <TextBlock x:Name="TrafegoVazio" Text=""
                                    Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
 
                         <DataGrid x:Name="TrafegoRanking" AutoGenerateColumns="False" IsReadOnly="True"

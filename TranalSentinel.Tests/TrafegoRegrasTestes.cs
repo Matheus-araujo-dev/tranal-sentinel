@@ -465,4 +465,34 @@ public class TrafegoRegrasTestes
         Assert.Equal("3.000.000.000", descartados.Value);
     }
 
+    [Fact]
+    public void Relatorio_TextoSemProgramas_FalaDoDiaQueOCartaoMostra()
+    {
+        // O texto que a tela escreve onde o ranking estaria: no dia de
+        // hoje ele explica a medicao ao vivo; num dia guardado no banco
+        // ele nao fala de "o app so mede enquanto esta rodando".
+        var hoje = TrafegoRegras.Relatorio(
+            new List<TrafegoPrograma>(), DateTime.Today, DateTime.Today,
+            DateTime.Now, true, null, 0);
+
+        Assert.Contains("O app só mede enquanto está rodando", hoje.TextoSemProgramas);
+
+        var guardado = TrafegoRegras.Relatorio(
+            new List<TrafegoPrograma>(), DateTime.Today.AddDays(-1), DateTime.Today,
+            DateTime.Now, true, null, 0);
+
+        Assert.DoesNotContain("O app só mede enquanto está rodando", guardado.TextoSemProgramas);
+        Assert.Contains("neste dia", guardado.TextoSemProgramas);
+    }
+
+    [Fact]
+    public void Relatorio_ComLeituraQueFalhou_DizQueNaoPouLer()
+    {
+        var relatorio = TrafegoRegras.Relatorio(
+            new List<TrafegoPrograma>(), DateTime.Today, DateTime.Today,
+            DateTime.Now, false, null, -1);
+
+        Assert.Contains("não pôde ser lido", relatorio.TextoSemProgramas);
+    }
+
 }

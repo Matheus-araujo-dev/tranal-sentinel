@@ -463,8 +463,9 @@ public partial class MainWindow
             _trafegoAvisoGravacao = gravou
                 ? null
                 : "O total do dia não pôde ser gravado no banco (o disco pode estar cheio, " +
-                  "ou o arquivo do banco pode estar trancado). O número acima é só o que foi " +
-                  "medido nesta execução — quando o app fechar, o que não foi gravado se perde.";
+                  "ou o arquivo do banco pode estar trancado). O número acima soma o que já " +
+                  "estava guardado com o que foi medido depois; a parte que não entrou no banco " +
+                  "se perde quando o app fechar.";
         }
 
         // Quando não deu para ler a contagem, o dia é gravado com -1: o -1
@@ -496,7 +497,16 @@ public partial class MainWindow
     {
         try
         {
-            if (!_trafegoGravavel) return;
+            if (!_trafegoGravavel)
+            {
+                // A base pode ter sido lida depois do último tique: tentar
+                // de novo antes de desistir (o caminho do relógio tenta a
+                // cada tique). Desistir aqui perderia o tráfego medido na
+                // sessão sem mais ninguém para salvar.
+                TentarBaseDeNovo();
+
+                if (!_trafegoGravavel) return;
+            }
 
             DateTime hoje = DateTime.Today;
 
@@ -540,6 +550,12 @@ public partial class MainWindow
             if (TrafegoCards == null) return;
 
             TrafegoCards.ItemsSource = new List<TrafegoCartao> { relatorio.Cartao };
+
+            // O texto da tela vazia vem do relatório: ele sabe se o dia é
+            // o de hoje (medição ao vivo) ou um dia guardado no banco.
+            // E ele volta ao normal quando o cartão monta de novo — um
+            // erro antigo ficaria na tela como se fosse o estado atual.
+            TrafegoVazio.Text = relatorio.TextoSemProgramas;
 
             var linhas = TrafegoRegras.Linhas(relatorio.Ranking);
             TrafegoRanking.ItemsSource = linhas;

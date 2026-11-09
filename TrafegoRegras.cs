@@ -63,7 +63,15 @@ public sealed record TrafegoCartao(
 /// </summary>
 /// <param name="Cartao">O cartão pronto para a tela.</param>
 /// <param name="Ranking">Os programas que mais usaram a rede.</param>
-public sealed record TrafegoRelatorio(TrafegoCartao Cartao, IReadOnlyList<TrafegoPrograma> Ranking);
+/// <param name="TextoSemProgramas">
+/// O que a tela escreve onde o ranking estaria. Ele é do dia que o
+/// cartão mostra: um dia guardado no banco não fala de "o app só mede
+/// enquanto está rodando".
+/// </param>
+public sealed record TrafegoRelatorio(
+    TrafegoCartao Cartao,
+    IReadOnlyList<TrafegoPrograma> Ranking,
+    string TextoSemProgramas);
 
 /// <summary>
 /// As regras do cartão TRANAL REDE: o ranking por programa e os textos.
@@ -360,12 +368,22 @@ public static class TrafegoRegras
                     true,
                     "O histórico de tráfego deste dia não pôde ser lido inteiro — o cartão BANCO DE DADOS DO HISTÓRICO, na aba Diagnóstico, diz o que houve. Nenhum número é inventado para tapar o buraco.",
                     MetricasDesconhecidas()),
-                new List<TrafegoPrograma>());
+                new List<TrafegoPrograma>(),
+                "O histórico de tráfego deste dia não pôde ser lido.");
         }
 
         var ranking = Ranking(numeros, MaximoNoRanking);
         int totalProgramas = ContarProgramas(numeros);
         var (enviados, recebidos, total) = Totais(numeros);
+
+        // O texto da tela vazia é do dia que o cartão mostra: um dia
+        // guardado no banco não fala de "o app só mede enquanto está
+        // rodando" — o número veio do banco, e não de uma medição ao
+        // vivo.
+        string textoSemProgramas = dia.Date == hoje.Date
+            ? "Nenhum programa registrou tráfego de internet desde que o app começou a medir" +
+              $" (hoje é {agora.ToString("HH:mm", CultureInfo.InvariantCulture)}). O app só mede enquanto está rodando."
+            : "Nenhum programa registrou tráfego de internet neste dia.";
 
         bool semMedicao = !string.IsNullOrEmpty(erro);
         bool semNada = total <= 0;
@@ -380,7 +398,7 @@ public static class TrafegoRegras
             : TextoDosBytes(total);
 
         string reasons = MontarReasons(ranking, totalProgramas, total, erro, perdidos, perdidosDesconhecidos,
-            semNada, dia.Date == hoje.Date, agora, aviso);
+            semNada, textoSemProgramas, agora, aviso);
 
         var metricas = new List<KeyValuePair<string, string>>
         {
@@ -399,7 +417,8 @@ public static class TrafegoRegras
 
         return new TrafegoRelatorio(
             new TrafegoCartao(titulo, meta, selo, alerta, reasons, metricas),
-            ranking);
+            ranking,
+            textoSemProgramas);
     }
 
     /// <summary>
@@ -414,7 +433,7 @@ public static class TrafegoRegras
         long perdidos,
         bool perdidosDesconhecidos,
         bool semNada,
-        bool diaCorrente,
+        string textoSemProgramas,
         DateTime agora,
         string? aviso)
     {
@@ -428,14 +447,9 @@ public static class TrafegoRegras
 
         if (semNada)
         {
-            // O texto é do dia corrente ou de um dia guardado? São duas
-            // afirmações diferentes: dizer "desde que o app começou a
-            // medir (hoje é 14:32)" num cartão de ontem seria uma
-            // afirmação falsa sobre a origem do número.
-            partes.Add(diaCorrente
-                ? "Nenhum programa registrou tráfego de internet desde que o app começou a medir" +
-                    $" (hoje é {agora.ToString("HH:mm", CultureInfo.InvariantCulture)}). O app só mede enquanto está rodando."
-                : "Nenhum programa registrou tráfego de internet neste dia.");
+            // O texto é o mesmo que a tela vazia mostra (um lugar só), e
+            // ele já sabe se o dia é o de hoje ou um dia guardado.
+            partes.Add(textoSemProgramas);
         }
         else
         {
