@@ -70,6 +70,21 @@ public static class Banco
     private static string _estado = "";
 
     /// <summary>
+    /// Um aviso sobre a última abertura do banco — a migração do histórico
+    /// antigo ficou incompleta, por exemplo. Vazio quando não há nada para
+    /// avisar.
+    ///
+    /// <para>
+    /// O aviso é separado do estado porque os dois são coisas diferentes:
+    /// o estado diz se o banco está de pé, o aviso diz o que ficou
+    /// pendente. Um aviso que mora no estado desaparece na primeira vez
+    /// que o estado é reescrito — e foi exatamente o que aconteceu com a
+    /// migração do CSV.
+    /// </para>
+    /// </summary>
+    private static string _aviso = "";
+
+    /// <summary>
     /// Troca a pasta do banco. Só os testes usam isto: eles não podem
     /// escrever no <c>%LOCALAPPDATA%</c> do usuário. Vazio = a pasta de verdade.
     /// </summary>
@@ -146,10 +161,13 @@ public static class Banco
     /// A verificação acontece com a trava do banco: o reparo fecha a
     /// instância e troca o arquivo, e uma verificação fora da trava leria
     /// um arquivo que está sendo trocado por baixo. O custo é medido e é
-    /// pequeno: num banco de 37 MB com 260 mil amostras, o
-    /// <c>quick_check</c> leva 65 ms e o completo 62 ms (medido). A
-    /// coleta grava de 5 em 5 segundos — uma pausa de 65 ms não aparece
-    /// para o usuário.
+    /// pequeno: num banco com 258 mil amostras e 18,6 MB de arquivo
+    /// principal, o <c>quick_check</c> e o <c>integrity_check</c> levam
+    /// cerca de 60 ms cada (medido em 09/11/2026, mediana de 15 medidas
+    /// com a ordem alternada) — o completo <b>não</b> é mais rápido, e a
+    /// diferença entre os dois fica dentro do ruído da medição. A coleta
+    /// grava de 5 em 5 segundos: uma pausa de 60 ms não aparece para o
+    /// usuário.
     /// </para>
     /// </summary>
     private static string EstadoDaIntegridade(bool completo)
@@ -204,7 +222,9 @@ public static class Banco
             temArquivo ? -1 : 0,
             temArquivo ? -1 : 0,
             Caminho,
-            CopiaAvariadaRecente());
+            CopiaAvariadaRecente(),
+            _aviso,
+            0);
     }
 
     /// <summary>
@@ -217,13 +237,24 @@ public static class Banco
     /// <param name="Uso">Quantos registros de uso estão gravados.</param>
     /// <param name="Caminho">Onde o banco está.</param>
     /// <param name="CopiaAvariada">A cópia avariada mais recente (null quando não há).</param>
+    /// <param name="Aviso">
+    /// Um aviso sobre o banco que não o impede de funcionar (a migração do
+    /// histórico antigo ficou incompleta, por exemplo). Vazio quando não
+    /// há nada a avisar.
+    /// </param>
+    /// <param name="DiasComUso">
+    /// Quantos dias têm histórico de uso — contado no mesmo retrato das
+    /// outras linhas, para o relatório não misturar dois bancos.
+    /// </param>
     public sealed record Diagnostico(
         string Estado,
         long TamanhoBytes,
         long Amostras,
         long Uso,
         string Caminho,
-        string? CopiaAvariada);
+        string? CopiaAvariada,
+        string Aviso = "",
+        int DiasComUso = 0);
 
     /// <summary>
     /// Junta o retrato do banco. Nunca lança: a tela do TRANAL SAÚDE mostra
@@ -242,13 +273,19 @@ public static class Banco
             // contagem, a integridade e o tamanho vinham de momentos
             // diferentes, e o reparo troca o arquivo no meio — o retrato
             // acabava misturando o banco velho com o tamanho do novo.
+            //
+            // A contagem de dias com histórico entra no mesmo retrato: a
+            // linha de comando mostra os dois no mesmo relatório, e dois
+            // momentos diferentes podiam dar dois bancos diferentes.
             return EmBanco(b => new Diagnostico(
                     IntegridadeInterna(b, completo),
                     TamanhoDoArquivo(),
                     Contar(b, "SELECT COUNT(*) AS total FROM amostras"),
                     Contar(b, "SELECT COUNT(*) AS total FROM uso"),
                     Caminho,
-                    CopiaAvariadaRecente()),
+                    CopiaAvariadaRecente(),
+                    _aviso,
+                    DiasComUsoEm(b).Count),
                 SemInstancia());
         }
         catch
@@ -257,7 +294,7 @@ public static class Banco
             // banco não pôde ser lido.
             return new Diagnostico(
                 "O banco de dados não pôde ser lido.",
-                0, 0, 0, Caminho, null);
+                0, 0, 0, Caminho, null, _aviso, 0);
         }
     }
 
@@ -266,6 +303,10 @@ public static class Banco
     /// </summary>
     private static Sqlite? Abrir()
     {
+        // Cada abertura começa sem aviso: um aviso de uma tentativa
+        // anterior não pode sobreviver para a próxima.
+        _aviso = "";
+
         try
         {
             Directory.CreateDirectory(Pasta);
@@ -296,7 +337,12 @@ public static class Banco
             return null;
         }
 
-        Migrar(banco);
+        // O aviso da migração viaja num canal só dele (_aviso). O estado
+        // (_estado) diz se o banco está de pé; o aviso diz o que ficou
+        // pendente. Quando os dois moravam no mesmo lugar, o "ok"
+        // escrito aqui apagava a falha da migração duas linhas depois —
+        // e uma migração pela metade passava em silêncio.
+        _aviso = Migrar(banco);
         _estado = "ok";
 
         return banco;
@@ -568,49 +614,61 @@ public static class Banco
         // A leitura inteira (inclusive as contagens) acontece com a trava do
         // banco: o reparo pode trocar o arquivo no meio, e ler um arquivo
         // que está sendo trocado dá número errado na tela.
-        return EmBanco(b =>
+        return EmBanco(b => DiasComUsoEm(b), new List<DateTime>());
+    }
+
+    /// <summary>
+    /// Os dias que têm histórico, contados num banco já aberto.
+    ///
+    /// <para>
+    /// É o núcleo da contagem: a lista pública e o retrato do banco usam
+    /// a mesma conta. A linha de comando mostra a contagem de dias ao
+    /// lado da contagem de linhas — e os dois números precisam vir do
+    /// mesmo banco, senão o relatório mente.
+    /// </para>
+    /// </summary>
+    private static List<DateTime> DiasComUsoEm(Sqlite banco)
+    {
+        var dias = new List<DateTime>();
+
+        var limites = banco.Consultar("SELECT MIN(momento) AS primeiro, MAX(momento) AS ultimo FROM uso");
+        if (limites.Count == 0) return dias;
+
+        long primeiro = limites[0].Inteiro("primeiro");
+        long ultimo = limites[0].Inteiro("ultimo");
+        if (primeiro <= 0 || ultimo <= 0) return dias;
+
+        DateTime dia = Sqlite.UnixParaMomento(ultimo).Date;
+        DateTime fim = Sqlite.UnixParaMomento(primeiro).Date;
+
+        // O dia local é uma faixa de instantes — e a faixa muda no
+        // horário de verão. Por isso a conta é feita aqui, com a data
+        // local do .NET, e não no SQLite (lá o 'localtime' depois do
+        // 'unixepoch' não devolve nada na biblioteca do Windows).
+        //
+        // O limite é de dias COM HISTÓRICO, e a varredura vai do mais
+        // novo para o mais antigo. Começando pelo mais antigo, um
+        // histórico longo (dois anos de CSV importado) consumia o
+        // limite nos dias velhos — e os dias recentes sumiam da
+        // lista, que é justamente o que a tela mostra primeiro.
+        int conferidos = 0;
+        while (dia >= fim && dias.Count < 800 && conferidos < 5000)
         {
-            var dias = new List<DateTime>();
+            long inicio = Sqlite.MomentoParaUnix(dia);
+            long fimDia = Sqlite.MomentoParaUnix(dia.AddDays(1));
 
-            var limites = b.Consultar("SELECT MIN(momento) AS primeiro, MAX(momento) AS ultimo FROM uso");
-            if (limites.Count == 0) return dias;
+            var existe = banco.Consultar(
+                "SELECT 1 AS dia FROM uso WHERE momento >= ? AND momento < ? LIMIT 1",
+                inicio, fimDia);
 
-            long primeiro = limites[0].Inteiro("primeiro");
-            long ultimo = limites[0].Inteiro("ultimo");
-            if (primeiro <= 0 || ultimo <= 0) return dias;
+            if (existe.Count > 0) dias.Add(dia);
 
-            DateTime dia = Sqlite.UnixParaMomento(ultimo).Date;
-            DateTime fim = Sqlite.UnixParaMomento(primeiro).Date;
+            dia = dia.AddDays(-1);
+            conferidos++;
+        }
 
-            // O dia local é uma faixa de instantes — e a faixa muda no
-            // horário de verão. Por isso a conta é feita aqui, com a data
-            // local do .NET, e não no SQLite (lá o 'localtime' depois do
-            // 'unixepoch' não devolve nada na biblioteca do Windows).
-            //
-            // O limite é de dias COM HISTÓRICO, e a varredura vai do mais
-            // novo para o mais antigo. Começando pelo mais antigo, um
-            // histórico longo (dois anos de CSV importado) consumia o
-            // limite nos dias velhos — e os dias recentes sumiam da
-            // lista, que é justamente o que a tela mostra primeiro.
-            int conferidos = 0;
-            while (dia >= fim && dias.Count < 800 && conferidos < 5000)
-            {
-                long inicio = Sqlite.MomentoParaUnix(dia);
-                long fimDia = Sqlite.MomentoParaUnix(dia.AddDays(1));
-
-                var existe = b.Consultar(
-                    "SELECT 1 AS dia FROM uso WHERE momento >= ? AND momento < ? LIMIT 1",
-                    inicio, fimDia);
-
-                if (existe.Count > 0) dias.Add(dia);
-
-                dia = dia.AddDays(-1);
-                conferidos++;
-            }
-
-            // Do mais novo para o mais antigo (a lista da tela começa por hoje).
-            return dias.OrderByDescending(d => d).ToList();
-        }, new List<DateTime>());
+        // Do mais novo para o mais antigo (a lista da tela começa por hoje).
+        return dias.OrderByDescending(d => d).ToList();
     }
 
     /// <summary>
@@ -800,12 +858,12 @@ public static class Banco
     /// histórico antigo ficaria órfão para sempre, sem aviso.
     /// </para>
     /// </summary>
-    private static void Migrar(Sqlite banco)
+    private static string Migrar(Sqlite banco)
     {
         try
         {
             int versao = VersaoDoEsquema(banco);
-            if (versao >= VersaoEsquema) return;
+            if (versao >= VersaoEsquema) return "";
 
             // Só entra no banco o que ainda está dentro do prazo de cada
             // tabela: o app promete guardar 15 dias de amostras e 30 de
@@ -815,7 +873,13 @@ public static class Banco
             var amostras = LegadoCsv.LerAmostras(DateTime.Now.AddDays(-DiasRetidosAmostras));
             var trocas = LegadoCsv.LerTrocas(DateTime.Now.AddDays(-DiasRetidosUso));
 
-            if (amostras.Count > 0 || trocas.Count > 0)
+            // A leitura do CSV pode parar no meio (o arquivo trancado, o
+            // disco cheio). Uma leitura pela metade NÃO é uma importação
+            // completa: o que faltou nunca entraria no banco — e, como a
+            // contagem do que entrou bate, ninguém saberia que faltou.
+            bool leituraCompleta = amostras.Completa && trocas.Completa;
+
+            if (amostras.Linhas.Count > 0 || trocas.Linhas.Count > 0)
             {
                 bool fechou = banco.EmTransacao(b =>
                 {
@@ -830,20 +894,20 @@ public static class Banco
                     // reaproveitado: preparar e finalizar um comando por
                     // linha custava 23 segundos em 260 mil linhas
                     // (medido).
-                    int entrouAmostras = b.ExecutarEmLote(InsertAmostra, amostras.Select(ValoresDaAmostra));
-                    if (entrouAmostras != amostras.Count)
+                    int entrouAmostras = b.ExecutarEmLote(InsertAmostra, amostras.Linhas.Select(ValoresDaAmostra));
+                    if (entrouAmostras != amostras.Linhas.Count)
                         throw new InvalidOperationException("a importação das amostras parou na linha " + entrouAmostras);
 
-                    int entraramTrocas = b.ExecutarEmLote(InsertUso, trocas.Select(ValoresDaTroca));
-                    if (entraramTrocas != trocas.Count)
+                    int entraramTrocas = b.ExecutarEmLote(InsertUso, trocas.Linhas.Select(ValoresDaTroca));
+                    if (entraramTrocas != trocas.Linhas.Count)
                         throw new InvalidOperationException("a importação do histórico de uso parou na linha " + entraramTrocas);
 
-                    // A versão do esquema é gravada dentro da MESMA
-                    // transação: se ela fecha, o CSV já entrou; se não
-                    // fecha, a importação volta atrás e a migração é
-                    // tentada de novo na próxima abertura (a versão do
-                    // esquema continua atrás).
-                    if (!b.Executar($"PRAGMA user_version = {VersaoEsquema}"))
+                    // A versão do esquema só é gravada quando a LEITURA foi
+                    // completa: a versão diz "o CSV já entrou". Com a
+                    // leitura pela metade, ela diria que entrou tudo — e
+                    // o resto do CSV ficaria órfão para sempre, sem
+                    // aviso.
+                    if (leituraCompleta && !b.Executar($"PRAGMA user_version = {VersaoEsquema}"))
                         throw new InvalidOperationException("não foi possível gravar a versão do esquema");
                 });
 
@@ -852,16 +916,28 @@ public static class Banco
                     // A transação foi desfeita: o banco continua vazio e a
                     // migração é tentada de novo na próxima abertura (a
                     // versão do esquema continua atrás).
-                    _estado = "Não foi possível migrar o histórico antigo para o banco de dados.";
-                    return;
+                    return "Não foi possível migrar o histórico antigo para o banco de dados.";
                 }
             }
-            else
+            else if (leituraCompleta)
             {
                 // Não havia o que importar: a versão é gravada fora da
                 // transação (não há transação para fechar).
                 banco.Executar($"PRAGMA user_version = {VersaoEsquema}");
             }
+
+            if (!leituraCompleta)
+            {
+                // O que deu para ler entrou no banco; o que faltou fica
+                // para a próxima abertura (a versão do esquema continua
+                // atrás, porque a importação não acabou). O aviso diz
+                // isso: uma leitura parcial é o tipo de coisa que o
+                // usuário precisa saber, não o tipo de coisa que pode
+                // passar em silêncio.
+                return "A leitura do histórico antigo (CSV) parou no meio: parte do histórico pode não ter sido importado. O app tenta de novo na próxima abertura.";
+            }
+
+            return "";
         }
         catch
         {
@@ -869,7 +945,7 @@ public static class Banco
             // vazio e o histórico novo começa a ser gravado nele. A migração
             // é tentada de novo na próxima abertura (a versão do esquema
             // continua atrás).
-            _estado = "Não foi possível migrar o histórico antigo para o banco de dados.";
+            return "Não foi possível migrar o histórico antigo para o banco de dados.";
         }
     }
 
@@ -962,8 +1038,16 @@ public static class Banco
             bool falhouAmostras = false;
             bool falhouUsos = false;
 
+            // A versão do esquema do banco velho é lida ANTES de
+            // descartar a instância: o banco novo precisa da mesma
+            // versão. Sem ela, a próxima abertura importaria o CSV de
+            // novo — por cima do histórico que o reparo acabou de
+            // recuperar.
+            int versaoEsquema = 0;
+
             bool leu = banco.EmTransacaoLeitura(b =>
             {
+                versaoEsquema = VersaoDoEsquema(b);
                 totalAmostras = ContarParaReparo(b, "SELECT COUNT(*) AS total FROM amostras");
                 totalUso = ContarParaReparo(b, "SELECT COUNT(*) AS total FROM uso");
 
@@ -999,7 +1083,7 @@ public static class Banco
             _instancia = null;
             _ultimaTentativa = DateTime.MinValue;
 
-            return Reconstruir(amostras, usos, integridade, totalAmostras, totalUso);
+            return Reconstruir(amostras, usos, integridade, totalAmostras, totalUso, versaoEsquema);
         }
     }
 
@@ -1126,13 +1210,14 @@ public static class Banco
     /// Cria um banco novo e copia o que foi lido do velho. Devolve o
     /// relato do que se salvou.
     /// </summary>
-    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, string integridade, long totalAmostras, long totalUso)
+    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, string integridade, long totalAmostras, long totalUso, int versaoEsquema)
     {
         string novoCaminho = Caminho + ".reparo";
 
         try
         {
             if (File.Exists(novoCaminho)) File.Delete(novoCaminho);
+            ApagarArquivosDoWal(novoCaminho);
         }
         catch
         {
@@ -1161,7 +1246,7 @@ public static class Banco
             {
                 if (novo == null)
                 {
-                    ApagarArquivo(novoCaminho);
+                    ApagarBancoNovo(novoCaminho);
                     return new ResultadoReparo(false, "Não foi possível criar o banco novo durante o reparo.", 0, 0, null);
                 }
 
@@ -1173,7 +1258,7 @@ public static class Banco
                     // Sem esquema não cabe linha nenhuma: trocar o arquivo
                     // aqui esvaziaria um banco que talvez ainda tivesse
                     // dado para ler.
-                    ApagarArquivo(novoCaminho);
+                    ApagarBancoNovo(novoCaminho);
                     return new ResultadoReparo(false, "Não foi possível criar o esquema do banco novo: o reparo foi cancelado e o arquivo antigo foi mantido.", 0, 0, null);
                 }
 
@@ -1197,11 +1282,31 @@ public static class Banco
                         motivo = "só " + salvos + " de " + usosGravaveis.Count + " registros de uso entraram no banco novo";
                         throw new InvalidOperationException(motivo);
                     }
+
+                    // A versão do esquema vai junto com as linhas: sem
+                    // ela, a próxima abertura acharia que o CSV nunca
+                    // entrou e o importaria de novo — por cima do
+                    // histórico que o reparo acabou de recuperar.
+                    //
+                    // A versão do banco VELHO só é aproveitada quando
+                    // alguma linha foi recuperada. Se nada entrou (o
+                    // arquivo nem era um banco), o banco novo começa
+                    // sem a marca de "o CSV já entrou" — e o histórico
+                    // antigo volta do CSV na próxima abertura, em vez
+                    // de ficar para sempre fora do app.
+                    bool recuperouAlgo = amostrasGravaveis.Count > 0 || usosGravaveis.Count > 0;
+                    int versaoFinal = recuperouAlgo ? versaoEsquema : 0;
+
+                    if (!b.Executar($"PRAGMA user_version = {versaoFinal}"))
+                    {
+                        motivo = "não foi possível gravar a versão do esquema no banco novo";
+                        throw new InvalidOperationException(motivo);
+                    }
                 });
 
                 if (!fechou)
                 {
-                    ApagarArquivo(novoCaminho);
+                    ApagarBancoNovo(novoCaminho);
                     return new ResultadoReparo(false,
                         "Não foi possível gravar todo o histórico no banco novo" +
                         (motivo != null ? " (" + motivo + ")" : "") +
@@ -1215,7 +1320,7 @@ public static class Banco
         }
         catch (Exception ex)
         {
-            ApagarArquivo(novoCaminho);
+            ApagarBancoNovo(novoCaminho);
             return new ResultadoReparo(false, "Não foi possível reconstruir o banco de dados: " + ex.Message, 0, 0, null);
         }
 
@@ -1225,7 +1330,7 @@ public static class Banco
         int lidas = amostras.Count + usos.Count;
         if (lidas > 0 && salvasAmostras == 0 && salvosUsos == 0)
         {
-            ApagarArquivo(novoCaminho);
+            ApagarBancoNovo(novoCaminho);
             return new ResultadoReparo(false,
                 $"O reparo foi cancelado: {lidas} linhas foram lidas do banco antigo, mas nenhuma entrou no banco novo. O arquivo antigo foi mantido como está.",
                 0, 0, null);
@@ -1255,12 +1360,44 @@ public static class Banco
         {
             // A troca falhou: se o banco velho foi movido, ele volta para
             // o lugar — é melhor o banco estragado no lugar do que nenhum.
+            //
+            // O WAL dele volta junto: a cópia só vale alguma coisa se
+            // trouxer os dados que ainda estavam no WAL. Sem ele, o banco
+            // voltaria ao lugar mais velho do que estava — e o histórico
+            // das últimas gravações sumiria sem aviso.
+            bool restaurado = false;
             if (copia != null && !File.Exists(Caminho))
             {
-                try { File.Move(copia, Caminho); } catch { /* já foi relatado */ }
+                try
+                {
+                    File.Move(copia, Caminho);
+                    restaurado = true;
+                }
+                catch
+                {
+                    // Já foi relatado: o banco velho continua guardado na
+                    // cópia datada, que é o desfazer.
+                }
+
+                if (restaurado) MoverArquivoDoWal(copia + "-wal", Caminho + "-wal");
             }
 
-            return new ResultadoReparo(false, "Não foi possível trocar o banco de dados pelo novo.", salvasAmostras, salvosUsos, copia);
+            // O banco novo não entrou no lugar: ele não serve para nada
+            // aqui e ocupa espaço (dezenas de megabytes num histórico
+            // grande). Sem esta limpeza, cada tentativa de reparo com o
+            // app aberto deixava um arquivo órfão na pasta do histórico.
+            ApagarBancoNovo(novoCaminho);
+
+            string relatoTroca =
+                "Não foi possível trocar o arquivo do banco de dados pelo novo" +
+                " (o arquivo está em uso por outro programa — o TRANAL SENTINEL aberto, por exemplo)." +
+                " O banco antigo foi mantido como está.";
+
+            // A cópia só vale como desfazer quando ela ainda está no
+            // lugar: um banco que voltou para o caminho original não
+            // pode ser apontado como "cópia avariada" — o botão de
+            // restaurar ofereceria um arquivo que não existe.
+            return new ResultadoReparo(false, relatoTroca, salvasAmostras, salvosUsos, restaurado ? null : copia);
         }
 
         lock (Tranca)
@@ -1345,6 +1482,24 @@ public static class Banco
             // o arquivo temporário que ficou não entra no padrão das
             // cópias avariadas (o próximo reparo tenta apagá-lo de novo).
         }
+    }
+
+    /// <summary>
+    /// Apaga o banco novo do reparo e os arquivos de journaling que
+    /// ficaram junto dele. Falha não é problema: quem chama já decidiu
+    /// cancelar a operação, e o arquivo que sobrou não muda nada.
+    ///
+    /// <para>
+    /// Apagar os dois importa: o banco novo de um histórico grande ocupa
+    /// dezenas de megabytes, e deixá-lo na pasta a cada reparo cancelado
+    /// enchia o disco do usuário com arquivos órfãos que ninguém sabe
+    /// o que são.
+    /// </para>
+    /// </summary>
+    private static void ApagarBancoNovo(string caminho)
+    {
+        ApagarArquivo(caminho);
+        ApagarArquivosDoWal(caminho);
     }
 
     /// <summary>
@@ -1506,6 +1661,7 @@ public static class Banco
             _ultimaTentativa = DateTime.MinValue;
             _ultimaPoda = DateTime.MinValue;
             _estado = "";
+            _aviso = "";
         }
     }
 

@@ -107,11 +107,13 @@ public partial class App : Application
             return;
         }
 
-        bool first;
-        try { _single = new Mutex(true, @"Local\TranalSentinel.SingleInstance", out first); }
-        catch (UnauthorizedAccessException) { first = false; } // criado por outra instância com outro nível de permissão
+        // A trava de instância única mora em um lugar só (InstanciaUnica):
+        // o app precisa dela aqui, e a linha de comando do banco precisa
+        // saber se o app está aberto antes de trocar o arquivo do
+        // histórico.
+        _single = InstanciaUnica.Segurar();
 
-        if (!first)
+        if (_single == null)
         {
             IntPtr h = FindWindow(null, "TRANAL SENTINEL");
             if (h != IntPtr.Zero)

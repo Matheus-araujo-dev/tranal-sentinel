@@ -65,6 +65,20 @@ public static class LegadoCsv
     /// <summary>Quantos campos numéricos a linha de sensor tem (fora o timestamp).</summary>
     private const int CamposNumericos = 11;
 
+    /// <summary>
+    /// A leitura de um arquivo do histórico antigo: as linhas lidas e se a
+    /// leitura ficou completa.
+    /// </summary>
+    /// <typeparam name="T">O tipo da linha (amostra de sensor ou troca de uso).</typeparam>
+    /// <param name="Linhas">As linhas lidas.</param>
+    /// <param name="Completa">
+    /// False quando a leitura parou no meio (o arquivo trancado, o disco
+    /// cheio, o antivírus com o arquivo aberto). Uma leitura pela metade
+    /// <b>não pode valer como importação completa</b>: o histórico que
+    /// faltou nunca entraria no banco — e ninguém ficaria sabendo.
+    /// </param>
+    public sealed record Leitura<T>(List<T> Linhas, bool Completa);
+
     // ------------------------------------------------------------------ formato
 
     /// <summary>
@@ -168,12 +182,14 @@ public static class LegadoCsv
     /// importar anos de histórico só encheria o banco com o que seria
     /// podado em seguida. O CSV antigo continua no disco, com tudo.
     /// </param>
-    public static List<AmostraSensor> LerAmostras(DateTime? desde = null)
+    public static Leitura<AmostraSensor> LerAmostras(DateTime? desde = null)
     {
         var resultado = new List<AmostraSensor>();
+        bool completa = true;
+
         try
         {
-            if (!File.Exists(ArquivoSensores)) return resultado;
+            if (!File.Exists(ArquivoSensores)) return new Leitura<AmostraSensor>(resultado, true);
 
             foreach (var linha in File.ReadLines(ArquivoSensores))
             {
@@ -186,10 +202,14 @@ public static class LegadoCsv
         }
         catch
         {
-            // Arquivo trancado ou ilegível: a migração segue sem ele (e o
-            // app avisa que o histórico antigo não pôde ser importado).
+            // Arquivo trancado ou ilegível: a leitura parou no meio, e o
+            // que faltou não entrou. A migração precisa saber disso — sem
+            // o sinal, o histórico que faltou nunca entraria no banco, e
+            // ninguém seria avisado.
+            completa = false;
         }
-        return resultado;
+
+        return new Leitura<AmostraSensor>(resultado, completa);
     }
 
     /// <summary>
@@ -201,12 +221,14 @@ public static class LegadoCsv
     /// prazo da tabela (30 dias de histórico de uso): os arquivos de anos
     /// antigos não são importados — e eles continuam no disco.
     /// </param>
-    public static List<TrocaUso> LerTrocas(DateTime? desde = null)
+    public static Leitura<TrocaUso> LerTrocas(DateTime? desde = null)
     {
         var resultado = new List<TrocaUso>();
+        bool completa = true;
+
         try
         {
-            if (!Directory.Exists(PastaUso)) return resultado;
+            if (!Directory.Exists(PastaUso)) return new Leitura<TrocaUso>(resultado, true);
 
             foreach (string arquivo in Directory.EnumerateFiles(PastaUso, "uso-*.csv"))
             {
@@ -217,21 +239,37 @@ public static class LegadoCsv
                 if (desde is not null && diaDoArquivo is not null && diaDoArquivo.Value < desde.Value.Date)
                     continue;
 
-                foreach (var linha in File.ReadLines(arquivo))
+                try
                 {
-                    var troca = LerUso(linha);
-                    if (troca is null) continue;
-                    if (desde is not null && troca.Momento < desde.Value) continue;
+                    foreach (var linha in File.ReadLines(arquivo))
+                    {
+                        var troca = LerUso(linha);
+                        if (troca is null) continue;
+                        if (desde is not null && troca.Momento < desde.Value) continue;
 
-                    resultado.Add(troca);
+                        resultado.Add(troca);
+                    }
+                }
+                catch
+                {
+                    // Um arquivo trancado (o antivírus com ele aberto, o
+                    // disco cheio) interrompe só ESTE arquivo: os outros
+                    // continuam sendo lidos. Mas a leitura ficou pela
+                    // metade — e a migração precisa saber disso, senão o
+                    // que faltou nunca entraria no banco sem ninguém
+                    // ficar sabendo.
+                    completa = false;
                 }
             }
         }
         catch
         {
-            // Pasta trancada ou ilegível: a migração segue sem ela.
+            // Pasta trancada ou ilegível: a leitura parou no meio, e o que
+            // ficou de fora nunca entraria no banco sem aviso.
+            completa = false;
         }
-        return resultado;
+
+        return new Leitura<TrocaUso>(resultado, completa);
     }
 
     /// <summary>

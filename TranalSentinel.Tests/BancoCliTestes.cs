@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using Xunit;
 
 namespace TranalSentinel.Tests;
@@ -118,7 +119,85 @@ public class BancoCliTestes : IDisposable
         Assert.DoesNotContain("Registros de uso: 0", texto);
     }
 
+    [Fact]
+    public void RelatorioMostraODiasComUsoDoRetrato()
+    {
+        var dados = new Banco.Diagnostico("ok", 0, 0, 0, @"C:\banco\historico.db", null, "", 3);
+
+        string texto = BancoCli.MontarRelatorio(dados);
+
+        Assert.Contains("Dias com histórico de uso: 3", texto);
+    }
+
+    [Fact]
+    public void RelatorioNaoContaOsDiasDeNovo()
+    {
+        UsarPastasTemporarias();
+
+        Banco.GravarUso(new TrocaUso(DateTime.Today.AddHours(10), "chrome", "Painel"));
+
+        // O retrato diz 99 dias. Se o relatório contasse de novo, ele
+        // mostraria o número do banco de verdade (1 dia) — e o relatório
+        // misturaria dois bancos diferentes.
+        var dados = new Banco.Diagnostico("ok", 0, 0, 0, Banco.Caminho, null, "", 99);
+
+        string texto = BancoCli.MontarRelatorio(dados);
+
+        Assert.Contains("Dias com histórico de uso: 99", texto);
+    }
+
+    [Fact]
+    public void RelatorioMostraOAvisoDoBanco()
+    {
+        // O aviso é o que o usuário precisa saber: a migração do
+        // histórico antigo ter ficado pela metade não pode passar em
+        // silêncio só porque o banco está íntegro.
+        var dados = new Banco.Diagnostico("ok", 0, 0, 0, @"C:\banco\historico.db", null,
+            "A leitura do histórico antigo (CSV) parou no meio.");
+
+        string texto = BancoCli.MontarRelatorio(dados);
+
+        Assert.Contains("Aviso: A leitura do histórico antigo (CSV) parou no meio.", texto);
+    }
+
+    [Fact]
+    public void RelatorioSemAvisoNaoMostraALinhaDeAviso()
+    {
+        var dados = new Banco.Diagnostico("ok", 0, 0, 0, @"C:\banco\historico.db", null);
+
+        string texto = BancoCli.MontarRelatorio(dados);
+
+        Assert.DoesNotContain("Aviso:", texto);
+    }
+
     // ------------------------------------------------------------------ reparo pela linha de comando
+
+    [Fact]
+    public void RepararComOAppAbertoERecusado()
+    {
+        UsarPastasTemporarias();
+
+        Directory.CreateDirectory(_pasta!);
+        string banco = Path.Combine(_pasta!, "historico.db");
+        File.WriteAllBytes(banco, LixoDeArquivo());
+
+        // O app aberto segura a trava de instância única: o Windows
+        // segura o arquivo do banco, e a troca falharia só no último
+        // passo — depois de todo o trabalho de reconstruir o banco.
+        using (var trava = new Mutex(true, InstanciaUnica.Nome, out bool criado))
+        {
+            Assert.True(criado);
+
+            var (codigo, saida) = ExecutarLinhaDeComando("--banco", "--reparar", "--confirmar", "--pasta", _pasta!);
+
+            Assert.Equal(BancoCli.CodigoErro, codigo);
+            Assert.Contains("está aberto", saida);
+
+            // E o banco não foi tocado.
+            Assert.Equal(LixoDeArquivo().Length, new FileInfo(banco).Length);
+            Assert.Empty(Directory.GetFiles(_pasta!, "historico.db.reparo*"));
+        }
+    }
 
     [Fact]
     public void RepararSemConfirmarNaoMexeNoBanco()
@@ -129,7 +208,7 @@ public class BancoCliTestes : IDisposable
         string banco = Path.Combine(_pasta!, "historico.db");
         File.WriteAllBytes(banco, LixoDeArquivo());
 
-        int codigo = ExecutarLinhaDeComando("--banco", "--reparar", "--pasta", _pasta!);
+        int codigo = ExecutarLinhaDeComando("--banco", "--reparar", "--pasta", _pasta!).Codigo;
 
         // Sem --confirmar o reparo não acontece: trocar o arquivo do
         // histórico é decisão do usuário.
@@ -149,7 +228,7 @@ public class BancoCliTestes : IDisposable
         Directory.CreateDirectory(_pasta!);
         File.WriteAllBytes(Path.Combine(_pasta!, "historico.db"), LixoDeArquivo());
 
-        int codigo = ExecutarLinhaDeComando("--banco", "--reparar", "--confirmar", "--pasta", _pasta!);
+        int codigo = ExecutarLinhaDeComando("--banco", "--reparar", "--confirmar", "--pasta", _pasta!).Codigo;
 
         Assert.Equal(BancoCli.CodigoOk, codigo);
 
@@ -167,15 +246,18 @@ public class BancoCliTestes : IDisposable
 
     /// <summary>
     /// Roda a CLI sem sujar a saída do teste (e sem mexer no console de
-    /// verdade).
+    /// verdade). Devolve o código de saída e o que a CLI escreveu.
     /// </summary>
-    private static int ExecutarLinhaDeComando(params string[] argumentos)
+    private static (int Codigo, string Saida) ExecutarLinhaDeComando(params string[] argumentos)
     {
         var original = Console.Out;
+        var buffer = new StringWriter();
+
         try
         {
-            Console.SetOut(new StringWriter());
-            return BancoCli.Executar(argumentos);
+            Console.SetOut(buffer);
+            int codigo = BancoCli.Executar(argumentos);
+            return (codigo, buffer.ToString());
         }
         finally
         {

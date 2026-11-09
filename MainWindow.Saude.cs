@@ -312,6 +312,21 @@ public partial class MainWindow
                 ? "O banco de dados do histórico está íntegro."
                 : dados.Estado;
 
+            // O aviso do banco aparece na tela: o cartão não pode dizer
+            // "está íntegro" e esconder que a migração do histórico
+            // antigo ficou pela metade. O estado e o aviso são coisas
+            // diferentes — e os dois aparecem.
+            if (string.IsNullOrWhiteSpace(dados.Aviso))
+            {
+                SaudeBancoAvisoCaixa.Visibility = Visibility.Collapsed;
+                SaudeBancoAviso.Text = "";
+            }
+            else
+            {
+                SaudeBancoAvisoCaixa.Visibility = Visibility.Visible;
+                SaudeBancoAviso.Text = "Atenção: " + dados.Aviso;
+            }
+
             SaudeBancoResumo.ItemsSource = new List<InfoNode>
             {
                 new InfoNode { Header = "Tamanho do histórico", Value = TamanhoLegivel(dados.TamanhoBytes) },

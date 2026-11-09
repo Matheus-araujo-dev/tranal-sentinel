@@ -575,7 +575,7 @@ public sealed class SensorMonitor : IDisposable
             while (IsOpen)
             {
                 try { LerArquivo(); }
-                catch { }
+                catch { /* O log sumiu ou trancou: a leitura espera a próxima volta. */ }
                 try { GravarAmostraPendente(); }
                 catch { /* O log de sensores é um extra: a leitura continua. */ }
                 try { UsoAmostrador.Amostrar(DateTime.Now); }

@@ -52,6 +52,10 @@ public static class BancoCli
         trocar o arquivo do histórico é decisão do usuário, e uma linha de
         comando digitada sem querer não pode tomar essa decisão.
 
+        O reparo também exige o TRANAL SENTINEL fechado: com o app
+        aberto, o Windows segura o arquivo do banco de dados e a troca
+        do arquivo não dá certo.
+
         Com --pasta: olha o banco de outra pasta (uma cópia, por exemplo),
         em vez do banco de verdade do usuário.
         """;
@@ -85,15 +89,33 @@ public static class BancoCli
             if (reparar)
             {
                 // O reparo reconstrói o banco e troca o arquivo no lugar.
-                // Na tela, isso pede confirmação; na linha de comando, a
-                // confirmação é a flag --confirmar. Sem ela, o reparo não
-                // acontece: trocar o arquivo do histórico é decisão do
-                // usuário, e uma linha de comando digitada sem querer não
-                // pode tomar essa decisão.
+                // Duas coisas precisam estar resolvidas antes: a
+                // confirmação do usuário e o app estar fechado.
+                //
+                // O app aberto é o que mais aparece: o TRANAL SENTINEL
+                // entra sozinho com o Windows e fica na bandeja, e o
+                // Windows segura o arquivo do banco enquanto ele roda. A
+                // troca falharia só no último passo — depois de todo o
+                // trabalho de reconstruir o banco, e com um relatório que
+                // não dizia a verdade. A recusa vem antes: o usuário
+                // fecha o app e repete o comando.
+                var pendencias = new List<string>();
+
                 if (!confirmar)
                 {
+                    pendencias.Add("Falta a confirmação: repita o comando com --confirmar.");
+                }
+
+                if (InstanciaUnica.EstaRodando())
+                {
+                    pendencias.Add("O TRANAL SENTINEL está aberto: feche o app (o ícone na bandeja) antes de reparar.");
+                }
+
+                if (pendencias.Count > 0)
+                {
                     Console.WriteLine("O reparo reconstrói o banco de dados e guarda o banco velho como cópia datada.");
-                    Console.WriteLine("Para fazer isso, repita o comando com --confirmar.");
+                    foreach (string pendencia in pendencias)
+                        Console.WriteLine(pendencia);
                     Console.Out.Flush();
 
                     return CodigoErro;
@@ -164,11 +186,20 @@ public static class BancoCli
         texto.AppendLine("Amostras de sensor: " + ContagemLegivel(dados.Amostras));
         texto.AppendLine("Registros de uso: " + ContagemLegivel(dados.Uso));
 
-        var dias = Banco.DiasComUso();
-        texto.AppendLine("Dias com histórico de uso: " + dias.Count.ToString(CultureInfo.InvariantCulture));
+        // A contagem de dias vem do MESMO retrato das linhas acima: uma
+        // segunda leitura do banco podia ver outro banco (o reparo troca
+        // o arquivo no meio) — e o relatório mostraria dois números de
+        // mundos diferentes.
+        texto.AppendLine("Dias com histórico de uso: " + dados.DiasComUso.ToString(CultureInfo.InvariantCulture));
 
         if (dados.CopiaAvariada != null)
             texto.AppendLine("Cópia avariada guardada: " + dados.CopiaAvariada);
+
+        // O aviso do banco (a migração do histórico antigo ter ficado
+        // pela metade, por exemplo) é o que o usuário precisa saber: sem
+        // ele, o relatório parecia completo quando não está.
+        if (!string.IsNullOrWhiteSpace(dados.Aviso))
+            texto.AppendLine("Aviso: " + dados.Aviso);
 
         return texto.ToString();
     }

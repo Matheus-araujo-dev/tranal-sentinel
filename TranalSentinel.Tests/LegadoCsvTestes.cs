@@ -216,7 +216,10 @@ public class LegadoCsvTestes : IDisposable
     {
         UsarPastasTemporarias();
 
-        Assert.Empty(LegadoCsv.LerAmostras());
+        var leitura = LegadoCsv.LerAmostras();
+
+        Assert.Empty(leitura.Linhas);
+        Assert.True(leitura.Completa);
     }
 
     [Fact]
@@ -232,11 +235,12 @@ public class LegadoCsvTestes : IDisposable
             "2026-11-05T14:31:27.500;79;44;93;3200;72;100;2010;2048;87.5;12.5;0.3"
         });
 
-        var amostras = LegadoCsv.LerAmostras();
+        var leitura = LegadoCsv.LerAmostras();
 
-        Assert.Equal(2, amostras.Count);
-        Assert.Equal(78.5f, amostras[0].CpuTemp);
-        Assert.Equal(79f, amostras[1].CpuTemp);
+        Assert.True(leitura.Completa);
+        Assert.Equal(2, leitura.Linhas.Count);
+        Assert.Equal(78.5f, leitura.Linhas[0].CpuTemp);
+        Assert.Equal(79f, leitura.Linhas[1].CpuTemp);
     }
 
     [Fact]
@@ -254,9 +258,10 @@ public class LegadoCsvTestes : IDisposable
             "2026-11-06T10:00:00.000;code;projeto.cs"
         });
 
-        var trocas = LegadoCsv.LerTrocas();
+        var leitura = LegadoCsv.LerTrocas();
 
-        Assert.Equal(2, trocas.Count);
+        Assert.True(leitura.Completa);
+        Assert.Equal(2, leitura.Linhas.Count);
     }
 
     [Fact]
@@ -286,9 +291,9 @@ public class LegadoCsvTestes : IDisposable
         // O prazo de 15 dias da tabela: o que está fora não entra no
         // banco (importar anos de histórico só encheria o banco com o
         // que seria podado em seguida).
-        var amostras = LegadoCsv.LerAmostras(new DateTime(2026, 11, 5));
+        var leitura = LegadoCsv.LerAmostras(new DateTime(2026, 11, 5));
 
-        var amostra = Assert.Single(amostras);
+        var amostra = Assert.Single(leitura.Linhas);
         Assert.Equal(78.5f, amostra.CpuTemp);
     }
 
@@ -308,9 +313,9 @@ public class LegadoCsvTestes : IDisposable
         });
 
         // O arquivo de um dia fora do prazo é pulado inteiro.
-        var trocas = LegadoCsv.LerTrocas(new DateTime(2026, 11, 1));
+        var leitura = LegadoCsv.LerTrocas(new DateTime(2026, 11, 1));
 
-        var troca = Assert.Single(trocas);
+        var troca = Assert.Single(leitura.Linhas);
         Assert.Equal("chrome", troca.Processo);
     }
 }

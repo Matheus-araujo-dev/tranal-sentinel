@@ -19,7 +19,7 @@ A atribuição e o aviso de fork ficam no README e no LICENSE — **não removê
 | Configurações e histórico | `%AppData%\TranalSentinel` |
 | Log do instalador | `%ProgramData%\Tranal Sentinel\instalador.log` |
 | Diário do app | `%AppData%\TranalSentinel\log\tranal-AAAA-MM-DD.log` |
-| Mutex (instância única) | `Local\TranalSentinel.SingleInstance` |
+| Mutex (instância única) | `Local\TranalSentinel.SingleInstance` (a regra mora em `InstanciaUnica`) |
 | Repositório | `https://github.com/Matheus-araujo-dev/tranal-sentinel` |
 
 O título da janela é `TRANAL SENTINEL` e o `FindWindow` de instância única depende
@@ -276,10 +276,38 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   (`SensorHistorico.Ler(desde, ate)`): a consulta vai direto ao índice do
   instante, então o histórico inteiro não é varrido para saber o que
   aconteceu na janela. O banco guarda 15 dias de amostras e o histórico de
-  uso guarda 30 dias; o que passa disso é apagado.- **A explicação do alerta fica em cache por episódio.** O instante do
+  uso guarda 30 dias; o que passa disso é apagado.
+- **A explicação do alerta fica em cache por episódio.** O instante do
   episódio não muda enquanto o aviso está na tela, então a explicação é
   calculada uma vez — e o histórico só é lido quando aparece um aviso sem
   explicação.
+- **Uma leitura pela metade não vale como importação completa**
+  (`LegadoCsv.Leitura<T>.Completa`). A leitura do CSV antigo pode parar no
+  meio (o arquivo trancado, o disco cheio, o antivírus com ele aberto). Quando
+  isso acontece, o `user_version` **não** é gravado: a versão diz "o CSV já
+  entrou", e gravá-la com a leitura pela metade faria o resto do CSV ficar
+  órfão para sempre, sem aviso. A migração é refeita na próxima abertura.
+- **O estado e o aviso são canais separados** (`Banco._estado` e `Banco._aviso`).
+  O estado diz se o banco está de pé; o aviso diz o que ficou pendente (a
+  migração pela metade, por exemplo). O aviso viaja em `Diagnostico.Aviso`
+  até a tela e a linha de comando. Quando os dois moravam no mesmo lugar, o
+  "ok" da abertura apagava a falha da migração duas linhas depois.
+- **O reparo pela linha de comando exige o app fechado.** O Windows segura o
+  arquivo do banco enquanto o app roda, e a troca falharia só no último passo
+  (depois de todo o trabalho de reconstruir o banco, e com um relatório que
+  não dizia a verdade). A recusa vem antes, e o reparo cancelado limpa o
+  banco novo: ele ocuparia dezenas de megabytes na pasta do histórico sem
+  servir para nada.
+- **O banco reconstruído guarda a versão do esquema do banco velho**
+  (`PRAGMA user_version`). Sem ela, a próxima abertura acharia que o CSV
+  nunca entrou e o importaria de novo — por cima do histórico que o reparo
+  acabou de recuperar. Quando nada foi recuperado, a versão fica em zero de
+  propósito: o CSV antigo volta na abertura seguinte, em vez de ficar para
+  sempre fora do app.
+- **O retrato do banco é um só** (`Banco.Ver`): estado, tamanho, contagens e
+  dias com histórico saem de uma leitura com a trava segurada. A linha de
+  comando mostra os números do mesmo retrato — dois momentos diferentes podiam
+  dar dois bancos diferentes.
 
 ## Publicar
 

@@ -527,10 +527,18 @@ public sealed class Sqlite : IDisposable
     ///
     /// <para>
     /// <paramref name="completo"/> escolhe entre a verificação completa
-    /// (<c>integrity_check</c>, que percorre o arquivo inteiro) e a rápida
-    /// (<c>quick_check</c>). O retrato automático do banco usa a rápida: o
-    /// arquivo tem 15 dias de amostras e a completa demoraria segundos
-    /// numa tela que só quer mostrar o estado.
+    /// (<c>integrity_check</c>, que confere também os índices) e a rápida
+    /// (<c>quick_check</c>, que não confere). O retrato automático do banco
+    /// usa a rápida.
+    ///
+    /// <para>
+    /// A escolha é por hábito, não por custo: no esquema do TRANAL
+    /// SENTINEL os dois levam o mesmo tempo — medido em 09/11/2026, cerca
+    /// de 60 ms cada num banco com 258 mil amostras e 18,6 MB. (Um número
+    /// antigo dizia que a completa "demoraria segundos": era medo sem
+    /// medição, e a medição desmentiu.) A completa fica no botão de
+    /// verificar e no reparo, onde o tempo não importa e a verificação por
+    /// extenso dá mais confiança.
     /// </para>
     /// </summary>
     public string VerificarIntegridade(bool completo = true)

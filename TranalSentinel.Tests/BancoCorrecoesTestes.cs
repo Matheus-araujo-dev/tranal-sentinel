@@ -170,7 +170,7 @@ public class BancoCorrecoesTestes : IDisposable
         // Uma página do banco é corrompida: a verificação de integridade
         // passa a reprovar, mas os dados continuam legíveis. É o caso em
         // que o reparo reconstrói e salva tudo.
-        CorromperPaginaLegivel(Banco.Caminho, 300, 1);
+        BancoCorrupcao.CorromperPaginaLegivel(Banco.Caminho, 300, 1);
 
         var resultado = Banco.Reparar();
 
@@ -199,7 +199,7 @@ public class BancoCorrecoesTestes : IDisposable
 
         // O cabeçalho do arquivo é estragado: nem a contagem nem a
         // leitura funcionam.
-        CorromperCabecalho(Banco.Caminho);
+        BancoCorrupcao.CorromperCabecalho(Banco.Caminho);
 
         var resultado = Banco.Reparar();
 
@@ -226,7 +226,7 @@ public class BancoCorrecoesTestes : IDisposable
         // colunas vazias: a linha não pode ser gravada (o esquema não
         // aceita nulo), e o relato tem que dizer que ela se perdeu — o
         // INSERT não pode engolir a linha em silêncio.
-        CorromperPaginaComUsoVazio(Banco.Caminho, 300);
+        BancoCorrupcao.CorromperPaginaComUsoVazio(Banco.Caminho, 300);
 
         var resultado = Banco.Reparar();
 
@@ -246,7 +246,7 @@ public class BancoCorrecoesTestes : IDisposable
             Banco.GravarAmostra(Amostra(DateTime.Today.AddMinutes(i)));
 
         Banco.Fechar();
-        CorromperCabecalho(Banco.Caminho);
+        BancoCorrupcao.CorromperCabecalho(Banco.Caminho);
 
         var retrato = Banco.Ver();
 
@@ -414,115 +414,5 @@ public class BancoCorrecoesTestes : IDisposable
         {
             BancoDeTeste.Restaurar();
         }
-    }
-
-    // ------------------------------------------------------------------ auxiliares
-
-    /// <summary>
-    /// Corrompe o cabeçalho do arquivo do banco: o arquivo deixa de ser um
-    /// banco, e nem a contagem nem a leitura funcionam.
-    /// </summary>
-    private static void CorromperCabecalho(string caminho)
-    {
-        byte[] bytes = File.ReadAllBytes(caminho);
-        for (int i = 0; i < 16; i++)
-            bytes[i] = 0x5A;
-
-        File.WriteAllBytes(caminho, bytes);
-    }
-
-    /// <summary>
-    /// Corrompe uma página do banco de um jeito que os dados continuam
-    /// legíveis (a verificação reprova, mas a leitura funciona). É o caso
-    /// mais comum de banco estragado: o arquivo tem um problema, e o
-    /// histórico ainda está lá.
-    /// </summary>
-    private static void CorromperPaginaLegivel(string caminho, int amostrasEsperadas, int usosEsperados)
-    {
-        byte[] original = File.ReadAllBytes(caminho);
-        int tamanhoPagina = (original[16] << 8) | original[17];
-        int paginas = original.Length / tamanhoPagina;
-
-        for (int p = 2; p <= paginas; p++)
-        {
-            byte[] copia = (byte[])original.Clone();
-            int inicio = (p - 1) * tamanhoPagina + 8;
-            for (int i = 0; i < 60; i++)
-                copia[inicio + i] = 0x5A;
-
-            string teste = caminho + ".teste";
-            File.WriteAllBytes(teste, copia);
-
-            bool serve = false;
-            using (var banco = Sqlite.Abrir(teste))
-            {
-                if (banco != null
-                    && banco.VerificarIntegridade() != "ok"
-                    && banco.Consultar("SELECT momento FROM amostras").Count == amostrasEsperadas)
-                {
-                    // O histórico de uso precisa voltar com os valores
-                    // inteiros: uma página corrompida pode devolver a
-                    // linha com as colunas vazias.
-                    var linhasUso = banco.Consultar("SELECT momento, processo, titulo FROM uso");
-                    serve = linhasUso.Count == usosEsperados;
-                    foreach (var linha in linhasUso)
-                    {
-                        if (!linha.TemValor("momento") || linha.Texto("processo").Length == 0)
-                            serve = false;
-                    }
-                }
-            }
-
-            if (!serve) continue;
-
-            File.WriteAllBytes(caminho, copia);
-            return;
-        }
-
-        Assert.Fail("Nenhuma página do banco pôde ser corrompida de um jeito que os dados continuassem legíveis.");
-    }
-
-    /// <summary>
-    /// Corrompe uma página do banco de um jeito em que o histórico de uso
-    /// volta com as colunas vazias (e o resto do histórico continua
-    /// inteiro). É a linha que não pode ser gravada de volta.
-    /// </summary>
-    private static void CorromperPaginaComUsoVazio(string caminho, int amostrasEsperadas)
-    {
-        byte[] original = File.ReadAllBytes(caminho);
-        int tamanhoPagina = (original[16] << 8) | original[17];
-        int paginas = original.Length / tamanhoPagina;
-
-        for (int p = 2; p <= paginas; p++)
-        {
-            byte[] copia = (byte[])original.Clone();
-            int inicio = (p - 1) * tamanhoPagina + 8;
-            for (int i = 0; i < 60; i++)
-                copia[inicio + i] = 0x5A;
-
-            string teste = caminho + ".teste";
-            File.WriteAllBytes(teste, copia);
-
-            bool serve = false;
-            using (var banco = Sqlite.Abrir(teste))
-            {
-                if (banco != null && banco.Consultar("SELECT momento FROM amostras").Count == amostrasEsperadas)
-                {
-                    var linhasUso = banco.Consultar("SELECT momento, processo, titulo FROM uso");
-                    serve = linhasUso.Count > 0;
-                    foreach (var linha in linhasUso)
-                    {
-                        if (linha.TemValor("momento")) serve = false;
-                    }
-                }
-            }
-
-            if (!serve) continue;
-
-            File.WriteAllBytes(caminho, copia);
-            return;
-        }
-
-        Assert.Fail("Nenhuma página do banco devolveu o histórico de uso com as colunas vazias.");
     }
 }
