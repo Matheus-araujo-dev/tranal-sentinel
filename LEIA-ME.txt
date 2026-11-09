@@ -102,12 +102,27 @@ TRANAL MEMÓRIA
   o arquivo .bin nessa pasta.
 - Para conferir sem abrir a janela:  TranalSentinel.exe --memoria
 
+TRANAL VENTOINHAS
+- No menu lateral, grupo "TRANAL SENTINEL" -> aba "Ventoinhas".
+- Mostra o RPM de cada ventoinha da placa-mãe e da placa de vídeo, o recorde
+  de cada uma (o maior RPM que ela já deu, com a temperatura do mesmo
+  instante) e o veredito sobre o desgaste.
+- O app compara a ventoinha COM ELA MESMA: não existe "RPM esperado" de
+  catálogo, e o app nunca inventa número que ninguém mediu. Para dizer que a
+  ventoinha está gasta, o RPM precisa estar pelo menos 20% abaixo do recorde,
+  a temperatura precisa ser igual ou maior que a do recorde, e a condição
+  precisa valer 5 minutos seguidos. Antes disso, o cartão diz OBSERVANDO.
+- O histórico "RPM com o tempo" dos últimos 30 dias fica no mesmo banco do
+  resto do histórico do PC (nada sai daqui).
+- Uma ventoinha que nunca passou de 300 RPM aparece como "sem histórico" — o
+  app diz que ainda não dá para dizer se ela está gasta.
+
 TRANAL ALERTAS
 - No menu lateral, grupo "TRANAL SAÚDE" -> aba "Alertas".
 - Cada regra diz o que vigiar (temperatura da CPU, da GPU e do disco, uso da
-  memória, carga da CPU e da GPU, clock da CPU e da GPU e a carga da bateria),
-  a comparação (>= ou <=), o limite, quanto tempo a condição precisa valer
-  antes de avisar e a gravidade do aviso.
+  memória, carga da CPU e da GPU, clock da CPU e da GPU, a carga da bateria e
+  o RPM de cada ventoinha), a comparação (>= ou <=), o limite, quanto tempo a
+  condição precisa valer antes de avisar e a gravidade do aviso.
 - Começa com as três regras de sempre: CPU a 85 °C, disco a 60 °C e bateria
   a 20 % (a bateria só avisa fora da tomada). O botão RESTAURAR PADRÕES volta
   a elas.
