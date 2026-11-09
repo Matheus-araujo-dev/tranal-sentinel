@@ -35,6 +35,10 @@ verificação de integridade e uma rotina de reparo.
   banco, o tamanho, quantas amostras e quantos registros de uso ele tem, e
   onde o arquivo está.
 - O botão **VERIFICAR** confere a integridade na hora.
+- A conferência é a **completa** (o arquivo inteiro, índices contra dados):
+  a verificação rápida não enxerga um banco cujo índice ficou fora de
+  sintonia com os registros, e esse banco passava por "íntegro" — e dizer
+  que está tudo bem quando não está é o pior jeito de errar.
 - O botão **REPARAR** reconstrói o banco com o que der para ler quando ele está
   estragado. O banco velho **não é apagado**: ele fica guardado como cópia
   datada na mesma pasta, e o botão **RESTAURAR CÓPIA** devolve ele — é o
