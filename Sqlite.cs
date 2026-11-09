@@ -294,7 +294,16 @@ public sealed class Sqlite : IDisposable
 
         lock (_tranca)
         {
-            if (_banco == IntPtr.Zero) return linhas;
+            if (_banco == IntPtr.Zero)
+            {
+                // O banco fechado é uma LEITURA QUE FALHOU — e não "não
+                // tinha nada". Sem este aviso, quem lê receberia uma lista
+                // vazia e contaria zero: o reparo do banco trataria uma
+                // tabela ilegível como tabela ausente, e descartaria o
+                // histórico em silêncio.
+                _ultimoErro = "o banco está fechado";
+                return linhas;
+            }
 
             IntPtr stmt = IntPtr.Zero;
             try

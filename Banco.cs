@@ -1574,7 +1574,7 @@ public static class Banco
     /// erro do SQLite ("no such table") diria o mesmo que uma leitura que
     /// quebrou no meio, e as duas coisas precisam ser diferentes.
     /// </summary>
-    private static bool TabelaExiste(Sqlite banco, string tabela, out bool falhou)
+    internal static bool TabelaExiste(Sqlite banco, string tabela, out bool falhou)
     {
         falhou = false;
 
@@ -1885,6 +1885,23 @@ public static class Banco
             trafego.TinhaTabelaTrafegos ? salvosTrafegos : (long?)null,
             trafego.TinhaTabelaPerdidos ? trafego.TotalPerdidos : (long?)null,
             trafego.TinhaTabelaPerdidos ? salvosPerdidos : (long?)null);
+
+        // Quando a LEITURA do tráfego falhou (o esquema não pôde ser
+        // perguntado), o relato não pode passar por cima em silêncio: o
+        // "não tinha tabela guardado" é outra coisa. O reparo seguiu
+        // (o arquivo nem é um banco), e o histórico de rede pode ter
+        // se perdido — e o usuário precisa saber disso.
+        if (trafego.FalhouTrafegos || trafego.FalhouPerdidos)
+        {
+            string quais = trafego.FalhouTrafegos && trafego.FalhouPerdidos
+                ? "a tabela de tráfego e a contagem de pacotes descartados"
+                : trafego.FalhouTrafegos
+                    ? "a tabela de tráfego"
+                    : "a contagem de pacotes descartados";
+
+            relato += $" Não deu para ler {quais} do banco estragado: elas não foram copiadas " +
+                "para o banco novo, e o histórico de rede pode ter se perdido.";
+        }
 
         if (salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0)
         {

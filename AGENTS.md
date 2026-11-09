@@ -181,7 +181,7 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   (no IPv6 o `SetPerTcp6ConnectionEStats` devolve "sem dados") e só cobre
   TCP — e o tráfego de navegador hoje é QUIC, que é UDP. A ETW cobre TCP e
   UDP, nos dois protocolos, por programa. O erro medido em 09/11/2026 no PC
-  do dono foi de **+0,25%** (100 MB baixados apareceram como 105.115.183
+  do dono foi de **+0,25%** (100 MB baixados apareceram como 105.006.661
   bytes): a diferença são os cabeçalhos TCP/IP, que também são tráfego — e
   o cartão diz isso na tela em vez de esconder.
 - **A ETW exige administrador, e o app já exige.** O manifesto pede

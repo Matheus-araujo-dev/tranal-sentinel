@@ -453,4 +453,43 @@ public class TrafegoBancoTestes : IDisposable
         Assert.DoesNotContain("-1", texto);
         Assert.Contains("Não deu para contar os registros de tráfego do banco antigo", texto);
     }
+    [Fact]
+    public void TabelaExiste_ComOEsquemaQuebrado_DizQueFalhou()
+    {
+        UsarPastasTemporarias();
+
+        Banco.GravarTrafego(Dia, new[] { new TrafegoPrograma("chrome", 1000, 0) });
+
+        var banco = Sqlite.Abrir(Banco.Caminho);
+        Assert.NotNull(banco);
+
+        // O esquema responde: a tabela existe.
+        Assert.True(Banco.TabelaExiste(banco!, "trafego", out bool falhouOk));
+        Assert.False(falhouOk);
+
+        // Uma tabela que nao existe: isso NAO e falha de leitura.
+        Assert.False(Banco.TabelaExiste(banco!, "tabela_que_nao_existe", out bool falhouAusente));
+        Assert.False(falhouAusente);
+
+        // Com o banco fechado, a pergunta nao pode ser respondida: e isso
+        // precisa ser diferente de "a tabela nao existe" — senao o reparo
+        // descarta a tabela do trafego em silencio.
+        banco!.Dispose();
+
+        Assert.False(Banco.TabelaExiste(banco, "trafego", out bool falhouEsquema));
+        Assert.True(falhouEsquema);
+    }
+
+    [Fact]
+    public void GravarTrafegoPerdidos_ComMenosUm_GravaMenosUmNoBanco()
+    {
+        UsarPastasTemporarias();
+
+        // O -1 precisa chegar ao banco: e ele que diz, no dia seguinte,
+        // que nao deu para contar (e nao que nenhum pacote foi descartado).
+        Banco.GravarTrafegoPerdidos(Dia, -1);
+
+        Assert.Equal(-1, Banco.LerTrafegoPerdidos(Dia));
+    }
+
 }

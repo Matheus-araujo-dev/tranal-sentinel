@@ -467,15 +467,19 @@ public partial class MainWindow
                   "medido nesta execução — quando o app fechar, o que não foi gravado se perde.";
         }
 
-        if (!_trafegoPerdidosDesconhecidos)
-        {
-            bool gravou = Banco.GravarTrafegoPerdidos(
-                dia, _trafegoPerdidosBase + _trafego.EventosPerdidosDoDia(dia));
+        // Quando não deu para ler a contagem, o dia é gravado com -1: o -1
+        // é "não deu para contar" em qualquer ponta da conta. Sem isso, o
+        // dia seguinte leria "zero descartados" — que é uma afirmação que
+        // o app não pode fazer.
+        long perdidos = _trafegoPerdidosDesconhecidos
+            ? -1
+            : _trafegoPerdidosBase + _trafego.EventosPerdidosDoDia(dia);
 
-            if (!gravou && _trafegoAvisoGravacao == null)
-            {
-                _trafegoAvisoGravacao = "A contagem de pacotes descartados não pôde ser gravada no banco.";
-            }
+        bool gravouPerdidos = Banco.GravarTrafegoPerdidos(dia, perdidos);
+
+        if (!gravouPerdidos && _trafegoAvisoGravacao == null)
+        {
+            _trafegoAvisoGravacao = "A contagem de pacotes descartados não pôde ser gravada no banco.";
         }
     }
 

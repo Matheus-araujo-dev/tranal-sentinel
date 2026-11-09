@@ -400,8 +400,9 @@ public class TrafegoRegrasTestes
         // texto que falasse de outra medicao seria uma mentira na tela.
         string nota = TrafegoRegras.NotaDaMedicao;
 
-        Assert.Contains(
-            TrafegoRegras.BytesMedidosNaMedicao.ToString(CultureInfo.InvariantCulture), nota);
+        // A nota sai com o separador de milhar: "105.006.661".
+        Assert.Contains(TrafegoRegras.NumeroInteiro(TrafegoRegras.BytesMedidosNaMedicao), nota);
+        Assert.Contains("105.006.661", nota);
         Assert.Contains("+0,14", nota);
 
         // E o percentual tem de bater com os numeros.

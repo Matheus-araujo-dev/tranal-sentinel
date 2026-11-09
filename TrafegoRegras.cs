@@ -129,7 +129,7 @@ public static class TrafegoRegras
         "O total inclui os cabeçalhos TCP/IP: em " +
         Numero(BytesBaixadosNaMedicao / 1048576.0) +
         " MB baixados a medição deu " +
-        BytesMedidosNaMedicao.ToString(CultureInfo.InvariantCulture) +
+        NumeroInteiro(BytesMedidosNaMedicao) +
         " bytes (+" + Numero(DiferencaDaMedicaoEmPercento) +
         "%, medido em 09/11/2026 no PC do dono com curl).";
 
