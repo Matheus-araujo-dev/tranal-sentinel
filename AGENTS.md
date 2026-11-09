@@ -218,7 +218,9 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   `historico.db.reparo` (dezenas de megabytes) ficaria órfão na pasta do
   histórico a cada tentativa cancelada. O cancelamento é anotado e a
   limpeza acontece com o handle fechado; se ainda assim o arquivo
-  sobrar, o relato diz.
+  sobrar, o relato diz — em **todos** os caminhos de cancelamento (a
+  gravação que falhou, o cancelamento por banco vazio, a troca que não
+  deu certo e a exceção), e a frase é a mesma nos quatro.
 - **A perda é contada por tabela.** Cada tabela tem a sua contagem e o seu
   "não deu para contar": uma contagem que falhou não pode apagar a conta
   da outra tabela (`Banco.RelatoDaPerda`, que é pura e testada).
@@ -240,6 +242,24 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   a tela do TRANAL USO diz uma coisa ou outra, nunca as duas parecidas.
   O retrato do banco também: quando ele não pôde ser lido, a contagem é
   -1 ("não deu para contar"), nunca 0.
+- **Histórico que não deu para ler não tem explicação.** A explicação de um
+  alerta é feita com o histórico ("o app não estava gravando sensores nesse
+  momento"). Com o histórico pela metade, essa frase é uma afirmação falsa:
+  o app estava gravando — o que não deu foi a *leitura*. A regra mora no
+  núcleo puro (`UsoRegras.ExplicarAlerta`, que devolve `null` quando a
+  leitura ficou incompleta): quem chama não tem como contorná-la, e nada é
+  guardado em cache. A tela mostra "não deu para ler o histórico para
+  explicar este aviso" — silêncio ali seria uma resposta errada.
+- **O -1 é "não deu para contar", em qualquer ponta da conta.** A contagem do
+  banco novo pode falhar depois do COMMIT (disco cheio, antivírus com o
+  arquivo): o relato não pode dizer "-1 amostras foram salvos" nem calcular
+  "se perderam N+1". Sem as duas pontas, não há diferença — há um número
+  inventado (`Banco.RelatoDoSalvo` e `Banco.RelatoDaPerda`, ambas puras e
+  testadas).
+- **O tamanho do banco no disco é o do disco, mesmo quando a leitura
+  falha.** O retrato que não pôde ser montado ainda diz o tamanho do
+  arquivo: "0 B" ao lado de "não deu para contar as amostras" seriam dois
+  números falsos.
 - **A cópia só é oferecida como desfazer depois que ela existe no
   disco.** O nome é montado antes da troca, mas a cópia entra na história
   depois do `File.Move` dar certo — um caminho que aponta para um arquivo
@@ -259,8 +279,9 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   amostras, 30 de uso). Preparar e finalizar um comando por linha custava
   23 segundos em 260 mil linhas (medido); com o comando reaproveitado, a
   mesma migração leva cerca de 2 segundos (medido). A versão do esquema é
-  conferida de novo dentro da transação: o app e o processo de coleta abrem
-  o banco ao mesmo tempo, e os dois não podem importar o CSV duas vezes.
+  conferida de novo dentro da transação: a thread da tela e a thread dos
+  sensores abrem o banco ao mesmo tempo, e as duas não podem importar o
+  CSV duas vezes.
 - **Transação que falha sempre fecha.** Se o COMMIT falha, o ROLLBACK
   explícito desfaz o que ficou pelo caminho — sem ele, a transação ficava
   aberta e as escritas seguintes falhavam uma por uma, sem aviso.

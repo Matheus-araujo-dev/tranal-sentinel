@@ -293,9 +293,13 @@ public static class Banco
             // ter centenas de milhares de linhas, e dizer "0 amostras"
             // seria um número inventado. É a mesma regra do retrato sem
             // instância.
+            //
+            // O tamanho do arquivo continua sendo o do disco: "0 B" ao lado
+            // de "não deu para contar as amostras" seria dois números
+            // falsos — o arquivo tem tamanho, e ele é o do banco de verdade.
             return new Diagnostico(
                 "O banco de dados não pôde ser lido.",
-                0, -1, -1, Caminho, null, _aviso, 0);
+                TamanhoDoArquivo(), -1, -1, Caminho, null, _aviso, 0);
         }
     }
 
@@ -907,11 +911,11 @@ public static class Banco
             {
                 bool fechou = banco.EmTransacao(b =>
                 {
-                    // A versão é conferida de novo dentro da transação: o
-                    // app e o processo de coleta abrem o banco ao mesmo
-                    // tempo, e os dois podem tentar migrar. Quem entra
-                    // depois não precisa importar de novo — o histórico
-                    // já está no banco.
+                    // A versão é conferida de novo dentro da transação: a
+                    // thread da tela e a thread dos sensores abrem o banco
+                    // ao mesmo tempo, e as duas podem tentar migrar. Quem
+                    // entra depois não precisa importar de novo — o
+                    // histórico já está no banco.
                     if (VersaoDoEsquema(b) >= VersaoEsquema) return;
 
                     // A importação vai em lote, com o comando preparado
@@ -1359,8 +1363,8 @@ public static class Banco
         }
         catch (Exception ex)
         {
-            ApagarBancoNovo(novoCaminho);
-            return new ResultadoReparo(false, "Não foi possível reconstruir o banco de dados: " + ex.Message, 0, 0, null);
+            string resto = AvisoDoArquivoQueFicou(ApagarBancoNovo(novoCaminho), novoCaminho);
+            return new ResultadoReparo(false, "Não foi possível reconstruir o banco de dados: " + ex.Message + resto, 0, 0, null);
         }
 
         if (cancelamento != null)
@@ -1369,9 +1373,7 @@ public static class Banco
             // apagado. Se ainda assim ele ficar (o Windows segurou), o
             // relato diz — o usuário precisa saber que sobrou um arquivo
             // grande na pasta do histórico.
-            string resto = ApagarBancoNovo(novoCaminho)
-                ? ""
-                : $" O arquivo temporário do reparo ({novoCaminho}) ficou na pasta: o Windows segurou o arquivo e ele não pôde ser apagado.";
+            string resto = AvisoDoArquivoQueFicou(ApagarBancoNovo(novoCaminho), novoCaminho);
 
             return new ResultadoReparo(false, cancelamento + resto, 0, 0, null);
         }
@@ -1382,9 +1384,9 @@ public static class Banco
         int lidas = amostras.Count + usos.Count;
         if (lidas > 0 && salvasAmostras == 0 && salvosUsos == 0)
         {
-            ApagarBancoNovo(novoCaminho);
+            string resto = AvisoDoArquivoQueFicou(ApagarBancoNovo(novoCaminho), novoCaminho);
             return new ResultadoReparo(false,
-                $"O reparo foi cancelado: {lidas} linhas foram lidas do banco antigo, mas nenhuma entrou no banco novo. O arquivo antigo foi mantido como está.",
+                $"O reparo foi cancelado: {lidas} linhas foram lidas do banco antigo, mas nenhuma entrou no banco novo. O arquivo antigo foi mantido como está." + resto,
                 0, 0, null);
         }
 
@@ -1443,12 +1445,12 @@ public static class Banco
             // aqui e ocupa espaço (dezenas de megabytes num histórico
             // grande). Sem esta limpeza, cada tentativa de reparo com o
             // app aberto deixava um arquivo órfão na pasta do histórico.
-            ApagarBancoNovo(novoCaminho);
+            string resto = AvisoDoArquivoQueFicou(ApagarBancoNovo(novoCaminho), novoCaminho);
 
             string relatoTroca =
                 "Não foi possível trocar o arquivo do banco de dados pelo novo" +
                 " (o arquivo está em uso por outro programa — o TRANAL SENTINEL aberto, por exemplo)." +
-                " O banco antigo foi mantido como está.";
+                " O banco antigo foi mantido como está." + resto;
 
             // A cópia só vale como desfazer quando ela ainda está no
             // lugar: um banco que voltou para o caminho original não
@@ -1467,8 +1469,8 @@ public static class Banco
         // novo é o que a contagem do banco novo diz. A diferença é o que
         // se perdeu — e ela precisa aparecer no relato.
         string relato =
-            $"O banco estava com problema ({TraduzirIntegridade(integridade)}). Foi reconstruído: " +
-            $"{salvasAmostras} amostras de sensor e {salvosUsos} registros de uso foram salvos.";
+            $"O banco estava com problema ({TraduzirIntegridade(integridade)}). " +
+            RelatoDoSalvo(salvasAmostras, salvosUsos);
 
         relato += RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos);
 
@@ -1485,6 +1487,38 @@ public static class Banco
     }
 
     /// <summary>
+    /// A parte do relato do reparo que diz o que entrou no banco novo.
+    ///
+    /// <para>
+    /// Uma contagem de -1 é "não deu para contar" — não é um número. A
+    /// contagem do banco novo pode falhar depois do COMMIT (disco cheio,
+    /// antivírus com o arquivo, erro do sistema de arquivos), e um "-1
+    /// amostras foram salvas" seria um número que não existe.
+    ///
+    /// <para>
+    /// A função é pura (só números entram): é assim que a regra se prende
+    /// em teste, sem precisar de um banco estragado para cada combinação.
+    /// </para>
+    /// </summary>
+    /// <param name="salvasAmostras">Quantas amostras entraram no banco novo (-1 = a contagem não deu).</param>
+    /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
+    internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos)
+    {
+        var texto = new StringBuilder("Foi reconstruído: ");
+
+        texto.Append(salvasAmostras >= 0
+            ? $"{salvasAmostras} amostras de sensor"
+            : "não deu para contar as amostras de sensor que entraram no banco novo");
+
+        texto.Append(salvosUsos >= 0
+            ? $" e {salvosUsos} registros de uso"
+            : " e não deu para contar os registros de uso que entraram no banco novo");
+
+        texto.Append(" foram salvos.");
+        return texto.ToString();
+    }
+
+    /// <summary>
     /// A parte do relato do reparo que fala da perda: quanto se perdeu de
     /// cada tabela — e, quando a contagem não deu para fazer, que não dá
     /// para dizer.
@@ -1496,40 +1530,54 @@ public static class Banco
     /// ainda assim diz quantos registros de uso se perderam.
     ///
     /// <para>
+    /// O -1 significa "não deu para contar" tanto no banco velho quanto no
+    /// banco novo: sem as duas pontas, a diferença não é uma diferença,
+    /// é um número inventado.
+    ///
+    /// <para>
     /// A função é pura (só números entram): é assim que a regra se
     /// prende em teste, sem precisar de um banco estragado para cada
     /// combinação.
     /// </para>
     /// </summary>
     /// <param name="totalAmostras">Quantas amostras o banco velho tinha (-1 = a contagem não deu).</param>
-    /// <param name="salvasAmostras">Quantas amostras entraram no banco novo.</param>
+    /// <param name="salvasAmostras">Quantas amostras entraram no banco novo (-1 = a contagem não deu).</param>
     /// <param name="totalUso">Quantos registros de uso o banco velho tinha (-1 = a contagem não deu).</param>
-    /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo.</param>
+    /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
     internal static string RelatoDaPerda(long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos)
     {
-        long perdidasAmostras = totalAmostras >= 0 ? Math.Max(0, totalAmostras - salvasAmostras) : 0;
-        long perdidosUsos = totalUso >= 0 ? Math.Max(0, totalUso - salvosUsos) : 0;
+        bool contaAmostras = totalAmostras >= 0 && salvasAmostras >= 0;
+        bool contaUsos = totalUso >= 0 && salvosUsos >= 0;
+
+        long perdidasAmostras = contaAmostras ? Math.Max(0, totalAmostras - salvasAmostras) : 0;
+        long perdidosUsos = contaUsos ? Math.Max(0, totalUso - salvosUsos) : 0;
 
         var texto = new StringBuilder();
 
-        if (totalAmostras >= 0)
-        {
-            if (perdidasAmostras > 0)
-                texto.Append($" Se perderam {perdidasAmostras} amostras de sensor.");
-        }
-        else
+        if (totalAmostras < 0)
         {
             texto.Append(" Não deu para contar as amostras do banco antigo, então não é possível dizer quantas se perderam.");
         }
-
-        if (totalUso >= 0)
+        else if (salvasAmostras < 0)
         {
-            if (perdidosUsos > 0)
-                texto.Append($" Se perderam {perdidosUsos} registros de uso.");
+            texto.Append(" Não deu para contar as amostras que entraram no banco novo, então não é possível dizer quantas se perderam.");
         }
-        else
+        else if (perdidasAmostras > 0)
+        {
+            texto.Append($" Se perderam {perdidasAmostras} amostras de sensor.");
+        }
+
+        if (totalUso < 0)
         {
             texto.Append(" Não deu para contar os registros de uso do banco antigo, então não é possível dizer quantos se perderam.");
+        }
+        else if (salvosUsos < 0)
+        {
+            texto.Append(" Não deu para contar os registros de uso que entraram no banco novo, então não é possível dizer quantos se perderam.");
+        }
+        else if (perdidosUsos > 0)
+        {
+            texto.Append($" Se perderam {perdidosUsos} registros de uso.");
         }
 
         if (perdidasAmostras > 0 || perdidosUsos > 0)
@@ -1601,6 +1649,23 @@ public static class Banco
 
         return !File.Exists(caminho);
     }
+
+    /// <summary>
+    /// A frase de aviso quando o banco novo do reparo ficou na pasta (o
+    /// Windows segurou o arquivo e ele não pôde ser apagado). Vazia quando
+    /// a limpeza deu certo.
+    ///
+    /// <para>
+    /// A frase é a mesma em todos os caminhos de cancelamento: um reparo
+    /// que cancela por quatro motivos diferentes deixa o mesmo tipo de
+    /// arquivo para trás, e o usuário precisa saber dele em qualquer um
+    /// deles.
+    /// </para>
+    /// </summary>
+    private static string AvisoDoArquivoQueFicou(bool apagado, string caminho) =>
+        apagado
+            ? ""
+            : $" O arquivo temporário do reparo ({caminho}) ficou na pasta: o Windows segurou o arquivo e ele não pôde ser apagado.";
 
     /// <summary>
     /// Move um arquivo do banco velho para junto da cópia datada. Falha não
@@ -1700,29 +1765,66 @@ public static class Banco
 
             try
             {
-                // O WAL do banco atual vai junto com ele: o arquivo
-                // guardado é o desfazer do desfazer, e sem o WAL ele
-                // ficaria sem as últimas gravações (a coleta grava de 5
-                // em 5 segundos, e o checkpoint não acontece a cada
+                // O banco atual sai do lugar primeiro, e o WAL dele vai
+                // junto logo em seguida: banco e WAL são um par, e um banco
+                // sem o seu WAL perde as últimas gravações (a coleta grava
+                // de 5 em 5 segundos, e o checkpoint não acontece a cada
                 // amostra). O índice de memória (-shm) é reconstruído pelo
                 // próprio SQLite, e um índice velho só causaria confusão.
+                if (File.Exists(Caminho)) File.Move(Caminho, guardar);
+
                 MoverArquivoDoWal(Caminho + "-wal", guardar + "-wal");
                 ApagarArquivo(Caminho + "-shm");
 
-                if (File.Exists(Caminho)) File.Move(Caminho, guardar);
+                // A cópia entra no lugar, com o WAL dela: a cópia só vale
+                // alguma coisa se trouxer os dados que ainda estavam nele —
+                // sem ele, o banco restaurado perderia as últimas gravações.
                 File.Move(copia, Caminho);
 
-                // O WAL da cópia vai junto: a cópia só vale alguma coisa
-                // se trouxer os dados que ainda estavam nele — sem ele, o
-                // banco restaurado perderia as últimas gravações. O
-                // índice de memória (-shm) é reconstruído pelo próprio
-                // SQLite, e um índice velho só causaria confusão.
                 MoverArquivoDoWal(copia + "-wal", Caminho + "-wal");
                 ApagarArquivo(copia + "-shm");
             }
             catch
             {
-                return new ResultadoReparo(false, "Não foi possível restaurar a cópia avariada.", 0, 0, copia);
+                // O banco atual pode ter saído do lugar sem a cópia entrar:
+                // ele volta (é melhor o banco no lugar do que nenhum). O
+                // WAL dele volta junto — e o relato diz o que aconteceu
+                // com ele, porque um WAL órfão é dado que ninguém encontra
+                // depois.
+                bool voltou = false;
+
+                if (!File.Exists(Caminho) && File.Exists(guardar))
+                {
+                    try
+                    {
+                        File.Move(guardar, Caminho);
+                        voltou = true;
+                    }
+                    catch
+                    {
+                        // O banco continua guardado no nome de "substituido":
+                        // o relato diz onde ele está.
+                    }
+                }
+
+                string sobreWal;
+
+                if (voltou)
+                {
+                    // O WAL do banco que voltou para o lugar precisa voltar
+                    // com ele.
+                    if (File.Exists(guardar + "-wal") && !File.Exists(Caminho + "-wal"))
+                        MoverArquivoDoWal(guardar + "-wal", Caminho + "-wal");
+
+                    sobreWal = " O banco atual foi posto de volta no lugar, com o WAL dele.";
+                }
+                else
+                {
+                    sobreWal = $" O banco atual, se ele saiu do lugar, ficou guardado em {guardar} (com o WAL dele).";
+                }
+
+                return new ResultadoReparo(false,
+                    "Não foi possível restaurar a cópia avariada." + sobreWal, 0, 0, copia);
             }
 
             string relato =

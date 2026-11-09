@@ -133,6 +133,85 @@ public class BancoRodada5Testes : IDisposable
         Assert.Equal(3, retrato.Uso);
     }
 
+    // ------------------------------------------------------------------ relato com contagem que não deu
+
+    [Fact]
+    public void RelatoDoSalvoNaoDizQueSalvouMenosUm()
+    {
+        // -1 é "não deu para contar", não um número. A contagem do banco
+        // novo pode falhar depois do COMMIT (disco cheio, antivírus com o
+        // arquivo) — e "-1 amostras foram salvos" seria um número que não
+        // existe.
+        string texto = Banco.RelatoDoSalvo(-1, 0);
+
+        Assert.DoesNotContain("-1", texto);
+        Assert.Contains("não deu para contar as amostras de sensor", texto);
+        Assert.Contains("0 registros de uso", texto);
+    }
+
+    [Fact]
+    public void RelatoDoSalvoComAsDuasContagensCertas()
+    {
+        string texto = Banco.RelatoDoSalvo(191, 10);
+
+        Assert.Contains("191 amostras de sensor", texto);
+        Assert.Contains("10 registros de uso", texto);
+        Assert.Contains("foram salvos", texto);
+    }
+
+    [Fact]
+    public void RelatoDaPerdaNaoInventaQuantidadeQuandoOCountDoBancoNovoFalha()
+    {
+        // O banco velho tinha 300 amostras e 60 registros de uso; o banco
+        // novo não deixou contar o que entrou. A perda é a diferença entre
+        // as duas pontas — sem a ponta nova, não há diferença: há um
+        // número inventado.
+        string texto = Banco.RelatoDaPerda(300, -1, 60, -1);
+
+        Assert.DoesNotContain("Se perderam 301", texto);
+        Assert.DoesNotContain("Se perderam 61", texto);
+        Assert.DoesNotContain("-1", texto);
+        Assert.Contains("Não deu para contar as amostras que entraram no banco novo", texto);
+        Assert.Contains("Não deu para contar os registros de uso que entraram no banco novo", texto);
+    }
+
+    [Fact]
+    public void RelatoDaPerdaComOCountDoBancoNovoCerto()
+    {
+        string texto = Banco.RelatoDaPerda(300, 250, 60, 50);
+
+        Assert.Contains("Se perderam 50 amostras de sensor", texto);
+        Assert.Contains("Se perderam 10 registros de uso", texto);
+    }
+
+    // ------------------------------------------------------------------ retrato com tamanho
+
+    [Fact]
+    public void RetratoComFalhaNaLeituraNaoInventaTamanhoZero()
+    {
+        UsarPastasTemporarias();
+
+        GravarTrocasDeUso(2);
+
+        // Um instante que o .NET não sabe converter (o ano 33658): a
+        // montagem do retrato quebra no meio.
+        Banco.Instancia!.Executar(
+            "INSERT OR IGNORE INTO uso (momento, processo, titulo) VALUES (?, ?, ?)",
+            999999999999999L, "chrome", "Painel");
+
+        var retrato = Banco.Ver();
+
+        // O retrato não diz que o arquivo tem 0 bytes: ele tem. Um "0 B" ao
+        // lado de "não deu para contar as amostras" seriam dois números
+        // falsos — e o arquivo existe, com o tamanho dele.
+        Assert.NotEqual("ok", retrato.Estado);
+        Assert.True(retrato.TamanhoBytes > 0,
+            $"o tamanho do banco no disco não pode virar zero (deu {retrato.TamanhoBytes})");
+        Assert.True(retrato.TamanhoBytes >= new FileInfo(Banco.Caminho).Length);
+        Assert.Equal(-1, retrato.Amostras);
+        Assert.Equal(-1, retrato.Uso);
+    }
+
     // ------------------------------------------------------------------ ajudantes
 
     private static void GravarTrocasDeUso(int quantas)

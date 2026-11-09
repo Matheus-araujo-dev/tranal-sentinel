@@ -290,10 +290,18 @@ public class BancoRodada4Testes : IDisposable
 
             Assert.False(resultado.Sucesso);
 
-            // A cópia apontada tem que existir: um caminho que não existe
-            // não pode ser oferecido como desfazer.
-            if (resultado.Copia != null)
-                Assert.True(File.Exists(resultado.Copia));
+            // A troca não aconteceu: o banco velho tem que continuar no
+            // lugar, e não pode haver cópia apontada (nada foi movido, e
+            // um caminho que aponta para um arquivo que não existe não
+            // pode ser oferecido como desfazer).
+            //
+            // A afirmação não é condicional: um "if" que não entra no
+            // caminho deixa a correção sem prova nenhuma.
+            Assert.True(File.Exists(Banco.Caminho), "o banco antigo tem que continuar no lugar");
+            Assert.Null(resultado.Copia);
+
+            // E o banco novo do reparo não pode ficar órfão na pasta.
+            Assert.False(File.Exists(Banco.Caminho + ".reparo"));
         }
     }
 

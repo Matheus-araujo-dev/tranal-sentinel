@@ -268,6 +268,33 @@ public class UsoRegrasTestes : IDisposable
     }
 
     [Fact]
+    public void ExplicacaoDoAlertaComHistoricoNaoLidoNaoExiste()
+    {
+        var trocas = new Leitura<TrocaUso>(new List<TrocaUso> { Troca(10, 0, "chrome") }, true);
+        var amostras = new Leitura<AmostraSensor>(
+            new List<AmostraSensor> { Amostra(10, 40, 81.5f), Amostra(10, 41, 82f) }, true);
+
+        // O histórico deu para ler: a explicação existe.
+        var comDados = UsoRegras.ExplicarAlerta(Momento(10, 42), amostras, trocas);
+        Assert.NotNull(comDados);
+        Assert.True(comDados!.TemDados);
+
+        // O histórico NÃO deu para ler: não há explicação. A explicação
+        // inventada ("o app não estava gravando sensores nesse momento")
+        // seria uma afirmação falsa sobre o histórico de quem está usando
+        // o computador — e ela ficaria em cache, errada, mesmo depois do
+        // banco consertado.
+        var leituraQuebrada = new Leitura<AmostraSensor>(new List<AmostraSensor>(), false);
+        var semExplicacao = UsoRegras.ExplicarAlerta(Momento(10, 42), leituraQuebrada, trocas);
+
+        Assert.Null(semExplicacao);
+
+        // O mesmo vale quando quem não pôde ser lido é o histórico de uso.
+        var trocasQuebradas = new Leitura<TrocaUso>(new List<TrocaUso>(), false);
+        Assert.Null(UsoRegras.ExplicarAlerta(Momento(10, 42), amostras, trocasQuebradas));
+    }
+
+    [Fact]
     public void ProgramaEmDizQuemEstavaEmFrenteNaHora()
     {
         var trocas = new List<TrocaUso>

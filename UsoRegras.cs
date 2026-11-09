@@ -282,6 +282,28 @@ public static class UsoRegras
     /// <summary>
     /// Explica um alerta: o que os sensores faziam nos dois minutos antes e
     /// qual programa estava em frente na hora.
+    ///
+    /// <para>
+    /// Devolve null quando o histórico não deu para ler: sem histórico
+    /// lido, não há explicação — e a explicação inventada ("o app não
+    /// estava gravando sensores nesse momento") seria uma afirmação falsa
+    /// sobre o histórico de quem está usando o computador. A regra mora
+    /// aqui, no núcleo puro: quem chama não tem como contorná-la.
+    /// </para>
+    /// </summary>
+    /// <param name="momento">O começo do episódio do aviso (a janela olha para trás dele).</param>
+    /// <param name="amostras">As amostras de sensor da janela (com o aviso de leitura completa).</param>
+    /// <param name="trocas">As trocas de uso da janela (com o aviso de leitura completa).</param>
+    public static ExplicacaoAlerta? ExplicarAlerta(DateTime momento, Leitura<AmostraSensor> amostras, Leitura<TrocaUso> trocas)
+    {
+        if (!amostras.Completa || !trocas.Completa) return null;
+
+        return ExplicarAlerta(momento, amostras.Linhas, trocas.Linhas);
+    }
+
+    /// <summary>
+    /// Explica um alerta com o histórico já lido (a explicação em si, sem o
+    /// caso de "não deu para ler", que é do método de cima).
     /// </summary>
     public static ExplicacaoAlerta ExplicarAlerta(DateTime momento, IReadOnlyList<AmostraSensor> amostras, IReadOnlyList<TrocaUso> trocas)
     {

@@ -234,7 +234,11 @@ public partial class MainWindow
         // o usuário precisa saber qual é qual.
         if (!dados.LeituraCompleta)
         {
-            UsoVazio.Text = "Não deu para ler o histórico deste dia: o banco de dados do histórico não está íntegro (o cartão BANCO DE DADOS DO HISTÓRICO, na aba Diagnóstico, diz o que houve). Nada é inventado para tapar o buraco.";
+            // A leitura falha por mais de um motivo (o banco não está
+            // íntegro, o banco não pôde ser aberto, a consulta quebrou) — e
+            // a tela não pode escolher um motivo que pode não ser o
+            // verdadeiro. O cartão do banco diz o que houve.
+            UsoVazio.Text = "Não deu para ler o histórico deste dia (o cartão BANCO DE DADOS DO HISTÓRICO, na aba Diagnóstico, diz o que houve). Nada é inventado para tapar o buraco.";
         }
         else
         {

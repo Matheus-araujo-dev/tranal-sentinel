@@ -31,18 +31,6 @@ public partial class MainWindow
     private string _assinaturaAtivos = "";
 
     /// <summary>
-    /// As amostras de sensores em cache: é o que a explicação do alerta olha.
-    /// A leitura é I/O de arquivo e não é feita a cada tique.
-    /// </summary>
-    private List<AmostraSensor> _explicacaoAmostras = new();
-
-    /// <summary>
-    /// As trocas de uso em cache: é o que diz quem estava em frente na hora
-    /// do aviso.
-    /// </summary>
-    private List<TrocaUso> _explicacaoTrocas = new();
-
-    /// <summary>
     /// A explicação de cada aviso ("por que disparou"), por aviso e por
     /// episódio.
     ///
@@ -439,8 +427,12 @@ public partial class MainWindow
         // Só redesenha quando a lista muda (a tela é atualizada a cada tique).
         // O texto entra na assinatura: o valor do sensor muda a cada ciclo e
         // o aviso ativo mostra o valor de agora, não o do disparo. O começo
-        // do episódio entra também: é ele que a explicação olha.
-        string assinatura = string.Join("|", ativos.Select(a => a.Id + "|" + a.Texto + "|" + a.Desde.Ticks));
+        // do episódio entra também: é ele que a explicação olha. E o estado
+        // da leitura entra: quando ela falha (ou se recupera), a linha da
+        // explicação muda de "não deu para ler" para a explicação — e a tela
+        // precisa repintar para mostrar a troca.
+        string assinatura = string.Join("|", ativos.Select(a => a.Id + "|" + a.Texto + "|" + a.Desde.Ticks))
+            + "|" + (_explicacaoFalhou ? "leitura-falhou" : "leitura-ok");
         if (assinatura == _assinaturaAtivos) return;
         _assinaturaAtivos = assinatura;
 
@@ -463,6 +455,22 @@ public partial class MainWindow
                 {
                     Text = "Por que disparou: " + explicacao.Resumo,
                     Foreground = (System.Windows.Media.Brush)FindResource(explicacao.TemDados ? "Muted" : "Faint"),
+                    FontSize = 11.5,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 3, 0, 0),
+                });
+            }
+            else if (_explicacaoFalhou)
+            {
+                // A leitura do histórico falhou. O aviso continua valendo
+                // (ele veio dos sensores de agora), mas a explicação não
+                // pode ser inventada — e o silêncio seria uma resposta
+                // errada: o usuário leria "o app não estava gravando" num
+                // histórico que ninguém leu.
+                linha.Children.Add(new TextBlock
+                {
+                    Text = "Por que disparou: não deu para ler o histórico para explicar este aviso.",
+                    Foreground = (System.Windows.Media.Brush)FindResource("Faint"),
                     FontSize = 11.5,
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 3, 0, 0),
@@ -540,18 +548,18 @@ public partial class MainWindow
             var leituraAmostras = leitura.Amostras;
             var leituraTrocas = leitura.Trocas;
 
-            _explicacaoAmostras = leituraAmostras.Linhas;
-            _explicacaoTrocas = leituraTrocas.Linhas;
-
             // A explicação que o app inventa a partir de um histórico que
             // não deu para ler seria uma explicação inventada: o
             // "não estava gravando sensores" é uma coisa, o "não deu para
             // ler" é outra. Quando a leitura falha, o aviso fica sem
             // explicação — e a tela diz isso.
-            if (!leituraAmostras.Completa || !leituraTrocas.Completa)
-            {
-                _explicacaoFalhou = true;
-            }
+            //
+            // E nada é calculado nem guardado: uma explicação feita com o
+            // histórico pela metade seria uma afirmação falsa ("o app não
+            // estava gravando" quando o app estava gravando, e era a
+            // LEITURA que falhou) — e ela ficaria em cache, errada, mesmo
+            // depois do banco consertado.
+            _explicacaoFalhou = !leituraAmostras.Completa || !leituraTrocas.Completa;
 
             // A explicação de cada aviso que ainda não tem (o episódio novo é
             // o que precisa de histórico novo). Ela fica em cache: a janela
@@ -560,22 +568,25 @@ public partial class MainWindow
             {
                 if (ExplicacaoDe(alerta) != null) continue;
 
-                var explicacao = UsoRegras.ExplicarAlerta(alerta.Desde, _explicacaoAmostras, _explicacaoTrocas);
+                // A regra mora no núcleo puro: com o histórico pela metade,
+                // ele devolve null (não há explicação) e nada é guardado em
+                // cache. Uma explicação feita com histórico pela metade
+                // seria uma afirmação falsa — e ela ficaria em cache,
+                // errada, mesmo depois do banco consertado.
+                var explicacao = UsoRegras.ExplicarAlerta(alerta.Desde, leituraAmostras, leituraTrocas);
+                if (explicacao == null) continue;
+
                 lock (_travaExplicacoes)
                 {
                     _explicacoes[alerta.Id] = (alerta.Desde.Ticks, explicacao);
                 }
             }
-
-            _explicacaoFalhou = false;
         }
         catch (Exception)
         {
             // Histórico ilegível: o aviso continua como está, sem a linha de
             // explicação. Nada é inventado, e a leitura é tentada de novo
             // depois (a tentativa entra no intervalo, não no tique).
-            _explicacaoAmostras = new List<AmostraSensor>();
-            _explicacaoTrocas = new List<TrocaUso>();
             _explicacaoFalhou = true;
         }
         finally
