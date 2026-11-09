@@ -147,7 +147,11 @@ public static class TrafegoRegras
     /// </para>
     /// </summary>
     public static string NumeroInteiro(long valor) =>
-        valor.ToString(CultureInfo.InvariantCulture);
+        // "N0" com cultura invariante separa os milhares com vírgula; o
+        // padrão brasileiro usa ponto. A troca é feita à mão para que o
+        // texto saia igual no PC do dono e na máquina de integração
+        // (que roda em en-US).
+        valor.ToString("N0", CultureInfo.InvariantCulture).Replace(",", ".");
 
     /// <summary>
     /// Uma quantidade de bytes em unidade legível (B, KB, MB, GB, TB).
