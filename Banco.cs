@@ -1818,9 +1818,15 @@ public static class Banco
 
                     sobreWal = " O banco atual foi posto de volta no lugar, com o WAL dele.";
                 }
+                else if (File.Exists(Caminho))
+                {
+                    // O banco nem chegou a sair do lugar: ele está intacto,
+                    // com o WAL dele.
+                    sobreWal = " O banco atual foi mantido como está.";
+                }
                 else
                 {
-                    sobreWal = $" O banco atual, se ele saiu do lugar, ficou guardado em {guardar} (com o WAL dele).";
+                    sobreWal = $" O banco atual ficou guardado em {guardar} (com o WAL dele).";
                 }
 
                 return new ResultadoReparo(false,

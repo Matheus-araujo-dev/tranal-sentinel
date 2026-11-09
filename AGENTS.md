@@ -407,7 +407,7 @@ auto-update procura.
 | `InstanciaUnica.cs` | A trava de instância única: o app não sobe duas vezes, e a linha de comando só repara o histórico com o app fechado. |
 | `Sqlite.cs` / `SqliteLinha.cs` | O acesso ao SQLite do Windows por P/Invoke (`winsqlite3.dll`), sem dependência nova, e a linha tipada da consulta. |
 | `LegadoCsv.cs` | O formato do histórico antigo em CSV. Só a migração o usa — e só para ler. |
-| `UsoRegras.cs` / `UsoTexto.cs` | A regra pura do histórico de uso (ranking, sessões, quem fez o calor) e os textos da tela. |
+| `UsoRegras.cs` / `UsoTexto.cs` | A regra pura do histórico de uso (ranking, sessões, quem fez o calor), a explicação do alerta (que não existe quando o histórico não deu para ler) e os textos da tela. |
 | `ResumoAmostras.cs` | A frase única do resumo dos sensores (usada pela retrospectiva do travamento e pela explicação do alerta). |
 | `Bandeja.cs` | Ícone na bandeja por P/Invoke direto (sem Windows Forms, que criaria ambiguidade de nomes). |
 | `SensorValor.cs` | Regra única do valor de sensor: finito ou nada (`Finito`) e as opções de JSON (`OpcoesJson`). |
