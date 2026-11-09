@@ -268,4 +268,49 @@ public class LegadoCsvTestes : IDisposable
 
         Assert.EndsWith("uso-2026-11-06.csv", arquivo);
     }
+
+    // ------------------------------------------------------------- prazo de leitura
+
+    [Fact]
+    public void LerAmostras_ComPrazo_IgnoraOQueEstaFora()
+    {
+        UsarPastasTemporarias();
+
+        Directory.CreateDirectory(_pastaSensores!);
+        File.WriteAllLines(Path.Combine(_pastaSensores!, "historico.csv"), new[]
+        {
+            "2026-11-05T10:00:00.000;78.5;43;92.4;3200;71;100;2010;2048;87.4;12.5;0.3",
+            "2026-11-04T10:00:00.000;79;44;93;3200;72;100;2010;2048;87.5;12.5;0.3"
+        });
+
+        // O prazo de 15 dias da tabela: o que está fora não entra no
+        // banco (importar anos de histórico só encheria o banco com o
+        // que seria podado em seguida).
+        var amostras = LegadoCsv.LerAmostras(new DateTime(2026, 11, 5));
+
+        var amostra = Assert.Single(amostras);
+        Assert.Equal(78.5f, amostra.CpuTemp);
+    }
+
+    [Fact]
+    public void LerTrocas_ComPrazo_IgnoraArquivoDeDiaAntigo()
+    {
+        UsarPastasTemporarias();
+
+        Directory.CreateDirectory(_pastaUso!);
+        File.WriteAllLines(LegadoCsv.ArquivoDeUso(new DateTime(2026, 11, 6)), new[]
+        {
+            "2026-11-06T10:00:00.000;chrome;Painel"
+        });
+        File.WriteAllLines(LegadoCsv.ArquivoDeUso(new DateTime(2026, 9, 1)), new[]
+        {
+            "2026-09-01T10:00:00.000;code;antigo.cs"
+        });
+
+        // O arquivo de um dia fora do prazo é pulado inteiro.
+        var trocas = LegadoCsv.LerTrocas(new DateTime(2026, 11, 1));
+
+        var troca = Assert.Single(trocas);
+        Assert.Equal("chrome", troca.Processo);
+    }
 }

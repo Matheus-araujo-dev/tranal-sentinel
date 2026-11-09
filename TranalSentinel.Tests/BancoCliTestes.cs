@@ -27,6 +27,7 @@ public class BancoCliTestes : IDisposable
     public void Dispose()
     {
         BancoDeTeste.Restaurar();
+        RegistroDiario.PastaOverride = null;
 
         foreach (string? pasta in new[] { _pasta, _pastaLegada })
         {
@@ -101,5 +102,80 @@ public class BancoCliTestes : IDisposable
         {
             CultureInfo.CurrentCulture = cultura;
         }
+    }
+
+    // ------------------------------------------------------------------ reparo pela linha de comando
+
+    [Fact]
+    public void RepararSemConfirmarNaoMexeNoBanco()
+    {
+        UsarPastasTemporarias();
+
+        Directory.CreateDirectory(_pasta!);
+        string banco = Path.Combine(_pasta!, "historico.db");
+        File.WriteAllBytes(banco, LixoDeArquivo());
+
+        int codigo = ExecutarLinhaDeComando("--banco", "--reparar", "--pasta", _pasta!);
+
+        // Sem --confirmar o reparo não acontece: trocar o arquivo do
+        // histórico é decisão do usuário.
+        Assert.Equal(BancoCli.CodigoErro, codigo);
+        Assert.Equal(LixoDeArquivo().Length, new FileInfo(banco).Length);
+        Assert.Empty(Directory.GetFiles(_pasta!, "historico.db.avariado-*"));
+    }
+
+    [Fact]
+    public void RepararComConfirmarFicaRegistradoNoDiario()
+    {
+        UsarPastasTemporarias();
+
+        string pastaDiario = Path.Combine(_pasta!, "diario");
+        RegistroDiario.PastaOverride = pastaDiario;
+
+        Directory.CreateDirectory(_pasta!);
+        File.WriteAllBytes(Path.Combine(_pasta!, "historico.db"), LixoDeArquivo());
+
+        int codigo = ExecutarLinhaDeComando("--banco", "--reparar", "--confirmar", "--pasta", _pasta!);
+
+        Assert.Equal(BancoCli.CodigoOk, codigo);
+
+        // A ação que mexeu no arquivo do histórico fica no diário do app
+        // — é o mesmo registro que a tela faz.
+        string diario = "";
+        if (Directory.Exists(pastaDiario))
+        {
+            foreach (string arquivo in Directory.GetFiles(pastaDiario))
+                diario += File.ReadAllText(arquivo);
+        }
+
+        Assert.Contains("banco: reparo", diario);
+    }
+
+    /// <summary>
+    /// Roda a CLI sem sujar a saída do teste (e sem mexer no console de
+    /// verdade).
+    /// </summary>
+    private static int ExecutarLinhaDeComando(params string[] argumentos)
+    {
+        var original = Console.Out;
+        try
+        {
+            Console.SetOut(new StringWriter());
+            return BancoCli.Executar(argumentos);
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+    }
+
+    /// <summary>Bytes que não são um banco SQLite.</summary>
+    private static byte[] LixoDeArquivo()
+    {
+        var lixo = new byte[4096];
+        for (int i = 0; i < lixo.Length; i++)
+            lixo[i] = (byte)(i % 251);
+
+        return lixo;
     }
 }

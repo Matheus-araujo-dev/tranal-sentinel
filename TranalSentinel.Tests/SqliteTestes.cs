@@ -153,6 +153,103 @@ public class SqliteTestes : IDisposable
         Assert.NotNull(banco);
 
         Assert.Empty(banco.Consultar("SELECT * DE TABELA QUE NAO EXISTE"));
+
+        // O motivo fica registrado: é o que separa "a tabela está vazia"
+        // de "a consulta falhou".
+        Assert.NotEqual("", banco.UltimoErro);
+    }
+
+    [Fact]
+    public void ConsultaQueDaCertoLimpaOErrorAntigo()
+    {
+        using var banco = Sqlite.Abrir(Caminho);
+        Assert.NotNull(banco);
+
+        banco.Executar("CREATE TABLE t (v TEXT)");
+
+        // Um comando quebrado deixa uma mensagem de erro no SQLite.
+        Assert.False(banco.Executar("ISTO NAO E SQL"));
+        Assert.NotEqual("", banco.UltimoErro);
+
+        // A consulta seguinte dá certo: o erro antigo não pode continuar
+        // valendo, senão uma tabela vazia parece uma leitura falha.
+        banco.Executar("INSERT INTO t (v) VALUES ('linha')");
+        Assert.Single(banco.Consultar("SELECT v FROM t"));
+        Assert.Equal("", banco.UltimoErro);
+    }
+
+    [Fact]
+    public void ConsultaQueParaNoMeioNaoDevolveListaParcial()
+    {
+        // O arquivo do banco é estragado por fora: nem é um banco.
+        File.WriteAllBytes(Caminho, Lixo());
+
+        using var banco = Sqlite.Abrir(Caminho);
+        Assert.NotNull(banco);
+
+        // A leitura quebra no meio. A consulta não pode devolver as
+        // linhas lidas até ali como se fossem o resultado inteiro — quem
+        // lê precisa saber que o histórico veio pela metade.
+        var linhas = banco.Consultar("SELECT v FROM t");
+
+        Assert.Empty(linhas);
+        Assert.NotEqual("", banco.UltimoErro);
+    }
+
+    [Fact]
+    public void TransacaoQueFalhaDeixaOBancoProntoParaUsar()
+    {
+        using var banco = Sqlite.Abrir(Caminho);
+        Assert.NotNull(banco);
+
+        banco.Executar("CREATE TABLE t (v TEXT)");
+
+        bool ok = banco.EmTransacao(b =>
+        {
+            b.Executar("INSERT INTO t (v) VALUES ('primeira')");
+            throw new InvalidOperationException("falha no meio");
+        });
+
+        Assert.False(ok);
+
+        // A transação foi desfeita: a escrita seguinte funciona (com a
+        // transação aberta, ela falharia sem aviso).
+        Assert.True(banco.Executar("INSERT INTO t (v) VALUES ('segunda')"));
+        Assert.Single(banco.Consultar("SELECT v FROM t"));
+    }
+
+    [Fact]
+    public void TransacaoDeLeituraVeOMesmoRetrato()
+    {
+        using var banco = Sqlite.Abrir(Caminho);
+        Assert.NotNull(banco);
+
+        banco.Executar("CREATE TABLE t (v TEXT)");
+        banco.Executar("INSERT INTO t (v) VALUES ('linha')");
+
+        long counted = 0;
+        int lidas = 0;
+
+        bool ok = banco.EmTransacaoLeitura(b =>
+        {
+            var contagem = b.Consultar("SELECT COUNT(*) AS total FROM t");
+            counted = contagem[0].Inteiro(contagem[0].Colunas[0]);
+            lidas = b.Consultar("SELECT v FROM t").Count;
+        });
+
+        Assert.True(ok);
+        Assert.Equal(1, counted);
+        Assert.Equal(1, lidas);
+    }
+
+    /// <summary>Bytes que não são um banco SQLite.</summary>
+    private static byte[] Lixo()
+    {
+        var lixo = new byte[4096];
+        for (int i = 0; i < lixo.Length; i++)
+            lixo[i] = (byte)(i % 251);
+
+        return lixo;
     }
 
     [Fact]

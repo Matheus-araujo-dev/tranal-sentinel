@@ -301,14 +301,16 @@ public class BancoTestes : IDisposable
         UsarPastasTemporarias();
 
         // O log antigo: duas amostras em CSV, como o app gravava antes.
+        // A data é a de hoje (e não uma data fixa): o prazo de 15 dias da
+        // migração faria um teste de data fixa falhar com o tempo.
         Directory.CreateDirectory(_pastaLegada!);
-        File.WriteAllLines(Path.Combine(_pastaLegada!, "historico.csv"), new[]
+        File.WriteAllLines(LegadoCsv.ArquivoSensores, new[]
         {
-            "2026-11-05T14:31:22.500;78.5;43;92.4;3200;71;100;2010;2048;87.4;12.5;0.3",
-            "2026-11-05T14:31:27.500;79;44;93;3200;72;100;2010;2048;87.5;12.5;0.3"
+            LegadoCsv.MontarLinhaAmostra(Amostra(DateTime.Today.AddHours(10))),
+            LegadoCsv.MontarLinhaAmostra(Amostra(DateTime.Today.AddHours(11), 79f))
         });
 
-        var lidas = Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0));
+        var lidas = Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue);
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal(78.5f, lidas[0].CpuTemp);
@@ -321,17 +323,18 @@ public class BancoTestes : IDisposable
         UsarPastasTemporarias();
 
         Directory.CreateDirectory(_pastaLegada!);
-        File.WriteAllLines(Path.Combine(_pastaLegada!, "uso-2026-11-05.csv"), new[]
+        File.WriteAllLines(LegadoCsv.ArquivoDeUso(DateTime.Today), new[]
         {
-            "2026-11-05T10:00:00.000;chrome;Painel",
-            "2026-11-05T10:30:00.000;code;projeto.cs"
+            LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(10), "chrome", "Painel")),
+            LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(11), "code", "projeto.cs"))
         });
 
-        var lidas = Banco.LerUso(Momento(5, 10, 0));
+        var lidas = Banco.LerUso(DateTime.Today);
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal("chrome", lidas[0].Processo);
         Assert.Equal("code", lidas[1].Processo);
+        Assert.Equal("projeto.cs", lidas[1].Titulo);
     }
 
     [Fact]
@@ -339,11 +342,14 @@ public class BancoTestes : IDisposable
     {
         UsarPastasTemporarias();
 
-        string arquivo = Path.Combine(_pastaLegada!, "uso-2026-11-05.csv");
+        string arquivo = LegadoCsv.ArquivoDeUso(DateTime.Today);
         Directory.CreateDirectory(_pastaLegada!);
-        File.WriteAllLines(arquivo, new[] { "2026-11-05T10:00:00.000;chrome;Painel" });
+        File.WriteAllLines(arquivo, new[]
+        {
+            LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(10), "chrome", "Painel"))
+        });
 
-        Banco.LerUso(Momento(5, 10, 0));
+        Banco.LerUso(DateTime.Today);
 
         // O CSV antigo fica como cópia do histórico anterior.
         Assert.True(File.Exists(arquivo));
@@ -355,19 +361,19 @@ public class BancoTestes : IDisposable
         UsarPastasTemporarias();
 
         Directory.CreateDirectory(_pastaLegada!);
-        File.WriteAllLines(Path.Combine(_pastaLegada!, "uso-2026-11-05.csv"), new[]
+        File.WriteAllLines(LegadoCsv.ArquivoDeUso(DateTime.Today), new[]
         {
-            "2026-11-05T10:00:00.000;chrome;Painel",
-            "2026-11-05T10:30:00.000;code;projeto.cs"
+            LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(10), "chrome", "Painel")),
+            LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(11), "code", "projeto.cs"))
         });
 
-        Assert.Equal(2, Banco.LerUso(Momento(5, 10, 0)).Count);
+        Assert.Equal(2, Banco.LerUso(DateTime.Today).Count);
 
         // O app reabre o banco (é o que acontece quando o TRANAL SENTINEL
         // é fechado e aberto de novo): a migração não roda de novo.
         Banco.Fechar();
 
-        Assert.Equal(2, Banco.LerUso(Momento(5, 10, 0)).Count);
+        Assert.Equal(2, Banco.LerUso(DateTime.Today).Count);
     }
 
     [Fact]
@@ -376,12 +382,12 @@ public class BancoTestes : IDisposable
         UsarPastasTemporarias();
 
         Directory.CreateDirectory(_pastaLegada!);
-        File.WriteAllLines(Path.Combine(_pastaLegada!, "uso-2026-11-05.csv"), new[]
+        File.WriteAllLines(LegadoCsv.ArquivoDeUso(DateTime.Today), new[]
         {
-            "2026-11-05T10:00:00.000;chrome;Painel"
+            LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(10), "chrome", "Painel"))
         });
 
-        Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
+        Assert.Single(Banco.LerUso(DateTime.Today));
 
         // A versão do esquema volta atrás: é o caminho da retentativa (a
         // importação falhou no meio e o histórico antigo ainda precisa
@@ -389,7 +395,7 @@ public class BancoTestes : IDisposable
         Banco.Instancia!.Executar("PRAGMA user_version = 0");
         Banco.Fechar();
 
-        Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
+        Assert.Single(Banco.LerUso(DateTime.Today));
     }
 
     // ------------------------------------------------------------------ reparo
