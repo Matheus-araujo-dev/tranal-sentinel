@@ -211,6 +211,7 @@ public static class BancoCli
         texto.AppendLine("Tamanho: " + TamanhoLegivel(dados.TamanhoBytes));
         texto.AppendLine("Amostras de sensor: " + ContagemLegivel(dados.Amostras));
         texto.AppendLine("Registros de uso: " + ContagemLegivel(dados.Uso));
+        texto.AppendLine("Registros de tráfego: " + ContagemLegivel(dados.Trafego));
 
         // A contagem de dias vem do MESMO retrato das linhas acima: uma
         // segunda leitura do banco podia ver outro banco (o reparo troca

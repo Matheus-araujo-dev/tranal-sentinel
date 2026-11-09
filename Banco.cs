@@ -240,7 +240,8 @@ public static class Banco
             Caminho,
             CopiaAvariadaRecente(),
             _aviso,
-            0);
+            0,
+            temArquivo ? -1 : 0);
     }
 
     /// <summary>
@@ -262,6 +263,10 @@ public static class Banco
     /// Quantos dias têm histórico de uso — contado no mesmo retrato das
     /// outras linhas, para o relatório não misturar dois bancos.
     /// </param>
+    /// <param name="Trafego">
+    /// Quantos registros de tráfego de internet estão gravados (-1 quando
+    /// a contagem não deu para fazer).
+    /// </param>
     public sealed record Diagnostico(
         string Estado,
         long TamanhoBytes,
@@ -270,7 +275,8 @@ public static class Banco
         string Caminho,
         string? CopiaAvariada,
         string Aviso = "",
-        int DiasComUso = 0);
+        int DiasComUso = 0,
+        long Trafego = 0);
 
     /// <summary>
     /// Junta o retrato do banco. Nunca lança: a tela do TRANAL SAÚDE mostra
@@ -296,7 +302,8 @@ public static class Banco
                     Caminho,
                     CopiaAvariadaRecente(),
                     _aviso,
-                    DiasComUsoEm(b).Count),
+                    DiasComUsoEm(b).Count,
+                    Contar(b, "SELECT COUNT(*) AS total FROM trafego")),
                 SemInstancia());
         }
         catch

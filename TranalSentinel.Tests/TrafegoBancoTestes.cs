@@ -272,6 +272,27 @@ public class TrafegoBancoTestes : IDisposable
     // ------------------------------------------------------------------ limpeza
 
     [Fact]
+    public void Retrato_ContaOsRegistrosDeTrafego()
+    {
+        UsarPastasTemporarias();
+
+        Banco.GravarTrafego(Dia, new[]
+        {
+            new TrafegoPrograma("chrome", 100, 0),
+            new TrafegoPrograma("opera", 50, 0),
+        });
+
+        var retrato = Banco.Ver();
+
+        // O retrato do banco é um só: a tela e a linha de comando contam a
+        // mesma história, e o tráfego faz parte dela.
+        Assert.Equal(2, retrato.Trafego);
+
+        string relatorio = BancoCli.MontarRelatorio(retrato);
+        Assert.Contains("Registros de tráfego: 2", relatorio);
+    }
+
+    [Fact]
     public void Limpar_ApagaTambemOTrafego()
     {
         UsarPastasTemporarias();
