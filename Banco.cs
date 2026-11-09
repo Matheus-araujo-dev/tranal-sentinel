@@ -1540,7 +1540,7 @@ public static class Banco
         var texto = new StringBuilder("Foi reconstruído: ");
 
         texto.Append(salvasAmostras >= 0
-            ? $"{salvasAmostras} amostras de sensor foram salvos"
+            ? $"{salvasAmostras} amostras de sensor foram salvas"
             : "não deu para contar as amostras de sensor que entraram no banco novo");
 
         texto.Append(salvosUsos >= 0
