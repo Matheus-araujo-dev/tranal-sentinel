@@ -51,8 +51,16 @@ public partial class MainWindow
     /// <summary>Um dia que o seletor oferece.</summary>
     private sealed record OpcaoDiaUso(DateTime Data, string Rotulo);
 
-    /// <summary>Os dados do dia carregado (a leitura acontece fora da thread da tela).</summary>
-    private sealed record DadosUso(DateTime Dia, List<TrocaUso> Trocas, PeriodoUso Periodo, RelatorioUso Relatorio);
+    /// <summary>
+    /// Os dados do dia carregado (a leitura acontece fora da thread da tela).
+    ///
+    /// <para>
+    /// <c>LeituraCompleta</c> diz se o histórico do dia pôde ser lido
+    /// inteiro. Quando não deu, a tela diz que não deu — em vez de
+    /// mostrar um dia vazio como se o PC não tivesse sido usado.
+    /// </para>
+    /// </summary>
+    private sealed record DadosUso(DateTime Dia, List<TrocaUso> Trocas, PeriodoUso Periodo, RelatorioUso Relatorio, bool LeituraCompleta);
 
     /// <summary>
     /// Prepara a aba "Uso" (chamada quando o menu "Uso" é aberto).
@@ -142,8 +150,10 @@ public partial class MainWindow
         catch (Exception)
         {
             // Falha ao ler o histórico não pode derrubar a página: ela fica
-            // mostrando o que sabe, que é o estado vazio honesto.
-            dados = new DadosUso(dia, new List<TrocaUso>(), new PeriodoUso(dia, dia), new RelatorioUso());
+            // mostrando o que sabe, que é o estado vazio honesto — e o
+            // "leitura completa = false" faz a aba dizer que o histórico
+            // não deu para ler (em vez de mostrar um dia vazio).
+            dados = new DadosUso(dia, new List<TrocaUso>(), new PeriodoUso(dia, dia), new RelatorioUso(), false);
         }
         finally
         {
@@ -174,8 +184,11 @@ public partial class MainWindow
         // As trocas do dia e a última do dia anterior: a que atravessa a
         // meia-noite. Sem ela, a noite inteira ficaria sem dono quando o app
         // rodou a noite toda sem trocar de programa.
-        var trocas = UsoHistorico.LerComAnterior(dia);
-        var amostras = AmostrasDoDia(dia);
+        var leituraTrocas = UsoHistorico.LerComAnterior(dia);
+        var leituraAmostras = AmostrasDoDia(dia);
+
+        var trocas = leituraTrocas.Linhas;
+        var amostras = leituraAmostras.Linhas;
 
         // O período é uma regra do núcleo: começa na primeira evidência de
         // que o app rodava e para na última. Sem isso, as horas em que o app
@@ -183,7 +196,9 @@ public partial class MainWindow
         var periodo = UsoRegras.Periodo(dia, DateTime.Now, amostras, trocas);
 
         var relatorio = UsoRegras.Calcular(trocas, periodo.Inicio, periodo.Fim, amostras);
-        return new DadosUso(dia, trocas, periodo, relatorio);
+
+        return new DadosUso(dia, trocas, periodo, relatorio,
+            leituraTrocas.Completa && leituraAmostras.Completa);
     }
 
     /// <summary>
@@ -192,7 +207,7 @@ public partial class MainWindow
     /// arquivo chega a dezoito megabytes e interpretá-lo inteiro custa meio
     /// segundo.
     /// </summary>
-    private static List<AmostraSensor> AmostrasDoDia(DateTime dia)
+    private static Leitura<AmostraSensor> AmostrasDoDia(DateTime dia)
     {
         DateTime inicio = dia.Date;
         DateTime fim = inicio.AddDays(1).AddMilliseconds(-1);
@@ -213,11 +228,25 @@ public partial class MainWindow
         // Estado vazio honesto: o app só registra o uso enquanto está rodando.
         UsoVazio.Visibility = semUso ? Visibility.Visible : Visibility.Collapsed;
 
-        // ---- tempo de tela
+        // Quando o histórico não pôde ser lido, a aba não mostra um dia
+        // vazio: ela diz que o histórico não deu para ler. Um dia sem
+        // registro e um dia que não deu para ler são coisas diferentes — e
+        // o usuário precisa saber qual é qual.
+        if (!dados.LeituraCompleta)
+        {
+            UsoVazio.Text = "Não deu para ler o histórico deste dia: o banco de dados do histórico não está íntegro (o cartão BANCO DE DADOS DO HISTÓRICO, na aba Diagnóstico, diz o que houve). Nada é inventado para tapar o buraco.";
+        }
+        else
+        {
+            UsoVazio.Text = "O app só registra o uso enquanto está rodando: ainda não há nada registrado para este dia. É um recurso de leitura — o histórico fica neste computador e nada sai daqui.";
+        }
+
         if (semUso)
         {
             UsoTotal.Text = "—";
-            UsoTotalObs.Text = "Sem registro neste dia.";
+            UsoTotalObs.Text = dados.LeituraCompleta
+                ? "Sem registro neste dia."
+                : "Histórico não lido — não dá para dizer quanto tempo de tela teve.";
         }
         else
         {

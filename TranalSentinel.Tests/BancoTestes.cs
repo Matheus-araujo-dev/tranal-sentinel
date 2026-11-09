@@ -75,7 +75,7 @@ public class BancoTestes : IDisposable
 
         Assert.True(Banco.GravarAmostra(original));
 
-        var lida = Assert.Single(Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0)));
+        var lida = Assert.Single(Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0)).Linhas);
 
         Assert.Equal(78.5f, lida.CpuTemp);
         Assert.Null(lida.CpuCarga);
@@ -99,7 +99,7 @@ public class BancoTestes : IDisposable
         Banco.GravarAmostra(Amostra(momento, 70f));
         Banco.GravarAmostra(Amostra(momento, 80f));
 
-        var lidas = Banco.LerAmostras(momento.AddSeconds(-1), momento.AddSeconds(1));
+        var lidas = Banco.LerAmostras(momento.AddSeconds(-1), momento.AddSeconds(1)).Linhas;
 
         var lida = Assert.Single(lidas);
         Assert.Equal(80f, lida.CpuTemp);
@@ -115,7 +115,7 @@ public class BancoTestes : IDisposable
         Banco.GravarAmostra(Amostra(Momento(5, 12, 0)));
         Banco.GravarAmostra(Amostra(Momento(6, 10, 0)));
 
-        var lidas = Banco.LerAmostras(Momento(5, 0, 0), Momento(5, 23, 59, 59));
+        var lidas = Banco.LerAmostras(Momento(5, 0, 0), Momento(5, 23, 59, 59)).Linhas;
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal(Momento(5, 10, 0), lidas[0].Momento);
@@ -131,7 +131,7 @@ public class BancoTestes : IDisposable
         Banco.GravarAmostra(Amostra(Momento(5, 8, 0)));
         Banco.GravarAmostra(Amostra(Momento(5, 10, 0)));
 
-        var lidas = Banco.LerAmostras(Momento(5, 0, 0), Momento(5, 23, 59));
+        var lidas = Banco.LerAmostras(Momento(5, 0, 0), Momento(5, 23, 59)).Linhas;
 
         Assert.Equal(3, lidas.Count);
         Assert.Equal(Momento(5, 8, 0), lidas[0].Momento);
@@ -149,7 +149,7 @@ public class BancoTestes : IDisposable
         Assert.True(Banco.GravarUso(new TrocaUso(Momento(5, 10, 0), "chrome", "Painel")));
         Assert.True(Banco.GravarUso(new TrocaUso(Momento(5, 10, 30), "code", "projeto.cs")));
 
-        var lidas = Banco.LerUso(Momento(5, 10, 0));
+        var lidas = Banco.LerUso(Momento(5, 10, 0)).Linhas;
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal("chrome", lidas[0].Processo);
@@ -166,7 +166,7 @@ public class BancoTestes : IDisposable
 
         Assert.True(Banco.GravarUso(original));
 
-        var lida = Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
+        var lida = Assert.Single(Banco.LerUso(Momento(5, 10, 0)).Linhas);
         Assert.Equal("navegador", lida.Processo);
         Assert.Equal("Ação ♥ — coração", lida.Titulo);
     }
@@ -178,7 +178,7 @@ public class BancoTestes : IDisposable
 
         Assert.True(Banco.GravarUso(new TrocaUso(Momento(5, 10, 0), "code", "a;b\r\nc")));
 
-        var lida = Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
+        var lida = Assert.Single(Banco.LerUso(Momento(5, 10, 0)).Linhas);
         Assert.DoesNotContain(';', lida.Titulo);
         Assert.DoesNotContain('\r', lida.Titulo);
         Assert.DoesNotContain('\n', lida.Titulo);
@@ -198,7 +198,7 @@ public class BancoTestes : IDisposable
         // seguinte).
         Assert.True(Banco.GravarUso(troca));
 
-        Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
+        Assert.Single(Banco.LerUso(Momento(5, 10, 0)).Linhas);
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public class BancoTestes : IDisposable
         Banco.GravarUso(new TrocaUso(Momento(5, 10, 0), "chrome", "Painel"));
         Banco.GravarUso(new TrocaUso(Momento(6, 10, 0), "code", "Painel"));
 
-        var lidas = Banco.LerUso(Momento(6, 10, 0));
+        var lidas = Banco.LerUso(Momento(6, 10, 0)).Linhas;
 
         var lida = Assert.Single(lidas);
         Assert.Equal("code", lida.Processo);
@@ -225,7 +225,7 @@ public class BancoTestes : IDisposable
         Banco.GravarUso(new TrocaUso(Momento(4, 23, 50), "chrome", "Painel"));
         Banco.GravarUso(new TrocaUso(Momento(5, 9, 0), "code", "Painel"));
 
-        var trocas = Banco.LerUsoComAnterior(Momento(5, 10, 0));
+        var trocas = Banco.LerUsoComAnterior(Momento(5, 10, 0)).Linhas;
 
         Assert.Equal(2, trocas.Count);
         Assert.Equal("chrome", trocas[0].Processo);
@@ -262,9 +262,9 @@ public class BancoTestes : IDisposable
         int apagados = Banco.ApagarAntigos(Momento(3, 0, 0));
 
         Assert.Equal(2, apagados);
-        Assert.Single(Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue));
-        Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
-        Assert.Empty(Banco.LerUso(Momento(1, 10, 0)));
+        Assert.Single(Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue).Linhas);
+        Assert.Single(Banco.LerUso(Momento(5, 10, 0)).Linhas);
+        Assert.Empty(Banco.LerUso(Momento(1, 10, 0)).Linhas);
     }
 
     [Fact]
@@ -290,7 +290,7 @@ public class BancoTestes : IDisposable
         Banco.ApagarUsosAntigos(agora.AddDays(-30));
 
         // Com 30 dias, o registro de uso antigo também sai.
-        Assert.Empty(Banco.LerUso(agora.AddDays(-20)));
+        Assert.Empty(Banco.LerUso(agora.AddDays(-20)).Linhas);
     }
 
     // ------------------------------------------------------------------ migração
@@ -310,7 +310,7 @@ public class BancoTestes : IDisposable
             LegadoCsv.MontarLinhaAmostra(Amostra(DateTime.Today.AddHours(11), 79f))
         });
 
-        var lidas = Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue);
+        var lidas = Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue).Linhas;
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal(78.5f, lidas[0].CpuTemp);
@@ -329,7 +329,7 @@ public class BancoTestes : IDisposable
             LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(11), "code", "projeto.cs"))
         });
 
-        var lidas = Banco.LerUso(DateTime.Today);
+        var lidas = Banco.LerUso(DateTime.Today).Linhas;
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal("chrome", lidas[0].Processo);
@@ -367,13 +367,13 @@ public class BancoTestes : IDisposable
             LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(11), "code", "projeto.cs"))
         });
 
-        Assert.Equal(2, Banco.LerUso(DateTime.Today).Count);
+        Assert.Equal(2, Banco.LerUso(DateTime.Today).Linhas.Count);
 
         // O app reabre o banco (é o que acontece quando o TRANAL SENTINEL
         // é fechado e aberto de novo): a migração não roda de novo.
         Banco.Fechar();
 
-        Assert.Equal(2, Banco.LerUso(DateTime.Today).Count);
+        Assert.Equal(2, Banco.LerUso(DateTime.Today).Linhas.Count);
     }
 
     [Fact]
@@ -387,7 +387,7 @@ public class BancoTestes : IDisposable
             LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddHours(10), "chrome", "Painel"))
         });
 
-        Assert.Single(Banco.LerUso(DateTime.Today));
+        Assert.Single(Banco.LerUso(DateTime.Today).Linhas);
 
         // A versão do esquema volta atrás: é o caminho da retentativa (a
         // importação falhou no meio e o histórico antigo ainda precisa
@@ -395,7 +395,7 @@ public class BancoTestes : IDisposable
         Banco.Instancia!.Executar("PRAGMA user_version = 0");
         Banco.Fechar();
 
-        Assert.Single(Banco.LerUso(DateTime.Today));
+        Assert.Single(Banco.LerUso(DateTime.Today).Linhas);
     }
 
     // ------------------------------------------------------------------ reparo
@@ -436,7 +436,7 @@ public class BancoTestes : IDisposable
         Assert.True(resultado.Sucesso);
         Assert.Equal(0, resultado.AmostrasRecuperadas);
         Assert.Null(resultado.Copia);
-        Assert.Single(Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0)));
+        Assert.Single(Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0)).Linhas);
     }
 
     [Fact]
@@ -458,7 +458,7 @@ public class BancoTestes : IDisposable
 
         // O banco novo funciona: a coleta volta a gravar.
         Assert.True(Banco.GravarAmostra(Amostra(Momento(5, 11, 0))));
-        Assert.Single(Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0)));
+        Assert.Single(Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0)).Linhas);
         Assert.Equal("ok", Banco.Estado);
     }
 
@@ -493,8 +493,8 @@ public class BancoTestes : IDisposable
 
         Assert.True(resultado.Sucesso);
         Assert.Contains("íntegro", resultado.Relato);
-        Assert.Single(Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0)));
-        Assert.Single(Banco.LerUso(Momento(5, 10, 0)));
+        Assert.Single(Banco.LerAmostras(Momento(5, 0, 0), Momento(6, 0, 0)).Linhas);
+        Assert.Single(Banco.LerUso(Momento(5, 10, 0)).Linhas);
     }
 
     [Fact]
@@ -548,8 +548,8 @@ public class BancoTestes : IDisposable
             Assert.Null(Banco.Instancia);
             Assert.False(Banco.GravarAmostra(Amostra(Momento(5, 10, 0))));
             Assert.False(Banco.GravarUso(new TrocaUso(Momento(5, 10, 0), "chrome", "Painel")));
-            Assert.Empty(Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue));
-            Assert.Empty(Banco.LerUso(Momento(5, 10, 0)));
+            Assert.Empty(Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue).Linhas);
+            Assert.Empty(Banco.LerUso(Momento(5, 10, 0)).Linhas);
             Assert.Empty(Banco.DiasComUso());
             Assert.Equal(0, Banco.Contagem().Amostras);
 

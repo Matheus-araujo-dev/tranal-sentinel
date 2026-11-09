@@ -65,44 +65,39 @@ public static class InstanciaUnica
     /// nesta sessão do Windows.
     ///
     /// <para>
-    /// Abre o mutex sem tomar a posse dele: se ele não existia, foi criado
-    /// agora e <c>criado</c> vem true — o que significa que ninguém está
-    /// rodando. Se ele existia, alguém o está segurando.
+    /// A sonda <b>não cria</b> o mutex: ela só olha se ele existe. Criar
+    /// seria perigoso — o app que subisse na mesma hora encontraria a
+    /// trava já criada por outra chamada e acharia que outra instância
+    /// estava rodando (ele não sobe, sem mensagem).
     ///
     /// <para>
     /// Quando não dá para saber (o mutex é de outro nível de permissão),
     /// a resposta é <b>true</b>: sem certeza, a operação que mexe no
-    /// arquivo do histórico não acontece. Perder uma opportunity é melhor
+    /// arquivo do histórico não acontece. Perder uma oportunidade é melhor
     /// que mexer no arquivo que outro programa tem aberto.
     /// </para>
     /// </summary>
     public static bool EstaRodando()
     {
-        Mutex? sonda = null;
-
         try
         {
-            bool criado;
-            sonda = new Mutex(false, Nome, out criado);
+            if (!Mutex.TryOpenExisting(Nome, out Mutex? existente)) return false;
 
-            // Criado agora: não havia ninguém com a trava. A sonda é
-            // descartada logo abaixo, e o mutex some junto.
-            return !criado;
+            // O mutex existe: alguém o está segurando. O handle é só uma
+            // sondagem — ele é devolvido logo em seguida.
+            existente.Dispose();
+            return true;
         }
         catch (UnauthorizedAccessException)
         {
-            // Criado por outra instância com outro nível de permissão:
-            // existe uma instância rodando.
+            // Existe uma instância rodando (o app instalado roda como
+            // administrador), e esta não consegue nem abrir a trava.
             return true;
         }
         catch (Exception)
         {
             // Sem conseguir saber, o app não arrisca mexer no banco.
             return true;
-        }
-        finally
-        {
-            sonda?.Dispose();
         }
     }
 }

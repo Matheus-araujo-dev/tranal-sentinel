@@ -65,20 +65,6 @@ public static class LegadoCsv
     /// <summary>Quantos campos numéricos a linha de sensor tem (fora o timestamp).</summary>
     private const int CamposNumericos = 11;
 
-    /// <summary>
-    /// A leitura de um arquivo do histórico antigo: as linhas lidas e se a
-    /// leitura ficou completa.
-    /// </summary>
-    /// <typeparam name="T">O tipo da linha (amostra de sensor ou troca de uso).</typeparam>
-    /// <param name="Linhas">As linhas lidas.</param>
-    /// <param name="Completa">
-    /// False quando a leitura parou no meio (o arquivo trancado, o disco
-    /// cheio, o antivírus com o arquivo aberto). Uma leitura pela metade
-    /// <b>não pode valer como importação completa</b>: o histórico que
-    /// faltou nunca entraria no banco — e ninguém ficaria sabendo.
-    /// </param>
-    public sealed record Leitura<T>(List<T> Linhas, bool Completa);
-
     // ------------------------------------------------------------------ formato
 
     /// <summary>

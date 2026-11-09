@@ -50,9 +50,9 @@ public static class SensorHistorico
 
     /// <summary>
     /// Lê as amostras gravadas a partir de <paramref name="desde"/>.
-    /// Não lança: um banco ilegível devolve lista vazia.
+    /// Não lança: um banco ilegível devolve leitura incompleta.
     /// </summary>
-    public static List<AmostraSensor> Ler(DateTime desde) =>
+    public static Leitura<AmostraSensor> Ler(DateTime desde) =>
         Ler(desde, DateTime.MaxValue);
 
     /// <summary>
@@ -66,10 +66,12 @@ public static class SensorHistorico
     /// </para>
     ///
     /// <para>
-    /// Não lança: um banco ilegível devolve lista vazia.
+    /// Não lança: um banco ilegível devolve leitura incompleta. A
+    /// distinção importa — "não tinha amostra nesse período" e "não deu
+    /// para ler" não podem virar a mesma frase na tela.
     /// </para>
     /// </summary>
-    public static List<AmostraSensor> Ler(DateTime desde, DateTime ate)
+    public static Leitura<AmostraSensor> Ler(DateTime desde, DateTime ate)
     {
         try
         {
@@ -77,8 +79,8 @@ public static class SensorHistorico
         }
         catch
         {
-            // Banco trancado ou ilegível: sem histórico, sem drama.
-            return new List<AmostraSensor>();
+            // Banco trancado ou ilegível: a leitura não ficou completa.
+            return new Leitura<AmostraSensor>(new List<AmostraSensor>(), false);
         }
     }
 

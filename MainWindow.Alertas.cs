@@ -531,12 +531,27 @@ public partial class MainWindow
             var dias = new HashSet<DateTime> { DateTime.Today, inicio.Date };
             foreach (var alerta in ativos) dias.Add(alerta.Desde.Date);
 
-            var dados = await Task.Run(() => (
+            // A leitura sai da thread da tela: ela pega o histórico inteiro
+            // da janela, e a tela não pode ficar esperando por isso.
+            var leitura = await Task.Run(() => (
                 Amostras: SensorHistorico.Ler(inicio, fim),
                 Trocas: TrocasDe(dias))).ConfigureAwait(false);
 
-            _explicacaoAmostras = dados.Amostras;
-            _explicacaoTrocas = dados.Trocas;
+            var leituraAmostras = leitura.Amostras;
+            var leituraTrocas = leitura.Trocas;
+
+            _explicacaoAmostras = leituraAmostras.Linhas;
+            _explicacaoTrocas = leituraTrocas.Linhas;
+
+            // A explicação que o app inventa a partir de um histórico que
+            // não deu para ler seria uma explicação inventada: o
+            // "não estava gravando sensores" é uma coisa, o "não deu para
+            // ler" é outra. Quando a leitura falha, o aviso fica sem
+            // explicação — e a tela diz isso.
+            if (!leituraAmostras.Completa || !leituraTrocas.Completa)
+            {
+                _explicacaoFalhou = true;
+            }
 
             // A explicação de cada aviso que ainda não tem (o episódio novo é
             // o que precisa de histórico novo). Ela fica em cache: a janela
@@ -582,6 +597,6 @@ public partial class MainWindow
     /// por dia). Vem em ordem cronológica, para a regra achar quem estava
     /// em frente na hora do aviso.
     /// </summary>
-    private static List<TrocaUso> TrocasDe(IEnumerable<DateTime> dias) =>
+    private static Leitura<TrocaUso> TrocasDe(IEnumerable<DateTime> dias) =>
         UsoHistorico.LerVarios(dias);
 }

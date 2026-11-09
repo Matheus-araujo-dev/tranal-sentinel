@@ -64,7 +64,7 @@ public class SensorHistoricoTestes : IDisposable
         var amostra = Amostra(new DateTime(2026, 11, 5, 14, 31, 22, 500, DateTimeKind.Local));
         SensorHistorico.Gravar(amostra);
 
-        var lidas = SensorHistorico.Ler(DateTime.MinValue);
+        var lidas = SensorHistorico.Ler(DateTime.MinValue).Linhas;
 
         var lida = Assert.Single(lidas);
         Assert.Equal(amostra.Momento, lida.Momento);
@@ -80,7 +80,7 @@ public class SensorHistoricoTestes : IDisposable
         SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 14, 31, 0, DateTimeKind.Local)));
         SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 14, 31, 5, DateTimeKind.Local)));
 
-        var lidas = SensorHistorico.Ler(DateTime.MinValue);
+        var lidas = SensorHistorico.Ler(DateTime.MinValue).Linhas;
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal(14, lidas[0].Momento.Hour);
@@ -96,7 +96,7 @@ public class SensorHistoricoTestes : IDisposable
         SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 1, 10, 0, 0, DateTimeKind.Local)));
         SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local)));
 
-        var lidas = SensorHistorico.Ler(new DateTime(2026, 11, 3, 0, 0, 0, DateTimeKind.Local));
+        var lidas = SensorHistorico.Ler(new DateTime(2026, 11, 3, 0, 0, 0, DateTimeKind.Local)).Linhas;
 
         var lida = Assert.Single(lidas);
         Assert.Equal(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local), lida.Momento);
@@ -116,7 +116,7 @@ public class SensorHistoricoTestes : IDisposable
 
         var lidas = SensorHistorico.Ler(
             new DateTime(2026, 11, 5, 0, 0, 0, DateTimeKind.Local),
-            new DateTime(2026, 11, 5, 23, 59, 59, DateTimeKind.Local));
+            new DateTime(2026, 11, 5, 23, 59, 59, DateTimeKind.Local)).Linhas;
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local), lidas[0].Momento);
@@ -128,7 +128,7 @@ public class SensorHistoricoTestes : IDisposable
     {
         UsarPastaTemporaria();
 
-        Assert.Empty(SensorHistorico.Ler(DateTime.MinValue));
+        Assert.Empty(SensorHistorico.Ler(DateTime.MinValue).Linhas);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class SensorHistoricoTestes : IDisposable
         {
             // O log é um extra: falhar nele não pode derrubar o app.
             SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local)));
-            Assert.Empty(SensorHistorico.Ler(DateTime.MinValue));
+            Assert.Empty(SensorHistorico.Ler(DateTime.MinValue).Linhas);
         }
         finally
         {
@@ -165,7 +165,7 @@ public class SensorHistoricoTestes : IDisposable
 
         SensorHistorico.Podar();
 
-        var lidas = SensorHistorico.Ler(DateTime.MinValue);
+        var lidas = SensorHistorico.Ler(DateTime.MinValue).Linhas;
 
         var lida = Assert.Single(lidas);
         Assert.True(lida.Momento > agora.AddDays(-SensorHistorico.DiasRetidos));

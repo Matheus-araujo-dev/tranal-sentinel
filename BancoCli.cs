@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace TranalSentinel;
 
@@ -121,24 +122,49 @@ public static class BancoCli
                     return CodigoErro;
                 }
 
-                var resultado = Banco.Reparar();
-                Console.WriteLine(resultado.Relato);
+                // A trava é segurada durante o reparo: se o app subir no
+                // meio da troca, ele abriria o banco velho e as gravações
+                // dele iriam para o arquivo renomeado — o app continuaria
+                // escrevendo num banco que não é mais o do caminho.
+                Mutex? trava = InstanciaUnica.Segurar();
 
-                // Fica no diário do app: é uma ação que mexeu no arquivo do
-                // histórico, e o diário é onde o usuário vê o que o app fez.
+                if (trava == null)
+                {
+                    // O app subiu entre a conferência e o reparo.
+                    Console.WriteLine("O TRANAL SENTINEL abriu enquanto o reparo começava. Feche o app e repita o comando.");
+                    Console.Out.Flush();
+
+                    return CodigoErro;
+                }
+
                 try
                 {
-                    RegistroDiario.Registrar($"banco: reparo pela linha de comando — {(resultado.Sucesso ? "ok" : "falhou")}: {resultado.Relato}");
+                    var resultado = Banco.Reparar();
+                    Console.WriteLine(resultado.Relato);
+
+                    // Fica no diário do app: é uma ação que mexeu no arquivo do
+                    // histórico, e o diário é onde o usuário vê o que o app fez.
+                    try
+                    {
+                        RegistroDiario.Registrar($"banco: reparo pela linha de comando — {(resultado.Sucesso ? "ok" : "falhou")}: {resultado.Relato}");
+                    }
+                    catch
+                    {
+                        // O diário é um extra: se falhar, o reparo já foi
+                        // aplicado e isso não pode virar mais um erro.
+                    }
+
+                    Console.Out.Flush();
+
+                    return resultado.Sucesso ? CodigoOk : CodigoErro;
                 }
-                catch
+                finally
                 {
-                    // O diário é um extra: se falhar, o reparo já foi
-                    // aplicado e isso não pode virar mais um erro.
+                    // A trava é devolvida: o app pode subir depois do
+                    // reparo, e ele precisa conseguir.
+                    try { trava.ReleaseMutex(); } catch { /* já foi devolvida */ }
+                    trava.Dispose();
                 }
-
-                Console.Out.Flush();
-
-                return resultado.Sucesso ? CodigoOk : CodigoErro;
             }
 
             var dados = Banco.Ver();

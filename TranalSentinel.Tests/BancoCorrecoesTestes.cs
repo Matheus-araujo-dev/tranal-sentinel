@@ -131,7 +131,7 @@ public class BancoCorrecoesTestes : IDisposable
         Assert.True(Banco.GravarUso(new TrocaUso(instante, "chrome", "Painel")));
         Assert.True(Banco.GravarUso(new TrocaUso(instante, "code", "projeto.cs")));
 
-        var lidas = Banco.LerUso(instante);
+        var lidas = Banco.LerUso(instante).Linhas;
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal("chrome", lidas[0].Processo);
@@ -151,7 +151,7 @@ public class BancoCorrecoesTestes : IDisposable
         // não pode ficar tentando de novo (e adiando a troca seguinte).
         Assert.True(Banco.GravarUso(troca));
 
-        Assert.Single(Banco.LerUso(DateTime.Today));
+        Assert.Single(Banco.LerUso(DateTime.Today).Linhas);
     }
 
     // ------------------------------------------------------------------ relato do reparo
@@ -300,7 +300,7 @@ public class BancoCorrecoesTestes : IDisposable
             LegadoCsv.MontarLinhaAmostra(Amostra(DateTime.Today.AddDays(-40)))
         });
 
-        var lidas = Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue);
+        var lidas = Banco.LerAmostras(DateTime.MinValue, DateTime.MaxValue).Linhas;
 
         Assert.Single(lidas);
     }
@@ -324,7 +324,7 @@ public class BancoCorrecoesTestes : IDisposable
             LegadoCsv.MontarLinhaUso(new TrocaUso(DateTime.Today.AddDays(-40).AddHours(10), "code", "antigo.cs"))
         });
 
-        var lidas = Banco.LerUso(DateTime.Today);
+        var lidas = Banco.LerUso(DateTime.Today).Linhas;
 
         Assert.Single(lidas);
         Assert.Equal("chrome", lidas[0].Processo);

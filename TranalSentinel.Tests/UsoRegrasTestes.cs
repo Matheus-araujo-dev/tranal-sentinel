@@ -291,7 +291,7 @@ public class UsoRegrasTestes : IDisposable
         UsoHistorico.Gravar(new TrocaUso(Momento(10, 0), "chrome", "Painel"));
         UsoHistorico.Gravar(new TrocaUso(Momento(10, 30), "code", "projeto.cs"));
 
-        var lidas = UsoHistorico.Ler(Momento(10, 0));
+        var lidas = UsoHistorico.Ler(Momento(10, 0)).Linhas;
 
         Assert.Equal(2, lidas.Count);
         Assert.Equal("chrome", lidas[0].Processo);
@@ -308,7 +308,7 @@ public class UsoRegrasTestes : IDisposable
         UsoHistorico.Gravar(new TrocaUso(Momento(10, 0), "chrome", "Painel"));
         UsoHistorico.Gravar(new TrocaUso(Momento(10, 0).AddDays(1), "code", "Painel"));
 
-        var lidas = UsoHistorico.Ler(Momento(10, 0).AddDays(1));
+        var lidas = UsoHistorico.Ler(Momento(10, 0).AddDays(1)).Linhas;
 
         Assert.Single(lidas);
         Assert.Equal("code", lidas[0].Processo);
@@ -319,7 +319,7 @@ public class UsoRegrasTestes : IDisposable
     {
         UsarPastaTemporaria();
 
-        Assert.Empty(UsoHistorico.Ler(Momento(10, 0)));
+        Assert.Empty(UsoHistorico.Ler(Momento(10, 0)).Linhas);
         Assert.Empty(UsoHistorico.DiasComUso());
     }
 
@@ -347,8 +347,8 @@ public class UsoRegrasTestes : IDisposable
 
         UsoHistorico.Podar();
 
-        Assert.Empty(UsoHistorico.Ler(antigo));
-        Assert.Single(UsoHistorico.Ler(Momento(10, 0)));
+        Assert.Empty(UsoHistorico.Ler(antigo).Linhas);
+        Assert.Single(UsoHistorico.Ler(Momento(10, 0)).Linhas);
     }
 
     [Fact]
@@ -519,7 +519,7 @@ public class UsoRegrasTestes : IDisposable
         UsoHistorico.Gravar(new TrocaUso(MomentoDia(1, 23, 0), "chrome", "Painel"));
         UsoHistorico.Gravar(new TrocaUso(MomentoDia(0, 9, 0), "code", "Projeto"));
 
-        var trocas = UsoHistorico.LerVarios(new[] { MomentoDia(1, 0, 0), MomentoDia(0, 0, 0) });
+        var trocas = UsoHistorico.LerVarios(new[] { MomentoDia(1, 0, 0), MomentoDia(0, 0, 0) }).Linhas;
 
         Assert.Equal(2, trocas.Count);
         Assert.Equal("chrome", trocas[0].Processo);

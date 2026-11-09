@@ -53,8 +53,16 @@ public static class UsoHistorico
     /// <summary>
     /// Lê as trocas de um dia. Devolve lista vazia quando o dia não existe
     /// (o app nunca rodou, ou já foi podado).
+    ///
+    /// <para>
+    /// A leitura diz se ela ficou completa: lista vazia com leitura
+    /// completa é "não teve uso nesse dia"; lista vazia com leitura
+    /// incompleta é "não deu para ler" — e a tela precisa saber a
+    /// diferença, senão mostra um dia vazio como se o PC não tivesse sido
+    /// usado.
+    /// </para>
     /// </summary>
-    public static List<TrocaUso> Ler(DateTime dia)
+    public static Leitura<TrocaUso> Ler(DateTime dia)
     {
         try
         {
@@ -62,8 +70,8 @@ public static class UsoHistorico
         }
         catch
         {
-            // Banco trancado ou ilegível: sem histórico, sem drama.
-            return new List<TrocaUso>();
+            // Banco trancado ou ilegível: a leitura não ficou completa.
+            return new Leitura<TrocaUso>(new List<TrocaUso>(), false);
         }
     }
 
@@ -77,7 +85,7 @@ public static class UsoHistorico
     /// trocar de programa.
     /// </para>
     /// </summary>
-    public static List<TrocaUso> LerComAnterior(DateTime dia)
+    public static Leitura<TrocaUso> LerComAnterior(DateTime dia)
     {
         try
         {
@@ -85,8 +93,8 @@ public static class UsoHistorico
         }
         catch
         {
-            // Banco trancado ou ilegível: sem histórico, sem drama.
-            return new List<TrocaUso>();
+            // Banco trancado ou ilegível: a leitura não ficou completa.
+            return new Leitura<TrocaUso>(new List<TrocaUso>(), false);
         }
     }
 
@@ -99,7 +107,7 @@ public static class UsoHistorico
     /// começa de madrugada não sabe dizer quem estava em frente.
     /// </para>
     /// </summary>
-    public static List<TrocaUso> LerVarios(IEnumerable<DateTime> dias)
+    public static Leitura<TrocaUso> LerVarios(IEnumerable<DateTime> dias)
     {
         try
         {
@@ -107,8 +115,8 @@ public static class UsoHistorico
         }
         catch
         {
-            // Banco trancado ou ilegível: sem histórico, sem drama.
-            return new List<TrocaUso>();
+            // Banco trancado ou ilegível: a leitura não ficou completa.
+            return new Leitura<TrocaUso>(new List<TrocaUso>(), false);
         }
     }
 

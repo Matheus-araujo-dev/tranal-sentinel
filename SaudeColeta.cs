@@ -248,7 +248,17 @@ internal static class SaudeColeta
             var desde = maisAntigo - TimeSpan.FromMinutes(15);
             if (desde < inicio) desde = inicio;
 
-            var amostras = SensorHistorico.Ler(desde);
+            var leitura = SensorHistorico.Ler(desde);
+
+            // A retrospectiva é a correlação entre o travamento e o que os
+            // sensores faziam. Sem o histórico, não há o que correlacionar:
+            // o app diz que não sabe, em vez de inventar uma explicação.
+            if (!leitura.Completa)
+            {
+                return;
+            }
+
+            var amostras = leitura.Linhas;
             var retrospectivas = CorrelatorTravamento.Correlacionar(dados.Travamentos, amostras);
             dados.Retrospectivas.AddRange(retrospectivas);
 

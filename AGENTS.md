@@ -204,12 +204,40 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   silêncio. A linha fica de fora e o relato conta a perda.
 - **A cópia avariada tem nome exato:** `historico.db.avariado-` mais 15
   caracteres (yyyymmdd-hhmmss). O `-wal` e o `-shm` que acompanham a cópia
-  **não são cópias** — e o desfazer nunca pode mover o WAL para o lugar do
-  banco (isso destrói o histórico em vez de trazê-lo de volta).
+  **não são cópias** — e o desfazer nunca pode colocar no lugar do banco o
+  WAL de **outro** arquivo (isso destrói o histórico em vez de trazê-lo de
+  volta). O WAL **da própria cópia** volta junto com ela: é o par
+  banco+WAL que o reparo guardou, e voltar separado deixaria o banco
+  restaurado mais velho do que estava.
 - **O reparo não troca o arquivo sem ler.** Se a leitura falhou (e o
   arquivo não é "não é um banco de dados"), o reparo cancela e mantém o
   arquivo; se o banco tinha linhas e o novo ficou vazio, cancela também.
   Trocar histórico por vazio é pior do que ficar com o banco estragado.
+- **O banco novo do reparo é apagado DEPOIS do `using` que o abre.** Com o
+  handle do SQLite aberto, o Windows não deixa apagar o arquivo — e o
+  `historico.db.reparo` (dezenas de megabytes) ficaria órfão na pasta do
+  histórico a cada tentativa cancelada. O cancelamento é anotado e a
+  limpeza acontece com o handle fechado; se ainda assim o arquivo
+  sobrar, o relato diz.
+- **A perda é contada por tabela.** Cada tabela tem a sua contagem e o seu
+  "não deu para contar": uma contagem que falhou não pode apagar a conta
+  da outra tabela (`Banco.RelatoDaPerda`, que é pura e testada).
+- **"Não tem" e "não deu para ler" são frases diferentes**
+  (`Leitura<T>.Completa`). Lista vazia com leitura completa é "não teve uso
+  nesse dia"; lista vazia com leitura incompleta é "não deu para ler" — e
+  a tela do TRANAL USO diz uma coisa ou outra, nunca as duas parecidas.
+  O retrato do banco também: quando ele não pôde ser lido, a contagem é
+  -1 ("não deu para contar"), nunca 0.
+- **A cópia só é oferecida como desfazer depois que ela existe no
+  disco.** O nome é montado antes da troca, mas a cópia entra na história
+  depois do `File.Move` dar certo — um caminho que aponta para um arquivo
+  que não existe não pode virar botão de restaurar.
+- **A trava de instância única é sondada, nunca criada.** `EstaRodando`
+  abre o mutex existente; se ela o criasse, o app que subisse na mesma
+  hora acharia que outra instância estava rodando e não subiria, sem
+  mensagem. E a linha de comando **segura** a trava durante o reparo: se o
+  app subisse no meio da troca, ele abriria o banco velho e as gravações
+  dele iriam para o arquivo renomeado.
 - **A migração é uma transação só**, e o `PRAGMA user_version` só é
   gravado quando ela fecha bem. Gravar a versão com a importação pela
   metade faria o app nunca mais tentar importar o CSV — e o histórico
@@ -282,7 +310,7 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   calculada uma vez — e o histórico só é lido quando aparece um aviso sem
   explicação.
 - **Uma leitura pela metade não vale como importação completa**
-  (`LegadoCsv.Leitura<T>.Completa`). A leitura do CSV antigo pode parar no
+  (`Leitura<T>.Completa`). A leitura do CSV antigo pode parar no
   meio (o arquivo trancado, o disco cheio, o antivírus com ele aberto). Quando
   isso acontece, o `user_version` **não** é gravado: a versão diz "o CSV já
   entrou", e gravá-la com a leitura pela metade faria o resto do CSV ficar
@@ -342,6 +370,8 @@ auto-update procura.
 | `RegistroDiario.cs` | O log diário (um arquivo por dia). |
 | `UsoHistorico.cs` / `UsoJanela.cs` / `UsoAmostrador.cs` | O histórico de uso: a gravação da troca de programa no banco, a leitura da janela em foco (user32) e o amostrador que grava só na troca de programa. |
 | `Banco.cs` | O banco de dados do histórico: esquema, migração do CSV antigo, consulta por período, contagem, poda e a rotina de reparo (que guarda a cópia do banco estragado). |
+| `Leitura.cs` | A leitura de um histórico: as linhas lidas e se a leitura ficou completa (a mesma regra para o CSV antigo e para o banco). |
+| `InstanciaUnica.cs` | A trava de instância única: o app não sobe duas vezes, e a linha de comando só repara o histórico com o app fechado. |
 | `Sqlite.cs` / `SqliteLinha.cs` | O acesso ao SQLite do Windows por P/Invoke (`winsqlite3.dll`), sem dependência nova, e a linha tipada da consulta. |
 | `LegadoCsv.cs` | O formato do histórico antigo em CSV. Só a migração o usa — e só para ler. |
 | `UsoRegras.cs` / `UsoTexto.cs` | A regra pura do histórico de uso (ranking, sessões, quem fez o calor) e os textos da tela. |
