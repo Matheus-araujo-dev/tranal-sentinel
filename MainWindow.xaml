@@ -235,6 +235,12 @@
                                     <TextBlock Text="Sensores" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="NavVentoinhas" Style="{StaticResource NavItem}" Tag="PageVentoinhas" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE71D;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Ventoinhas" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
                             <RadioButton x:Name="NavGpu" Style="{StaticResource NavItem}" Tag="PageGpu" Checked="Nav_Checked">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
@@ -902,6 +908,54 @@
                             A leitura é feita pelo próprio Windows (o log de eventos do kernel): conta os bytes de cada pacote TCP e UDP, nos dois protocolos
                             de internet (IPv4 e IPv6). O app só mede enquanto está rodando — o que ele mede no dia em que você abrir pela primeira vez
                             não é o que o PC inteiro usou.
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== TRANAL VENTOINHAS ===== -->
+                <ScrollViewer x:Name="PageVentoinhas" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <Grid Margin="0,0,0,20">
+                            <StackPanel Margin="0,0,160,0">
+                                <TextBlock Text="TRANAL VENTOINHAS" Style="{StaticResource H1}"/>
+                                <TextBlock Text="O RPM de cada ventoinha comparado com o recorde dela própria, para dizer se ela está gasta"
+                                           Style="{StaticResource Sub}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button x:Name="BtnVentoinhasAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="18,9"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnVentoinhasAtualizar_Click"/>
+                        </Grid>
+
+                        <ItemsControl x:Name="VentoinhasCards" ItemTemplate="{StaticResource CardTemplate}"/>
+
+                        <TextBlock x:Name="VentoinhasVazio" Text=""
+                                   Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
+
+                        <TextBlock x:Name="VentoinhasAviso" Text=""
+                                   Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+
+                        <TextBlock Text="RPM COM O TEMPO" Style="{StaticResource Label}" Margin="0,28,0,4"/>
+                        <TextBlock Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,10">
+                            O maior RPM de cada ventoinha em cada dia, com a temperatura de referência do mesmo instante.
+                        </TextBlock>
+
+                        <DataGrid x:Name="VentoinhasHistorico" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserResizeColumns="False" FontSize="11" MaxHeight="340">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="DIA" Binding="{Binding Dia}" Width="110" ElementStyle="{StaticResource MonoCell}"/>
+                                <DataGridTextColumn Header="VENTOINHA" Binding="{Binding Nome}" Width="*"/>
+                                <DataGridTextColumn Header="MÁX. RPM" Binding="{Binding RpmMaximo}" Width="110" ElementStyle="{StaticResource MonoCell}"/>
+                                <DataGridTextColumn Header="TEMP. NO MÁX." Binding="{Binding Temperatura}" Width="130" ElementStyle="{StaticResource MutedMonoCell}"/>
+                                <DataGridTextColumn Header="MEDIÇÕES" Binding="{Binding Amostras}" Width="100" ElementStyle="{StaticResource MutedMonoCell}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock x:Name="VentoinhasHistoricoVazio" Text=""
+                                   Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
+
+                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,14,0,0">
+                            O app compara cada ventoinha com ela mesma: o maior RPM que ela já deu e a temperatura de referência do mesmo instante.
+                            Uma queda de 20% ou mais, com a temperatura no mesmo patamar ou mais alta, é o que o app chama de sinal de degradação — e ele só confirma depois de 5 minutos seguidos.
+                            O histórico fica neste computador e nada sai daqui.
                         </TextBlock>
                     </StackPanel>
                 </ScrollViewer>

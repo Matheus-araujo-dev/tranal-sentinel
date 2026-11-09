@@ -44,6 +44,17 @@ public static class Banco
     /// <summary>Quantos dias de tráfego por programa ficam no banco.</summary>
     public const int DiasRetidosTrafego = 30;
 
+    /// <summary>
+    /// Quantos dias de histórico de ventoinhas ficam no banco.
+    ///
+    /// <para>
+    /// O <b>recorde</b> de cada ventoinha não tem prazo: são poucas linhas
+    /// (uma por ventoinha) e o recorde é justamente o que precisa sobrar
+    /// quando o histórico diário é cortado.
+    /// </para>
+    /// </summary>
+    public const int DiasRetidosVentoinha = 30;
+
     /// <summary>A versão do esquema (1 = o esquema atual).</summary>
     private const int VersaoEsquema = 1;
 
@@ -76,6 +87,23 @@ public static class Banco
     /// </summary>
     private const string InsertTrafegoPerdidos =
         "INSERT OR REPLACE INTO trafego_perdidos (dia, perdidos) VALUES (?, ?)";
+
+    /// <summary>
+    /// O INSERT do recorde de cada ventoinha. O mesmo em toda gravação.
+    /// </summary>
+    private const string InsertVentoinha =
+        "INSERT OR REPLACE INTO ventoinha " +
+        "(id, hardware, nome, rpm_recorde, quando_recorde, quando_ultimo, temp_recorde, temp_maxima) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+    /// <summary>
+    /// O INSERT do agregado do dia de cada ventoinha. O mesmo em toda
+    /// gravação.
+    /// </summary>
+    private const string InsertVentoinhaDia =
+        "INSERT OR REPLACE INTO ventoinha_dia " +
+        "(dia, id, rpm_maximo, amostras, temp_no_maximo, temp_maxima, rpm_ultimo, temp_ultimo) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
     private static readonly object Tranca = new();
 
@@ -241,6 +269,10 @@ public static class Banco
             CopiaAvariadaRecente(),
             _aviso,
             0,
+            temArquivo ? -1 : 0,
+            // A contagem das ventoinhas também é -1: deixar o campo no
+            // padrão (0) faria a tela dizer "0 ventoinhas" ao lado de "não
+            // deu para contar as amostras" — um número inventado.
             temArquivo ? -1 : 0);
     }
 
@@ -267,6 +299,10 @@ public static class Banco
     /// Quantos registros de tráfego de internet estão gravados (-1 quando
     /// a contagem não deu para fazer).
     /// </param>
+    /// <param name="Ventoinhas">
+    /// Quantas ventoinhas têm recorde guardado (-1 quando a contagem não
+    /// deu para fazer).
+    /// </param>
     public sealed record Diagnostico(
         string Estado,
         long TamanhoBytes,
@@ -276,7 +312,8 @@ public static class Banco
         string? CopiaAvariada,
         string Aviso = "",
         int DiasComUso = 0,
-        long Trafego = 0);
+        long Trafego = 0,
+        long Ventoinhas = 0);
 
     /// <summary>
     /// Junta o retrato do banco. Nunca lança: a tela do TRANAL SAÚDE mostra
@@ -303,7 +340,8 @@ public static class Banco
                     CopiaAvariadaRecente(),
                     _aviso,
                     DiasComUsoEm(b).Count,
-                    Contar(b, "SELECT COUNT(*) AS total FROM trafego")),
+                    Contar(b, "SELECT COUNT(*) AS total FROM trafego"),
+                    Contar(b, "SELECT COUNT(*) AS total FROM ventoinha")),
                 SemInstancia());
         }
         catch
@@ -323,9 +361,13 @@ public static class Banco
             // A contagem do tráfego também é -1: deixar o campo no padrão
             // (0) faria a tela dizer "0 registros de tráfego" ao lado de
             // "não deu para contar as amostras" — um número inventado.
+            // A contagem das ventoinhas também é -1: deixar o campo no
+            // padrão (0) faria a tela dizer "0 ventoinhas" ao lado de
+            // "não deu para contar as amostras" — um número inventado.
             return new Diagnostico(
                 "O banco de dados não pôde ser lido.",
                 TamanhoDoArquivo(), -1, -1, Caminho, null, _aviso, 0,
+                File.Exists(Caminho) ? -1 : 0,
                 File.Exists(Caminho) ? -1 : 0);
         }
     }
@@ -437,6 +479,43 @@ public static class Banco
                 dia      INTEGER PRIMARY KEY,
                 perdidos INTEGER NOT NULL DEFAULT 0
             )");
+
+        // O recorde de cada ventoinha: o maior RPM já medido e a
+        // temperatura do mesmo instante. É a comparação que o app faz
+        // para dizer se a ventoinha está gasta — e ela é com a
+        // ventoinha mesma, não com uma curva de tabela.
+        //
+        // As colunas obrigatórias vem primeiro (o reparo usa essa ordem
+        // para saber o que não pode ser nulo).
+        ok &= banco.Executar(@"
+            CREATE TABLE IF NOT EXISTS ventoinha (
+                id             TEXT PRIMARY KEY,
+                hardware       TEXT NOT NULL,
+                nome           TEXT NOT NULL,
+                rpm_recorde    REAL NOT NULL,
+                quando_recorde INTEGER NOT NULL,
+                quando_ultimo  INTEGER NOT NULL,
+                temp_recorde   REAL,
+                temp_maxima    REAL
+            )");
+
+        // O agregado de cada dia: o "RPM com o tempo". A chave é (dia, id)
+        // e a linha é reescrita a cada medida — como no tráfego, o
+        // que chega é o total do dia, e não uma soma.
+        ok &= banco.Executar(@"
+            CREATE TABLE IF NOT EXISTS ventoinha_dia (
+                dia            INTEGER NOT NULL,
+                id             TEXT NOT NULL,
+                rpm_maximo     REAL NOT NULL,
+                amostras       INTEGER NOT NULL DEFAULT 0,
+                temp_no_maximo REAL,
+                temp_maxima    REAL,
+                rpm_ultimo     REAL,
+                temp_ultimo    REAL,
+                PRIMARY KEY (dia, id)
+            )");
+
+        ok &= banco.Executar("CREATE INDEX IF NOT EXISTS ix_ventoinha_dia_dia ON ventoinha_dia (dia)");
 
         return ok;
     }
@@ -909,6 +988,221 @@ public static class Banco
         }, 0);
     }
 
+    // ---------------------------------------------------------------- ventoinhas
+
+    /// <summary>
+    /// Grava o recorde de uma ventoinha.
+    ///
+    /// <para>
+    /// O registro é reescrito por inteiro (<c>INSERT OR REPLACE</c>): o
+    /// recorde é um espelho do que o app sabe sobre aquela ventoinha, e
+    /// somar por cima contaria o mesmo RPM duas vezes.
+    /// </para>
+    /// </summary>
+    public static bool GravarVentoinha(VentoinhaRegistro registro)
+    {
+        return EmBanco(b => b.Executar(InsertVentoinha, new object?[]
+        {
+            Higienizar(registro.Id),
+            Higienizar(registro.Hardware),
+            Higienizar(registro.Nome),
+            registro.RpmRecorde,
+            Sqlite.MomentoParaUnix(registro.QuandoRecorde),
+            Sqlite.MomentoParaUnix(registro.QuandoUltimo),
+            registro.TemperaturaDoRecorde,
+            registro.TemperaturaMaxima,
+        }), false);
+    }
+
+    /// <summary>
+    /// Lê o recorde de todas as ventoinhas que o app já conhece.
+    ///
+    /// <para>
+    /// A leitura diz se ficou completa (ver <see cref="Leitura{T}"/>): lista
+    /// vazia com leitura completa é "nenhuma ventoinha guardada"; lista
+    /// vazia com erro é "não deu para ler" — e as duas coisas não podem
+    /// virar a mesma frase na tela.
+    /// </para>
+    /// </summary>
+    public static Leitura<VentoinhaRegistro> LerVentoinhas()
+    {
+        return EmBanco(b =>
+        {
+            var resultado = new List<VentoinhaRegistro>();
+
+            var linhas = b.Consultar(
+                "SELECT id, hardware, nome, rpm_recorde, quando_recorde, quando_ultimo, temp_recorde, temp_maxima " +
+                "FROM ventoinha ORDER BY nome, id");
+
+            bool falhou = linhas.Count == 0 && b.UltimoErro.Length > 0;
+
+            foreach (var linha in linhas)
+            {
+                resultado.Add(new VentoinhaRegistro(
+                    linha.Texto("id"),
+                    linha.Texto("hardware"),
+                    linha.Texto("nome"),
+                    linha.Real("rpm_recorde"),
+                    linha.RealNulo("temp_recorde"),
+                    MomentoDaLinha(linha, "quando_recorde"),
+                    MomentoDaLinha(linha, "quando_ultimo"),
+                    linha.RealNulo("temp_maxima")));
+            }
+
+            return new Leitura<VentoinhaRegistro>(resultado, !falhou);
+        }, new Leitura<VentoinhaRegistro>(new List<VentoinhaRegistro>(), false));
+    }
+
+    /// <summary>
+    /// O instante de uma coluna de tempo (epoch em milissegundos). O valor
+    /// zero é "não deu para saber quando" — e não o começo da época:
+    /// o instante 0 de verdade é 01/01/1970, e tratá-lo como data seria
+    /// um número falso na tela.
+    /// </summary>
+    private static DateTime MomentoDaLinha(SqliteLinha linha, string coluna)
+    {
+        long valor = linha.Inteiro(coluna);
+        return valor > 0 ? Sqlite.UnixParaMomento(valor) : DateTime.MinValue;
+    }
+
+    /// <summary>
+    /// Grava o agregado do dia de cada ventoinha.
+    ///
+    /// <para>
+    /// A gravação é uma transação só: ou entra o dia inteiro, ou
+    /// não entra nada. E a contagem das entradas é conferida — um lote
+    /// que parou no meio deixaria o dia pela metade, e a tela mostraria um
+    /// dia que não é.
+    /// </para>
+    /// </summary>
+    public static bool GravarVentoinhasDoDia(DateTime dia, IEnumerable<VentoinhaDoDia> itens)
+    {
+        long momento = Sqlite.MomentoParaUnix(dia.Date);
+
+        var linhas = new List<IReadOnlyList<object?>>();
+        foreach (var item in itens)
+        {
+            linhas.Add(new object?[]
+            {
+                momento,
+                Higienizar(item.Id),
+                item.RpmMaximo,
+                item.Amostras,
+                item.TemperaturaNoMaximo,
+                item.TemperaturaMaxima,
+                item.RpmUltimo,
+                item.TemperaturaUltimo,
+            });
+        }
+
+        // Nada para gravar não é falha: o dia sem ventoinha é um dia sem linhas.
+        if (linhas.Count == 0) return true;
+
+        return EmBanco(b => b.EmTransacao(t =>
+        {
+            int entradas = t.ExecutarEmLote(InsertVentoinhaDia, linhas);
+
+            if (entradas != linhas.Count)
+                throw new InvalidOperationException("não foi possível gravar todo o histórico de ventoinhas do dia");
+        }), false);
+    }
+
+    /// <summary>
+    /// Lê o agregado do dia de cada ventoinha. A leitura diz se ficou
+    /// completa (ver <see cref="Leitura{T}"/>).
+    /// </summary>
+    public static Leitura<VentoinhaDoDia> LerVentoinhasDoDia(DateTime dia)
+    {
+        long momento = Sqlite.MomentoParaUnix(dia.Date);
+
+        return EmBanco(b =>
+        {
+            var resultado = new List<VentoinhaDoDia>();
+
+            var linhas = b.Consultar(
+                "SELECT id, rpm_maximo, amostras, temp_no_maximo, temp_maxima, rpm_ultimo, temp_ultimo " +
+                "FROM ventoinha_dia WHERE dia = ? ORDER BY id",
+                momento);
+
+            bool falhou = linhas.Count == 0 && b.UltimoErro.Length > 0;
+
+            foreach (var linha in linhas)
+            {
+                resultado.Add(new VentoinhaDoDia(
+                    linha.Texto("id"),
+                    linha.Real("rpm_maximo"),
+                    linha.RealNulo("temp_no_maximo"),
+                    linha.RealNulo("temp_maxima"),
+                    linha.Real("rpm_ultimo"),
+                    linha.RealNulo("temp_ultimo"),
+                    (int)linha.Inteiro("amostras")));
+            }
+
+            return new Leitura<VentoinhaDoDia>(resultado, !falhou);
+        }, new Leitura<VentoinhaDoDia>(new List<VentoinhaDoDia>(), false));
+    }
+
+    /// <summary>
+    /// Lê o histórico das ventoinhas a partir de um dia (o "RPM com o
+    /// tempo").
+    ///
+    /// <para>
+    /// O nome da ventoinha vem do registro: assim o histórico continua
+    /// legível mesmo se a tabela do registro for perdida no reparo.
+    /// </para>
+    /// </summary>
+    public static Leitura<VentoinhaHistorico> LerHistoricoVentoinhas(DateTime desde)
+    {
+        long limite = Sqlite.MomentoParaUnix(desde.Date);
+
+        return EmBanco(b =>
+        {
+            var resultado = new List<VentoinhaHistorico>();
+
+            var linhas = b.Consultar(
+                "SELECT d.dia AS dia, d.id AS id, d.rpm_maximo AS rpm_maximo, d.amostras AS amostras, " +
+                "d.temp_no_maximo AS temp_no_maximo, d.temp_maxima AS temp_maxima, " +
+                "COALESCE(v.nome, d.id) AS nome, COALESCE(v.hardware, '') AS hardware " +
+                "FROM ventoinha_dia d LEFT JOIN ventoinha v ON v.id = d.id " +
+                "WHERE d.dia >= ? ORDER BY d.dia DESC, d.rpm_maximo DESC, nome",
+                limite);
+
+            bool falhou = linhas.Count == 0 && b.UltimoErro.Length > 0;
+
+            foreach (var linha in linhas)
+            {
+                resultado.Add(new VentoinhaHistorico(
+                    Sqlite.UnixParaMomento(linha.Inteiro("dia")).Date,
+                    linha.Texto("id"),
+                    linha.Texto("hardware"),
+                    linha.Texto("nome"),
+                    linha.Real("rpm_maximo"),
+                    linha.RealNulo("temp_no_maximo"),
+                    linha.RealNulo("temp_maxima"),
+                    (int)linha.Inteiro("amostras")));
+            }
+
+            return new Leitura<VentoinhaHistorico>(resultado, !falhou);
+        }, new Leitura<VentoinhaHistorico>(new List<VentoinhaHistorico>(), false));
+    }
+
+    /// <summary>
+    /// Apaga o histórico diário das ventoinhas mais velho que o prazo.
+    ///
+    /// <para>
+    /// O <b>recorde</b> de cada ventoinha não é cortado: ele é uma
+    /// linha por ventoinha, e é justamente o que precisa sobrar quando o
+    /// histórico diário passa.
+    /// </para>
+    /// </summary>
+    public static int ApagarVentoinhasAntigas(DateTime antesDe)
+    {
+        long limite = Sqlite.MomentoParaUnix(antesDe.Date);
+
+        return EmBanco(b => b.Executar("DELETE FROM ventoinha_dia WHERE dia < ?", limite)
+            ? b.Alteracoes : 0, 0);
+    }
+
     /// <summary>
     /// Grava quantos pacotes a coleta deixou de fora no dia.
     /// </summary>
@@ -1007,6 +1301,7 @@ public static class Banco
         ApagarAmostrasAntigas(DateTime.Now.AddDays(-DiasRetidosAmostras));
         ApagarUsosAntigos(DateTime.Now.AddDays(-DiasRetidosUso));
         ApagarTrafegoAntigos(DateTime.Now.AddDays(-DiasRetidosTrafego));
+        ApagarVentoinhasAntigas(DateTime.Now.AddDays(-DiasRetidosVentoinha));
     }
 
     // ------------------------------------------------------------------ contagem e tamanho
@@ -1325,6 +1620,10 @@ public static class Banco
             // <see cref="TrafegoDoReparo"/>).
             var trafego = new TrafegoDoReparo(new List<object?[]>(), new List<object?[]>(), -1, -1, false, false, false, false);
 
+            // As ventoinhas lidas do banco estragado (vê o registro
+            // <see cref="VentoinhasDoReparo"/>).
+            var ventoinhas = new VentoinhasDoReparo(new List<object?[]>(), new List<object?[]>(), -1, -1, false, false, false, false);
+
             // A versão do esquema do banco velho é lida ANTES de
             // descartar a instância: o banco novo precisa da mesma
             // versão. Sem ela, a próxima abertura importaria o CSV de
@@ -1349,12 +1648,19 @@ public static class Banco
                 // banco antigo seria cancelado, e o histórico de tráfego
                 // seria perdido sem o relato dizer nada.
                 trafego = LerTrafegoDoReparo(b);
+
+                // As ventoinhas: as tabelas podem não existir (um banco de
+                // antes da v0.30). Isso não é falha de leitura — é "não
+                // tinha histórico de ventoinha guardado".
+                ventoinhas = LerVentoinhasDoReparo(b);
             });
 
             // A leitura falhou (ou a transação): o reparo não pode trocar
             // o arquivo achando que leu tudo — e o que faltar tem que
             // aparecer no relato.
-            bool leituraFalhou = !leu || falhouAmostras || falhouUsos || trafego.FalhouTrafegos || trafego.FalhouPerdidos;
+            bool leituraFalhou = !leu || falhouAmostras || falhouUsos
+                || trafego.FalhouTrafegos || trafego.FalhouPerdidos
+                || ventoinhas.FalhouVentoinhas || ventoinhas.FalhouDias;
 
             // O arquivo que nem é um banco não tem nada a ler: reconstruí-lo
             // é o único caminho. Qualquer outro problema (banco trancado,
@@ -1377,7 +1683,7 @@ public static class Banco
             _instancia = null;
             _ultimaTentativa = DateTime.MinValue;
 
-            return Reconstruir(amostras, usos, trafego, integridade, totalAmostras, totalUso, versaoEsquema);
+            return Reconstruir(amostras, usos, trafego, ventoinhas, integridade, totalAmostras, totalUso, versaoEsquema);
         }
     }
 
@@ -1570,6 +1876,75 @@ public static class Banco
     }
 
     /// <summary>
+    /// O que o reparo leu da parte das ventoinhas: as linhas de cada tabela,
+    /// as contagens e se a leitura deu para ser feita.
+    ///
+    /// <para>
+    /// As contagens são -1 quando a tabela não existe no banco velho (um
+    /// banco de antes da v0.30) — e nesse caso não houve perda: nunca
+    /// houve histórico de ventoinha guardado ali.
+    /// </para>
+    /// </summary>
+    private sealed record VentoinhasDoReparo(
+        List<object?[]> Ventoinhas,
+        List<object?[]> Dias,
+        long TotalVentoinhas,
+        long TotalDias,
+        bool FalhouVentoinhas,
+        bool FalhouDias,
+        bool TinhaTabelaVentoinhas,
+        bool TinhaTabelaDias);
+
+    /// <summary>
+    /// Lê as tabelas das ventoinhas do banco estragado.
+    ///
+    /// <para>
+    /// Uma tabela que não existe é "não tinha histórico de ventoinha
+    /// guardado", e não uma leitura que falhou: os bancos anteriores à
+    /// v0.30 não têm essas tabelas, e o reparo deles não pode ser
+    /// cancelado por causa disso.
+    /// </para>
+    /// </summary>
+    private static VentoinhasDoReparo LerVentoinhasDoReparo(Sqlite banco)
+    {
+        var ventoinhas = new List<object?[]>();
+        var dias = new List<object?[]>();
+
+        long totalVentoinhas = 0;
+        long totalDias = 0;
+        bool falhouVentoinhas = false;
+        bool falhouDias = false;
+
+        bool falhouEsquemaVentoinhas;
+        bool falhouEsquemaDias;
+
+        bool tinhaTabelaVentoinhas = TabelaExiste(banco, "ventoinha", out falhouEsquemaVentoinhas);
+        bool tinhaTabelaDias = TabelaExiste(banco, "ventoinha_dia", out falhouEsquemaDias);
+
+        if (falhouEsquemaVentoinhas) falhouVentoinhas = true;
+        if (falhouEsquemaDias) falhouDias = true;
+
+        if (tinhaTabelaVentoinhas && !falhouVentoinhas)
+        {
+            totalVentoinhas = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM ventoinha");
+            ventoinhas = LerLinhas(banco,
+                "SELECT id, hardware, nome, rpm_recorde, quando_recorde, quando_ultimo, temp_recorde, temp_maxima FROM ventoinha",
+                out falhouVentoinhas);
+        }
+
+        if (tinhaTabelaDias && !falhouDias)
+        {
+            totalDias = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM ventoinha_dia");
+            dias = LerLinhas(banco,
+                "SELECT dia, id, rpm_maximo, amostras, temp_no_maximo, temp_maxima, rpm_ultimo, temp_ultimo FROM ventoinha_dia",
+                out falhouDias);
+        }
+
+        return new VentoinhasDoReparo(ventoinhas, dias, totalVentoinhas, totalDias,
+            falhouVentoinhas, falhouDias, tinhaTabelaVentoinhas, tinhaTabelaDias);
+    }
+
+    /// <summary>
     /// True quando a tabela existe no banco. A pergunta vai ao esquema: o
     /// erro do SQLite ("no such table") diria o mesmo que uma leitura que
     /// quebrou no meio, e as duas coisas precisam ser diferentes.
@@ -1597,7 +1972,7 @@ public static class Banco
     /// Cria um banco novo e copia o que foi lido do velho. Devolve o
     /// relato do que se salvou.
     /// </summary>
-    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, TrafegoDoReparo trafego, string integridade, long totalAmostras, long totalUso, int versaoEsquema)
+    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, TrafegoDoReparo trafego, VentoinhasDoReparo ventoinhas, string integridade, long totalAmostras, long totalUso, int versaoEsquema)
     {
         string novoCaminho = Caminho + ".reparo";
 
@@ -1621,6 +1996,8 @@ public static class Banco
         long salvosUsos = 0;
         long salvosTrafegos = 0;
         long salvosPerdidos = 0;
+        long salvasVentoinhas = 0;
+        long salvosDiasVentoinhas = 0;
         string? motivo = null;
 
         // As amostras têm colunas que podem ser nulas (o sensor que não
@@ -1633,6 +2010,13 @@ public static class Banco
         // os dois totais), e a contagem dos pacotes descartados também.
         var trafegosGravaveis = LinhasGravaveis(trafego.Trafegos, 4, 4);
         var perdidosGravaveis = LinhasGravaveis(trafego.Perdidos, 2, 2);
+
+        // As ventoinhas: o recorde tem seis colunas obrigatórias (o id, o
+        // hardware, o nome, o RPM do recorde e os dois instantes) e o
+        // histórico diário tem quatro (o dia, a ventoinha, o RPM máximo e
+        // a contagem de amostras).
+        var ventoinhasGravaveis = LinhasGravaveis(ventoinhas.Ventoinhas, 8, 6);
+        var diasVentoinhasGravaveis = LinhasGravaveis(ventoinhas.Dias, 8, 4);
 
         // O cancelamento é anotado e o reparo sai aqui: a limpeza do banco
         // novo acontece DEPOIS do `using`, com o handle do SQLite já
@@ -1700,6 +2084,23 @@ public static class Banco
                             throw new InvalidOperationException(motivo);
                         }
 
+                        // As ventoinhas vãm junto: sem elas, o reparo trocaria
+                        // o histórico de ventoinha por um histórico sem
+                        // ventoinha — e o relato não contaria nada disso.
+                        int salvasVentoinha = b.ExecutarEmLote(InsertVentoinha, ventoinhasGravaveis);
+                        if (salvasVentoinha != ventoinhasGravaveis.Count)
+                        {
+                            motivo = "só " + salvasVentoinha + " de " + ventoinhasGravaveis.Count + " registros de ventoinha entraram no banco novo";
+                            throw new InvalidOperationException(motivo);
+                        }
+
+                        int salvosDiasVentoinha = b.ExecutarEmLote(InsertVentoinhaDia, diasVentoinhasGravaveis);
+                        if (salvosDiasVentoinha != diasVentoinhasGravaveis.Count)
+                        {
+                            motivo = "só " + salvosDiasVentoinha + " de " + diasVentoinhasGravaveis.Count + " agregados diários de ventoinha entraram no banco novo";
+                            throw new InvalidOperationException(motivo);
+                        }
+
                         // A versão do esquema vai junto com as linhas: sem
                         // ela, a próxima abertura acharia que o CSV nunca
                         // entrou e o importaria de novo — por cima do
@@ -1712,7 +2113,8 @@ public static class Banco
                         // antigo volta do CSV na próxima abertura, em vez
                         // de ficar para sempre fora do app.
                         bool recuperouAlgo = amostrasGravaveis.Count > 0 || usosGravaveis.Count > 0
-                            || trafegosGravaveis.Count > 0 || perdidosGravaveis.Count > 0;
+                            || trafegosGravaveis.Count > 0 || perdidosGravaveis.Count > 0
+                            || ventoinhasGravaveis.Count > 0 || diasVentoinhasGravaveis.Count > 0;
                         int versaoFinal = recuperouAlgo ? versaoEsquema : 0;
 
                         if (!b.Executar($"PRAGMA user_version = {versaoFinal}"))
@@ -1735,6 +2137,8 @@ public static class Banco
                         salvosUsos = Contar(novo, "SELECT COUNT(*) AS total FROM uso");
                         salvosTrafegos = Contar(novo, "SELECT COUNT(*) AS total FROM trafego");
                         salvosPerdidos = Contar(novo, "SELECT COUNT(*) AS total FROM trafego_perdidos");
+                        salvasVentoinhas = Contar(novo, "SELECT COUNT(*) AS total FROM ventoinha");
+                        salvosDiasVentoinhas = Contar(novo, "SELECT COUNT(*) AS total FROM ventoinha_dia");
                     }
                 }
             }
@@ -1759,8 +2163,10 @@ public static class Banco
         // Tinha linha para copiar e nenhuma entrou: alguma coisa deu errado
         // (disco cheio, arquivo trancado). Trocar o banco agora trocaria
         // histórico por um banco vazio — o cancelamento é mais honesto.
-        int lidas = amostras.Count + usos.Count + trafegosGravaveis.Count + perdidosGravaveis.Count;
-        if (lidas > 0 && salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0)
+        int lidas = amostras.Count + usos.Count + trafegosGravaveis.Count + perdidosGravaveis.Count
+            + ventoinhasGravaveis.Count + diasVentoinhasGravaveis.Count;
+        if (lidas > 0 && salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0
+            && salvasVentoinhas == 0 && salvosDiasVentoinhas == 0)
         {
             string resto = AvisoDoArquivoQueFicou(ApagarBancoNovo(novoCaminho), novoCaminho);
             return new ResultadoReparo(false,
@@ -1878,13 +2284,19 @@ public static class Banco
             $"O banco estava com problema ({TraduzirIntegridade(integridade)}). " +
             RelatoDoSalvo(salvasAmostras, salvosUsos,
                 trafego.TinhaTabelaTrafegos ? salvosTrafegos : (long?)null,
-                trafego.TinhaTabelaPerdidos ? salvosPerdidos : (long?)null);
+                trafego.TinhaTabelaPerdidos ? salvosPerdidos : (long?)null,
+                ventoinhas.TinhaTabelaVentoinhas ? salvasVentoinhas : (long?)null,
+                ventoinhas.TinhaTabelaDias ? salvosDiasVentoinhas : (long?)null);
 
         relato += RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos,
             trafego.TinhaTabelaTrafegos ? trafego.TotalTrafegos : (long?)null,
             trafego.TinhaTabelaTrafegos ? salvosTrafegos : (long?)null,
             trafego.TinhaTabelaPerdidos ? trafego.TotalPerdidos : (long?)null,
-            trafego.TinhaTabelaPerdidos ? salvosPerdidos : (long?)null);
+            trafego.TinhaTabelaPerdidos ? salvosPerdidos : (long?)null,
+            ventoinhas.TinhaTabelaVentoinhas ? ventoinhas.TotalVentoinhas : (long?)null,
+            ventoinhas.TinhaTabelaVentoinhas ? salvasVentoinhas : (long?)null,
+            ventoinhas.TinhaTabelaDias ? ventoinhas.TotalDias : (long?)null,
+            ventoinhas.TinhaTabelaDias ? salvosDiasVentoinhas : (long?)null);
 
         // Quando a LEITURA do tráfego falhou (o esquema não pôde ser
         // perguntado), o relato não pode passar por cima em silêncio: o
@@ -1903,7 +2315,25 @@ public static class Banco
                 "para o banco novo, e o histórico de rede pode ter se perdido.";
         }
 
-        if (salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0)
+        // Quando a LEITURA das ventoinhas falhou (o esquema não pôde ser
+        // perguntado), o relato não pode passar por cima em silêncio: o
+        // "não tinha tabela guardado" é outra coisa. O reparo seguiu (o
+        // arquivo nem é um banco), e o histórico de ventoinha pode ter se
+        // perdido — e o usuário precisa saber disso.
+        if (ventoinhas.FalhouVentoinhas || ventoinhas.FalhouDias)
+        {
+            string quais = ventoinhas.FalhouVentoinhas && ventoinhas.FalhouDias
+                ? "a tabela de ventoinhas e o histórico diário delas"
+                : ventoinhas.FalhouVentoinhas
+                    ? "a tabela de ventoinhas"
+                    : "o histórico diário das ventoinhas";
+
+            relato += $" Não deu para ler {quais} do banco estragado: elas não foram copiadas " +
+                "para o banco novo, e o histórico de ventoinha pode ter se perdido.";
+        }
+
+        if (salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0
+            && salvasVentoinhas == 0 && salvosDiasVentoinhas == 0)
         {
             relato += " Nada pôde ser lido do banco estragado: o banco novo começa vazio.";
             relato += " Se o histórico antigo em CSV ainda estiver no disco, apagar o arquivo do banco faz o app importá-lo de novo.";
@@ -1932,7 +2362,7 @@ public static class Banco
     /// <param name="salvasAmostras">Quantas amostras entraram no banco novo (-1 = a contagem não deu).</param>
     /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
     internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos) =>
-        RelatoDoSalvo(salvasAmostras, salvosUsos, null, null);
+        RelatoDoSalvo(salvasAmostras, salvosUsos, null, null, null, null);
 
     /// <summary>
     /// O relato do reparo com o tráfego incluído.
@@ -1948,7 +2378,28 @@ public static class Banco
     /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
     /// <param name="salvosTrafegos">Quantos registros de tráfego entraram no banco novo (null = a tabela não existia).</param>
     /// <param name="salvosPerdidos">Quantas contagens de pacotes descartados entraram (null = a tabela não existia).</param>
-    internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos, long? salvosTrafegos, long? salvosPerdidos)
+    internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos, long? salvosTrafegos, long? salvosPerdidos) =>
+        RelatoDoSalvo(salvasAmostras, salvosUsos, salvosTrafegos, salvosPerdidos, null, null);
+
+    /// <summary>
+    /// O relato do reparo com o tráfego e as ventoinhas incluídos.
+    ///
+    /// <para>
+    /// As contagens são anuláveis: null é "o banco velho não tinha essa
+    /// tabela" (um banco de antes da v0.29 ou da v0.30), e o relato fica
+    /// quieto sobre isso — não havia o que salvar. Um número (-1) é
+    /// "não deu para contar", e o relato diz isso.
+    /// </para>
+    /// </summary>
+    /// <param name="salvasAmostras">Quantas amostras entraram no banco novo (-1 = a contagem não deu).</param>
+    /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
+    /// <param name="salvosTrafegos">Quantos registros de tráfego entraram (null = a tabela não existia).</param>
+    /// <param name="salvosPerdidos">Quantas contagens de pacotes descartados entraram (null = a tabela não existia).</param>
+    /// <param name="salvosVentoinhas">Quantos registros de ventoinha entraram (null = a tabela não existia).</param>
+    /// <param name="salvosDiasVentoinhas">Quantos agregados diários de ventoinha entraram (null = a tabela não existia).</param>
+    internal static string RelatoDoSalvo(
+        long salvasAmostras, long salvosUsos, long? salvosTrafegos, long? salvosPerdidos,
+        long? salvosVentoinhas, long? salvosDiasVentoinhas)
     {
         // Nenhuma das duas contagens deu: não dá para dizer o que foi
         // salvo, e a frase não pode dizer que algo foi salvo.
@@ -1977,6 +2428,20 @@ public static class Banco
             partes.Add(salvosPerdidos.Value >= 0
                 ? $"{salvosPerdidos.Value} contagens de pacotes descartados foram salvas"
                 : "não deu para contar as contagens de pacotes descartados que entraram no banco novo");
+        }
+
+        if (salvosVentoinhas is not null)
+        {
+            partes.Add(salvosVentoinhas.Value >= 0
+                ? $"{salvosVentoinhas.Value} registros de ventoinha foram salvos"
+                : "não deu para contar os registros de ventoinha que entraram no banco novo");
+        }
+
+        if (salvosDiasVentoinhas is not null)
+        {
+            partes.Add(salvosDiasVentoinhas.Value >= 0
+                ? $"{salvosDiasVentoinhas.Value} agregados diários de ventoinha foram salvos"
+                : "não deu para contar os agregados diários de ventoinha que entraram no banco novo");
         }
 
         return "Foi reconstruído: " + string.Join(" e ", partes) + ".";
@@ -2009,7 +2474,7 @@ public static class Banco
     /// <param name="totalUso">Quantos registros de uso o banco velho tinha (-1 = a contagem não deu).</param>
     /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
     internal static string RelatoDaPerda(long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos) =>
-        RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos, null, null, null, null);
+        RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos, null, null, null, null, null, null, null, null);
 
     /// <summary>
     /// O relato da perda com o tráfego incluído.
@@ -2027,7 +2492,26 @@ public static class Banco
     /// <param name="salvosPerdidos">Quantas entraram no banco novo (null = a tabela não existia).</param>
     internal static string RelatoDaPerda(
         long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos,
-        long? totalTrafegos, long? salvosTrafegos, long? totalPerdidos, long? salvosPerdidos)
+        long? totalTrafegos, long? salvosTrafegos, long? totalPerdidos, long? salvosPerdidos) =>
+        RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos,
+            totalTrafegos, salvosTrafegos, totalPerdidos, salvosPerdidos, null, null, null, null);
+
+    /// <summary>
+    /// O relato da perda com o tráfego e as ventoinhas incluídos.
+    ///
+    /// <para>
+    /// A regra é a mesma das outras tabelas: cada uma conta por si, e uma
+    /// contagem que falhou não apaga a conta da outra.
+    /// </para>
+    /// </summary>
+    /// <param name="totalVentoinhas">Quantos registros de ventoinha o banco velho tinha (null = a tabela não existia).</param>
+    /// <param name="salvosVentoinhas">Quantos entraram no banco novo (null = a tabela não existia).</param>
+    /// <param name="totalDiasVentoinhas">Quantos agregados diários o banco velho tinha (null = a tabela não existia).</param>
+    /// <param name="salvosDiasVentoinhas">Quantos entraram no banco novo (null = a tabela não existia).</param>
+    internal static string RelatoDaPerda(
+        long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos,
+        long? totalTrafegos, long? salvosTrafegos, long? totalPerdidos, long? salvosPerdidos,
+        long? totalVentoinhas, long? salvosVentoinhas, long? totalDiasVentoinhas, long? salvosDiasVentoinhas)
     {
         bool contaAmostras = totalAmostras >= 0 && salvasAmostras >= 0;
         bool contaUsos = totalUso >= 0 && salvosUsos >= 0;
@@ -2103,7 +2587,42 @@ public static class Banco
             }
         }
 
-        if (perdidasAmostras > 0 || perdidosUsos > 0 || contaTrafegos && totalTrafegos!.Value - salvosTrafegos!.Value > 0 || contaPerdidos && totalPerdidos!.Value - salvosPerdidos!.Value > 0)
+        // As ventoinhas: a mesma regra das outras tabelas.
+        if (totalVentoinhas is not null && salvosVentoinhas is not null)
+        {
+            if (totalVentoinhas.Value < 0)
+            {
+                texto.Append(" Não deu para contar os registros de ventoinha do banco antigo, então não é possível dizer quantos se perderam.");
+            }
+            else if (salvosVentoinhas.Value < 0)
+            {
+                texto.Append(" Não deu para contar os registros de ventoinha que entraram no banco novo, então não é possível dizer quantos se perderam.");
+            }
+            else if (totalVentoinhas.Value - salvosVentoinhas.Value > 0)
+            {
+                texto.Append($" Se perderam {totalVentoinhas.Value - salvosVentoinhas.Value} registros de ventoinha.");
+            }
+        }
+
+        if (totalDiasVentoinhas is not null && salvosDiasVentoinhas is not null)
+        {
+            if (totalDiasVentoinhas.Value < 0)
+            {
+                texto.Append(" Não deu para contar os agregados diários de ventoinha do banco antigo, então não é possível dizer quantos se perderam.");
+            }
+            else if (salvosDiasVentoinhas.Value < 0)
+            {
+                texto.Append(" Não deu para contar os agregados diários de ventoinha que entraram no banco novo, então não é possível dizer quantos se perderam.");
+            }
+            else if (totalDiasVentoinhas.Value - salvosDiasVentoinhas.Value > 0)
+            {
+                texto.Append($" Se perderam {totalDiasVentoinhas.Value - salvosDiasVentoinhas.Value} agregados diários de ventoinha.");
+            }
+        }
+
+        if (perdidasAmostras > 0 || perdidosUsos > 0 || contaTrafegos && totalTrafegos!.Value - salvosTrafegos!.Value > 0 || contaPerdidos && totalPerdidos!.Value - salvosPerdidos!.Value > 0
+            || totalVentoinhas is not null && salvosVentoinhas is not null && totalVentoinhas.Value >= 0 && salvosVentoinhas.Value >= 0 && totalVentoinhas.Value - salvosVentoinhas.Value > 0
+            || totalDiasVentoinhas is not null && salvosDiasVentoinhas is not null && totalDiasVentoinhas.Value >= 0 && salvosDiasVentoinhas.Value >= 0 && totalDiasVentoinhas.Value - salvosDiasVentoinhas.Value > 0)
             texto.Append(" O banco antigo, com o que ficou nele, está guardado na cópia.");
 
         return texto.ToString();

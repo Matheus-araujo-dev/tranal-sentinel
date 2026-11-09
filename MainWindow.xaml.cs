@@ -14,6 +14,11 @@ namespace TranalSentinel;
 public partial class MainWindow : Window
 {
     private readonly SensorMonitor _monitor;
+
+    // Ventoinhas: cada uma é comparada com o seu próprio recorde, para
+    // dizer se ela está gasta.
+    private readonly MonitorVentoinhas _ventoinhas = new();
+    private DispatcherTimer? _timerVentoinha;
     private readonly DispatcherTimer _timer;
     private readonly ICollectionView _view;
     private string? _category;   // filtro por chip (null = todos)
@@ -108,6 +113,11 @@ public partial class MainWindow : Window
         // navega.
         IniciarTrafego();
 
+        // As ventoinhas: o app carrega o recorde que já está guardado (sem
+        // isso, cada abertura começaria do zero) e começa a medir.
+        _ventoinhas.Carregar();
+        IniciarVentoinhas();
+
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
@@ -116,6 +126,12 @@ public partial class MainWindow : Window
             _monitor.Pausado = _gpuBenchActive;
             if (_gpuBenchActive) return;
             _monitor.Refresh();
+
+            // As ventoinhas: a leitura de agora entra no recorde e no
+            // agregado do dia. A comparação com o recorde mora no
+            // núcleo puro.
+            _ventoinhas.Registrar(_monitor.Rows, _monitor.CpuTemperature, _monitor.GpuTemperature, DateTime.Now);
+
             if (_monitor.IsOpen) StatusText.Text = $"{_monitor.Rows.Count} sensores · atualizado {DateTime.Now:HH:mm:ss}";
             UpdateStressPanel();
             UpdateGpuLive();
@@ -125,6 +141,7 @@ public partial class MainWindow : Window
             if (PageBench.IsVisible) UpdateBenchLive();
             if (PageOptimize.IsVisible) UpdateRamStatus();
             if (PageAlertas.IsVisible) AtualizarAlertasAtivos();
+            if (PageVentoinhas.IsVisible) AtualizarVentoinhas();
         };
         _timer.Start();
 
@@ -155,6 +172,11 @@ public partial class MainWindow : Window
             // medido nos ultimos segundos (e o que estava na fila) seria
             // perdido sem aviso.
             GravarTrafegoFinal();
+
+            // O mesmo para as ventoinhas: o recorde e o agregado do dia são
+            // gravados por último, senão as últimas medidas se perdem.
+            _timerVentoinha?.Stop();
+            _ventoinhas.Gravar();
             UnregisterHotKey(new System.Windows.Interop.WindowInteropHelper(this).Handle, HotkeyId);
             ShutdownInteg();
             _launchCts?.Cancel();
@@ -339,12 +361,13 @@ public partial class MainWindow : Window
             case "PageTimeline": InitTimeline(); break;
             case "PageUso": InitUso(); break;
             case "PageNet": InitRede(); break;
+            case "PageVentoinhas": InitVentoinhas(); break;
         }
     }
 
     private void ShowPage(string name)
     {
-        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline, PageUso })
+        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageVentoinhas, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline, PageUso })
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
     }
 

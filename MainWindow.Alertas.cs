@@ -260,10 +260,16 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Os sensores que a tela oferece: o catálogo mais a bateria (que o
-    /// motor lê por um caminho próprio, fora da tomada).
+    /// Os sensores que a tela oferece: o catálogo, a bateria (que o motor
+    /// lê por um caminho próprio, fora da tomada) e as ventoinhas que
+    /// esta máquina tem.
+    ///
+    /// <para>
+    /// As ventoinhas não estão no catálogo fixo: elas dependem do
+    /// hardware, e o catálogo é o mesmo em todas as máquinas.
+    /// </para>
     /// </summary>
-    private static List<SensorCatalogoItem> OpcoesSensor()
+    private List<SensorCatalogoItem> OpcoesSensor()
     {
         var lista = SensorCatalogo.Itens.ToList();
         lista.Add(new SensorCatalogoItem
@@ -276,6 +282,25 @@ public partial class MainWindow
             SeveridadePadrao = Severidade.Medio,
             Dica = MonitorAlertas.BateriaDica,
         });
+
+        // Cada ventoinha pode virar uma regra: o que costuma interessar é
+        // a ventoinha que parou de girar, e o limite sugerido é zero.
+        foreach (var cartao in _ventoinhas.Cartoes())
+        {
+            string id = cartao.Id;
+            lista.Add(new SensorCatalogoItem
+            {
+                Chave = MonitorAlertas.PrefixoVentoinha + id,
+                Rotulo = cartao.Rotulo,
+                Unidade = "RPM",
+                OperacaoPadrao = "<=",
+                LimitePadrao = 0,
+                SeveridadePadrao = Severidade.Medio,
+                Dica = "A ventoinha parou de girar. A aba TRANAL VENTOINHAS compara o RPM com o recorde da própria ventoinha.",
+                Ler = ctx => ctx.Ventoinhas.FirstOrDefault(v => v.Id == id)?.Rpm,
+            });
+        }
+
         return lista;
     }
 

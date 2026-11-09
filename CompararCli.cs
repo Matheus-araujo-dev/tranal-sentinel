@@ -194,8 +194,8 @@ public static class CompararCli
         Console.WriteLine($"Origem: {BenchIntercambio.DescreverOrigem(relatorio.AppOrigem, relatorio.ExportadoEm)}");
 
         Console.WriteLine();
-        Console.WriteLine($"PC A: {relatorio.MaquinaLocal.Nome} · {relatorio.MaquinaLocal.Cpu} · {MemoriaTexto.Numero(relatorio.MaquinaLocal.MemoriaGb)} GB · {relatorio.MaquinaLocal.Sistema}");
-        Console.WriteLine($"PC B: {relatorio.MaquinaImportada.Nome} · {relatorio.MaquinaImportada.Cpu} · {MemoriaTexto.Numero(relatorio.MaquinaImportada.MemoriaGb)} GB · {relatorio.MaquinaImportada.Sistema}");
+        Console.WriteLine($"PC A: {relatorio.MaquinaLocal.Nome} · {relatorio.MaquinaLocal.Cpu} · {NumeroTexto.Numero(relatorio.MaquinaLocal.MemoriaGb)} GB · {relatorio.MaquinaLocal.Sistema}");
+        Console.WriteLine($"PC B: {relatorio.MaquinaImportada.Nome} · {relatorio.MaquinaImportada.Cpu} · {NumeroTexto.Numero(relatorio.MaquinaImportada.MemoriaGb)} GB · {relatorio.MaquinaImportada.Sistema}");
         Console.WriteLine();
 
         if (relatorio.Diferencas.Count > 0)
@@ -221,7 +221,7 @@ public static class CompararCli
 
             foreach (LinhaComparacao linha in relatorio.Linhas)
             {
-                Console.WriteLine($"{linha.Teste.PadRight(largura)} {MemoriaTexto.Numero(linha.NotaLocal),12} {MemoriaTexto.Numero(linha.NotaImportada),12}  {linha.Veredito} ({MemoriaTexto.Numero(linha.DiferencaPercentual)}%)");
+                Console.WriteLine($"{linha.Teste.PadRight(largura)} {NumeroTexto.Numero(linha.NotaLocal),12} {NumeroTexto.Numero(linha.NotaImportada),12}  {linha.Veredito} ({NumeroTexto.Numero(linha.DiferencaPercentual)}%)");
             }
         }
 

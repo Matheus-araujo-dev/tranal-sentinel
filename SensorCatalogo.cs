@@ -53,7 +53,27 @@ public sealed class ContextoSensores
     public float? UsoRam { get; init; }
     public int? Bateria { get; init; }
     public bool Carregando { get; init; }
+
+    /// <summary>
+    /// As ventoinhas que o app pode vigiar agora.
+    ///
+    /// <para>
+    /// A lista é montada a cada ciclo e muda conforme o hardware: uma
+    /// ventoinha que não está dando leitura não entra — e a regra que a
+    /// vigia fica sem valor naquele momento (o mesmo que acontece com um
+    /// sensor que sumiu).
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<ContextoVentoinha> Ventoinhas { get; init; } = Array.Empty<ContextoVentoinha>();
 }
+
+/// <summary>
+/// Uma ventoinha que o app pode vigiar (o que a regra do usuário acompanha).
+/// </summary>
+/// <param name="Id">A identidade estável da ventoinha.</param>
+/// <param name="Rotulo">O nome que o usuário lê ("Fan #1 (ITE IT8655E)").</param>
+/// <param name="Rpm">As rotações por minuto de agora.</param>
+public sealed record ContextoVentoinha(string Id, string Rotulo, float Rpm);
 
 /// <summary>
 /// O catálogo dos sensores vigiáveis: a fonte única do que dá para

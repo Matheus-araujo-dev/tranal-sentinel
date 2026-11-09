@@ -205,6 +205,7 @@ public partial class MainWindow
                 UsoRam = LerSensor(() => _monitor.RamUso),
                 Bateria = bateria,
                 Carregando = carregando,
+                Ventoinhas = VentoinhasDoContexto(),
             };
 
             // A cópia evita que a tela (que edita as regras ao mesmo tempo)
@@ -216,6 +217,31 @@ public partial class MainWindow
         catch
         {
             // Alerta que falha não pode derrubar o app.
+        }
+    }
+
+    /// <summary>
+    /// As ventoinhas que o app pode vigiar neste ciclo.
+    ///
+    /// <para>
+    /// Só a ventoinha que está dando leitura entra: uma ventoinha sem
+    /// leitura não tem RPM, e a regra que a vigia fica sem valor (o mesmo
+    /// que acontece com um sensor que sumiu).
+    /// </para>
+    /// </summary>
+    private List<ContextoVentoinha> VentoinhasDoContexto()
+    {
+        try
+        {
+            return _ventoinhas.Cartoes()
+                .Where(c => c.RpmAtual is not null)
+                .Select(c => new ContextoVentoinha(c.Id, c.Rotulo, (float)c.RpmAtual!.Value))
+                .ToList();
+        }
+        catch
+        {
+            // A vigia não pode derrubar por causa das ventoinhas.
+            return new List<ContextoVentoinha>();
         }
     }
 

@@ -50,6 +50,29 @@ public sealed class MonitorAlertas
     /// </summary>
     public const string SensorBateria = "bateria";
 
+    /// <summary>
+    /// O prefixo da chave de regra que vigia uma ventoinha.
+    ///
+    /// <para>
+    /// A ventoinha não está no catálogo: o catálogo é fixo (são oito
+    /// sensores de hardware), e as ventoinhas dependem da máquina. A chave
+    /// da regra carrega a identidade da ventoinha depois do prefixo.
+    /// </para>
+    /// </summary>
+    public const string PrefixoVentoinha = "ventoinha:";
+
+    /// <summary>
+    /// A ventoinha de uma chave de regra (null quando a chave não é de
+    /// ventoinha, ou quando a ventoinha não está no contexto agora).
+    /// </summary>
+    private static ContextoVentoinha? VentoinhaDoContexto(string sensor, ContextoSensores contexto)
+    {
+        if (!sensor.StartsWith(PrefixoVentoinha, StringComparison.Ordinal)) return null;
+
+        string id = sensor[PrefixoVentoinha.Length..];
+        return contexto.Ventoinhas.FirstOrDefault(v => v.Id == id);
+    }
+
     /// <summary>O nome da bateria nos avisos (a chave não está no catálogo).</summary>
     public const string BateriaRotulo = "Carga da bateria";
 
@@ -163,14 +186,14 @@ public sealed class MonitorAlertas
                     // O aviso continua valendo, mas o texto acompanha a
                     // regra e o valor de agora (o usuário não pode ver um
                     // limite velho na tela). Isso não avisa de novo.
-                    var atualizado = MontarAlerta(chave, regra, valor.Value, inicio);
+                    var atualizado = MontarAlerta(chave, regra, valor.Value, inicio, contexto);
                     if (atualizado.Texto != ativo.Texto || atualizado.Titulo != ativo.Titulo
                         || atualizado.Severidade != ativo.Severidade)
                         _ativos[chave] = atualizado;
                     continue;
                 }
 
-                var alerta = MontarAlerta(chave, regra, valor.Value, inicio);
+                var alerta = MontarAlerta(chave, regra, valor.Value, inicio, contexto);
                 _ativos[chave] = alerta;
                 novos.Add(alerta);
             }
@@ -219,6 +242,16 @@ public sealed class MonitorAlertas
             return contexto.Bateria is int b ? b : null;
         }
 
+        // A ventoinha: o valor é o RPM de agora. Uma ventoinha que não está
+        // no contexto não tem valor (o sensor sumiu) — e a regra fica sem
+        // avaliar, como acontece com qualquer sensor ausente.
+        var ventoinha = VentoinhaDoContexto(sensor, contexto);
+        if (ventoinha is not null)
+        {
+            vale = true;
+            return ventoinha.Rpm;
+        }
+
         var item = SensorCatalogo.PorChave(sensor);
         if (item is null) { vale = false; return null; }
 
@@ -231,7 +264,7 @@ public sealed class MonitorAlertas
     ///
     /// <param name="desde">Desde quando a condição está valendo (o começo do episódio).</param>
     /// </summary>
-    private static Alerta MontarAlerta(string chave, RegraAlerta regra, float valor, DateTime desde)
+    private static Alerta MontarAlerta(string chave, RegraAlerta regra, float valor, DateTime desde, ContextoSensores contexto)
     {
         string rotuloCatalogo, unidade, dica;
         if (regra.Sensor == SensorBateria)
@@ -239,6 +272,15 @@ public sealed class MonitorAlertas
             rotuloCatalogo = BateriaRotulo;
             unidade = BateriaUnidade;
             dica = BateriaDica;
+        }
+        else if (regra.Sensor.StartsWith(PrefixoVentoinha, StringComparison.Ordinal))
+        {
+            // O nome da ventoinha vem do contexto (o hardware da máquina):
+            // a chave da regra é uma identificação, não um texto para
+            // o usuário ler.
+            rotuloCatalogo = VentoinhaDoContexto(regra.Sensor, contexto)?.Rotulo ?? "Ventoinha";
+            unidade = "RPM";
+            dica = "A ventoinha parou de girar. A aba TRANAL VENTOINHAS compara o RPM com o recorde da própria ventoinha.";
         }
         else
         {

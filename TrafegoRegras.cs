@@ -135,31 +135,12 @@ public static class TrafegoRegras
     /// </summary>
     public static string NotaDaMedicao =>
         "O total inclui os cabeçalhos TCP/IP: em " +
-        Numero(BytesBaixadosNaMedicao / 1048576.0) +
+        NumeroTexto.Numero(BytesBaixadosNaMedicao / 1048576.0) +
         " MB baixados a medição deu " +
-        NumeroInteiro(BytesMedidosNaMedicao) +
-        " bytes (+" + Numero(DiferencaDaMedicaoEmPercento) +
+        NumeroTexto.Inteiro(BytesMedidosNaMedicao) +
+        " bytes (+" + NumeroTexto.Numero(DiferencaDaMedicaoEmPercento) +
         "%, medido em 09/11/2026 no PC do dono com curl).";
 
-    /// <summary>Número no padrão brasileiro (vírgula decimal), sem casas demais.</summary>
-    public static string Numero(double valor) =>
-        valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
-
-    /// <summary>
-    /// Um número inteiro, sem casas decimais.
-    ///
-    /// <para>
-    /// É um método à parte do <see cref="Numero(double)"/> de propósito: as
-    /// contagens (de pacotes, de programas) são inteiras e grandes, e
-    /// passar por um double as perderia.
-    /// </para>
-    /// </summary>
-    public static string NumeroInteiro(long valor) =>
-        // "N0" com cultura invariante separa os milhares com vírgula; o
-        // padrão brasileiro usa ponto. A troca é feita à mão para que o
-        // texto saia igual no PC do dono e na máquina de integração
-        // (que roda em en-US).
-        valor.ToString("N0", CultureInfo.InvariantCulture).Replace(",", ".");
 
     /// <summary>
     /// Uma quantidade de bytes em unidade legível (B, KB, MB, GB, TB).
@@ -185,7 +166,7 @@ public static class TrafegoRegras
             i++;
         }
 
-        return Numero(Math.Round(valor, 1)) + " " + unidades[i];
+        return NumeroTexto.Numero(Math.Round(valor, 1)) + " " + unidades[i];
     }
 
     /// <summary>
@@ -406,12 +387,12 @@ public static class TrafegoRegras
             new("RECEBIDO", TextoDosBytes(recebidos)),
             new("ENVIADO", TextoDosBytes(enviados)),
             new("PROGRAMAS", totalProgramas > 0
-                ? Numero(totalProgramas) + (totalProgramas == 1 ? " programa" : " programas")
+                ? NumeroTexto.Numero(totalProgramas) + (totalProgramas == 1 ? " programa" : " programas")
                 : "0 programas"),
         };
 
         if (perdidos > 0)
-            metricas.Add(new KeyValuePair<string, string>("PACOTES DEIXADOS DE FORA", NumeroInteiro(perdidos)));
+            metricas.Add(new KeyValuePair<string, string>("PACOTES DEIXADOS DE FORA", NumeroTexto.Inteiro(perdidos)));
 
         bool alerta = semMedicao || perdidos > 0 || perdidosDesconhecidos;
 
@@ -459,7 +440,7 @@ public static class TrafegoRegras
 
         if (perdidos > 0)
         {
-            partes.Add($"A coleta deixou de fora {NumeroInteiro(perdidos)} pacotes (a fila do log do kernel encheu): " +
+            partes.Add($"A coleta deixou de fora {NumeroTexto.Inteiro(perdidos)} pacotes (a fila do log do kernel encheu): " +
                 "o total é menor do que foi o real.");
         }
         else if (perdidosDesconhecidos)
@@ -497,7 +478,7 @@ public static class TrafegoRegras
         if (totalProgramas > quantos)
         {
             int extras = totalProgramas - quantos;
-            frase += $". Além deles, mais {Numero(extras)} {(extras == 1 ? "programa" : "programas")} usaram a rede.";
+            frase += $". Além deles, mais {NumeroTexto.Numero(extras)} {(extras == 1 ? "programa" : "programas")} usaram a rede.";
         }
 
         return frase + ".";

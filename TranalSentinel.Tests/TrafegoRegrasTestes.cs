@@ -155,10 +155,10 @@ public class TrafegoRegrasTestes
             // A máquina de integração roda em en-US: o mesmo texto tem que
             // sair em pt-BR nos dois lugares.
             CultureInfo.CurrentCulture = new CultureInfo("en-US");
-            Assert.Equal("1,5", TrafegoRegras.Numero(1.5));
+            Assert.Equal("1,5", NumeroTexto.Numero(1.5));
 
             CultureInfo.CurrentCulture = new CultureInfo("pt-BR");
-            Assert.Equal("1,5", TrafegoRegras.Numero(1.5));
+            Assert.Equal("1,5", NumeroTexto.Numero(1.5));
         }
         finally
         {
@@ -401,7 +401,7 @@ public class TrafegoRegrasTestes
         string nota = TrafegoRegras.NotaDaMedicao;
 
         // A nota sai com o separador de milhar: "105.006.661".
-        Assert.Contains(TrafegoRegras.NumeroInteiro(TrafegoRegras.BytesMedidosNaMedicao), nota);
+        Assert.Contains(NumeroTexto.Inteiro(TrafegoRegras.BytesMedidosNaMedicao), nota);
         Assert.Contains("105.006.661", nota);
         Assert.Contains("+0,14", nota);
 
@@ -446,10 +446,10 @@ public class TrafegoRegrasTestes
         // A contagem de pacotes descartados e um long no banco: passar
         // por um double a perderia acima de 2^53, e um int a cortaria
         // em 2.147.483.647.
-        Assert.Equal("3.000.000.000", TrafegoRegras.NumeroInteiro(3000000000L));
-        Assert.Equal("0", TrafegoRegras.NumeroInteiro(0));
-        Assert.Equal("-1", TrafegoRegras.NumeroInteiro(-1));
-        Assert.Equal("105.006.661", TrafegoRegras.NumeroInteiro(105006661L));
+        Assert.Equal("3.000.000.000", NumeroTexto.Inteiro(3000000000L));
+        Assert.Equal("0", NumeroTexto.Inteiro(0));
+        Assert.Equal("-1", NumeroTexto.Inteiro(-1));
+        Assert.Equal("105.006.661", NumeroTexto.Inteiro(105006661L));
     }
 
     [Fact]

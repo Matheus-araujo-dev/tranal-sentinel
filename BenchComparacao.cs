@@ -247,7 +247,7 @@ public static class BenchComparacao
 
         if (local.MemoriaGb > 0 && importado.MemoriaGb > 0 && Math.Abs(local.MemoriaGb - importado.MemoriaGb) >= 1)
         {
-            diferencas.Add($"Memória diferente: esta máquina tem {MemoriaTexto.Numero(local.MemoriaGb)} GB, a outra tem {MemoriaTexto.Numero(importado.MemoriaGb)} GB.");
+            diferencas.Add($"Memória diferente: esta máquina tem {NumeroTexto.Numero(local.MemoriaGb)} GB, a outra tem {NumeroTexto.Numero(importado.MemoriaGb)} GB.");
         }
 
         if (!Mesma(local.Sistema, importado.Sistema))

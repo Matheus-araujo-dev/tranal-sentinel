@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace TranalSentinel;
 
 /// <summary>
@@ -14,9 +12,6 @@ namespace TranalSentinel;
 /// </summary>
 public static class ResumoAmostras
 {
-    /// <summary>Números no padrão brasileiro (vírgula decimal).</summary>
-    private static readonly CultureInfo Br = CultureBrasil();
-
     /// <summary>
     /// Descreve a janela de amostras em uma frase: "CPU a 78,5 °C · carga
     /// da CPU 43 % · ...".
@@ -30,27 +25,27 @@ public static class ResumoAmostras
         var itens = new List<string>();
 
         var tempCpu = Maximo(janela, a => a.CpuTemp);
-        if (tempCpu != null) itens.Add($"CPU a {Numero(tempCpu.Value)} °C");
+        if (tempCpu != null) itens.Add($"CPU a {NumeroTexto.Numero(tempCpu.Value)} °C");
 
         var tempGpu = Maximo(janela, a => a.GpuTemp);
-        if (tempGpu != null) itens.Add($"GPU a {Numero(tempGpu.Value)} °C");
+        if (tempGpu != null) itens.Add($"GPU a {NumeroTexto.Numero(tempGpu.Value)} °C");
 
         var cargaCpu = Media(janela, a => a.CpuCarga);
-        if (cargaCpu != null) itens.Add($"carga da CPU {Numero(cargaCpu.Value)} %");
+        if (cargaCpu != null) itens.Add($"carga da CPU {NumeroTexto.Numero(cargaCpu.Value)} %");
 
         var cargaGpu = Maximo(janela, a => a.GpuCarga);
-        if (cargaGpu != null) itens.Add($"GPU {Numero(cargaGpu.Value)} %");
+        if (cargaGpu != null) itens.Add($"GPU {NumeroTexto.Numero(cargaGpu.Value)} %");
 
         var ram = Ultimo(janela, a => a.RamUso);
-        if (ram != null) itens.Add($"RAM {Numero(ram.Value)} %");
+        if (ram != null) itens.Add($"RAM {NumeroTexto.Numero(ram.Value)} %");
 
         var leitura = Ultimo(janela, a => a.DiscoLeitura);
         var escrita = Ultimo(janela, a => a.DiscoEscrita);
         if (leitura != null || escrita != null)
-            itens.Add($"disco {Numero(Math.Max(leitura ?? 0, escrita ?? 0))} MB/s");
+            itens.Add($"disco {NumeroTexto.Numero(Math.Max(leitura ?? 0, escrita ?? 0))} MB/s");
 
         var clock = Ultimo(janela, a => a.CpuClock);
-        if (clock != null) itens.Add($"clock da CPU {Numero(clock.Value / 1000f)} GHz");
+        if (clock != null) itens.Add($"clock da CPU {NumeroTexto.Numero(clock.Value / 1000f)} GHz");
 
         return string.Join(" · ", itens);
     }
@@ -80,21 +75,4 @@ public static class ResumoAmostras
         return null;
     }
 
-    /// <summary>Número no padrão brasileiro (vírgula decimal).</summary>
-    private static string Numero(float valor) => valor.ToString("0.##", Br);
-
-    /// <summary>
-    /// A cultura brasileira. Se o Windows vier sem ela (modo invariante),
-    /// o texto sai com ponto decimal em vez de quebrar a tela.
-    /// </summary>
-    private static CultureInfo CultureBrasil()
-    {
-        try { return CultureInfo.GetCultureInfo("pt-BR"); }
-        catch
-        {
-            // Windows sem a cultura pt-BR: a invariante mostra a vírgula
-            // como ponto, o que é feio mas não quebra nada.
-            return CultureInfo.InvariantCulture;
-        }
-    }
 }

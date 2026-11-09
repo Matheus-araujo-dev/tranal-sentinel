@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace TranalSentinel;
 
 /// <summary>
@@ -14,20 +12,17 @@ namespace TranalSentinel;
 /// </summary>
 public static class MemoriaTexto
 {
-    /// <summary>Número no padrão brasileiro (vírgula decimal), sem casas demais.</summary>
-    public static string Numero(double valor) =>
-        valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
 
     /// <summary>Um tempo em nanossegundos.</summary>
-    public static string Ns(double nanossegundos) => Numero(nanossegundos) + " ns";
+    public static string Ns(double nanossegundos) => NumeroTexto.Numero(nanossegundos) + " ns";
 
     /// <summary>Um tempo em picossegundos.</summary>
-    public static string Ps(double picossegundos) => Numero(picossegundos) + " ps";
+    public static string Ps(double picossegundos) => NumeroTexto.Numero(picossegundos) + " ps";
 
     /// <summary>Uma tensão em volts.</summary>
-    public static string Voltagem(double volts) => Numero(volts) + " V";
+    public static string Voltagem(double volts) => NumeroTexto.Numero(volts) + " V";
 
     /// <summary>Uma quantidade de bytes em gigabytes.</summary>
     public static string Bytes(long bytes) =>
-        Numero(Math.Round(bytes / 1024.0 / 1024.0 / 1024.0, 1)) + " GB";
+        NumeroTexto.Numero(Math.Round(bytes / 1024.0 / 1024.0 / 1024.0, 1)) + " GB";
 }

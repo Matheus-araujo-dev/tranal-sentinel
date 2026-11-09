@@ -227,7 +227,7 @@ public partial class MainWindow
 
         if (!string.IsNullOrWhiteSpace(maquina.Cpu)) linhas.Add(maquina.Cpu);
         if (!string.IsNullOrWhiteSpace(maquina.Gpu)) linhas.Add(maquina.Gpu);
-        if (maquina.MemoriaGb > 0) linhas.Add($"{MemoriaTexto.Numero(maquina.MemoriaGb)} GB de memória");
+        if (maquina.MemoriaGb > 0) linhas.Add($"{NumeroTexto.Numero(maquina.MemoriaGb)} GB de memória");
         if (!string.IsNullOrWhiteSpace(maquina.Sistema)) linhas.Add(maquina.Sistema);
 
         return string.Join(Environment.NewLine, linhas);
@@ -246,9 +246,9 @@ public partial class MainWindow
         {
             Teste = linha.Teste,
             Detalhe = detalhe,
-            NotaLocal = MemoriaTexto.Numero(linha.NotaLocal),
-            NotaImportada = MemoriaTexto.Numero(linha.NotaImportada),
-            Diferenca = $"{linha.Veredito} ({MemoriaTexto.Numero(linha.DiferencaPercentual)}%)"
+            NotaLocal = NumeroTexto.Numero(linha.NotaLocal),
+            NotaImportada = NumeroTexto.Numero(linha.NotaImportada),
+            Diferenca = $"{linha.Veredito} ({NumeroTexto.Numero(linha.DiferencaPercentual)}%)"
         };
     }
 }
