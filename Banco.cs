@@ -1392,6 +1392,8 @@ public static class Banco
 
         // O banco estragado vira cópia datada: é o desfazer do reparo.
         string? copia = null;
+        string motivoDaTroca = "";
+
         try
         {
             if (File.Exists(Caminho))
@@ -1407,8 +1409,23 @@ public static class Banco
                 // O WAL e o índice do banco velho vão junto com ele: a cópia
                 // só vale alguma coisa se trouxer os dados que ainda estavam
                 // no WAL.
-                MoverArquivoDoWal(Caminho + "-wal", copia + "-wal");
+                bool walMoveu = MoverArquivoDoWal(Caminho + "-wal", copia + "-wal");
                 MoverArquivoDoWal(Caminho + "-shm", copia + "-shm");
+
+                if (!walMoveu)
+                {
+                    // O WAL do banco velho não pôde ir com ele, e a troca
+                    // para aqui. Deixar o WAL órfão ao lado do banco novo é
+                    // o jeito de destruir o histórico (o SQLite lê o WAL de
+                    // um arquivo por cima de outro), e apagar o WAL do
+                    // banco velho perderia as últimas gravações dele em
+                    // silêncio. O banco velho volta para o lugar, com o
+                    // WAL dele.
+                    motivoDaTroca =
+                        "o WAL do banco de dados não pôde ser movido (o arquivo está em uso por outro programa)";
+
+                    throw new InvalidOperationException(motivoDaTroca);
+                }
             }
 
             ApagarArquivosDoWal(Caminho);
@@ -1447,10 +1464,21 @@ public static class Banco
             // app aberto deixava um arquivo órfão na pasta do histórico.
             string resto = AvisoDoArquivoQueFicou(ApagarBancoNovo(novoCaminho), novoCaminho);
 
+            // O banco velho pode ter ficado guardado em outro lugar (a
+            // volta falhou): o relato diz onde ele está — "foi mantido
+            // como está" seria mentira quando ele está no arquivo datado.
+            string ondeFicou = restaurado
+                ? " O banco antigo foi mantido como está."
+                : copia != null
+                    ? $" O banco antigo ficou guardado em {copia}."
+                    : " O banco antigo foi mantido como está.";
+
             string relatoTroca =
                 "Não foi possível trocar o arquivo do banco de dados pelo novo" +
-                " (o arquivo está em uso por outro programa — o TRANAL SENTINEL aberto, por exemplo)." +
-                " O banco antigo foi mantido como está." + resto;
+                (motivoDaTroca.Length > 0
+                    ? " (" + motivoDaTroca + ")."
+                    : " (o arquivo está em uso por outro programa — o TRANAL SENTINEL aberto, por exemplo).") +
+                ondeFicou + resto;
 
             // A cópia só vale como desfazer quando ela ainda está no
             // lugar: um banco que voltou para o caminho original não
@@ -1504,17 +1532,22 @@ public static class Banco
     /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
     internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos)
     {
+        // Nenhuma das duas contagens deu: não dá para dizer o que foi
+        // salvo, e a frase não pode dizer que algo foi salvo.
+        if (salvasAmostras < 0 && salvosUsos < 0)
+            return "Foi reconstruído, mas não deu para contar o que entrou no banco novo.";
+
         var texto = new StringBuilder("Foi reconstruído: ");
 
         texto.Append(salvasAmostras >= 0
-            ? $"{salvasAmostras} amostras de sensor"
+            ? $"{salvasAmostras} amostras de sensor foram salvos"
             : "não deu para contar as amostras de sensor que entraram no banco novo");
 
         texto.Append(salvosUsos >= 0
-            ? $" e {salvosUsos} registros de uso"
+            ? $" e {salvosUsos} registros de uso foram salvos"
             : " e não deu para contar os registros de uso que entraram no banco novo");
 
-        texto.Append(" foram salvos.");
+        texto.Append(".");
         return texto.ToString();
     }
 
@@ -1668,19 +1701,30 @@ public static class Banco
             : $" O arquivo temporário do reparo ({caminho}) ficou na pasta: o Windows segurou o arquivo e ele não pôde ser apagado.";
 
     /// <summary>
-    /// Move um arquivo do banco velho para junto da cópia datada. Falha não
-    /// é problema: a cópia do banco principal já está salva.
+    /// Move um arquivo do banco velho para junto da cópia datada. Devolve
+    /// false quando havia arquivo para mover e ele não pôde ser movido (o
+    /// antivírus com o arquivo, outro processo) — true quando foi movido ou
+    /// quando não havia nada para mover.
+    ///
+    /// <para>
+    /// Quem chama precisa do valor: banco e WAL são um par, e um WAL que
+    /// fica para trás ao lado de outro banco é o jeito de destruir o
+    /// histórico (o SQLite lê o WAL de um arquivo por cima de outro).
+    /// </para>
     /// </summary>
-    private static void MoverArquivoDoWal(string origem, string destino)
+    private static bool MoverArquivoDoWal(string origem, string destino)
     {
         try
         {
-            if (File.Exists(origem)) File.Move(origem, destino);
+            if (!File.Exists(origem)) return true;
+
+            File.Move(origem, destino);
+            return true;
         }
         catch
         {
-            // O WAL não foi para a cópia: o arquivo principal do banco
-            // estragado continua guardado, que é o que importa.
+            // O WAL não foi para a cópia: quem chama diz isso no relato.
+            return false;
         }
     }
 
@@ -1763,6 +1807,9 @@ public static class Banco
             // viraria um "restaurar por cima de si mesmo".
             string guardar = Caminho + ".substituido-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
 
+            string motivoDaTroca = "";
+            string avisoDoWalDaCopia = "";
+
             try
             {
                 // O banco atual sai do lugar primeiro, e o WAL dele vai
@@ -1773,16 +1820,39 @@ public static class Banco
                 // próprio SQLite, e um índice velho só causaria confusão.
                 if (File.Exists(Caminho)) File.Move(Caminho, guardar);
 
-                MoverArquivoDoWal(Caminho + "-wal", guardar + "-wal");
+                bool walMoveu = MoverArquivoDoWal(Caminho + "-wal", guardar + "-wal");
                 ApagarArquivo(Caminho + "-shm");
+
+                if (!walMoveu)
+                {
+                    // O WAL do banco atual não pôde ir com ele, e o desfazer
+                    // para aqui. Deixar o WAL órfão ao lado do banco
+                    // restaurado é o jeito de destruir o histórico (o
+                    // SQLite lê o WAL de um arquivo por cima de outro).
+                    // O banco volta para o lugar, com o WAL dele.
+                    motivoDaTroca =
+                        "o WAL do banco de dados não pôde ser movido (o arquivo está em uso por outro programa)";
+
+                    throw new InvalidOperationException(motivoDaTroca);
+                }
 
                 // A cópia entra no lugar, com o WAL dela: a cópia só vale
                 // alguma coisa se trouxer os dados que ainda estavam nele —
                 // sem ele, o banco restaurado perderia as últimas gravações.
                 File.Move(copia, Caminho);
 
-                MoverArquivoDoWal(copia + "-wal", Caminho + "-wal");
+                bool walDaCopiaMoveu = MoverArquivoDoWal(copia + "-wal", Caminho + "-wal");
                 ApagarArquivo(copia + "-shm");
+
+                if (!walDaCopiaMoveu)
+                {
+                    // A cópia entrou, mas o WAL dela ficou para trás: o
+                    // banco restaurado está só até o último checkpoint. O
+                    // relato diz — o usuário precisa saber que o histórico
+                    // das últimas gravações pode não estar aqui.
+                    avisoDoWalDaCopia =
+                        " O WAL da cópia avariada não pôde ser movido (o arquivo está em uso por outro programa): o banco restaurado está só até o último checkpoint, e as últimas gravações podem não ter vindo com ele.";
+                }
             }
             catch
             {
@@ -1824,17 +1894,30 @@ public static class Banco
                     // com o WAL dele.
                     sobreWal = " O banco atual foi mantido como está.";
                 }
+                else if (motivoDaTroca.Length > 0)
+                {
+                    // O banco ficou guardado, mas o WAL dele não foi com
+                    // ele: o WAL continua no nome do banco, e o relato diz
+                    // onde ele está — um WAL órfão é dado que ninguém
+                    // encontra depois.
+                    sobreWal =
+                        $" O banco atual ficou guardado em {guardar}, mas o WAL dele ficou em {Caminho}-wal" +
+                        " (o arquivo estava em uso por outro programa): as últimas gravações podem não estar no banco guardado.";
+                }
                 else
                 {
                     sobreWal = $" O banco atual ficou guardado em {guardar} (com o WAL dele).";
                 }
 
                 return new ResultadoReparo(false,
-                    "Não foi possível restaurar a cópia avariada." + sobreWal, 0, 0, copia);
+                    "Não foi possível restaurar a cópia avariada" +
+                    (motivoDaTroca.Length > 0 ? " (" + motivoDaTroca + ")." : ".") +
+                    sobreWal, 0, 0, copia);
             }
 
             string relato =
-                $"A cópia avariada foi restaurada: {copia}. O banco atual ficou guardado em {guardar} (com o que ainda estava no WAL dele).";
+                $"A cópia avariada foi restaurada: {copia}. O banco atual ficou guardado em {guardar} (com o que ainda estava no WAL dele)."
+                + avisoDoWalDaCopia;
 
             return new ResultadoReparo(true, relato, 0, 0, guardar);
         }

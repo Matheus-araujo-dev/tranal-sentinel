@@ -447,30 +447,19 @@ public partial class MainWindow
 
             // Por que este aviso disparou: o que os sensores faziam na janela
             // antes do começo do episódio e quem estava em frente. Sem
-            // histórico, o app diz que não sabe.
+            // histórico, o app diz que não sabe — e, quando a leitura
+            // falhou, diz que não deu para ler (a regra mora no núcleo
+            // puro: `UsoRegras.TextoDoPorQueDisparou`).
             var explicacao = ExplicacaoDe(alerta);
-            if (explicacao != null)
+            string textoExplicacao = UsoRegras.TextoDoPorQueDisparou(explicacao, _explicacaoFalhou);
+
+            if (textoExplicacao.Length > 0)
             {
                 linha.Children.Add(new TextBlock
                 {
-                    Text = "Por que disparou: " + explicacao.Resumo,
-                    Foreground = (System.Windows.Media.Brush)FindResource(explicacao.TemDados ? "Muted" : "Faint"),
-                    FontSize = 11.5,
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 3, 0, 0),
-                });
-            }
-            else if (_explicacaoFalhou)
-            {
-                // A leitura do histórico falhou. O aviso continua valendo
-                // (ele veio dos sensores de agora), mas a explicação não
-                // pode ser inventada — e o silêncio seria uma resposta
-                // errada: o usuário leria "o app não estava gravando" num
-                // histórico que ninguém leu.
-                linha.Children.Add(new TextBlock
-                {
-                    Text = "Por que disparou: não deu para ler o histórico para explicar este aviso.",
-                    Foreground = (System.Windows.Media.Brush)FindResource("Faint"),
+                    Text = textoExplicacao,
+                    Foreground = (System.Windows.Media.Brush)FindResource(
+                        explicacao != null && explicacao.TemDados ? "Muted" : "Faint"),
                     FontSize = 11.5,
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 3, 0, 0),

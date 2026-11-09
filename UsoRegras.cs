@@ -304,11 +304,19 @@ public static class UsoRegras
     /// <summary>
     /// Explica um alerta com o histórico já lido (a explicação em si, sem o
     /// caso de "não deu para ler", que é do método de cima).
+    ///
+    /// <para>
+    /// É interna de propósito: quem está de fora só tem a sobrecarga que
+    /// recebe a <see cref="Leitura{T}"/>, e ela devolve null quando o
+    /// histórico não deu para ler. Com a sobrecarga crua pública, um
+    /// chamador novo podia passar listas sem o sinal <c>Completa</c> e
+    /// receber a frase "o app não estava gravando sensores nesse momento"
+    /// de um histórico que ninguém leu.
+    /// </para>
     /// </summary>
-    public static ExplicacaoAlerta ExplicarAlerta(DateTime momento, IReadOnlyList<AmostraSensor> amostras, IReadOnlyList<TrocaUso> trocas)
+    internal static ExplicacaoAlerta ExplicarAlerta(DateTime momento, IReadOnlyList<AmostraSensor> amostras, IReadOnlyList<TrocaUso> trocas)
     {
         var janela = new List<AmostraSensor>();
-
         if (amostras != null)
         {
             janela = amostras
@@ -352,5 +360,30 @@ public static class UsoRegras
             .LastOrDefault();
 
         return ultima?.Processo ?? "";
+    }
+
+    /// <summary>
+    /// A linha da tela dos alertas que diz por que o aviso disparou: a
+    /// explicação, ou o aviso de que o histórico não deu para ser lido.
+    /// Vazia quando não há explicação e a leitura deu certo (o aviso ainda
+    /// não tem histórico — o app tenta de novo em instantes).
+    ///
+    /// <para>
+    /// A regra mora aqui, no núcleo puro: a tela não pode mostrar a
+    /// explicação inventada ("o app não estava gravando sensores nesse
+    /// momento") quando o que falhou foi a LEITURA — nem ficar em silêncio,
+    /// que o usuário leria como "não havia histórico".
+    /// </para>
+    /// </summary>
+    /// <param name="explicacao">A explicação do aviso (null quando não há).</param>
+    /// <param name="leituraFalhou">True quando a última leitura do histórico não deu para ser lida.</param>
+    public static string TextoDoPorQueDisparou(ExplicacaoAlerta? explicacao, bool leituraFalhou)
+    {
+        if (explicacao != null) return "Por que disparou: " + explicacao.Resumo;
+
+        if (leituraFalhou)
+            return "Por que disparou: não deu para ler o histórico para explicar este aviso.";
+
+        return "";
     }
 }

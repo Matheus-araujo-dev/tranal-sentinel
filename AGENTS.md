@@ -209,6 +209,14 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   volta). O WAL **da própria cópia** volta junto com ela: é o par
   banco+WAL que o reparo guardou, e voltar separado deixaria o banco
   restaurado mais velho do que estava.
+- **O WAL anda com o banco — ou a troca para.** Banco e WAL são um par: um
+  WAL que fica para trás ao lado de outro banco é o jeito de destruir o
+  histórico (o SQLite lê o WAL de um arquivo por cima de outro), e apagar
+  o WAL do banco velho perde as últimas gravações dele em silêncio. Por
+  isso `MoverArquivoDoWal` devolve `bool`: quando o WAL não pôde ir com o
+  banco, o reparo e o desfazer **param** (o banco volta para o lugar, com o
+  WAL dele) e o relato diz o que aconteceu. O relato nunca afirma que o
+  WAL veio junto sem o código saber se veio.
 - **O reparo não troca o arquivo sem ler.** Se a leitura falhou (e o
   arquivo não é "não é um banco de dados"), o reparo cancela e mantém o
   arquivo; se o banco tinha linhas e o novo ficou vazio, cancela também.
@@ -247,9 +255,12 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   momento"). Com o histórico pela metade, essa frase é uma afirmação falsa:
   o app estava gravando — o que não deu foi a *leitura*. A regra mora no
   núcleo puro (`UsoRegras.ExplicarAlerta`, que devolve `null` quando a
-  leitura ficou incompleta): quem chama não tem como contorná-la, e nada é
-  guardado em cache. A tela mostra "não deu para ler o histórico para
-  explicar este aviso" — silêncio ali seria uma resposta errada.
+  leitura ficou incompleta): a sobrecarga com listas cruas é **interna**,
+  então quem está de fora só tem a versão com o sinal `Completa` e não
+  tem como contornar a regra. Nada é guardado em cache, e a linha da tela
+  (`UsoRegras.TextoDoPorQueDisparou`, também pura e testada) mostra "não
+  deu para ler o histórico para explicar este aviso" — silêncio ali seria
+  uma resposta errada.
 - **O -1 é "não deu para contar", em qualquer ponta da conta.** A contagem do
   banco novo pode falhar depois do COMMIT (disco cheio, antivírus com o
   arquivo): o relato não pode dizer "-1 amostras foram salvos" nem calcular

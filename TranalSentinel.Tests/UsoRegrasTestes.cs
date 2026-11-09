@@ -295,6 +295,42 @@ public class UsoRegrasTestes : IDisposable
     }
 
     [Fact]
+    public void TextoDoPorQueDisparouDizQueNaoDeuParaLerQuandoALeituraFalhou()
+    {
+        // A leitura falhou e não há explicação: a tela precisa dizer que
+        // não deu para ler. O silêncio seria lido como "não havia
+        // histórico" — e a explicação inventada ("o app não estava
+        // gravando") seria uma afirmação falsa sobre o histórico de quem
+        // está usando o computador.
+        string texto = UsoRegras.TextoDoPorQueDisparou(null, true);
+
+        Assert.Contains("não deu para ler o histórico", texto);
+        Assert.Contains("Por que disparou", texto);
+        Assert.DoesNotContain("não estava gravando", texto);
+    }
+
+    [Fact]
+    public void TextoDoPorQueDisparouMostraAExplicacaoQuandoElaExiste()
+    {
+        var explicacao = new ExplicacaoAlerta(true, "CPU a 82 °C");
+
+        string texto = UsoRegras.TextoDoPorQueDisparou(explicacao, false);
+
+        Assert.Contains("CPU a 82 °C", texto);
+        Assert.Contains("Por que disparou", texto);
+        Assert.DoesNotContain("não deu para ler", texto);
+    }
+
+    [Fact]
+    public void TextoDoPorQueDisparouFicaVazioSemExplicacaoEComALeituraCerta()
+    {
+        // Ainda não há explicação e a leitura deu certo: o app tenta de
+        // novo em instantes. A tela não precisa dizer nada (e não diz que
+        // falhou, porque não falhou).
+        Assert.Equal("", UsoRegras.TextoDoPorQueDisparou(null, false));
+    }
+
+    [Fact]
     public void ProgramaEmDizQuemEstavaEmFrenteNaHora()
     {
         var trocas = new List<TrocaUso>
