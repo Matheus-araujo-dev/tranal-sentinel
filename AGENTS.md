@@ -517,7 +517,12 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   `ventoinha:<id>`), e a vigia só inclui as que estão dando leitura.
 - **O número da tela sai de um lugar só** (`NumeroTexto`): vírgula decimal e
   ponto de milhar, aconteça o que acontecer com a cultura do Windows. Número
-  que não é finito vira "—" — nunca um número inventado.
+  que não é finito vira "—" — nunca um número inventado. Isso vale também
+  para o **texto do aviso de alerta**: o aviso aparece na tela (na lista de
+  "Alertas ativos") e ele não pode sair escrito de dois jeitos em PCs de
+  culturas diferentes. O `AlertasSegundoPlano` e a página de alertas usam o
+  mesmo formatador, e o teste `OTextoDoAvisoNaoDependeDaCulturaDoWindows`
+  prende isso.
 
 ## Publicar
 

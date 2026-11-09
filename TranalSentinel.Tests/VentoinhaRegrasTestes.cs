@@ -342,6 +342,55 @@ public class VentoinhaRegrasTestes
     }
 
     [Fact]
+    public void Cartao_ComQuedaQueJaEstavaAoSubir_DizQueNaoSabeQuandoComecou()
+    {
+        // A queda já estava valendo quando o app subiu: o app não sabe
+        // quando ela começou, e o cartão não pode afirmar que ela
+        // "apareceu" agora.
+        var registro = VentoinhaRegras.AtualizarRecorde(null, Leitura(3400, 85), Agora);
+        var bruto = VentoinhaRegras.Avaliar(registro, Leitura(2000, 90));
+
+        var cartao = VentoinhaRegras.Cartao(
+            registro, Leitura(2000, 90), null, bruto, TimeSpan.FromMinutes(2),
+            FonteTemperatura.Cpu, quedaJaEstavaAoSubir: true);
+
+        Assert.Equal(VentoinhaEstado.Observando, cartao.Estado);
+        Assert.Contains("já estava valendo quando o app subiu", cartao.Texto);
+        Assert.Contains("não sabe", cartao.Texto);
+    }
+
+    [Fact]
+    public void Cartao_ComQuedaVistaPeloApp_DizQueApareceuHaQuantoTempo()
+    {
+        var registro = VentoinhaRegras.AtualizarRecorde(null, Leitura(3400, 85), Agora);
+        var bruto = VentoinhaRegras.Avaliar(registro, Leitura(2000, 90));
+
+        var cartao = VentoinhaRegras.Cartao(
+            registro, Leitura(2000, 90), null, bruto, TimeSpan.FromMinutes(2),
+            FonteTemperatura.Cpu, quedaJaEstavaAoSubir: false);
+
+        Assert.Contains("A queda apareceu há 2 min", cartao.Texto);
+    }
+
+    [Fact]
+    public void TextoCurtoDeHoje_MostraATemperaturaDoMaximoDoDia()
+    {
+        var registro = VentoinhaRegras.AtualizarRecorde(null, Leitura(3400, 85), Agora);
+        var dia = new VentoinhaDoDia("ITE IT8655E|Fan #1", 3400, 85, 91, 3000, 80, 143);
+
+        var cartao = VentoinhaRegras.Cartao(
+            registro, Leitura(3000, 80), dia, VentoinhaRegras.VereditoSemLeitura(registro),
+            null, FonteTemperatura.Cpu);
+
+        string texto = VentoinhaRegras.TextoCurtoDeHoje(cartao);
+
+        // O RPM do dia sem o calor que o explicou seria metade da história.
+        Assert.Contains("3.400 RPM", texto);
+        Assert.Contains("85 °C", texto);
+        Assert.Contains("143 medições", texto);
+    }
+
+    [Fact]
     public void RpmSaiComOSeparadorDeMilhar()
     {
         Assert.Equal("3.392 RPM", VentoinhaRegras.TextoDoRpm(3392));

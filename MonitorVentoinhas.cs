@@ -59,6 +59,18 @@ public sealed class MonitorVentoinhas
         /// <summary>Desde quando a condição de queda está valendo sem parar.</summary>
         public DateTime? InicioDaQueda;
 
+        /// <summary>
+        /// A queda já estava valendo quando o app subiu (a primeira leitura
+        /// desta ventoinha depois que ele abriu).
+        ///
+        /// <para>
+        /// O app não sabe quando a queda começou — ele só sabe que ela já
+        /// estava lá. O cartão diz isso em vez de afirmar que a queda
+        /// "apareceu" agora.
+        /// </para>
+        /// </summary>
+        public bool QuedaJaEstavaAoSubir;
+
         /// <summary>Quando a ventoinha foi medida pela última vez.</summary>
         public DateTime UltimaMedida = DateTime.MinValue;
     }
@@ -239,6 +251,12 @@ public sealed class MonitorVentoinhas
                         TemperaturaDe(fonte, tempCpu, tempGpu));
 
                     var estado = EstadoDe(leitura.Id);
+
+                    // A primeira leitura desta ventoinha desde que o app
+                    // subiu: a queda de RPM pode ter começado antes, e o
+                    // app não sabe quando.
+                    bool primeiraLeitura = estado.UltimaMedida == DateTime.MinValue;
+
                     estado.Hardware = leitura.Hardware;
                     estado.Nome = leitura.Nome;
                     estado.Fonte = fonte;
@@ -256,11 +274,16 @@ public sealed class MonitorVentoinhas
                     // núcleo decide se ela já durou o bastante.
                     if (veredito.Estado == VentoinhaEstado.SinalDeDegradacao)
                     {
-                        if (estado.InicioDaQueda is null) estado.InicioDaQueda = agora;
+                        if (estado.InicioDaQueda is null)
+                        {
+                            estado.QuedaJaEstavaAoSubir = primeiraLeitura;
+                            estado.InicioDaQueda = agora;
+                        }
                     }
                     else
                     {
                         estado.InicioDaQueda = null;
+                        estado.QuedaJaEstavaAoSubir = false;
                     }
                 }
             }
@@ -303,7 +326,8 @@ public sealed class MonitorVentoinhas
                     : (TimeSpan?)null;
 
                 cartoes.Add(VentoinhaRegras.Cartao(
-                    estado.Registro, estado.Leitura, estado.Dia, veredito, duracao, estado.Fonte));
+                    estado.Registro, estado.Leitura, estado.Dia, veredito, duracao, estado.Fonte,
+                    estado.QuedaJaEstavaAoSubir));
             }
 
             return cartoes;

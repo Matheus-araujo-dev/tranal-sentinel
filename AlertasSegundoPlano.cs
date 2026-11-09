@@ -61,6 +61,13 @@ public sealed class MonitorAlertas
     /// </summary>
     public const string PrefixoVentoinha = "ventoinha:";
 
+    /// <summary>A unidade do valor de uma ventoinha (rotações por minuto).</summary>
+    public const string UnidadeVentoinha = "RPM";
+
+    /// <summary>A dica de uma regra de ventoinha.</summary>
+    public const string DicaVentoinha =
+        "A ventoinha parou de girar. A aba TRANAL VENTOINHAS compara o RPM com o recorde da própria ventoinha.";
+
     /// <summary>
     /// A ventoinha de uma chave de regra (null quando a chave não é de
     /// ventoinha, ou quando a ventoinha não está no contexto agora).
@@ -71,6 +78,40 @@ public sealed class MonitorAlertas
 
         string id = sensor[PrefixoVentoinha.Length..];
         return contexto.Ventoinhas.FirstOrDefault(v => v.Id == id);
+    }
+
+    /// <summary>
+    /// O rótulo, a unidade e a dica de uma regra de alerta.
+    ///
+    /// <para>
+    /// A chave da regra de ventoinha é uma identificação interna
+    /// ("ventoinha:hardware|nome"): ela existe para amarrar a regra à
+    /// ventoinha, e não é texto para o usuário ler. O nome vem da máquina (o
+    /// contexto) e a unidade é RPM.
+    /// </para>
+    /// </summary>
+    /// <param name="chave">A chave da regra.</param>
+    /// <param name="ventoinhas">As ventoinhas que o app está vendo agora.</param>
+    public static (string Rotulo, string Unidade, string Dica) ResolverSensor(
+        string chave, IReadOnlyList<ContextoVentoinha> ventoinhas)
+    {
+        if (chave == SensorBateria)
+            return (BateriaRotulo, BateriaUnidade, BateriaDica);
+
+        if (chave.StartsWith(PrefixoVentoinha, StringComparison.Ordinal))
+        {
+            string id = chave[PrefixoVentoinha.Length..];
+
+            // O nome vem do contexto (o hardware da máquina). Sem ele, o
+            // nome do sensor ainda serve ("Fan #1") — o id cru não.
+            string nome = ventoinhas.FirstOrDefault(v => v.Id == id)?.Rotulo
+                          ?? VentoinhaRegras.NomeLegivel(id);
+
+            return (nome, UnidadeVentoinha, DicaVentoinha);
+        }
+
+        var item = SensorCatalogo.PorChave(chave);
+        return (item?.Rotulo ?? chave, item?.Unidade ?? "", item?.Dica ?? "");
     }
 
     /// <summary>O nome da bateria nos avisos (a chave não está no catálogo).</summary>
@@ -266,32 +307,18 @@ public sealed class MonitorAlertas
     /// </summary>
     private static Alerta MontarAlerta(string chave, RegraAlerta regra, float valor, DateTime desde, ContextoSensores contexto)
     {
-        string rotuloCatalogo, unidade, dica;
-        if (regra.Sensor == SensorBateria)
-        {
-            rotuloCatalogo = BateriaRotulo;
-            unidade = BateriaUnidade;
-            dica = BateriaDica;
-        }
-        else if (regra.Sensor.StartsWith(PrefixoVentoinha, StringComparison.Ordinal))
-        {
-            // O nome da ventoinha vem do contexto (o hardware da máquina):
-            // a chave da regra é uma identificação, não um texto para
-            // o usuário ler.
-            rotuloCatalogo = VentoinhaDoContexto(regra.Sensor, contexto)?.Rotulo ?? "Ventoinha";
-            unidade = "RPM";
-            dica = "A ventoinha parou de girar. A aba TRANAL VENTOINHAS compara o RPM com o recorde da própria ventoinha.";
-        }
-        else
-        {
-            var item = SensorCatalogo.PorChave(regra.Sensor);
-            rotuloCatalogo = item?.Rotulo ?? regra.Sensor;
-            unidade = item?.Unidade ?? "";
-            dica = item?.Dica ?? "";
-        }
+        // O rótulo, a unidade e a dica saem do mesmo lugar para o aviso e
+        // para a descrição da regra na tela: dois textos para o mesmo sensor
+        // é o jeito mais rápido de o app se contradizer.
+        var (rotuloCatalogo, unidade, dica) = ResolverSensor(regra.Sensor, contexto.Ventoinhas);
 
         string titulo = string.IsNullOrWhiteSpace(regra.Rotulo) ? rotuloCatalogo : regra.Rotulo!;
-        string texto = $"{rotuloCatalogo}: {valor:0.#} {unidade} (limite {regra.Operacao} {regra.Limite:0.#} {unidade}). {dica}";
+
+        // O número sai pelo formatador da casa (vírgula decimal, independente
+        // da cultura do Windows): a interpolação crua usaria a cultura do
+        // usuário, e o mesmo evento sairia diferente em PCs diferentes.
+        string texto = $"{rotuloCatalogo}: {NumeroTexto.Numero(valor)} {unidade} " +
+                       $"(limite {regra.Operacao} {NumeroTexto.Numero(regra.Limite)} {unidade}). {dica}";
 
         return new Alerta
         {

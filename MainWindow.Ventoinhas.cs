@@ -60,9 +60,13 @@ public partial class MainWindow
         {
             var cartoes = _ventoinhas.Cartoes();
 
+            // A assinatura decide se o cartão é redesenhado: ela precisa
+            // traer tudo o que o cartão mostra (inclusive a temperatura do
+            // máximo do dia), senão a tela ficaria com um texto velho.
             string assinatura = string.Join("|", cartoes.Select(c =>
                 c.Id + "|" + c.Titulo + "|" + c.Texto + "|" + c.RpmAtual + "|"
-                + c.RpmMaximoDoDia + "|" + c.AmostrasDoDia));
+                + c.RpmMaximoDoDia + "|" + c.TemperaturaNoMaximoDoDia + "|"
+                + c.AmostrasDoDia));
 
             if (assinatura == _assinaturaVentoinhas) return;
             _assinaturaVentoinhas = assinatura;

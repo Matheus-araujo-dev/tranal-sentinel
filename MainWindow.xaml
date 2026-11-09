@@ -1256,6 +1256,7 @@
                             <StackPanel>
                                 <TextBlock Text="REGRAS DE ALERTA" Style="{StaticResource Label}"/>
                                 <TextBlock x:Name="AlertasVazio" Text="Nenhuma regra: o app não avisa de nada. Use NOVA REGRA para vigiar um sensor." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+                                <TextBlock x:Name="AlertasVentoinhasAviso" Text="" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="Collapsed"/>
                                 <StackPanel x:Name="AlertasLista" Margin="0,10,0,0"/>
                             </StackPanel>
                         </Border>

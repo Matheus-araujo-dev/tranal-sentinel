@@ -296,6 +296,88 @@ public class AlertasSegundoPlanoTestes
         Assert.Empty(novos);
     }
 
+    // ------------------------------------------------------- as ventoinhas
+
+    private static ContextoSensores ContextoDaVentoinha(float rpm) => new()
+    {
+        Ventoinhas = new[] { new ContextoVentoinha("ITE IT8655E|Fan #1", "Fan #1 (ITE IT8655E)", rpm) },
+    };
+
+    [Fact]
+    public void RegraDeVentoinhaAvisaComONomeDaVentoinha()
+    {
+        var monitor = new MonitorAlertas();
+        var avisos = new List<Alerta>();
+        monitor.Alertar += a => avisos.Add(a);
+
+        var regra = Regra("vent", MonitorAlertas.PrefixoVentoinha + "ITE IT8655E|Fan #1", "<=", 0);
+
+        monitor.Verificar(DateTime.Now, new[] { regra }, ContextoDaVentoinha(0f));
+
+        Assert.Single(avisos);
+
+        // O nome da ventoinha, e não a chave interna ("ventoinha:hardware|
+        // nome"): a chave existe para amarrar a regra, e não é texto para o
+        // usuário ler.
+        Assert.Contains("Fan #1 (ITE IT8655E)", avisos[0].Texto);
+        Assert.Contains("RPM", avisos[0].Texto);
+        Assert.DoesNotContain(MonitorAlertas.PrefixoVentoinha, avisos[0].Texto);
+    }
+
+    [Fact]
+    public void ResolverSensor_ComChaveDeVentoinha_DevolveONomeEUnidade()
+    {
+        var (rotulo, unidade, dica) = MonitorAlertas.ResolverSensor(
+            MonitorAlertas.PrefixoVentoinha + "ITE IT8655E|Fan #1",
+            ContextoDaVentoinha(0f).Ventoinhas);
+
+        Assert.Equal("Fan #1 (ITE IT8655E)", rotulo);
+        Assert.Equal("RPM", unidade);
+        Assert.NotEqual("", dica);
+    }
+
+    [Fact]
+    public void ResolverSensor_ComVentoinhaForaDoContexto_UsaONomeDoSensor()
+    {
+        // A ventoinha não está dando leitura agora: o id não pode vazar
+        // para a tela — o nome do sensor ainda serve.
+        var (rotulo, unidade, _) = MonitorAlertas.ResolverSensor(
+            MonitorAlertas.PrefixoVentoinha + "ITE IT8655E|Fan #1",
+            Array.Empty<ContextoVentoinha>());
+
+        Assert.Equal("Fan #1", rotulo);
+        Assert.Equal("RPM", unidade);
+    }
+
+    [Fact]
+    public void NumeroDoAlertaDeVentoinhaNaoDependeDaCulturaDoWindows()
+    {
+        var cultura = CultureInfo.CurrentCulture;
+
+        try
+        {
+            var monitor = new MonitorAlertas();
+            var avisos = new List<Alerta>();
+            monitor.Alertar += a => avisos.Add(a);
+
+            var regra = Regra("vent", MonitorAlertas.PrefixoVentoinha + "ITE IT8655E|Fan #1", "<=", 0.5);
+
+            CultureInfo.CurrentCulture = new CultureInfo("en-US");
+            monitor.Verificar(DateTime.Now, new[] { regra }, ContextoDaVentoinha(0.4f));
+
+            // O número sai pelo formatador da casa: o mesmo evento não pode
+            // sair diferente em PCs de culturas diferentes.
+            Assert.Single(avisos);
+            Assert.Contains("0,4", avisos[0].Texto);
+            Assert.Contains("0,5", avisos[0].Texto);
+            Assert.DoesNotContain("0.4", avisos[0].Texto);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = cultura;
+        }
+    }
+
     [Fact]
     public void ComparacaoMenorOuIgualFunciona()
     {
@@ -440,10 +522,11 @@ public class AlertasSegundoPlanoTestes
     }
 
     [Fact]
-    public void OTextoDoAvisoSegueACulturaDoUsuario()
+    public void OTextoDoAvisoNaoDependeDaCulturaDoWindows()
     {
-        // O CI roda em en-US e o PC de desenvolvimento em pt-BR: o teste
-        // fixa a cultura para os dois lados darem o mesmo resultado.
+        // O CI roda em en-US e o PC de desenvolvimento em pt-BR: o mesmo
+        // evento não pode sair escrito de dois jeitos. O número do aviso
+        // sai pelo formatador da casa (vírgula decimal, sempre).
         var culturaOriginal = CultureInfo.CurrentCulture;
         try
         {
@@ -463,7 +546,8 @@ public class AlertasSegundoPlanoTestes
                 new ContextoSensores { TemperaturaCpu = 86.5f });
 
             Assert.Single(novos2);
-            Assert.Contains("86.5", novos2[0].Texto);
+            Assert.Contains("86,5", novos2[0].Texto);
+            Assert.DoesNotContain("86.5", novos2[0].Texto);
         }
         finally
         {

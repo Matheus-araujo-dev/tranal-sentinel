@@ -102,6 +102,28 @@ public partial class MainWindow
         RegrasAtivas();
         MontarListaAlertas();
         AtualizarAlertasAtivos();
+        AtualizarAvisoDeVentoinha();
+    }
+
+    /// <summary>
+    /// Explica que as ventoinhas aparecem na lista quando o sensor começa a
+    /// dar leitura.
+    ///
+    /// <para>
+    /// Antes da primeira leitura não há nome de ventoinha para escolher — e
+    /// sem essa frase, o usuário concluiria que o app "não vê" ventoinhas.
+    /// </para>
+    /// </summary>
+    private void AtualizarAvisoDeVentoinha()
+    {
+        if (AlertasVentoinhasAviso == null) return;
+
+        bool temVentoinha = _ventoinhas.Cartoes().Count > 0;
+
+        AlertasVentoinhasAviso.Text =
+            "As ventoinhas desta máquina entram na lista quando o sensor da placa-mãe ou da placa de vídeo começa a dar leitura.";
+
+        AlertasVentoinhasAviso.Visibility = temVentoinha ? Visibility.Collapsed : Visibility.Visible;
     }
 
     /// <summary>
@@ -292,11 +314,11 @@ public partial class MainWindow
             {
                 Chave = MonitorAlertas.PrefixoVentoinha + id,
                 Rotulo = cartao.Rotulo,
-                Unidade = "RPM",
+                Unidade = MonitorAlertas.UnidadeVentoinha,
                 OperacaoPadrao = "<=",
                 LimitePadrao = 0,
                 SeveridadePadrao = Severidade.Medio,
-                Dica = "A ventoinha parou de girar. A aba TRANAL VENTOINHAS compara o RPM com o recorde da própria ventoinha.",
+                Dica = MonitorAlertas.DicaVentoinha,
                 Ler = ctx => ctx.Ventoinhas.FirstOrDefault(v => v.Id == id)?.Rpm,
             });
         }
@@ -415,7 +437,7 @@ public partial class MainWindow
     }
 
     /// <summary>Atualiza a frase que explica a regra.</summary>
-    private static void AtualizarDescricao(RegraAlerta regra, TextBlock? descricao)
+    private void AtualizarDescricao(RegraAlerta regra, TextBlock? descricao)
     {
         if (descricao is null) return;
         descricao.Text = DescreverRegra(regra);
@@ -424,25 +446,32 @@ public partial class MainWindow
     /// <summary>
     /// O texto que explica a regra em uma frase (o que ela vigia e o que
     /// acontece quando a condição vale).
+    ///
+    /// <para>
+    /// O rótulo e a unidade saem do mesmo lugar que sai o aviso
+    /// (<see cref="MonitorAlertas.ResolverSensor"/>): a chave da regra de
+    /// ventoinha é uma identificação interna, e o usuário lê o nome da
+    /// ventoinha.
+    /// </para>
     /// </summary>
-    private static string DescreverRegra(RegraAlerta regra)
+    private string DescreverRegra(RegraAlerta regra)
     {
-        var item = SensorCatalogo.PorChave(regra.Sensor);
-        string sensor = item?.Rotulo
-            ?? (regra.Sensor == MonitorAlertas.SensorBateria ? MonitorAlertas.BateriaRotulo : regra.Sensor);
-        string unidade = item?.Unidade
-            ?? (regra.Sensor == MonitorAlertas.SensorBateria ? MonitorAlertas.BateriaUnidade : "");
+        var (sensor, unidade, _) = MonitorAlertas.ResolverSensor(regra.Sensor, VentoinhasDoContexto());
         string espera = regra.SegundosMinimos > 0
-            ? $" (a condição precisa valer por {regra.SegundosMinimos} s antes do aviso)"
+            ? $" (a condição precisa valer por {NumeroTexto.Inteiro(regra.SegundosMinimos)} s antes do aviso)"
             : " (avisa na hora)";
         string severidade = Severidades.FirstOrDefault(s => s.Valor == regra.Severidade)?.Rotulo ?? "Médio";
 
-        return $"Avisa quando {sensor} {regra.Operacao} {regra.Limite:0.##} {unidade}{espera}. Severidade: {severidade}.";
+        return $"Avisa quando {sensor} {regra.Operacao} {NumeroTexto.Numero(regra.Limite)} {unidade}{espera}. Severidade: {severidade}.";
     }
 
     /// <summary>Mostra os alertas que estão valendo agora.</summary>
     private void AtualizarAlertasAtivos()
     {
+        // As ventoinhas podem começar a dar leitura a qualquer momento: a
+        // lista de sensores e o aviso da página andam juntos.
+        AtualizarAvisoDeVentoinha();
+
         IReadOnlyList<Alerta> ativos;
         try { ativos = _alertas.Ativos; }
         catch { return; }   // a vigia pode estar mudando a lista neste instante

@@ -641,13 +641,19 @@ public static class VentoinhaRegras
     /// <param name="bruto">O veredito do momento.</param>
     /// <param name="duracao">Há quanto tempo a condição de queda vem valendo (null = não está valendo).</param>
     /// <param name="fonte">De onde vem a temperatura de referência.</param>
+    /// <param name="quedaJaEstavaAoSubir">
+    /// True quando a queda já estava valendo na primeira leitura depois que o
+    /// app subiu: o app não sabe quando ela começou, e só mede a partir
+    /// dali.
+    /// </param>
     public static VentoinhaCartao Cartao(
         VentoinhaRegistro? registro,
         VentoinhaLeitura? leitura,
         VentoinhaDoDia? dia,
         VentoinhaVeredito bruto,
         TimeSpan? duracao,
-        FonteTemperatura fonte)
+        FonteTemperatura fonte,
+        bool quedaJaEstavaAoSubir = false)
     {
 
         var estado = EstadoFinal(bruto, duracao);
@@ -668,8 +674,13 @@ public static class VentoinhaRegras
                 duracao is null
                     ? "A queda de RPM apareceu agora. O app só confirma desgaste depois de "
                       + TextoDaDuracao(PersistenciaMinima) + " seguidos."
-                    : $"A queda apareceu há {TextoDaDuracao(duracao.Value)} e ainda está valendo. " +
-                      $"O app só confirma desgaste depois de {TextoDaDuracao(PersistenciaMinima)} seguidos.",
+                    : quedaJaEstavaAoSubir
+                        ? "A queda de RPM já estava valendo quando o app subiu, e o app não sabe "
+                          + "quando ela começou. Ele está medindo há "
+                          + TextoDaDuracao(duracao.Value) + ", e só confirma desgaste depois de "
+                          + TextoDaDuracao(PersistenciaMinima) + " seguidos de observação."
+                        : $"A queda apareceu há {TextoDaDuracao(duracao.Value)} e ainda está valendo. " +
+                          $"O app só confirma desgaste depois de {TextoDaDuracao(PersistenciaMinima)} seguidos.",
             _ => bruto.Texto,
         };
 
@@ -787,8 +798,14 @@ public static class VentoinhaRegras
         if (cartao.RpmMaximoDoDia is not double rpm) return "ainda sem medições";
 
         string texto = "máx. " + TextoDoRpm(rpm);
+
+        // A temperatura do instante do máximo do dia: sem ela, o cartão
+        // mostraria um RPM sem o calor que o explicou.
+        if (cartao.TemperaturaNoMaximoDoDia is double temperatura)
+            texto += " a " + TextoDaTemperatura(temperatura);
+
         if (cartao.AmostrasDoDia > 0)
-            texto += " · " + cartao.AmostrasDoDia + " medições";
+            texto += " · " + NumeroTexto.Inteiro(cartao.AmostrasDoDia) + " medições";
 
         return texto;
     }
