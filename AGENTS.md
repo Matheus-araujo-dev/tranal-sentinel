@@ -192,6 +192,20 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   (`historico.db.avariado-AAAAMMDD-HHMMSS`), que é o **desfazer**. O que
   não pôde ser lido é perdido, e o relato diz isso (quantas linhas se
   perderam, e não só que "deu problema").
+- **O reparo conta e lê na mesma transação de leitura.** Contar as linhas e
+  ler as linhas em instantes diferentes dá dois números de bancos
+  diferentes — e o relato da perda sairia errado. E o que ficou no banco
+  novo é a **contagem do banco novo**, não o número de operações de INSERT
+  (duas linhas com o mesmo instante viram uma só, e o contador de
+  operações mente para cima). Quando a contagem do banco velho não dá para
+  fazer, o relato diz "não deu para contar" — nunca "não se perdeu nada".
+- **Linha com nulo na coluna obrigatória não entra no banco novo.** O
+  esquema não aceita nulo ali, e o `INSERT OR IGNORE` engoliria a linha em
+  silêncio. A linha fica de fora e o relato conta a perda.
+- **A cópia avariada tem nome exato:** `historico.db.avariado-` mais 15
+  caracteres (yyyymmdd-hhmmss). O `-wal` e o `-shm` que acompanham a cópia
+  **não são cópias** — e o desfazer nunca pode mover o WAL para o lugar do
+  banco (isso destrói o histórico em vez de trazê-lo de volta).
 - **O reparo não troca o arquivo sem ler.** Se a leitura falhou (e o
   arquivo não é "não é um banco de dados"), o reparo cancela e mantém o
   arquivo; se o banco tinha linhas e o novo ficou vazio, cancela também.
@@ -200,6 +214,20 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   gravado quando ela fecha bem. Gravar a versão com a importação pela
   metade faria o app nunca mais tentar importar o CSV — e o histórico
   antigo ficaria órfão, sem aviso.
+- **A migração vai em lote, com o comando preparado reaproveitado** e só
+  importa o que ainda está dentro do prazo de cada tabela (15 dias de
+  amostras, 30 de uso). Preparar e finalizar um comando por linha custava
+  23 segundos em 260 mil linhas (medido); com o comando reaproveitado, a
+  mesma migração leva cerca de 2 segundos (medido). A versão do esquema é
+  conferida de novo dentro da transação: o app e o processo de coleta abrem
+  o banco ao mesmo tempo, e os dois não podem importar o CSV duas vezes.
+- **Transação que falha sempre fecha.** Se o COMMIT falha, o ROLLBACK
+  explícito desfaz o que ficou pelo caminho — sem ele, a transação ficava
+  aberta e as escritas seguintes falhavam uma por uma, sem aviso.
+- **O reparo pela linha de comando exige `--confirmar`.** Na tela a
+  confirmação é um botão; na linha de comando é a flag. Trocar o arquivo do
+  histórico é decisão do usuário, e uma linha de comando digitada sem
+  querer não pode tomar essa decisão.
 - **Cada tabela tem o seu prazo de poda**: as amostras ficam 15 dias e o
   histórico de uso fica 30. Uma poda com o prazo errado perde dado que a
   regra promete guardar.

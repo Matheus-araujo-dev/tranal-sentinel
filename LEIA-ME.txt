@@ -66,7 +66,8 @@ TRANAL SAÚDE
   O botão VERIFICAR confere a integridade e o botão REPARAR reconstrói o
   banco se ele estiver estragado - o banco velho é guardado como cópia
   datada na mesma pasta, e o botão RESTAURAR CÓPIA desfaz. Pela linha de
-  comando: TranalSentinel.exe --banco (e --banco --reparar).
+  comando: TranalSentinel.exe --banco (e --banco --reparar --confirmar - o
+  reparo pela linha de comando precisa da confirmação).
 
 TRANAL MEMÓRIA
 - No menu lateral, grupo "TRANAL MEMÓRIA" -> aba "Módulos". Clique em LER MÓDULOS.

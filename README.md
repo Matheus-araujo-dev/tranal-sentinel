@@ -91,9 +91,9 @@ Os instantâneos ficam em `%AppData%\TranalSentinel\saude\`.
 O banco de dados do histórico também se confere pela linha de comando:
 
 ```
-TranalSentinel.exe --banco                # estado, tamanho e o que tem dentro
-TranalSentinel.exe --banco --reparar      # reconstrói o banco estragado (guarda o velho como cópia)
-TranalSentinel.exe --banco --pasta <dir>  # olha outra pasta (uma cópia do banco)
+TranalSentinel.exe --banco                          # estado, tamanho e o que tem dentro
+TranalSentinel.exe --banco --reparar --confirmar    # reconstrói o banco estragado (guarda o velho como cópia)
+TranalSentinel.exe --banco --pasta <dir>            # olha outra pasta (uma cópia do banco)
 ```
 
 ### Como o código está organizado

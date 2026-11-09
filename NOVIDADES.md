@@ -20,7 +20,10 @@ verificação de integridade e uma rotina de reparo.
   depois de 15.
 - Pela linha de comando: `TranalSentinel.exe --banco` mostra o estado do
   banco (integridade, tamanho, quantas amostras e quantos registros de uso ele
-  tem), e `--banco --reparar` reconstrói o banco estragado.
+  tem), e `--banco --reparar --confirmar` reconstrói o banco estragado. A
+  confirmação é obrigatória: trocar o arquivo do histórico é decisão do
+  usuário, e uma linha de comando digitada sem querer não pode tomar essa
+  decisão.
 
 **Novo · verificação e reparo no TRANAL SAÚDE**
 - O TRANAL SAÚDE ganhou o cartão **BANCO DE DADOS DO HISTÓRICO**: o estado do
@@ -34,6 +37,8 @@ verificação de integridade e uma rotina de reparo.
 - Tudo que mexe no banco pede confirmação e fica registrado no diário.
 - O reparo é honesto: quando não dá para ler nada do banco estragado, o
   relato diz que o banco novo começa vazio, e a cópia antiga continua no disco.
+  E quando a contagem do banco velho não dá para fazer, o relato diz isso — em
+  vez de dizer que não se perdeu nada.
 
 **O que continua igual**
 - A aba TRANAL USO mostra as mesmas coisas (tempo de tela, sessões mais longas,
