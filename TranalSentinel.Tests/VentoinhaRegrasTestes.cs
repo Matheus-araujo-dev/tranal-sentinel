@@ -116,6 +116,21 @@ public class VentoinhaRegrasTestes
     }
 
     [Fact]
+    public void AtualizarRecorde_RecordeNovoSemTemperatura_NaoApagaATemperaturaMedida()
+    {
+        var registro = VentoinhaRegras.AtualizarRecorde(null, Leitura(3400, 85), Agora);
+
+        // Um recorde novo lido SEM temperatura (a referência da CPU não foi
+        // lida naquele instante) não pode apagar a temperatura que já foi
+        // medida: perder um fato medido é pior do que uma temperatura um
+        // pouco mais antiga.
+        registro = VentoinhaRegras.AtualizarRecorde(registro, Leitura(3900, null), Agora.AddMinutes(1));
+
+        Assert.Equal(3900, registro.RpmRecorde);
+        Assert.Equal(85, registro.TemperaturaDoRecorde);
+    }
+
+    [Fact]
     public void AtualizarRecorde_RegistraAMaiorTemperaturaVista()
     {
         var registro = VentoinhaRegras.AtualizarRecorde(null, Leitura(1000, 60), Agora);
@@ -189,6 +204,19 @@ public class VentoinhaRegrasTestes
     }
 
     [Fact]
+    public void Avaliar_ExatamenteVintePorCentoAbaixo_Acusa()
+    {
+        // O contrato diz "pelo menos 20% abaixo". No limite exato, o app
+        // acusa: a conta antiga ("1 - rpm/recorde") arredondava o limite
+        // para baixo e o app calava exatamente onde prometia acusar.
+        var registro = VentoinhaRegras.AtualizarRecorde(null, Leitura(3000, 85), Agora);
+        var veredito = VentoinhaRegras.Avaliar(registro, Leitura(2400, 85));
+
+        Assert.Equal(VentoinhaEstado.SinalDeDegradacao, veredito.Estado);
+        Assert.Equal(20, veredito.PercentualAbaixoDoRecorde!.Value, 2);
+    }
+
+    [Fact]
     public void Avaliar_SemTemperaturaDeReferencia_NaoAcusa()
     {
         // Sem a temperatura dos dois lados, não há comparação possível: um
@@ -197,7 +225,10 @@ public class VentoinhaRegrasTestes
         var veredito = VentoinhaRegras.Avaliar(registro, new VentoinhaLeitura(
             "ITE IT8655E|Fan #1", "ITE IT8655E", "Fan #1", 1000, null));
 
-        Assert.Equal(VentoinhaEstado.SemHistorico, veredito.Estado);
+        // "Sem histórico" (não há o que comparar) e "sem comparação" (há o
+        // número, falta a temperatura) são estados diferentes: o app sabe
+        // dizer qual dos dois é o caso.
+        Assert.Equal(VentoinhaEstado.SemComparacao, veredito.Estado);
         Assert.Contains("SEM COMPARAÇÃO", veredito.Titulo);
     }
 
@@ -234,13 +265,64 @@ public class VentoinhaRegrasTestes
         Assert.Equal(VentoinhaEstado.Saudavel, VentoinhaRegras.EstadoFinal(bruto, null));
     }
 
+    [Fact]
+    public void EstadoFinal_SemDuracao_NaoFicaComOseloDeDegradacao()
+    {
+        var bruto = VentoinhaRegras.Avaliar(
+            VentoinhaRegras.AtualizarRecorde(null, Leitura(3400, 85), Agora), Leitura(2000, 90));
+
+        Assert.Equal(VentoinhaEstado.SinalDeDegradacao, bruto.Estado);
+
+        // Sem tempo medido não há persistência provada. A trava dos 5
+        // minutos mora no núcleo — e não em quem consume o veredito.
+        Assert.Equal(VentoinhaEstado.Observando, VentoinhaRegras.EstadoFinal(bruto, null));
+    }
+
     // ------------------------------------------------------------------ os textos
+
+    [Fact]
+    public void CartaoParaTela_AntesDaPrimeiraLeitura_NaoAfirmaQueNaoTemTemperaturaDeReferencia()
+    {
+        // O registro vem do banco; a fonte da temperatura só é resolvida na
+        // primeira leitura do ciclo. "Não tem" e "ainda não sei" são frases
+        // diferentes — e a segunda é a verdadeira.
+        var registro = VentoinhaRegras.AtualizarRecorde(null, Leitura(3400, 85), Agora);
+
+        var cartao = VentoinhaRegras.Cartao(
+            registro, null, null,
+            VentoinhaRegras.VereditoSemLeitura(registro), null,
+            FonteTemperatura.Nenhuma);
+
+        string meta = VentoinhaRegras.CartaoParaTela(cartao).Meta;
+
+        Assert.Contains("ainda não resolvida", meta);
+        Assert.DoesNotContain("Sem temperatura de referência", meta);
+    }
 
     [Fact]
     public void RpmSaiComOSeparadorDeMilhar()
     {
         Assert.Equal("3.392 RPM", VentoinhaRegras.TextoDoRpm(3392));
         Assert.Equal("0 RPM", VentoinhaRegras.TextoDoRpm(0));
+    }
+
+    [Fact]
+    public void RpmNaoFinitoNaoViraNumero()
+    {
+        // Um infinito viraria o maior número que cabe em um long: a tela
+        // mostraria uma mentira com a cara de medida.
+        Assert.Equal("—", VentoinhaRegras.TextoDoRpm(double.NaN));
+        Assert.Equal("—", VentoinhaRegras.TextoDoRpm(double.PositiveInfinity));
+    }
+
+    [Fact]
+    public void NomeLegivel_ComIdCru_MostraONomeDoSensor()
+    {
+        // Sem o registro da ventoinha, o histórico cai no id: o que a pessoa
+        // lê é o nome do sensor.
+        Assert.Equal("Fan #1", VentoinhaRegras.NomeLegivel("ITE IT8655E|Fan #1"));
+        Assert.Equal("Fan #1", VentoinhaRegras.NomeLegivel("Fan #1"));
+        Assert.Equal("ventoinha sem nome", VentoinhaRegras.NomeLegivel(""));
     }
 
     [Fact]

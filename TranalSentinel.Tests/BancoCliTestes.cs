@@ -120,6 +120,28 @@ public class BancoCliTestes : IDisposable
     }
 
     [Fact]
+    public void RelatorioMostraAsVentoinhasComRecorde()
+    {
+        var dados = new Banco.Diagnostico("ok", 2048, 120, 7, @"C:\banco\historico.db", null, "", 0, 47, 4);
+
+        string texto = BancoCli.MontarRelatorio(dados);
+
+        Assert.Contains("Ventoinhas com recorde: 4", texto);
+    }
+
+    [Fact]
+    public void RelatorioNaoInventaZeroNasVentoinhasQuandoACountagemNaoDeu()
+    {
+        // -1 = a contagem não deu para fazer (o banco está estragado).
+        var dados = new Banco.Diagnostico("O banco de dados precisa de reparo", 2048, -1, -1, @"C:\banco\historico.db", null, "", 0, -1, -1);
+
+        string texto = BancoCli.MontarRelatorio(dados);
+
+        Assert.Contains("Ventoinhas com recorde: não deu para contar", texto);
+        Assert.DoesNotContain("Ventoinhas com recorde: 0", texto);
+    }
+
+    [Fact]
     public void RelatorioMostraODiasComUsoDoRetrato()
     {
         var dados = new Banco.Diagnostico("ok", 0, 0, 0, @"C:\banco\historico.db", null, "", 3);

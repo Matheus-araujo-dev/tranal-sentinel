@@ -113,6 +113,12 @@ public enum VentoinhaEstado
     /// <summary>Não há histórico suficiente para dizer se a ventoinha está gasta.</summary>
     SemHistorico,
 
+    /// <summary>
+    /// Há histórico, mas falta a temperatura de referência para comparar: o
+    /// app tem o número e não tem a outra metade da conta.
+    /// </summary>
+    SemComparacao,
+
     /// <summary>A queda apareceu há pouco: o app ainda está observando.</summary>
     Observando,
 
@@ -378,7 +384,15 @@ public static class VentoinhaRegras
         {
             // Recorde novo: ele muda a referência inteira.
             rpmRecorde = leitura.Rpm;
-            tempRecorde = leitura.Temperatura;
+
+            // A temperatura do recorde só SOBE, e só com medida: um recorde
+            // novo lido sem temperatura não apaga a temperatura que já foi
+            // medida com a ventoinha neste patamar. Perder um fato medido
+            // seria pior do que uma temperatura um pouco mais antiga — e o
+            // app continua dizendo qual é ela.
+            if (leitura.Temperatura is double temperaturaDoRecorde)
+                tempRecorde = temperaturaDoRecorde;
+
             quandoRecorde = agora;
         }
         else if (leitura.Temperatura is double temperatura2
@@ -469,7 +483,7 @@ public static class VentoinhaRegras
         if (leitura.Temperatura is null || registro.TemperaturaDoRecorde is null)
         {
             return new VentoinhaVeredito(
-                VentoinhaEstado.SemHistorico,
+                VentoinhaEstado.SemComparacao,
                 "SEM COMPARAÇÃO",
                 "O app não tem a temperatura de referência para comparar com o recorde desta ventoinha " +
                 $"(o recorde é {TextoDoRpm(rpmRecorde)}).",
@@ -493,7 +507,10 @@ public static class VentoinhaRegras
                 null);
         }
 
-        double perda = 1.0 - (leitura.Rpm / rpmRecorde);
+        // A perda é a diferença dividida pelo recorde: subtrair depois
+        // ("1 - rpm/recorde") arredonda o limite de 20% para baixo, e o app
+        // calava exatamente no limite que ele promete acusar.
+        double perda = (rpmRecorde - leitura.Rpm) / rpmRecorde;
 
         if (perda >= PerdaMinima)
         {
@@ -541,7 +558,11 @@ public static class VentoinhaRegras
     public static VentoinhaEstado EstadoFinal(VentoinhaVeredito bruto, TimeSpan? duracao)
     {
         if (bruto.Estado != VentoinhaEstado.SinalDeDegradacao) return bruto.Estado;
-        if (duracao is null) return bruto.Estado;
+
+        // Sem duração não há persistência provada — a condição pode ter
+        // começado agora. O selo de degradação exige os 5 minutos, e essa
+        // trava mora aqui, no núcleo, e não no consumidor.
+        if (duracao is null) return VentoinhaEstado.Observando;
 
         return duracao.Value >= PersistenciaMinima
             ? VentoinhaEstado.SinalDeDegradacao
@@ -595,6 +616,7 @@ public static class VentoinhaRegras
         {
             VentoinhaEstado.SemLeitura => "SEM LEITURA",
             VentoinhaEstado.SemHistorico => bruto.Titulo,
+            VentoinhaEstado.SemComparacao => bruto.Titulo,
             VentoinhaEstado.Observando => "OBSERVANDO",
             VentoinhaEstado.SinalDeDegradacao => "SINAL DE DEGRADAÇÃO",
             _ => "SAUDÁVEL",
@@ -603,8 +625,11 @@ public static class VentoinhaRegras
         string texto = estado switch
         {
             VentoinhaEstado.Observando =>
-                $"A queda apareceu há {TextoDaDuracao(duracao ?? TimeSpan.Zero)} e ainda está valendo. " +
-                $"O app só confirma desgaste depois de {TextoDaDuracao(PersistenciaMinima)} seguidos.",
+                duracao is null
+                    ? "A queda de RPM apareceu agora. O app só confirma desgaste depois de "
+                      + TextoDaDuracao(PersistenciaMinima) + " seguidos."
+                    : $"A queda apareceu há {TextoDaDuracao(duracao.Value)} e ainda está valendo. " +
+                      $"O app só confirma desgaste depois de {TextoDaDuracao(PersistenciaMinima)} seguidos.",
             _ => bruto.Texto,
         };
 
@@ -637,8 +662,14 @@ public static class VentoinhaRegras
     {
         if (registro is null) return "RECORDE: — (a ventoinha ainda não tem histórico)";
 
+        // A fonte da temperatura é resolvida na primeira leitura do ciclo: um
+        // registro restaurado do banco ainda não sabe de onde veio a
+        // temperatura. O número é mostrado de qualquer jeito — o que ainda
+        // não se sabe é de qual sensor ele veio.
         string temperatura = registro.TemperaturaDoRecorde is double t
-            ? $" · {NomeDaFonte(fonte)} a {TextoDaTemperatura(t)}"
+            ? fonte == FonteTemperatura.Nenhuma
+                ? $" · {TextoDaTemperatura(t)} (fonte ainda não resolvida)"
+                : $" · {NomeDaFonte(fonte)} a {TextoDaTemperatura(t)}"
             : "";
 
         return $"RECORDE: {TextoDoRpm(registro.RpmRecorde)}{temperatura} · " +
@@ -678,11 +709,18 @@ public static class VentoinhaRegras
         metricas.Add(new KeyValuePair<string, string>("RECORDE", TextoCurtoDoRecorde(cartao)));
         metricas.Add(new KeyValuePair<string, string>("HOJE", TextoCurtoDeHoje(cartao)));
 
+        // "Não tem" e "não deu para resolver" são frases diferentes: antes da
+        // primeira leitura o app ainda não sabe de onde vem a temperatura de
+        // referência — ele não sabe que a ventoinha não tem referência.
+        string fonte = cartao.Fonte != FonteTemperatura.Nenhuma
+            ? "Temperatura de referência: " + NomeDaFonte(cartao.Fonte)
+            : cartao.RpmAtual is null
+                ? "Fonte da temperatura de referência ainda não resolvida"
+                : "Sem temperatura de referência";
+
         return new VentoinhaCartaoTela(
             cartao.Rotulo,
-            cartao.Fonte == FonteTemperatura.Nenhuma
-                ? "Sem temperatura de referência"
-                : "Temperatura de referência: " + NomeDaFonte(cartao.Fonte),
+            fonte,
             cartao.Titulo,
             cartao.Estado == VentoinhaEstado.SinalDeDegradacao,
             cartao.Texto,
@@ -726,7 +764,7 @@ public static class VentoinhaRegras
         {
             linhas.Add(new VentoinhaHistoricoLinha(
                 NumeroTexto.Data(item.Dia),
-                item.Nome,
+                NomeLegivel(item.Nome),
                 TextoDoRpm(item.RpmMaximo),
                 item.TemperaturaNoMaximo is double temperatura ? TextoDaTemperatura(temperatura) : "—",
                 item.Amostras.ToString(CultureInfo.InvariantCulture)));
@@ -735,9 +773,35 @@ public static class VentoinhaRegras
         return linhas;
     }
 
+    /// <summary>
+    /// O nome da ventoinha como a pessoa lê.
+    ///
+    /// <para>
+    /// Quando o registro da ventoinha se perde, o histórico cai no id
+    /// ("ITE IT8655E|Fan #1"). O id serve para amarrar as linhas, não para
+    /// ser lido: o que interessa é o nome do sensor.
+    /// </para>
+    /// </summary>
+    public static string NomeLegivel(string nome)
+    {
+        if (string.IsNullOrWhiteSpace(nome)) return "ventoinha sem nome";
+
+        int separador = nome.IndexOf('|');
+        if (separador < 0) return nome;
+
+        string sensor = nome[(separador + 1)..].Trim();
+        return sensor.Length > 0 ? sensor : nome;
+    }
+
     /// <summary>Um RPM no padrão da tela ("3.392 RPM").</summary>
+    /// guarda, um infinito viraria o maior número que cabe em um long — e a
+    /// tela mostraria uma mentira com a cara de medida.
+    /// </para>
+    /// </summary>
     public static string TextoDoRpm(double rpm) =>
-        NumeroTexto.Inteiro((long)Math.Round(rpm, MidpointRounding.AwayFromZero)) + " RPM";
+        double.IsFinite(rpm)
+            ? NumeroTexto.Inteiro((long)Math.Round(rpm, MidpointRounding.AwayFromZero)) + " RPM"
+            : "—";
 
     /// <summary>
     /// Uma temperatura no padrão da tela ("85,4 °C").

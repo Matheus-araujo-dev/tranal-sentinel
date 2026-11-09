@@ -1197,7 +1197,9 @@ public static class Banco
     /// </summary>
     public static int ApagarVentoinhasAntigas(DateTime antesDe)
     {
-        long limite = Sqlite.MomentoParaUnix(antesDe.Date);
+        // Sem ".Date": o dia inteiro que completar 30 dias sai junto. Com
+        // ".Date" o app guardava 31 dias de histórico diário.
+        long limite = Sqlite.MomentoParaUnix(antesDe);
 
         return EmBanco(b => b.Executar("DELETE FROM ventoinha_dia WHERE dia < ?", limite)
             ? b.Alteracoes : 0, 0);

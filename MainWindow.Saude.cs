@@ -329,6 +329,7 @@ public partial class MainWindow
                 new InfoNode { Header = "Amostras de sensor", Value = ContagemLegivel(dados.Amostras) },
                 new InfoNode { Header = "Registros de uso", Value = ContagemLegivel(dados.Uso) },
                 new InfoNode { Header = "Registros de tráfego", Value = ContagemLegivel(dados.Trafego) },
+                new InfoNode { Header = "Ventoinhas com recorde", Value = ContagemLegivel(dados.Ventoinhas) },
                 new InfoNode { Header = "Arquivo", Value = dados.Caminho }
             };
 
