@@ -147,36 +147,36 @@ public static class Banco
     /// a tela mostra e o que a rotina de reparo conserta.
     ///
     /// <para>
-    /// A verificação aqui é a rápida (<c>quick_check</c>): o retrato do
-    /// banco aparece na tela e não pode custar segundos. A completa fica
-    /// para o botão de verificar e para o reparo.
+    /// A verificação é a completa (<c>integrity_check</c>), a mesma que o
+    /// reparo usa: uma só resposta para o mesmo arquivo. A rápida
+    /// (<c>quick_check</c>) foi descartada porque ela não confere o índice
+    /// contra a tabela e deixava passar banco com índice quebrado como
+    /// "ok" — e as duas verificações custam o mesmo tempo (cerca de 60 ms
+    /// num banco com 258 mil amostras, medido em 09/11/2026).
     /// </para>
     /// </summary>
-    public static string Estado => EstadoDaIntegridade(completo: false);
+    public static string Estado => EstadoDaIntegridade();
 
     /// <summary>
-    /// O estado do banco com a verificação de integridade escolhida: a
-    /// completa (percorre o arquivo inteiro) ou a rápida.
+    /// O estado do banco, com a verificação de integridade completa.
     ///
     /// <para>
     /// A verificação acontece com a trava do banco: o reparo fecha a
     /// instância e troca o arquivo, e uma verificação fora da trava leria
     /// um arquivo que está sendo trocado por baixo. O custo é medido e é
     /// pequeno: num banco com 258 mil amostras e 18,6 MB de arquivo
-    /// principal, o <c>quick_check</c> e o <c>integrity_check</c> levam
-    /// cerca de 60 ms cada (medido em 09/11/2026, mediana de 15 medidas
-    /// com a ordem alternada) — o completo <b>não</b> é mais rápido, e a
-    /// diferença entre os dois fica dentro do ruído da medição. A coleta
-    /// grava de 5 em 5 segundos: uma pausa de 60 ms não aparece para o
-    /// usuário.
+    /// principal, a verificação leva cerca de 60 ms — medido em 09/11/2026,
+    /// mediana de 15 medidas com a ordem alternada, e o mesmo número para
+    /// a completa e para a rápida. A coleta grava de 5 em 5 segundos: uma
+    /// pausa de 60 ms não aparece para o usuário.
     /// </para>
     /// </summary>
-    private static string EstadoDaIntegridade(bool completo)
+    private static string EstadoDaIntegridade()
     {
         // A leitura acontece com a trava do banco: o reparo fecha a
         // instância e troca o arquivo, e uma verificação fora da trava
         // leria um arquivo que está sendo trocado por baixo.
-        string estado = EmBanco(b => IntegridadeInterna(b, completo), "");
+        string estado = EmBanco(b => IntegridadeInterna(b), "");
 
         if (estado.Length > 0) return estado;
 
@@ -185,11 +185,11 @@ public static class Banco
 
     /// <summary>
     /// O estado do banco já aberto, com a verificação de integridade
-    /// escolhida.
+    /// completa.
     /// </summary>
-    private static string IntegridadeInterna(Sqlite banco, bool completo)
+    private static string IntegridadeInterna(Sqlite banco)
     {
-        string integridade = banco.VerificarIntegridade(completo);
+        string integridade = banco.VerificarIntegridade();
         return integridade == "ok"
             ? "ok"
             : "O banco de dados precisa de reparo: " + TraduzirIntegridade(integridade);
@@ -261,12 +261,7 @@ public static class Banco
     /// Junta o retrato do banco. Nunca lança: a tela do TRANAL SAÚDE mostra
     /// o que deu, e nunca um número inventado.
     /// </summary>
-    /// <param name="completo">
-    /// True para a verificação de integridade completa (percorre o arquivo
-    /// inteiro). O retrato automático usa a rápida, que é o bastante para
-    /// dizer se o banco está de pé.
-    /// </param>
-    public static Diagnostico Ver(bool completo = false)
+    public static Diagnostico Ver()
     {
         try
         {
@@ -279,7 +274,7 @@ public static class Banco
             // linha de comando mostra os dois no mesmo relatório, e dois
             // momentos diferentes podiam dar dois bancos diferentes.
             return EmBanco(b => new Diagnostico(
-                    IntegridadeInterna(b, completo),
+                    IntegridadeInterna(b),
                     TamanhoDoArquivo(),
                     Contar(b, "SELECT COUNT(*) AS total FROM amostras"),
                     Contar(b, "SELECT COUNT(*) AS total FROM uso"),
@@ -1058,7 +1053,7 @@ public static class Banco
                 }
             }
 
-            integridade = banco.VerificarIntegridade(completo: true);
+            integridade = banco.VerificarIntegridade();
             if (integridade == "ok")
             {
                 if (abertoAgora) banco.Dispose();

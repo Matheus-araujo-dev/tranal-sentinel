@@ -222,6 +222,18 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
 - **A perda é contada por tabela.** Cada tabela tem a sua contagem e o seu
   "não deu para contar": uma contagem que falhou não pode apagar a conta
   da outra tabela (`Banco.RelatoDaPerda`, que é pura e testada).
+- **A verificação de integridade é uma só: a completa (`integrity_check`).**
+  A rápida (`quick_check`) foi descartada porque ela não confere o conteúdo
+  dos índices contra o das tabelas — e o esquema tem dois índices na tabela
+  de uso, um deles a chave que impede a mesma troca de ser gravada duas
+  vezes. Medido em 09/11/2026: o `quick_check` respondeu "ok" num banco de
+  40 linhas cujo índice `sqlite_autoindex_uso_1` apontava para uma linha que
+  não existia mais, enquanto o `integrity_check` respondia "row 40 missing
+  from index sqlite_autoindex_uso_1". E as duas custam o mesmo tempo (cerca
+  de 60 ms num banco com 258 mil amostras e 18,6 MB): não há ganho em
+  trocar, e um "ok" falso é pior do que a pausa. O estado na tela, o
+  relatório da linha de comando e o reparo dizem a mesma coisa sobre o
+  mesmo arquivo.
 - **"Não tem" e "não deu para ler" são frases diferentes**
   (`Leitura<T>.Completa`). Lista vazia com leitura completa é "não teve uso
   nesse dia"; lista vazia com leitura incompleta é "não deu para ler" — e

@@ -526,26 +526,31 @@ public sealed class Sqlite : IDisposable
     /// </para>
     ///
     /// <para>
-    /// <paramref name="completo"/> escolhe entre a verificação completa
-    /// (<c>integrity_check</c>, que confere também os índices) e a rápida
-    /// (<c>quick_check</c>, que não confere). O retrato automático do banco
-    /// usa a rápida.
+    /// A verificação é sempre a completa (<c>integrity_check</c>). A rápida
+    /// (<c>quick_check</c>) foi descartada de propósito: ela não confere se
+    /// o conteúdo dos índices bate com o das tabelas, e um banco com o
+    /// índice fora de sintonia passava por "ok". Medido em 09/11/2026: o
+    /// <c>quick_check</c> respondeu "ok" num banco cuja tabela tinha 40
+    /// linhas e o índice <c>sqlite_autoindex_uso_1</c> apontava para uma
+    /// linha que não existia mais, enquanto o <c>integrity_check</c> respondia
+    /// "row 40 missing from index sqlite_autoindex_uso_1". Um "ok" falso é
+    /// pior do que uma pausa de 60 ms.
     ///
     /// <para>
-    /// A escolha é por hábito, não por custo: no esquema do TRANAL
-    /// SENTINEL os dois levam o mesmo tempo — medido em 09/11/2026, cerca
-    /// de 60 ms cada num banco com 258 mil amostras e 18,6 MB. (Um número
-    /// antigo dizia que a completa "demoraria segundos": era medo sem
-    /// medição, e a medição desmentiu.) A completa fica no botão de
-    /// verificar e no reparo, onde o tempo não importa e a verificação por
-    /// extenso dá mais confiança.
+    /// E não há ganho de tempo em trocar: no esquema do TRANAL SENTINEL os
+    /// dois levam o mesmo tempo — medido em 09/11/2026, cerca de 60 ms cada
+    /// num banco com 258 mil amostras e 18,6 MB. (Um número antigo dizia que
+    /// a completa "demoraria segundos": era medo sem medição, e a medição
+    /// desmentiu.) Uma só verificação, sem caminho alternativo: o estado do
+    /// banco na tela, o relatório da linha de comando e o reparo falam do
+    /// mesmo arquivo do mesmo jeito.
     /// </para>
     /// </summary>
-    public string VerificarIntegridade(bool completo = true)
+    public string VerificarIntegridade()
     {
         if (_banco == IntPtr.Zero) return "banco fechado";
 
-        var linhas = Consultar(completo ? "PRAGMA integrity_check" : "PRAGMA quick_check");
+        var linhas = Consultar("PRAGMA integrity_check");
         if (linhas.Count == 0)
         {
             string erro = UltimoErro;

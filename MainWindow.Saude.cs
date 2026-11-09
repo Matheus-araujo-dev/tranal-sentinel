@@ -298,15 +298,11 @@ public partial class MainWindow
     /// Mostra o estado do banco de dados do histórico: se está íntegro,
     /// quanto ocupa e quantas linhas tem.
     /// </summary>
-    /// <param name="completo">
-    /// True quando o usuário pediu a verificação completa (o botão
-    /// VERIFICAR). O retrato automático usa a verificação rápida.
-    /// </param>
-    private async Task MostrarBancoAsync(bool completo = false)
+    private async Task MostrarBancoAsync()
     {
         try
         {
-            var dados = await Task.Run(() => Banco.Ver(completo));
+            var dados = await Task.Run(() => Banco.Ver());
 
             SaudeBancoEstado.Text = dados.Estado == "ok"
                 ? "O banco de dados do histórico está íntegro."
@@ -363,12 +359,12 @@ public partial class MainWindow
         return (bytes / (1024.0 * 1024.0)).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
     }
 
-    /// <summary>Botão de verificar: confere a integridade do banco de novo (completa).</summary>
+    /// <summary>Botão de verificar: confere a integridade do banco de novo.</summary>
     private async void BtnSaudeBancoVerificar_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            await MostrarBancoAsync(completo: true);
+            await MostrarBancoAsync();
         }
         catch (Exception ex)
         {
