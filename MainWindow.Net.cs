@@ -100,8 +100,23 @@ public partial class MainWindow
     /// </summary>
     private DispatcherTimer? _timerTrafego;
 
-    /// <summary>O dia que a página está mostrando.</summary>
-    private DateTime _trafegoDia = DateTime.Today;
+    /// <summary>
+    /// O dia que a página está mostrando.
+    ///
+    /// <para>
+    /// É o dia que a pessoa escolheu no seletor — e não tem nada a ver com
+    /// o dia que o app está gravando: mostrar um dia passado não pode
+    /// mexer na virada do dia (o app continua gravando o dia de hoje, e a
+    /// virada continua acontecendo à meia-noite).
+    /// </para>
+    /// </summary>
+    private DateTime _trafegoDiaMostrado = DateTime.Today;
+
+    /// <summary>
+    /// O dia que o app está gravando no banco. É o dia de hoje, e muda
+    /// sozinho quando o dia vira — nunca por causa do seletor.
+    /// </summary>
+    private DateTime _trafegoDiaGravado = DateTime.Today;
 
     /// <summary>
     /// Trava da troca de dia: o seletor dispara o evento quando a página
@@ -225,7 +240,7 @@ public partial class MainWindow
 
         // O dia mostrado: o que a pessoa escolheu (se ainda existir), senão
         // o de hoje.
-        DateTime escolhido = opcoes.Any(o => o.Data == _trafegoDia) ? _trafegoDia : hoje;
+        DateTime escolhido = opcoes.Any(o => o.Data == _trafegoDiaMostrado) ? _trafegoDiaMostrado : hoje;
 
         _trafegoTrocandoDia = true;
         try
@@ -238,7 +253,7 @@ public partial class MainWindow
             _trafegoTrocandoDia = false;
         }
 
-        _trafegoDia = escolhido;
+        _trafegoDiaMostrado = escolhido;
     }
 
     /// <summary>
@@ -249,7 +264,7 @@ public partial class MainWindow
         if (_trafegoTrocandoDia) return;
         if (TrafegoDia.SelectedItem is not OpcaoDia opcao) return;
 
-        _trafegoDia = opcao.Data;
+        _trafegoDiaMostrado = opcao.Data;
         _ = AtualizarTrafegoAsync();
     }
 
@@ -263,7 +278,7 @@ public partial class MainWindow
     /// </summary>
     private async Task AtualizarTrafegoAsync()
     {
-        DateTime dia = _trafegoDia;
+        DateTime dia = _trafegoDiaMostrado;
 
         if (BtnTrafegoAtualizar != null) BtnTrafegoAtualizar.IsEnabled = false;
 
@@ -286,7 +301,7 @@ public partial class MainWindow
 
         // Uma leitura antiga (a pessoa trocou o dia no meio da leitura) não
         // pode pintar a tela com o dia errado.
-        if (dia != _trafegoDia) return;
+        if (dia != _trafegoDiaMostrado) return;
 
         MostrarTrafego(relatorio);
     }
@@ -364,10 +379,13 @@ public partial class MainWindow
         // novo começa do zero. Sem isto, o tráfego da madrugada entraria na
         // conta do dia anterior — e o dia novo nasceria com o total do
         // velho.
-        if (hoje != _trafegoDia)
+        //
+        // O dia gravado é o dia de hoje, e não o dia que a pessoa está
+        // olhando: escolher "ontem" no seletor não pode mexer na virada.
+        if (hoje != _trafegoDiaGravado)
         {
-            GravarDiaDoTrafego(_trafegoDia);
-            _trafegoDia = hoje;
+            GravarDiaDoTrafego(_trafegoDiaGravado);
+            _trafegoDiaGravado = hoje;
             _trafegoPerdidosBase = 0;
             _trafegoPerdidosDesconhecidos = false;
             CarregarDiasTrafego();
@@ -405,7 +423,7 @@ public partial class MainWindow
     /// </summary>
     private void TentarBaseDeNovo()
     {
-        if (LerBaseDoDia(_trafegoDia)) _trafegoGravavel = true;
+        if (LerBaseDoDia(_trafegoDiaGravado)) _trafegoGravavel = true;
     }
 
     /// <summary>
