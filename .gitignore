@@ -11,6 +11,8 @@ dist-*/
 dist-novo/
 release/
 release-prova/
+release-prova-*/
+workspace/
 *.zip
 
 # IDE

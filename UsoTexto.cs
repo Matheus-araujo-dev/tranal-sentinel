@@ -70,14 +70,13 @@ public static class UsoTexto
 
     /// <summary>
     /// O rótulo do dia no seletor: "hoje", "ontem" ou a data.
+    ///
+    /// <para>
+    /// A regra mora em <see cref="DiaTexto.Rotulo"/> — dois seletores
+    /// precisam dela, e duas versões divergiam.
+    /// </para>
     /// </summary>
-    public static string RotuloDia(DateTime dia, DateTime hoje)
-    {
-        DateTime alvo = dia.Date;
-        if (alvo == hoje.Date) return "hoje";
-        if (alvo == hoje.Date.AddDays(-1)) return "ontem";
-        return alvo.ToString("dd/MM/yyyy", Br);
-    }
+    public static string RotuloDia(DateTime dia, DateTime hoje) => DiaTexto.Rotulo(dia, hoje);
 
     /// <summary>A hora no padrão brasileiro: "14:31".</summary>
     public static string Hora(DateTime momento) => momento.ToString("HH:mm", Br);

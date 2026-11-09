@@ -26,6 +26,18 @@ public sealed class SensorCatalogoItem
 
     /// <summary>Lê o valor atual (null quando o sensor não existe nesta máquina).</summary>
     public Func<ContextoSensores, float?> Ler { get; init; } = _ => null;
+
+    /// <summary>
+    /// O texto que o seletor mostra.
+    ///
+    /// <para>
+    /// O ComboBox da casa (o estilo <c>DarkCombo</c>) escreve o item
+    /// selecionado como texto puro: sem esta sobrescrita, a caixa fechada
+    /// da página de alertas mostra o item inteiro ("SensorCatalogoItem {
+    /// Chave = ... }") em vez do nome do sensor.
+    /// </para>
+    /// </summary>
+    public override string ToString() => Rotulo;
 }
 
 /// <summary>Os valores que o app consegue ler para vigiar.</summary>

@@ -80,7 +80,19 @@ public partial class MainWindow
     };
 
     /// <summary>Uma severidade com o nome que o usuário lê.</summary>
-    private sealed record SeveridadeOpcao(Severidade Valor, string Rotulo);
+    private sealed record SeveridadeOpcao(Severidade Valor, string Rotulo)
+    {
+        /// <summary>
+        /// O texto que o seletor mostra.
+        ///
+        /// <para>
+        /// O ComboBox da casa (o estilo <c>DarkCombo</c>) escreve o item
+        /// selecionado como texto puro: sem esta sobrescrita, a caixa
+        /// fechada mostra o registro inteiro em vez do nome da severidade.
+        /// </para>
+        /// </summary>
+        public override string ToString() => Rotulo;
+    }
 
     /// <summary>Prepara a página (chamada quando o menu "Alertas" é aberto).</summary>
     private void InitAlertas()

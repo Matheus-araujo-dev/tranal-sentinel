@@ -48,8 +48,6 @@ public partial class MainWindow
     /// <summary>Uma linha das sessões mais longas.</summary>
     private sealed record LinhaSessaoUso(string Processo, string Titulo, string Inicio, string Duracao);
 
-    /// <summary>Um dia que o seletor oferece.</summary>
-    private sealed record OpcaoDiaUso(DateTime Data, string Rotulo);
 
     /// <summary>
     /// Os dados do dia carregado (a leitura acontece fora da thread da tela).
@@ -85,11 +83,11 @@ public partial class MainWindow
         var dias = UsoHistorico.DiasComUso();
 
         var opcoes = dias
-            .Select(d => new OpcaoDiaUso(d.Date, UsoTexto.RotuloDia(d.Date, hoje)))
+            .Select(d => new OpcaoDia(d.Date, DiaTexto.Rotulo(d.Date, hoje)))
             .ToList();
 
         if (!opcoes.Any(o => o.Data == hoje))
-            opcoes.Insert(0, new OpcaoDiaUso(hoje, UsoTexto.RotuloDia(hoje, hoje)));
+            opcoes.Insert(0, new OpcaoDia(hoje, DiaTexto.Rotulo(hoje, hoje)));
 
         // O dia mostrado: o que a pessoa escolheu (se ainda existir), senão o
         // de hoje quando ele tem histórico, senão o mais recente que tem —
@@ -119,7 +117,7 @@ public partial class MainWindow
     private void UsoDia_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_usoTrocandoDia) return;
-        if (UsoDia.SelectedItem is not OpcaoDiaUso opcao) return;
+        if (UsoDia.SelectedItem is not OpcaoDia opcao) return;
 
         _usoDia = opcao.Data;
         _ = AtualizarUsoAsync();

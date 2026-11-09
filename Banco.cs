@@ -41,6 +41,9 @@ public static class Banco
     /// <summary>Quantos dias de registro de uso ficam no banco.</summary>
     public const int DiasRetidosUso = 30;
 
+    /// <summary>Quantos dias de tráfego por programa ficam no banco.</summary>
+    public const int DiasRetidosTrafego = 30;
+
     /// <summary>A versão do esquema (1 = o esquema atual).</summary>
     private const int VersaoEsquema = 1;
 
@@ -383,6 +386,34 @@ public static class Banco
 
         ok &= banco.Executar("CREATE INDEX IF NOT EXISTS ix_uso_momento ON uso (momento)");
 
+        // O tráfego de internet por programa. A chave é (dia, processo): o
+        // total do dia é a soma do que cada programa usou, e o app grava o
+        // total corrente — a linha é reescrita, não somada, para o banco
+        // nunca contar o mesmo byte duas vezes.
+        //
+        // O nome do processo não distingue maiúsculas: o "Chrome" e o
+        // "chrome" são o mesmo programa, e sem isso a tela mostraria o
+        // mesmo programa em duas linhas.
+        ok &= banco.Executar(@"
+            CREATE TABLE IF NOT EXISTS trafego (
+                dia      INTEGER NOT NULL,
+                processo TEXT NOT NULL COLLATE NOCASE,
+                enviado  INTEGER NOT NULL DEFAULT 0,
+                recebido INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (dia, processo)
+            )");
+
+        // Os pacotes que a coleta deixou de fora, por dia. A fila do log do
+        // kernel tem tamanho fixo: quando ela enche, o Windows descarta o
+        // que não coube — e o total medido fica menor do que foi o real.
+        // Guardar essa contagem é o que impede o número de ser baixo sem
+        // que ninguém saiba.
+        ok &= banco.Executar(@"
+            CREATE TABLE IF NOT EXISTS trafego_perdidos (
+                dia      INTEGER PRIMARY KEY,
+                perdidos INTEGER NOT NULL DEFAULT 0
+            )");
+
         return ok;
     }
 
@@ -712,16 +743,188 @@ public static class Banco
         return limpo.Length > 200 ? limpo[..200] : limpo;
     }
 
+    // ------------------------------------------------------------------ tráfego
+
+    /// <summary>
+    /// Grava o total de tráfego de um dia, por programa.
+    ///
+    /// <para>
+    /// A linha é <b>reescrita</b> (INSERT OR REPLACE), não somada: o que
+    /// chega aqui é o total do dia, e o total do dia é a soma do que já
+    /// estava salvo com o que a coleta mediu depois. Somar de novo colocaria
+    /// o mesmo byte na conta duas vezes — e o dia apareceria com o dobro do
+    /// tráfego.
+    ///
+    /// <para>
+    /// A gravação é uma transação só: ou entra o dia inteiro, ou não entra
+    /// nada. Um dia pela metade é pior do que um dia que não entrou — o app
+    /// reescreve a linha na próxima vez de qualquer jeito, mas quem lê no
+    /// meio veria um total que não é o do dia.
+    /// </para>
+    /// </summary>
+    /// <param name="dia">O dia do tráfego.</param>
+    /// <param name="itens">O total de cada programa.</param>
+    /// <returns>Verdadeiro quando o dia inteiro entrou no banco.</returns>
+    public static bool GravarTrafego(DateTime dia, IEnumerable<TrafegoPrograma> itens)
+    {
+        long momento = Sqlite.MomentoParaUnix(dia.Date);
+
+        var linhas = new List<IReadOnlyList<object?>>();
+        foreach (var item in itens)
+        {
+            linhas.Add(new object?[]
+            {
+                momento,
+                Higienizar(item.Processo),
+                Math.Max(0, item.Enviados),
+                Math.Max(0, item.Recebidos),
+            });
+        }
+
+        // Nada para gravar não é falha: o dia sem tráfego é um dia sem linhas.
+        if (linhas.Count == 0) return true;
+
+        return EmBanco(b => b.EmTransacao(t =>
+        {
+            int entradas = t.ExecutarEmLote(
+                "INSERT OR REPLACE INTO trafego (dia, processo, enviado, recebido) VALUES (?, ?, ?, ?)",
+                linhas);
+
+            // A contagem de entradas é conferida: se o lote parou no meio,
+            // o dia ficaria com parte dos programas — e o total da tela
+            // mentiria sem ninguém avisar.
+            if (entradas != linhas.Count)
+                throw new InvalidOperationException("não foi possível gravar todo o tráfego do dia");
+        }), false);
+    }
+
+    /// <summary>
+    /// Lê o tráfego de um dia, do programa que mais usou para o que menos
+    /// usou. A leitura diz se ficou completa (ver <see cref="Leitura{T}"/>).
+    /// </summary>
+    public static Leitura<TrafegoPrograma> LerTrafego(DateTime dia)
+    {
+        long momento = Sqlite.MomentoParaUnix(dia.Date);
+
+        return EmBanco(b =>
+        {
+            var resultado = new List<TrafegoPrograma>();
+
+            var linhas = b.Consultar(
+                @"SELECT processo, enviado, recebido FROM trafego
+                  WHERE dia = ?
+                  ORDER BY (enviado + recebido) DESC, processo",
+                momento);
+
+            // Lista vazia com consulta bem-sucedida é "não teve tráfego
+            // nesse dia"; lista vazia com erro é "não deu para ler". São
+            // coisas diferentes, e a tela precisa saber a diferença.
+            bool falhou = linhas.Count == 0 && b.UltimoErro.Length > 0;
+
+            foreach (var linha in linhas)
+            {
+                resultado.Add(new TrafegoPrograma(
+                    linha.Texto("processo"),
+                    linha.Inteiro("enviado"),
+                    linha.Inteiro("recebido")));
+            }
+
+            return new Leitura<TrafegoPrograma>(resultado, !falhou);
+        }, new Leitura<TrafegoPrograma>(new List<TrafegoPrograma>(), false));
+    }
+
+    /// <summary>
+    /// Os dias que têm tráfego guardado, do mais novo para o mais antigo.
+    /// </summary>
+    public static List<DateTime> DiasComTrafego()
+    {
+        return EmBanco(b =>
+        {
+            var dias = new List<DateTime>();
+
+            var linhas = b.Consultar("SELECT DISTINCT dia FROM trafego ORDER BY dia DESC");
+            foreach (var linha in linhas)
+            {
+                long dia = linha.Inteiro("dia");
+                if (dia <= 0) continue;
+
+                dias.Add(Sqlite.UnixParaMomento(dia).Date);
+            }
+
+            return dias;
+        }, new List<DateTime>());
+    }
+
+    /// <summary>Apaga o tráfego mais velho que o prazo.</summary>
+    public static int ApagarTrafegoAntigos(DateTime antesDe)
+    {
+        long limite = Sqlite.MomentoParaUnix(antesDe.Date);
+
+        return EmBanco(b =>
+        {
+            // As duas tabelas do tráfego são cortadas juntas: a contagem de
+            // pacotes perdidos de um dia sem a linha de tráfego não serve
+            // para nada, e o inverso também.
+            if (!b.Executar("DELETE FROM trafego WHERE dia < ?", limite))
+                return 0;
+
+            int apagados = b.Alteracoes;
+
+            b.Executar("DELETE FROM trafego_perdidos WHERE dia < ?", limite);
+
+            return apagados;
+        }, 0);
+    }
+
+    /// <summary>
+    /// Grava quantos pacotes a coleta deixou de fora no dia.
+    /// </summary>
+    /// <param name="dia">O dia.</param>
+    /// <param name="perdidos">A quantidade de pacotes perdidos.</param>
+    public static bool GravarTrafegoPerdidos(DateTime dia, long perdidos)
+    {
+        long momento = Sqlite.MomentoParaUnix(dia.Date);
+
+        return EmBanco(b => b.Executar(
+            "INSERT OR REPLACE INTO trafego_perdidos (dia, perdidos) VALUES (?, ?)",
+            momento, Math.Max(0, perdidos)), false);
+    }
+
+    /// <summary>
+    /// Quantos pacotes a coleta deixou de fora no dia.
+    ///
+    /// <para>
+    /// Devolve -1 quando a leitura não deu para fazer: -1 é "não deu para
+    /// contar" em qualquer ponta da conta. Zero é "nenhum pacote foi
+    /// descartado" — e as duas coisas não podem virar a mesma frase.
+    /// </para>
+    /// </summary>
+    public static long LerTrafegoPerdidos(DateTime dia)
+    {
+        long momento = Sqlite.MomentoParaUnix(dia.Date);
+
+        return EmBanco(b =>
+        {
+            var linhas = b.Consultar("SELECT perdidos FROM trafego_perdidos WHERE dia = ?", momento);
+            if (linhas.Count == 0) return b.UltimoErro.Length > 0 ? -1 : 0L;
+
+            return linhas[0].Inteiro("perdidos");
+        }, -1L);
+    }
+
     // ------------------------------------------------------------------ poda
 
     /// <summary>
-    /// Apaga do banco o que é mais velho que o prazo, nas duas tabelas.
+    /// Apaga do banco o que é mais velho que o prazo, nas duas tabelas de
+    /// sensor e uso.
     ///
     /// <para>
     /// Cada tabela tem o seu prazo (as amostras ficam 15 dias, o uso fica
     /// 30). O método existe para quem quer cortar os dois de uma vez; a
     /// poda automática usa os prazos separados, porque cortar o histórico
     /// de uso aos 15 dias seria perder dado que a regra promete guardar.
+    /// O tráfego tem o seu próprio método
+    /// (<see cref="ApagarTrafegoAntigos"/>), pelo mesmo motivo.
     /// </para>
     /// </summary>
     public static int ApagarAntigos(DateTime antesDe) =>
@@ -766,6 +969,7 @@ public static class Banco
 
         ApagarAmostrasAntigas(DateTime.Now.AddDays(-DiasRetidosAmostras));
         ApagarUsosAntigos(DateTime.Now.AddDays(-DiasRetidosUso));
+        ApagarTrafegoAntigos(DateTime.Now.AddDays(-DiasRetidosTrafego));
     }
 
     // ------------------------------------------------------------------ contagem e tamanho
@@ -860,6 +1064,12 @@ public static class Banco
 
             if (!t.Executar("DELETE FROM uso"))
                 throw new InvalidOperationException("não foi possível apagar os registros de uso");
+
+            if (!t.Executar("DELETE FROM trafego"))
+                throw new InvalidOperationException("não foi possível apagar o histórico de tráfego");
+
+            if (!t.Executar("DELETE FROM trafego_perdidos"))
+                throw new InvalidOperationException("não foi possível apagar a contagem de pacotes perdidos");
 
             // A tabela sqlite_sequence só existe depois que um AUTOINCREMENT
             // foi usado. Apagar dela quando ela não existe faria a

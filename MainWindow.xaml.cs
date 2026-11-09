@@ -102,6 +102,12 @@ public partial class MainWindow : Window
         // A janela aparece já; as coletas pesadas (WMI, sensores, GPU) rodam em paralelo fora da thread da janela.
         Loaded += async (_, _) => await LoadHardwareAsync();
 
+        // O tráfego de internet é medido desde o começo do app: o número do
+        // dia só vale se a medição pegou o dia inteiro — medir só quando a
+        // aba Rede está aberta daria um total que muda conforme a pessoa
+        // navega.
+        IniciarTrafego();
+
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
@@ -132,10 +138,15 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _timer.Stop(); _overlayTimer?.Stop();
+            _timerTrafego?.Stop();
             _stress.Stop(); _burn.Stop(); _benchCts?.Cancel();
             _overlay?.Close();
             _toast?.Close();
             _frames.Dispose();
+            // A coleta do tráfego para junto com a janela: a sessão do
+            // kernel é do sistema, e deixar ela viva (com o app fechado)
+            // ocuparia memória e continuaria contando pacotes de nada.
+            _trafego.Dispose();
             UnregisterHotKey(new System.Windows.Interop.WindowInteropHelper(this).Handle, HotkeyId);
             ShutdownInteg();
             _launchCts?.Cancel();
@@ -319,6 +330,7 @@ public partial class MainWindow : Window
             case "PageComparar": InitComparar(); break;
             case "PageTimeline": InitTimeline(); break;
             case "PageUso": InitUso(); break;
+            case "PageNet": InitRede(); break;
         }
     }
 

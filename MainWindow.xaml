@@ -864,6 +864,42 @@
                             O teste envia pacotes de ping ao roteador e aos DNS públicos 1.1.1.1 e 8.8.8.8 e baixa/envia dados de teste do servidor público
                             speed.cloudflare.com (cerca de 100 MB no total). Feche downloads, streaming e jogos antes para um resultado fiel.
                         </TextBlock>
+
+                        <!-- ===== TRÁFEGO DE INTERNET POR PROGRAMA ===== -->
+                        <Grid Margin="0,28,0,12">
+                            <StackPanel Margin="0,0,300,0" VerticalAlignment="Top">
+                                <TextBlock Text="TRÁFEGO DE INTERNET POR PROGRAMA" Style="{StaticResource Label}"/>
+                                <TextBlock Text="Quem usou a internet, quanto, e em que dia. O histórico fica neste computador e nada sai daqui."
+                                           Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBlock Text="DIA" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="TrafegoDia" Style="{StaticResource DarkCombo}" Width="170" DisplayMemberPath="Rotulo" SelectionChanged="TrafegoDia_SelectionChanged"/>
+                                </StackPanel>
+                                <Button x:Name="BtnTrafegoAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="18,9" VerticalAlignment="Bottom" Click="BtnTrafegoAtualizar_Click"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <ItemsControl x:Name="TrafegoCards" ItemTemplate="{StaticResource CardTemplate}"/>
+
+                        <TextBlock x:Name="TrafegoVazio" Text="Nenhum programa registrou tráfego neste dia. O app só mede enquanto está rodando."
+                                   Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
+
+                        <DataGrid x:Name="TrafegoRanking" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserResizeColumns="False" FontSize="11" Margin="0,14,0,0" Visibility="Collapsed">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PROGRAMA" Binding="{Binding Processo}" Width="*"/>
+                                <DataGridTextColumn Header="TOTAL" Binding="{Binding Total}" Width="110" ElementStyle="{StaticResource MonoCell}"/>
+                                <DataGridTextColumn Header="DETALHE" Binding="{Binding Detalhe}" Width="270" ElementStyle="{StaticResource MutedMonoCell}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,12,0,0">
+                            A leitura é feita pelo próprio Windows (o log de eventos do kernel): conta os bytes de cada pacote TCP e UDP, nos dois protocolos
+                            de internet (IPv4 e IPv6). O app só mede enquanto está rodando — o que ele mede no dia em que você abrir pela primeira vez
+                            não é o que o PC inteiro usou.
+                        </TextBlock>
                     </StackPanel>
                 </ScrollViewer>
 

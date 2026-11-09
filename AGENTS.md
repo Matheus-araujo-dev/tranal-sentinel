@@ -175,6 +175,44 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   **troca de programa** — não uma linha por instante: guardar o instante
   todocia vez encheria o disco sem responder pergunta nenhuma. O que estava
   em frente é o título da janela no momento da troca.
+- **O tráfego de internet é medido pela ETW do kernel** (`ColetorTrafego`),
+  e não pela API de estatísticas do TCP: a `GetPerTcpConnectionEStats` foi
+  medida nesta máquina e devolve o número exato, mas **só funciona no IPv4**
+  (no IPv6 o `SetPerTcp6ConnectionEStats` devolve "sem dados") e só cobre
+  TCP — e o tráfego de navegador hoje é QUIC, que é UDP. A ETW cobre TCP e
+  UDP, nos dois protocolos, por programa. O erro medido em 09/11/2026 no PC
+  do dono foi de **+0,25%** (100 MB baixados apareceram como 105.115.183
+  bytes): a diferença são os cabeçalhos TCP/IP, que também são tráfego — e
+  o cartão diz isso na tela em vez de esconder.
+- **A ETW exige administrador, e o app já exige.** O manifesto pede
+  `requireAdministrator` e a tarefa agendada sobe com privilégio máximo. Se
+  um dia subir sem, a coleta não derruba o app: o motivo fica guardado e o
+  cartão mostra. A sessão do kernel é **global** — se outra ferramenta
+  estiver usando (o WPR), a criação falha e o motivo aparece.
+- **O total do dia é o espelho do que se sabe, e nunca uma soma.**
+  `Banco.GravarTrafego` reescreve a linha (`INSERT OR REPLACE`): o que
+  chega é o total do dia, e somar de novo colocaria o mesmo byte na conta
+  duas vezes. O nome do processo **não distingue maiúsculas** (`COLLATE
+  NOCASE`): o "Chrome" e o "chrome" são o mesmo programa.
+- **A base do banco vem antes da medição, e sem ela o app não grava.**
+  Quando o app sobe, ele lê o que já estava salvo do dia e semeia o
+  coletor com isso (`ColetorTrafego.Semear`). Sem a base, cada abertura do
+  app começaria do zero e gravaria por cima do total do dia — apagando as
+  horas em que o app não estava rodando. E, se a base não puder ser lida,
+  o app **não grava** até conseguir: ele espera, em vez de destruir o dia.
+- **A virada do dia fecha o dia anterior.** O relógio de dez em dez
+  segundos grava o total; quando o dia vira, o dia que acabou recebe o
+  total final e o novo começa do zero. Sem isso, o tráfego da madrugada
+  entraria na conta do dia anterior.
+- **O que a coleta deixou de fora é guardado, não escondido.** A fila do
+  log do kernel tem tamanho fixo: quando enche, o Windows descarta o que
+  não coube e o total medido fica menor do que foi o real. A contagem vai
+  para o banco (`trafego_perdidos`) e o cartão avisa. `-1` continua
+  significando "não deu para contar" — nunca zero.
+- **O ranking do tráfego é por nome de programa, e o total é de todos.**
+  O Chrome abre um processo por aba: a soma é pelo nome (`TrafegoRegras`).
+  Quem não trafficou sai da lista, e o total do cartão é a soma de **todos**
+  os programas — não só dos dez que o ranking mostra.
 - **O SQLite vem do próprio Windows**, por P/Invoke em `Sqlite`
   (`System32\winsqlite3.dll`): o app **não ganha dependência nova**. É a
   mesma biblioteca que o Windows usa internamente.
@@ -413,6 +451,7 @@ auto-update procura.
 | `PoliticaRecursos.cs` | Perfil Completo / Equilibrado / Economia. Funções puras. |
 | `RegistroDiario.cs` | O log diário (um arquivo por dia). |
 | `UsoHistorico.cs` / `UsoJanela.cs` / `UsoAmostrador.cs` | O histórico de uso: a gravação da troca de programa no banco, a leitura da janela em foco (user32) e o amostrador que grava só na troca de programa. |
+| `TrafegoRegras.cs` / `ColetorTrafego.cs` | O tráfego de internet por programa: a regra pura (ranking, bytes, textos do cartão) e o coletor que mede pela ETW do kernel. |
 | `Banco.cs` | O banco de dados do histórico: esquema, migração do CSV antigo, consulta por período, contagem, poda e a rotina de reparo (que guarda a cópia do banco estragado). |
 | `Leitura.cs` | A leitura de um histórico: as linhas lidas e se a leitura ficou completa (a mesma regra para o CSV antigo e para o banco). |
 | `InstanciaUnica.cs` | A trava de instância única: o app não sobe duas vezes, e a linha de comando só repara o histórico com o app fechado. |
