@@ -318,6 +318,12 @@ public sealed class ColetorTrafego : IDisposable
             _sessao.Source.Kernel.UdpIpSendIPV6 += e => Somar(e.ProcessID, e.size, envio: true);
             _sessao.Source.Kernel.UdpIpRecvIPV6 += e => Somar(e.ProcessID, e.size, envio: false);
 
+            // O erro é limpo ANTES de a thread começar: se a sessão morresse
+            // logo no primeiro instante, o motivo dela seria gravado
+            // primeiro e apagado logo depois pela linha de baixo — e a
+            // tela ficaria mostrando que está medindo, sem medir nada.
+            lock (_tranca) _erro = null;
+
             _thread = new Thread(() =>
             {
                 try { _sessao!.Source.Process(); }
@@ -329,8 +335,6 @@ public sealed class ColetorTrafego : IDisposable
             })
             { IsBackground = true, Name = "ETW trafego" };
             _thread.Start();
-
-            lock (_tranca) _erro = null;
         }
         catch (UnauthorizedAccessException)
         {
