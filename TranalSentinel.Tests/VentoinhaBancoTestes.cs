@@ -365,6 +365,41 @@ public class VentoinhaBancoTestes : IDisposable
     }
 
     [Fact]
+    public void MonitorVentoinhas_SemABaseDoDia_NaoGravaODiaParaNaoApagarOQueJaEstavaSalvo()
+    {
+        UsarPastasTemporarias();
+
+        Banco.GravarVentoinhasDoDia(DateTime.Today, new[]
+        {
+            new VentoinhaDoDia("ITE IT8655E|Fan #1", 3392, 85, 91, 3000, 80, 143),
+        });
+
+        Banco.Fechar();
+        BancoCorrupcao.CorromperCabecalho(Banco.Caminho);
+
+        var monitor = new MonitorVentoinhas();
+        monitor.Carregar();
+
+        var linha = new SensorRow
+        {
+            Id = "ITE IT8655E|Fan #1",
+            Hardware = "ITE IT8655E",
+            Name = "Fan #1",
+            Type = SensorType.Fan,
+            HardwareType = HardwareType.SuperIO,
+        };
+        linha.Update(3000, null, null);
+
+        monitor.Registrar(new[] { linha }, 85f, null, DateTime.Now);
+
+        // Sem a base do banco, gravar o agregado de agora apagaria o que já
+        // estava salvo do dia. O app espera a base aparecer — e diz que
+        // está esperando.
+        Assert.False(monitor.Gravar());
+        Assert.Contains("não está gravando o dia", monitor.UltimoErro);
+    }
+
+    [Fact]
     public void MonitorVentoinhas_ComOHistoricoIndisponivel_NaoApagaODia()
     {
         UsarPastasTemporarias();

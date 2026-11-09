@@ -70,6 +70,19 @@ public sealed class MonitorVentoinhas
     private DateTime _dia = DateTime.MinValue;
 
     /// <summary>
+    /// A base do dia foi lida do banco?
+    ///
+    /// <para>
+    /// A base é o que já estava salvo do dia quando o app subiu. Sem ela,
+    /// gravar o agregado de agora apagaria o que já estava salvo — e o dia
+    /// perderia as horas em que o app não estava rodando. Enquanto não dá
+    /// para ler, o app <b>espera</b>: ele não grava o dia em vez de destruir
+    /// o que já estava lá.
+    /// </para>
+    /// </summary>
+    private bool _baseDoDiaPronta = true;
+
+    /// <summary>
     /// O motivo da última falha de gravação (vazio quando deu tudo certo).
     ///
     /// <para>
@@ -124,7 +137,7 @@ public sealed class MonitorVentoinhas
                 _dia = DateTime.Today;
             }
 
-            CarregarDia(DateTime.Today);
+            CarregarDia(DateTime.Today, false);
 
             UltimoErro = "";
             return true;
@@ -144,8 +157,13 @@ public sealed class MonitorVentoinhas
     /// antes da medição</b>. Sem ela, cada abertura do app reescreveria o
     /// dia pela metade — e o histórico da manhã desapareceria sem aviso.
     /// </para>
+    /// <param name="dia">O dia do agregado.</param>
+    /// <param name="juntarComOQueJaFoiMedido">
+    /// True quando o app já mediu alguma coisa deste dia (a base vem depois
+    /// da medição, e as duas partes precisam ser somadas).
+    /// </param>
     /// </summary>
-    private void CarregarDia(DateTime dia)
+    private void CarregarDia(DateTime dia, bool juntarComOQueJaFoiMedido)
     {
         try
         {
@@ -153,10 +171,11 @@ public sealed class MonitorVentoinhas
 
             // Uma leitura pela metade não vale como base: sem esta
             // conferência, o app gravaria por cima de um agregado que não
-            // leu inteiro.
+            // leu inteiro — e o dia perderia o que já estava salvo.
             if (!leitura.Completa)
             {
                 UltimoErro = "não deu para ler o histórico de hoje das ventoinhas";
+                _baseDoDiaPronta = false;
                 return;
             }
 
@@ -165,12 +184,17 @@ public sealed class MonitorVentoinhas
                 foreach (var item in leitura.Linhas)
                 {
                     var estado = EstadoDe(item.Id);
-                    estado.Dia = item;
+                    estado.Dia = juntarComOQueJaFoiMedido
+                        ? VentoinhaRegras.JuntarDia(item, estado.Dia)
+                        : item;
                 }
             }
+
+            _baseDoDiaPronta = true;
         }
         catch (Exception ex)
         {
+            _baseDoDiaPronta = false;
             UltimoErro = ex.Message;
         }
     }
@@ -300,9 +324,19 @@ public sealed class MonitorVentoinhas
     {
         try
         {
+            DateTime dia;
+
+            lock (_trava) { dia = _dia; }
+
+            // A base do dia vem antes da gravação: se ela ainda não pôde ser
+            // lida, o app tenta de novo (a base pode ter voltado). Sem a
+            // base, gravar o agregado de agora apagaria o que já estava
+            // salvo do dia.
+            if (dia != DateTime.MinValue && !_baseDoDiaPronta)
+                CarregarDia(dia, true);
+
             List<VentoinhaRegistro> registros;
             List<VentoinhaDoDia> doDia;
-            DateTime dia;
 
             lock (_trava)
             {
@@ -315,8 +349,6 @@ public sealed class MonitorVentoinhas
                     .Where(e => e.Dia is not null)
                     .Select(e => e.Dia!)
                     .ToList();
-
-                dia = _dia;
             }
 
             bool ok = true;
@@ -325,7 +357,18 @@ public sealed class MonitorVentoinhas
                 ok &= Banco.GravarVentoinha(registro);
 
             if (dia != DateTime.MinValue)
+            {
+                if (!_baseDoDiaPronta)
+                {
+                    // O app espera a base aparecer: gravar agora apagaria o
+                    // que já estava salvo do dia.
+                    UltimoErro = "não deu para ler o histórico de hoje das ventoinhas — " +
+                                 "o app não está gravando o dia para não apagar o que já estava salvo";
+                    return false;
+                }
+
                 ok &= Banco.GravarVentoinhasDoDia(dia, doDia);
+            }
 
             UltimoErro = ok ? "" : "não foi possível gravar o histórico das ventoinhas";
             return ok;
@@ -369,7 +412,7 @@ public sealed class MonitorVentoinhas
                 estado.Dia = null;
         }
 
-        CarregarDia(diaNovo);
+        CarregarDia(diaNovo, false);
     }
 
     /// <summary>Grava o agregado de um dia (usado na virada do dia).</summary>
@@ -377,6 +420,11 @@ public sealed class MonitorVentoinhas
     {
         try
         {
+            // A base do dia que acabou pode ter ficado de fora até agora:
+            // tenta de novo antes de desistir.
+            if (!_baseDoDiaPronta)
+                CarregarDia(dia, true);
+
             List<VentoinhaDoDia> doDia;
 
             lock (_trava)
@@ -388,6 +436,15 @@ public sealed class MonitorVentoinhas
             }
 
             if (doDia.Count == 0) return;
+
+            if (!_baseDoDiaPronta)
+            {
+                // Sem a base, gravar o dia apagaria o que já estava salvo
+                // dele. O app espera a base aparecer.
+                UltimoErro = "não deu para ler o histórico do dia das ventoinhas — " +
+                             "o app não gravou o dia para não apagar o que já estava salvo";
+                return;
+            }
 
             if (!Banco.GravarVentoinhasDoDia(dia, doDia))
                 UltimoErro = "não foi possível gravar o histórico das ventoinhas";

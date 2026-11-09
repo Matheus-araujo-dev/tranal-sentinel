@@ -232,6 +232,48 @@ public class VentoinhaRegrasTestes
         Assert.Contains("SEM COMPARAÇÃO", veredito.Titulo);
     }
 
+    // ------------------------------------------------------------------ a base do dia
+
+    [Fact]
+    public void JuntarDia_ComABaseEOQueFoiMedido_SomaAsContagensEGuardaOMaior()
+    {
+        var baseDia = new VentoinhaDoDia("id", 3392, 85, 91, 3000, 80, 143);
+        var medido = new VentoinhaDoDia("id", 3200, 70, 88, 3200, 70, 30);
+
+        var juntado = VentoinhaRegras.JuntarDia(baseDia, medido);
+
+        // A base é o que já estava salvo do dia; o medido é o que o app
+        // acumulou desde que subiu. Juntos, formam o dia inteiro.
+        Assert.NotNull(juntado);
+        Assert.Equal(3392, juntado!.RpmMaximo);
+        Assert.Equal(85, juntado.TemperaturaNoMaximo);
+        Assert.Equal(91, juntado.TemperaturaMaxima);
+        Assert.Equal(173, juntado.Amostras);
+    }
+
+    [Fact]
+    public void JuntarDia_ComOMedidoMaior_GuardaOMedido()
+    {
+        var baseDia = new VentoinhaDoDia("id", 3392, 85, 91, 3000, 80, 143);
+        var medido = new VentoinhaDoDia("id", 3500, 95, 95, 3500, 95, 5);
+
+        var juntado = VentoinhaRegras.JuntarDia(baseDia, medido);
+
+        Assert.NotNull(juntado);
+        Assert.Equal(3500, juntado!.RpmMaximo);
+        Assert.Equal(95, juntado.TemperaturaNoMaximo);
+        Assert.Equal(148, juntado.Amostras);
+    }
+
+    [Fact]
+    public void JuntarDia_SemUmaDasPartes_DevolveAOutra()
+    {
+        var medido = new VentoinhaDoDia("id", 3200, 70, 88, 3200, 70, 30);
+
+        Assert.Equal(medido, VentoinhaRegras.JuntarDia(null, medido));
+        Assert.Equal(medido, VentoinhaRegras.JuntarDia(medido, null));
+    }
+
     // ------------------------------------------------------------------ a persistência
 
     [Fact]

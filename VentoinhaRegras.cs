@@ -441,7 +441,47 @@ public static class VentoinhaRegras
     }
 
     /// <summary>
-    /// O veredito sobre a ventoinha, comparando a leitura de agora com o
+    /// Junta a base do banco com o que já foi medido nesta sessão.
+    ///
+    /// <para>
+    /// A base é o que já estava salvo do dia; o medido é o que o app acumulou
+    /// desde que subiu. Juntos, eles formam o dia inteiro: o máximo é o maior
+    /// dos dois, a temperatura máxima é a maior das duas e a contagem é a
+    /// soma das contagens.
+    /// </para>
+    /// </summary>
+    /// <param name="baseDia">O que estava salvo no banco (null = nada).</param>
+    /// <param name="medido">O que foi medido nesta sessão (null = nada).</param>
+    public static VentoinhaDoDia? JuntarDia(VentoinhaDoDia? baseDia, VentoinhaDoDia? medido)
+    {
+        if (baseDia is null) return medido;
+        if (medido is null) return baseDia;
+
+        double rpmMaximo = baseDia.RpmMaximo;
+        double? tempNoMaximo = baseDia.TemperaturaNoMaximo;
+
+        if (medido.RpmMaximo > rpmMaximo)
+        {
+            rpmMaximo = medido.RpmMaximo;
+            tempNoMaximo = medido.TemperaturaNoMaximo;
+        }
+
+        double? tempMaxima = baseDia.TemperaturaMaxima;
+        if (medido.TemperaturaMaxima is double temperatura)
+            tempMaxima = tempMaxima is null ? temperatura : Math.Max(tempMaxima.Value, temperatura);
+
+        return new VentoinhaDoDia(
+            medido.Id,
+            rpmMaximo,
+            tempNoMaximo,
+            tempMaxima,
+            medido.RpmUltimo,
+            medido.TemperaturaUltimo,
+            baseDia.Amostras + medido.Amostras);
+    }
+
+    /// <summary>
+    /// O veredito sobre uma ventoinha, comparando a leitura de agora com o
     /// recorde guardado.
     ///
     /// <para>
