@@ -78,14 +78,17 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
 | **Comparar benchmarks entre PCs** | 3DMark (resultado on-line), Benchmark dos amigos | Aba TRANAL COMPARAR: um arquivo `.tranalbench.json` leva os resultados e a identificação do PC para o outro computador, e lá a tabela mostra os dois lado a lado (nota, diferença em %, veredito), avisando quando as máquinas são diferentes demais para a comparação valer. |
 | **Tempo de tela e "quem fez o calor"** | RigSight | Aba TRANAL USO: o app registra a troca de programa em frente na tela (só leitura, nada sai do computador) e mostra quanto tempo cada programa ficou em frente, as sessões mais longas e **quem estava em frente quando a CPU ficou mais quente**. O alerta passou a explicar por que disparou. (Auditoria de 06/11/2026 em `AUDITORIA_CONCORRENTES.md`.) |
 | **Banco de dados do histórico, com reparo** | RigSight (SQLite) | O histórico (sensores e trocas de programa) mora num banco SQLite — sem dependência nova, porque o SQLite vem do próprio Windows. A aba TRANAL SAÚDE mostra o estado do banco e tem botão para **verificar**, **reparar** (reconstrói o que der para ler) e **restaurar a cópia** do banco estragado. O CSV antigo foi importado e continua no disco como cópia. (v0.28) |
+| **Degradação de ventoinhas, com histórico** | RigSight | Aba TRANAL VENTOINHAS: o RPM de cada ventoinha da placa-mãe e da placa de vídeo, o **recorde** de cada uma (o maior RPM já medido, com a temperatura do mesmo instante) e o veredito sobre o desgaste. A regra compara a ventoinha **com ela mesma**: não há curva de RPM por temperatura nem tabela de fabricante — o app não inventa o "RPM certo" da sua ventoinha. O sinal de degradação tem três travas: pelo menos 20% abaixo do recorde, temperatura igual ou maior que a do recorde e a condição valendo 5 minutos seguidos. A ventoinha também virou regra de alerta (na aba de alertas e na vigia da bandeja). Medido no PC do dono em 09/11/2026: a ventoinha da placa-mãe (ITE IT8655E, chip Super I/O) foi lida em 3.392–3.426 RPM pelo LibreHardwareMonitor — a leitura de CPU e placa-mãe **existe** e não depende de driver novo. (v0.30) |
 | **Tráfego de internet por programa, com histórico** | RigSight | Aba TRANAL REDE: o cartão **TRÁFEGO DE HOJE** diz quanto cada programa enviou e recebeu pela rede, com o total do dia, o ranking e o histórico dos últimos 30 dias (o seletor de dia). A medição é feita pelo próprio Windows (a ETW do kernel): conta os bytes de cada pacote TCP e UDP, em IPv4 e IPv6, com o processo dono de cada pacote. Medido no PC do dono em 09/11/2026: 100 MB baixados (curl) apareceram como 105.006.661 bytes (+0,14% — os cabeçalhos TCP/IP, que também são tráfego). Sem depender da API de estatísticas do TCP, que só funciona em IPv4 e não cobre UDP. (v0.29) |
 
 ## O que ficou na lista (não cabe nesta versão)
 
 - **Degradação de ventoinhas** (RigSight): o RPM com o tempo, para dizer que a
-  ventoinha está gasta. **Entra na v0.30** — com a ressalva de que a leitura
-  confiável de RPM só existe pela GPU: CPU e placa-mãe exigiriam um driver
-  Super I/O que ainda não existe.
+  ventoinha está gasta. **Entrou na v0.30** (ver acima). A ressalva que estava
+  aqui — "a leitura confiável de RPM só existe pela GPU, porque CPU e placa-mãe
+  exigiriam um driver Super I/O que ainda não existe" — foi **medida como
+  falsa**: o LibreHardwareMonitor lê o chip Super I/O da placa-mãe (ITE
+  IT8655E) e entrega o RPM da ventoinha da CPU, sem driver novo.
 - **Widgets e presença na barra de tarefas** (RigSight, Kinetik Stats): painel
   flutuante com os números sempre à vista. **Entra na v0.31.**
 - **Assistente de IA local** (Pulse Diagnostics): rodar um modelo local
