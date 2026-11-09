@@ -24,9 +24,10 @@ namespace TranalSentinel;
 ///
 /// <para>
 /// <b>Medido em 09/11/2026</b> no PC do dono: 100 MB baixados por HTTPS
-/// apareceram como 105.115.183 bytes (+0,25%); em tráfego local e em
+/// apareceram como 105.006.661 bytes (+0,14%); em tráfego local e em
 /// download de 60 MB o número bateu. O custo foi de 0,83 s de CPU em 24 s
-/// de coleta (≈3% de um núcleo) com 100 MB de download.
+/// de coleta (≈3% de um núcleo) com 100 MB de download. O número da nota
+/// que a tela mostra mora em <see cref="TrafegoRegras.NotaDaMedicao"/>.
 ///
 /// <para>
 /// A ETW exige administrador. O TRANAL SENTINEL já exige (o manifesto pede

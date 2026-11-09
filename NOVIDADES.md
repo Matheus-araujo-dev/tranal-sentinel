@@ -18,8 +18,8 @@ banco do resto do histórico do PC.
 - Conta os bytes de cada pacote **TCP e UDP**, em **IPv4 e IPv6**, com o
   processo dono de cada pacote. Os processos do mesmo programa são somados
   pelo nome (o Chrome abre um processo por aba).
-- Medido no PC do dono em 09/11/2026: **100 MB baixados apareceram como
-  105.006.683 bytes** — a diferença de **+0,14%** são os cabeçalhos TCP/IP,
+- Medido no PC do dono em 09/11/2026: **100 MB baixados (curl) apareceram como
+  105.006.661 bytes** — a diferença de **+0,14%** são os cabeçalhos TCP/IP,
   que também são tráfego. O cartão diz isso na tela em vez de esconder.
 - Quando a fila do Windows descarta algum pacote, o app **conta quantos
   foram** e avisa no cartão: o total é menor do que foi o real, e a tela

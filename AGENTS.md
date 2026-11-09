@@ -209,6 +209,12 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   não coube e o total medido fica menor do que foi o real. A contagem vai
   para o banco (`trafego_perdidos`) e o cartão avisa. `-1` continua
   significando "não deu para contar" — nunca zero.
+- **A contagem de programas é uma conta à parte do ranking.** O ranking da
+  tela mostra os dez maiores, mas a métrica PROGRAMAS e a frase do cartão
+  ("mais 22 programas usaram a rede") contam **todos** os programas que
+  usaram a rede (`TrafegoRegras.ContarProgramas`). Usar o tamanho do
+  ranking na métrica fazia o cartão dizer "10 programas" ao lado de uma
+  frase que dizia 22 — dois números se contradizendo, e um deles errado.
 - **O ranking do tráfego é por nome de programa, e o total é de todos.**
   O Chrome abre um processo por aba: a soma é pelo nome (`TrafegoRegras`).
   Quem não trafficou sai da lista, e o total do cartão é a soma de **todos**

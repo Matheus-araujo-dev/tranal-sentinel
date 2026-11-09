@@ -78,9 +78,15 @@ public sealed record TrafegoRelatorio(TrafegoCartao Cartao, IReadOnlyList<Trafeg
 /// <para>
 /// O número do tráfego é o que a ETW do Windows mede: os bytes dos pacotes,
 /// com os cabeçalhos TCP/IP dentro. Medido em 09/11/2026 no PC do dono, 100 MB
-/// baixados por HTTPS apareceram como 105.115.183 bytes (+0,25%) — os
+/// baixados por HTTPS (curl) apareceram como 105.006.661 bytes (+0,14%) — os
 /// cabeçalhos são tráfego de verdade, e a diferença é dita na tela em vez de
 /// ser escondida.
+/// </para>
+///
+/// <para>
+/// Os números da medição ficam em <b>um lugar só</b> (as constantes abaixo,
+/// que montam a nota): quando a medição for refeita, muda aqui — e a tela,
+/// o relatório e a documentação falam do mesmo número.
 /// </para>
 /// </summary>
 public static class TrafegoRegras
@@ -92,8 +98,40 @@ public static class TrafegoRegras
     /// A diferença medida entre o que foi baixado e o que a ETW contou.
     /// É o cabeçalho TCP/IP, que também viaja pela rede.
     /// </summary>
-    public const string NotaDaMedicao =
-        "O total inclui os cabeçalhos TCP/IP: em 100 MB baixados a medição deu 105.115.183 bytes (+0,25%, medido em 09/11/2026).";
+    /// <summary>
+    /// Quantos bytes foram baixados na medição de referência (100 MB).
+    /// </summary>
+    public const long BytesBaixadosNaMedicao = 104857600;
+
+    /// <summary>
+    /// Quantos bytes a ETW viu nessa mesma prova.
+    /// Medido em 09/11/2026 no PC do dono com o curl (o download exato de
+    /// 100 MB, sem a camada do PowerShell).
+    /// </summary>
+    public const long BytesMedidosNaMedicao = 105006661;
+
+    /// <summary>
+    /// Quantos por cento a medição passou do arquivo baixado.
+    /// A diferença é o cabeçalho TCP/IP, que também viaja pela rede.
+    /// </summary>
+    public const double DiferencaDaMedicaoEmPercento = 0.14;
+
+    /// <summary>
+    /// A diferença medida entre o que foi baixado e o que a ETW contou.
+    /// É o cabeçalho TCP/IP, que também viaja pela rede.
+    ///
+    /// <para>
+    /// O texto é montado a partir das constantes da medição: ele não pode
+    /// divergir do número que a tela mostra.
+    /// </para>
+    /// </summary>
+    public static string NotaDaMedicao =>
+        "O total inclui os cabeçalhos TCP/IP: em " +
+        Numero(BytesBaixadosNaMedicao / 1048576.0) +
+        " MB baixados a medição deu " +
+        BytesMedidosNaMedicao.ToString(CultureInfo.InvariantCulture) +
+        " bytes (+" + Numero(DiferencaDaMedicaoEmPercento) +
+        "%, medido em 09/11/2026 no PC do dono com curl).";
 
     /// <summary>Número no padrão brasileiro (vírgula decimal), sem casas demais.</summary>
     public static string Numero(double valor) =>

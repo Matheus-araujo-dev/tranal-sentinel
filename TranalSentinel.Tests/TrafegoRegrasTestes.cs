@@ -392,4 +392,26 @@ public class TrafegoRegrasTestes
         Assert.Equal("1 programa", programas.Value);
     }
 
+
+    [Fact]
+    public void NotaDaMedicao_CitaONumeroMedidoEOPorcentual()
+    {
+        // A nota da tela e os numeros medidos nao podem divergir: um
+        // texto que falasse de outra medicao seria uma mentira na tela.
+        string nota = TrafegoRegras.NotaDaMedicao;
+
+        Assert.Contains(
+            TrafegoRegras.BytesMedidosNaMedicao.ToString(CultureInfo.InvariantCulture), nota);
+        Assert.Contains("+0,14", nota);
+
+        // E o percentual tem de bater com os numeros.
+        double real = 100.0 *
+            (TrafegoRegras.BytesMedidosNaMedicao - TrafegoRegras.BytesBaixadosNaMedicao) /
+            TrafegoRegras.BytesBaixadosNaMedicao;
+
+        Assert.True(Math.Abs(real - TrafegoRegras.DiferencaDaMedicaoEmPercento) < 0.005,
+            "O percentual da nota (" + TrafegoRegras.DiferencaDaMedicaoEmPercento +
+            "%) nao bate com os numeros medidos (" + real + "%).");
+    }
+
 }
