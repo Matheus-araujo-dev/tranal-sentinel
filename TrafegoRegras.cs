@@ -201,6 +201,21 @@ public static class TrafegoRegras
     }
 
     /// <summary>
+    /// Quantos programas usaram a rede (sem o teto do ranking).
+    ///
+    /// <para>
+    /// O ranking da tela mostra os dez maiores, mas a <b>conta</b> de
+    /// programas é outra: um cartão que dissesse "10 programas" quando 25
+    /// usaram a rede seria um número errado — e a própria frase do cartão
+    /// ("mais 22 programas usaram a rede") ficaria em contradição com a
+    /// métrica ao lado.
+    /// </para>
+    /// </summary>
+    /// <param name="itens">Os programas medidos.</param>
+    public static int ContarProgramas(IEnumerable<TrafegoPrograma> itens) =>
+        Agrupar(itens).Count(p => p.Value.Enviados + p.Value.Recebidos > 0);
+
+    /// <summary>
     /// O texto do selo do cartão: o total do programa.
     /// </summary>
     public static string TextoDoTotal(TrafegoPrograma item) => TextoDosBytes(item.Total);
@@ -295,6 +310,7 @@ public static class TrafegoRegras
         }
 
         var ranking = Ranking(numeros, MaximoNoRanking);
+        int totalProgramas = ContarProgramas(numeros);
         var (enviados, recebidos, total) = Totais(numeros);
 
         bool semMedicao = !string.IsNullOrEmpty(erro);
@@ -309,15 +325,15 @@ public static class TrafegoRegras
             ? "SEM MEDIÇÃO"
             : TextoDosBytes(total);
 
-        string reasons = MontarReasons(ranking, total, erro, perdidos, perdidosDesconhecidos, semNada, agora, aviso);
+        string reasons = MontarReasons(ranking, totalProgramas, total, erro, perdidos, perdidosDesconhecidos, semNada, agora, aviso);
 
         var metricas = new List<KeyValuePair<string, string>>
         {
             new("TOTAL", TextoDosBytes(total)),
             new("RECEBIDO", TextoDosBytes(recebidos)),
             new("ENVIADO", TextoDosBytes(enviados)),
-            new("PROGRAMAS", ranking.Count > 0
-                ? Numero(ranking.Count) + (ranking.Count == 1 ? " programa" : " programas")
+            new("PROGRAMAS", totalProgramas > 0
+                ? Numero(totalProgramas) + (totalProgramas == 1 ? " programa" : " programas")
                 : "0 programas"),
         };
 
@@ -337,6 +353,7 @@ public static class TrafegoRegras
     /// </summary>
     private static string MontarReasons(
         IReadOnlyList<TrafegoPrograma> ranking,
+        int totalProgramas,
         long total,
         string? erro,
         int perdidos,
@@ -360,7 +377,7 @@ public static class TrafegoRegras
         }
         else
         {
-            partes.Add(DescribeOsPrimeiros(ranking, total));
+            partes.Add(DescribeOsPrimeiros(ranking, totalProgramas, total));
             partes.Add(NotaDaMedicao);
         }
 
@@ -381,7 +398,7 @@ public static class TrafegoRegras
     /// <summary>
     /// A frase dos programas que mais usaram a rede (os três primeiros).
     /// </summary>
-    private static string DescribeOsPrimeiros(IReadOnlyList<TrafegoPrograma> ranking, long total)
+    private static string DescribeOsPrimeiros(IReadOnlyList<TrafegoPrograma> ranking, int totalProgramas, long total)
     {
         if (ranking.Count == 0) return "Nenhum programa registrou tráfego.";
 
@@ -397,9 +414,13 @@ public static class TrafegoRegras
 
         string frase = string.Join(", ", partes);
 
-        if (ranking.Count > quantos)
+        // Os "extras" são os que ficaram FORA do top três — contados pelo
+        // total de programas, e não pelo ranking (que mostra só os dez
+        // maiores). Sem isso, o cartão diria "mais 7 programas" quando
+        // eram 22.
+        if (totalProgramas > quantos)
         {
-            int extras = ranking.Count - quantos;
+            int extras = totalProgramas - quantos;
             frase += $". Além deles, mais {Numero(extras)} {(extras == 1 ? "programa" : "programas")} usaram a rede.";
         }
 

@@ -344,4 +344,52 @@ public class TrafegoRegrasTestes
         Assert.Equal("2 KB recebidos · 1000 B enviados", TrafegoRegras.TextoDoDetalhe(item));
         Assert.Equal("2,9 KB", TrafegoRegras.TextoDoTotal(item));
     }
+
+    [Fact]
+    public void Relatorio_ComMaisDeDezProgramas_OCartaoContaTodos()
+    {
+        // O ranking da tela mostra os dez maiores, mas a metrica PROGRAMAS
+        // conta todos: um cartao que dissesse "10 programas" quando 25
+        // usaram a rede seria um numero errado.
+        var itens = Enumerable.Range(0, 25)
+            .Select(i => new TrafegoPrograma("programa" + i, 1000, 0))
+            .ToList();
+
+        var relatorio = TrafegoRegras.Relatorio(
+            itens, DateTime.Today, DateTime.Today, DateTime.Now, true, null, 0);
+
+        var programas = relatorio.Cartao.Metrics.First(m => m.Key == "PROGRAMAS");
+
+        Assert.Equal("25 programas", programas.Value);
+        Assert.Contains("mais 22 programas usaram a rede", relatorio.Cartao.Reasons);
+        Assert.Equal(TrafegoRegras.MaximoNoRanking, relatorio.Ranking.Count);
+    }
+
+    [Fact]
+    public void ContarProgramas_NaoContaQuemNaoTrafegou()
+    {
+        // Quem nao usou a rede nao e um "programa que usou a rede":
+        // o zero nao entra na conta.
+        var itens = new[]
+        {
+            new TrafegoPrograma("chrome", 1000, 0),
+            new TrafegoPrograma("opera", 0, 0),
+        };
+
+        Assert.Equal(1, TrafegoRegras.ContarProgramas(itens));
+    }
+
+    [Fact]
+    public void Relatorio_ComUmProgramaSo_DizUmPrograma()
+    {
+        var itens = new[] { new TrafegoPrograma("chrome", 1000, 0) };
+
+        var relatorio = TrafegoRegras.Relatorio(
+            itens, DateTime.Today, DateTime.Today, DateTime.Now, true, null, 0);
+
+        var programas = relatorio.Cartao.Metrics.First(m => m.Key == "PROGRAMAS");
+
+        Assert.Equal("1 programa", programas.Value);
+    }
+
 }
