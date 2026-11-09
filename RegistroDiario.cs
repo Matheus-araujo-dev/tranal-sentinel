@@ -20,7 +20,13 @@ namespace TranalSentinel;
 public static class RegistroDiario
 {
     /// <summary>Pasta onde ficam os arquivos de log.</summary>
-    public static string Pasta => Path.Combine(AppSettings.Folder, "log");
+    public static string Pasta => PastaOverride ?? Path.Combine(AppSettings.Folder, "log");
+
+    /// <summary>
+    /// Redireciona a pasta do diário (só os testes usam isto: a suíte não
+    /// escreve no diário do usuário).
+    /// </summary>
+    internal static string? PastaOverride;
 
     /// <summary>Arquivo do dia de hoje.</summary>
     public static string ArquivoDeHoje => Path.Combine(Pasta, $"tranal-{DateTime.Now:yyyy-MM-dd}.log");

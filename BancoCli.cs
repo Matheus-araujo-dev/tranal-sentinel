@@ -37,7 +37,7 @@ public static class BancoCli
 
         Uso:
           TranalSentinel.exe --banco
-          TranalSentinel.exe --banco --reparar
+          TranalSentinel.exe --banco --reparar --confirmar
           TranalSentinel.exe --banco --pasta <pasta>
 
         Sem argumento: mostra o estado do banco (integridade, tamanho,
@@ -46,6 +46,11 @@ public static class BancoCli
         Com --reparar: reconstrói o banco quando ele está estragado. O banco
         velho é guardado como cópia datada na mesma pasta — ele não é
         apagado.
+
+        Com --confirmar: a confirmação do reparo. Na tela ela é um botão;
+        na linha de comando, é esta flag. Sem ela, o reparo não acontece:
+        trocar o arquivo do histórico é decisão do usuário, e uma linha de
+        comando digitada sem querer não pode tomar essa decisão.
 
         Com --pasta: olha o banco de outra pasta (uma cópia, por exemplo),
         em vez do banco de verdade do usuário.
@@ -75,11 +80,41 @@ public static class BancoCli
             }
 
             bool reparar = Array.Exists(args, a => string.Equals(a, "--reparar", StringComparison.OrdinalIgnoreCase));
+            bool confirmar = Array.Exists(args, a => string.Equals(a, "--confirmar", StringComparison.OrdinalIgnoreCase));
 
             if (reparar)
             {
+                // O reparo reconstrói o banco e troca o arquivo no lugar.
+                // Na tela, isso pede confirmação; na linha de comando, a
+                // confirmação é a flag --confirmar. Sem ela, o reparo não
+                // acontece: trocar o arquivo do histórico é decisão do
+                // usuário, e uma linha de comando digitada sem querer não
+                // pode tomar essa decisão.
+                if (!confirmar)
+                {
+                    Console.WriteLine("O reparo reconstrói o banco de dados e guarda o banco velho como cópia datada.");
+                    Console.WriteLine("Para fazer isso, repita o comando com --confirmar.");
+                    Console.Out.Flush();
+
+                    return CodigoErro;
+                }
+
                 var resultado = Banco.Reparar();
                 Console.WriteLine(resultado.Relato);
+
+                // Fica no diário do app: é uma ação que mexeu no arquivo do
+                // histórico, e o diário é onde o usuário vê o que o app fez.
+                try
+                {
+                    RegistroDiario.Registrar($"banco: reparo pela linha de comando — {(resultado.Sucesso ? "ok" : "falhou")}: {resultado.Relato}");
+                }
+                catch
+                {
+                    // O diário é um extra: se falhar, o reparo já foi
+                    // aplicado e isso não pode virar mais um erro.
+                }
+
+                Console.Out.Flush();
 
                 return resultado.Sucesso ? CodigoOk : CodigoErro;
             }

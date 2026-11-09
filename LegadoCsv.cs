@@ -107,7 +107,7 @@ public static class LegadoCsv
         var partes = linha.Split(';');
         if (partes.Length < CamposNumericos + 1) return null;
 
-        if (!DateTime.TryParseExact(partes[0].Trim(), "yyyy-MM-ddTHH:mm:ss.fff",
+        if (!DateTime.TryParseExact(partes[0].AsSpan().Trim(), "yyyy-MM-ddTHH:mm:ss.fff",
                                     CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal,
                                     out var momento))
             return null;
@@ -162,7 +162,13 @@ public static class LegadoCsv
     /// Lê todas as amostras do log de sensores antigo. Devolve lista vazia
     /// quando o arquivo não existe (o app nunca rodou, ou já foi podado).
     /// </summary>
-    public static List<AmostraSensor> LerAmostras()
+    /// <param name="desde">
+    /// O instante mais antigo que entra (null = tudo). A migração passa o
+    /// prazo da tabela: o app promete guardar 15 dias de amostras, e
+    /// importar anos de histórico só encheria o banco com o que seria
+    /// podado em seguida. O CSV antigo continua no disco, com tudo.
+    /// </param>
+    public static List<AmostraSensor> LerAmostras(DateTime? desde = null)
     {
         var resultado = new List<AmostraSensor>();
         try
@@ -172,7 +178,10 @@ public static class LegadoCsv
             foreach (var linha in File.ReadLines(ArquivoSensores))
             {
                 var amostra = LerAmostra(linha);
-                if (amostra is not null) resultado.Add(amostra);
+                if (amostra is null) continue;
+                if (desde is not null && amostra.Momento < desde.Value) continue;
+
+                resultado.Add(amostra);
             }
         }
         catch
@@ -187,7 +196,12 @@ public static class LegadoCsv
     /// Lê todas as trocas de programa dos arquivos de uso antigos (um por
     /// dia). Devolve lista vazia quando não há nenhum arquivo.
     /// </summary>
-    public static List<TrocaUso> LerTrocas()
+    /// <param name="desde">
+    /// O instante mais antigo que entra (null = tudo). A migração passa o
+    /// prazo da tabela (30 dias de histórico de uso): os arquivos de anos
+    /// antigos não são importados — e eles continuam no disco.
+    /// </param>
+    public static List<TrocaUso> LerTrocas(DateTime? desde = null)
     {
         var resultado = new List<TrocaUso>();
         try
@@ -196,10 +210,20 @@ public static class LegadoCsv
 
             foreach (string arquivo in Directory.EnumerateFiles(PastaUso, "uso-*.csv"))
             {
+                // O nome do arquivo é a data do dia (uso-AAAA-MM-DD.csv):
+                // um arquivo de dia antigo é pulado inteiro, sem ler
+                // linha por linha.
+                DateTime? diaDoArquivo = DiaDoArquivo(arquivo);
+                if (desde is not null && diaDoArquivo is not null && diaDoArquivo.Value < desde.Value.Date)
+                    continue;
+
                 foreach (var linha in File.ReadLines(arquivo))
                 {
                     var troca = LerUso(linha);
-                    if (troca is not null) resultado.Add(troca);
+                    if (troca is null) continue;
+                    if (desde is not null && troca.Momento < desde.Value) continue;
+
+                    resultado.Add(troca);
                 }
             }
         }
@@ -208,6 +232,24 @@ public static class LegadoCsv
             // Pasta trancada ou ilegível: a migração segue sem ela.
         }
         return resultado;
+    }
+
+    /// <summary>
+    /// A data do dia de um arquivo de uso (o nome é uso-AAAA-MM-DD.csv).
+    /// Devolve null quando o nome não segue o padrão — e o arquivo é lido
+    /// inteiro, para não perder histórico por causa do nome do arquivo.
+    /// </summary>
+    private static DateTime? DiaDoArquivo(string caminho)
+    {
+        string nome = Path.GetFileNameWithoutExtension(caminho);
+        if (!nome.StartsWith("uso-", StringComparison.Ordinal)) return null;
+
+        string data = nome[4..];
+        if (!DateTime.TryParseExact(data, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var dia))
+            return null;
+
+        return dia;
     }
 
     // ------------------------------------------------------------------ auxiliares
@@ -224,7 +266,12 @@ public static class LegadoCsv
     private static float? Valor(string? texto)
     {
         if (string.IsNullOrWhiteSpace(texto)) return null;
-        if (!float.TryParse(texto.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var valor)) return null;
+
+        // O Span evita a cópia que a sobrecarga de string faz por baixo
+        // dos panos: a migração do CSV grande lê milhões de campos, e a
+        // diferença aparece na hora de abrir o app.
+        ReadOnlySpan<char> limpo = texto.AsSpan().Trim();
+        if (!float.TryParse(limpo, NumberStyles.Float, CultureInfo.InvariantCulture, out var valor)) return null;
         return float.IsFinite(valor) ? valor : null;
     }
 

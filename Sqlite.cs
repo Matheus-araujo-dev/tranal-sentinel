@@ -121,6 +121,12 @@ public sealed class Sqlite : IDisposable
     [DllImport(Biblioteca, CallingConvention = CallingConvention.Cdecl)]
     private static extern int sqlite3_changes(IntPtr db);
 
+    [DllImport(Biblioteca, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int sqlite3_reset(IntPtr stmt);
+
+    [DllImport(Biblioteca, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int sqlite3_clear_bindings(IntPtr stmt);
+
     // ------------------------------------------------------------------ ciclo de vida
 
     /// <summary>
@@ -206,10 +212,14 @@ public sealed class Sqlite : IDisposable
             lock (_tranca)
             {
                 if (_banco == IntPtr.Zero) return "banco fechado";
-                if (_ultimoErro.Length > 0) return _ultimoErro;
 
-                IntPtr msg = sqlite3_errmsg(_banco);
-                return msg == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(msg) ?? "";
+                // A mensagem guardada é a do ÚLTIMO erro — e não a de uma
+                // falha antiga. O SQLite guarda a mensagem do último erro
+                // para sempre: consultá-la depois de uma operação que
+                // deu certo devolveria a falha velha, e o reparo passaria
+                // a dizer que a leitura do banco estragado falhou (quando
+                // ela tinha dado certo).
+                return _ultimoErro;
             }
         }
     }
@@ -255,7 +265,7 @@ public sealed class Sqlite : IDisposable
                 stmt = Preparar(sql, argumentos);
                 if (stmt == IntPtr.Zero)
                 {
-                    _ultimoErro = ErroDoSqlite();
+                    _ultimoErro = MotivoDoErro(null);
                     return false;
                 }
 
@@ -263,11 +273,11 @@ public sealed class Sqlite : IDisposable
                 _ultimoErro = "";
                 return rc == Feito || rc == Linha;
             }
-            catch
+            catch (Exception ex)
             {
                 // Falha de SQL não derruba o app: quem chama decide o que fazer
                 // (o histórico é acessório, o diagnóstico não pode quebrar).
-                _ultimoErro = ErroDoSqlite();
+                _ultimoErro = MotivoDoErro(ex);
                 return false;
             }
             finally
@@ -292,7 +302,7 @@ public sealed class Sqlite : IDisposable
                 stmt = Preparar(sql, argumentos);
                 if (stmt == IntPtr.Zero)
                 {
-                    _ultimoErro = ErroDoSqlite();
+                    _ultimoErro = MotivoDoErro(null);
                     return new List<SqliteLinha>();
                 }
 
@@ -304,26 +314,37 @@ public sealed class Sqlite : IDisposable
                     nomes[c] = nome == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(nome) ?? "";
                 }
 
-                while (true)
+                int rc = sqlite3_step(stmt);
+                while (rc == Linha)
                 {
-                    int rc = sqlite3_step(stmt);
-                    if (rc != Linha) break;
-
                     var valores = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
                     for (int c = 0; c < colunas; c++)
                         valores[nomes[c]] = ValorDaColuna(stmt, c);
 
                     linhas.Add(new SqliteLinha(nomes, valores));
+
+                    rc = sqlite3_step(stmt);
+                }
+
+                // "Feito" é o fim normal da consulta. Qualquer outro código é
+                // erro: a leitura parou no meio, e devolver as linhas lidas
+                // até ali como se fossem o resultado inteiro seria mostrar
+                // metade do histórico como se fosse o histórico todo — e o
+                // reparo contaria essa metade como se fosse tudo.
+                if (rc != Feito)
+                {
+                    _ultimoErro = MotivoDoErro(null);
+                    return new List<SqliteLinha>();
                 }
 
                 _ultimoErro = "";
             }
-            catch
+            catch (Exception ex)
             {
                 // Consulta que falha devolve lista vazia: a tela mostra o que
                 // sabe, sem número errado. O motivo fica registrado, que é
                 // o que separa "a tabela está vazia" de "a consulta falhou".
-                _ultimoErro = ErroDoSqlite();
+                _ultimoErro = MotivoDoErro(ex);
                 return new List<SqliteLinha>();
             }
             finally
@@ -337,37 +358,160 @@ public sealed class Sqlite : IDisposable
 
     /// <summary>
     /// Executa tudo dentro de uma transação: ou entra tudo, ou nada entra.
+    ///
+    /// <para>
+    /// Devolve false quando a transação não fechou — e ela sempre fecha:
+    /// se o COMMIT falhar, o ROLLBACK explícito desfaz o que ficou pelo
+    /// caminho. Sem ele, a transação ficava aberta e as escritas
+    /// seguintes falhavam uma por uma, sem aviso: o histórico parava de
+    /// crescer e ninguém sabia por quê.
+    /// </para>
     /// </summary>
-    public bool EmTransacao(Action<Sqlite> acao)
+    public bool EmTransacao(Action<Sqlite> acao) => Transacao("BEGIN IMMEDIATE", acao);
+
+    /// <summary>
+    /// Executa tudo dentro de uma transação de LEITURA: as consultas veem
+    /// o mesmo retrato do banco, mesmo que outra thread escreva nele.
+    ///
+    /// <para>
+    /// É o que o reparo usa: contar as linhas e ler as linhas em instantes
+    /// diferentes dava dois números de bancos diferentes — e o relato da
+    /// perda saía errado.
+    /// </para>
+    /// </summary>
+    public bool EmTransacaoLeitura(Action<Sqlite> acao) => Transacao("BEGIN DEFERRED", acao);
+
+    /// <summary>
+    /// Abre a transação, roda a ação e fecha. O núcleo das duas
+    /// transações (de escrita e de leitura).
+    /// </summary>
+    private bool Transacao(string begin, Action<Sqlite> acao)
     {
         lock (_tranca)
         {
             if (_banco == IntPtr.Zero) return false;
 
-            if (!Executar("BEGIN IMMEDIATE")) return false;
+            if (!Executar(begin)) return false;
+
+            bool fechou = false;
             try
             {
                 acao(this);
-                return Executar("COMMIT");
+                fechou = Executar("COMMIT");
             }
-            catch
+            catch (Exception ex)
             {
+                // A ação falhou: o que ela escreveu vai embora no
+                // ROLLBACK, e o motivo fica guardado para quem chamou.
+                _ultimoErro = MotivoDoErro(ex);
+                fechou = false;
+            }
+
+            if (!fechou)
+            {
+                // O COMMIT falhou (ou a ação lançou): a transação continua
+                // aberta, e as escritas seguintes iam falhar uma por uma,
+                // sem aviso. O ROLLBACK explícito fecha ela.
+                string motivo = _ultimoErro;
                 Executar("ROLLBACK");
-                return false;
+                _ultimoErro = motivo.Length > 0 ? motivo : "a transação não fechou";
+            }
+
+            return fechou;
+        }
+    }
+
+    /// <summary>
+    /// Executa o mesmo comando para muitas linhas, reaproveitando o
+    /// comando preparado.
+    ///
+    /// <para>
+    /// Preparar e finaliza um comando por linha é caro: a migração de
+    /// 260 mil linhas gastava 23 segundos assim (medido). Reaproveitando o
+    /// comando preparado, o mesmo trabalho é uma fração disso — e o
+    /// resultado é o mesmo.
+    /// </para>
+    ///
+    /// <para>
+    /// Para no primeiro erro e devolve quantas linhas entraram: quem chama
+    /// compara com o que mandou gravar e cancela tudo se não bateu.
+    /// </para>
+    /// </summary>
+    public int ExecutarEmLote(string sql, IEnumerable<IReadOnlyList<object?>> linhas)
+    {
+        lock (_tranca)
+        {
+            if (_banco == IntPtr.Zero) return 0;
+
+            IntPtr stmt = IntPtr.Zero;
+            try
+            {
+                stmt = Preparar(sql, Array.Empty<object?>());
+                if (stmt == IntPtr.Zero)
+                {
+                    _ultimoErro = MotivoDoErro(null);
+                    return 0;
+                }
+
+                int entradas = 0;
+                foreach (var argumentos in linhas)
+                {
+                    // O comando volta ao começo e larga os valores da
+                    // linha anterior antes de receber os novos.
+                    sqlite3_reset(stmt);
+                    sqlite3_clear_bindings(stmt);
+
+                    for (int i = 0; i < argumentos.Count; i++)
+                        Ligar(stmt, i + 1, argumentos[i]);
+
+                    int rc = sqlite3_step(stmt);
+                    if (rc != Feito && rc != Linha)
+                    {
+                        _ultimoErro = MotivoDoErro(null);
+                        return entradas;
+                    }
+
+                    entradas++;
+                }
+
+                _ultimoErro = "";
+                return entradas;
+            }
+            catch (Exception ex)
+            {
+                _ultimoErro = MotivoDoErro(ex);
+                return 0;
+            }
+            finally
+            {
+                if (stmt != IntPtr.Zero) sqlite3_finalize(stmt);
             }
         }
     }
 
     /// <summary>
-    /// A mensagem que o SQLite devolveu na última falha ("" quando o
-    /// SQLite não reclamou de nada).
+    /// O motivo da última falha: a mensagem do SQLite quando foi o SQLite
+    /// que falhou, a da exceção quando a falha foi do .NET, e "erro
+    /// desconhecido" quando nenhuma das duas ajuda.
+    ///
+    /// <para>
+    /// O motivo nunca é vazio: um erro sem explicação não deixa o reparo
+    /// decidir se pode seguir (ler de novo é seguro, trocar o arquivo não
+    /// é), e não deixa a tela dizer o que aconteceu.
+    /// </para>
     /// </summary>
-    private string ErroDoSqlite()
+    private string MotivoDoErro(Exception? excecao)
     {
-        if (_banco == IntPtr.Zero) return "banco fechado";
+        if (excecao != null && excecao.Message.Length > 0) return excecao.Message;
 
-        IntPtr msg = sqlite3_errmsg(_banco);
-        return msg == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(msg) ?? "";
+        if (_banco != IntPtr.Zero)
+        {
+            IntPtr msg = sqlite3_errmsg(_banco);
+            string texto = msg == IntPtr.Zero ? "" : Marshal.PtrToStringUTF8(msg) ?? "";
+            if (texto.Length > 0) return texto;
+        }
+
+        return "erro desconhecido";
     }
 
     /// <summary>
