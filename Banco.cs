@@ -55,8 +55,19 @@ public static class Banco
     /// </summary>
     public const int DiasRetidosVentoinha = 30;
 
-    /// <summary>A versão do esquema (1 = o esquema atual).</summary>
-    private const int VersaoEsquema = 1;
+    /// <summary>
+    /// A marca de "o histórico antigo em CSV já entrou no banco" (1 = já
+    /// entrou).
+    ///
+    /// <para>
+    /// O nome importa: este número <b>não</b> é a versão do esquema. As
+    /// tabelas novas nascem por <c>CREATE TABLE IF NOT EXISTS</c> em toda
+    /// abertura, e não dependem dele. Ele marca só a importação do CSV —
+    /// e a próxima versão que precisar migrar <b>dados</b> precisa de
+    /// outra marca, para não bater com esta.
+    /// </para>
+    /// </summary>
+    private const int VersaoDadosImportados = 1;
 
     /// <summary>
     /// O INSERT das amostras. É o mesmo em toda gravação — a coleta, a
@@ -1434,8 +1445,8 @@ public static class Banco
     {
         try
         {
-            int versao = VersaoDoEsquema(banco);
-            if (versao >= VersaoEsquema) return "";
+            int versao = VersaoGuardada(banco);
+            if (versao >= VersaoDadosImportados) return "";
 
             // Só entra no banco o que ainda está dentro do prazo de cada
             // tabela: o app promete guardar 15 dias de amostras e 30 de
@@ -1460,7 +1471,7 @@ public static class Banco
                     // ao mesmo tempo, e as duas podem tentar migrar. Quem
                     // entra depois não precisa importar de novo — o
                     // histórico já está no banco.
-                    if (VersaoDoEsquema(b) >= VersaoEsquema) return;
+                    if (VersaoGuardada(b) >= VersaoDadosImportados) return;
 
                     // A importação vai em lote, com o comando preparado
                     // reaproveitado: preparar e finalizar um comando por
@@ -1474,20 +1485,20 @@ public static class Banco
                     if (entraramTrocas != trocas.Linhas.Count)
                         throw new InvalidOperationException("a importação do histórico de uso parou na linha " + entraramTrocas);
 
-                    // A versão do esquema só é gravada quando a LEITURA foi
+                    // A marca do histórico importado só é gravada quando a LEITURA foi
                     // completa: a versão diz "o CSV já entrou". Com a
                     // leitura pela metade, ela diria que entrou tudo — e
                     // o resto do CSV ficaria órfão para sempre, sem
                     // aviso.
-                    if (leituraCompleta && !b.Executar($"PRAGMA user_version = {VersaoEsquema}"))
-                        throw new InvalidOperationException("não foi possível gravar a versão do esquema");
+                    if (leituraCompleta && !b.Executar($"PRAGMA user_version = {VersaoDadosImportados}"))
+                        throw new InvalidOperationException("não foi possível gravar a marca do histórico importado");
                 });
 
                 if (!fechou)
                 {
                     // A transação foi desfeita: o banco continua vazio e a
                     // migração é tentada de novo na próxima abertura (a
-                    // versão do esquema continua atrás).
+                    // marca do histórico importado continua atrás).
                     return "Não foi possível migrar o histórico antigo para o banco de dados.";
                 }
             }
@@ -1500,7 +1511,7 @@ public static class Banco
                 // entrou" não ficou, e a migração vai ser tentada de novo
                 // na próxima abertura (refazendo a leitura do CSV, que é
                 // lento, mas não perde nada).
-                if (!banco.Executar($"PRAGMA user_version = {VersaoEsquema}"))
+                if (!banco.Executar($"PRAGMA user_version = {VersaoDadosImportados}"))
                 {
                     return "Não foi possível marcar o histórico antigo como importado: o app tenta de novo na próxima abertura.";
                 }
@@ -1509,7 +1520,7 @@ public static class Banco
             if (!leituraCompleta)
             {
                 // O que deu para ler entrou no banco; o que faltou fica
-                // para a próxima abertura (a versão do esquema continua
+                // para a próxima abertura (a marca do histórico importado continua
                 // atrás, porque a importação não acabou). O aviso diz
                 // isso: uma leitura parcial é o tipo de coisa que o
                 // usuário precisa saber, não o tipo de coisa que pode
@@ -1523,13 +1534,13 @@ public static class Banco
         {
             // Migrar que falha não impede o app de funcionar: o banco fica
             // vazio e o histórico novo começa a ser gravado nele. A migração
-            // é tentada de novo na próxima abertura (a versão do esquema
+            // é tentada de novo na próxima abertura (a marca do histórico importado
             // continua atrás).
             return "Não foi possível migrar o histórico antigo para o banco de dados.";
         }
     }
 
-    private static int VersaoDoEsquema(Sqlite banco)
+    private static int VersaoGuardada(Sqlite banco)
     {
         var linhas = banco.Consultar("PRAGMA user_version");
         if (linhas.Count == 0) return 0;
@@ -1626,7 +1637,7 @@ public static class Banco
             // <see cref="VentoinhasDoReparo"/>).
             var ventoinhas = new VentoinhasDoReparo(new List<object?[]>(), new List<object?[]>(), -1, -1, false, false, false, false);
 
-            // A versão do esquema do banco velho é lida ANTES de
+            // A marca do histórico importado do banco velho é lida ANTES de
             // descartar a instância: o banco novo precisa da mesma
             // versão. Sem ela, a próxima abertura importaria o CSV de
             // novo — por cima do histórico que o reparo acabou de
@@ -1635,7 +1646,7 @@ public static class Banco
 
             bool leu = banco.EmTransacaoLeitura(b =>
             {
-                versaoEsquema = VersaoDoEsquema(b);
+                versaoEsquema = VersaoGuardada(b);
                 totalAmostras = ContarParaReparo(b, "SELECT COUNT(*) AS total FROM amostras");
                 totalUso = ContarParaReparo(b, "SELECT COUNT(*) AS total FROM uso");
 
@@ -2103,7 +2114,7 @@ public static class Banco
                             throw new InvalidOperationException(motivo);
                         }
 
-                        // A versão do esquema vai junto com as linhas: sem
+                        // A marca do histórico importado vai junto com as linhas: sem
                         // ela, a próxima abertura acharia que o CSV nunca
                         // entrou e o importaria de novo — por cima do
                         // histórico que o reparo acabou de recuperar.
@@ -2121,7 +2132,7 @@ public static class Banco
 
                         if (!b.Executar($"PRAGMA user_version = {versaoFinal}"))
                         {
-                            motivo = "não foi possível gravar a versão do esquema no banco novo";
+                            motivo = "não foi possível gravar a marca do histórico importado no banco novo";
                             throw new InvalidOperationException(motivo);
                         }
                     });

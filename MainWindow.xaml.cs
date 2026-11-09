@@ -130,7 +130,14 @@ public partial class MainWindow : Window
             // As ventoinhas: a leitura de agora entra no recorde e no
             // agregado do dia. A comparação com o recorde mora no
             // núcleo puro.
-            _ventoinhas.Registrar(_monitor.Rows, _monitor.CpuTemperature, _monitor.GpuTemperature, DateTime.Now);
+            //
+            // A lista é a leva da coleta de agora — não a lista de todos
+            // os sensores que o app já viu: um sensor que saiu da coleta
+            // parou de responder, e a ventoinha dele não pode continuar
+            // valendo com o RPM velho.
+            _ventoinhas.Registrar(
+                _monitor.LinhasDaColeta, _monitor.CpuTemperature, _monitor.GpuTemperature,
+                DateTime.Now, _monitor.MomentoDaColeta);
 
             if (_monitor.IsOpen) StatusText.Text = $"{_monitor.Rows.Count} sensores · atualizado {DateTime.Now:HH:mm:ss}";
             UpdateStressPanel();
@@ -176,7 +183,24 @@ public partial class MainWindow : Window
             // O mesmo para as ventoinhas: o recorde e o agregado do dia são
             // gravados por último, senão as últimas medidas se perdem.
             _timerVentoinha?.Stop();
-            _ventoinhas.Gravar();
+
+            // O dia que não foi gravado precisa aparecer no diário: a
+            // janela está fechando e o usuário não vai ver a tela
+            // avisando. O diário é onde o app conta o que ele fez.
+            if (!_ventoinhas.Gravar())
+            {
+                try
+                {
+                    RegistroDiario.Registrar(
+                        "Não foi possível gravar o histórico das ventoinhas: " + _ventoinhas.UltimoErro,
+                        "VENTOINHA");
+                }
+                catch
+                {
+                    // O diário é um extra: se ele falhar, o erro da
+                    // gravação já está no histórico do app.
+                }
+            }
             UnregisterHotKey(new System.Windows.Interop.WindowInteropHelper(this).Handle, HotkeyId);
             ShutdownInteg();
             _launchCts?.Cancel();

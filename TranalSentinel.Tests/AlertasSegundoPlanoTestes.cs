@@ -379,6 +379,72 @@ public class AlertasSegundoPlanoTestes
     }
 
     [Fact]
+    public void RegraDeVentoinhaQueNaoEstaNaMaquina_DizQueNaoEstaVigiandoNada()
+    {
+        var frase = MonitorAlertas.RegraInativa(
+            MonitorAlertas.PrefixoVentoinha + "ITE IT8655E|Fan #9",
+            Array.Empty<ContextoVentoinha>());
+
+        // Uma regra que aponta para uma ventoinha que não existe cala em
+        // silêncio e deixa o usuário achando que está protegido. O app
+        // precisa dizer que ela não está vigiando nada.
+        Assert.NotNull(frase);
+        Assert.Contains("não está nesta máquina", frase);
+        Assert.Contains("não está vigiando nada", frase);
+
+        // O id interno não pode vazar para a tela.
+        Assert.DoesNotContain("ITE IT8655E|Fan #9", frase);
+    }
+
+    [Fact]
+    public void RegraDeVentoinhaQueNaoEstaDandoLeitura_DizQueNaoEstaVigiandoNada()
+    {
+        var frase = MonitorAlertas.RegraInativa(
+            MonitorAlertas.PrefixoVentoinha + "ITE IT8655E|Fan #1",
+            new[] { new ContextoVentoinha("ITE IT8655E|Fan #1", "Fan #1 (ITE IT8655E)", null) });
+
+        Assert.NotNull(frase);
+        Assert.Contains("não está dando leitura", frase);
+        Assert.Contains("não está vigiando nada", frase);
+    }
+
+    [Fact]
+    public void RegraDeVentoinhaQueEstaDandoLeitura_NaoEhDitaComoInativa()
+    {
+        var frase = MonitorAlertas.RegraInativa(
+            MonitorAlertas.PrefixoVentoinha + "ITE IT8655E|Fan #1",
+            ContextoDaVentoinha(0f).Ventoinhas);
+
+        Assert.Null(frase);
+    }
+
+    [Fact]
+    public void RegraDeSensorQueNaoEAVentoinha_NuncaEhDitaComoInativa()
+    {
+        Assert.Null(MonitorAlertas.RegraInativa("cpu-temp", Array.Empty<ContextoVentoinha>()));
+        Assert.Null(MonitorAlertas.RegraInativa("bateria", Array.Empty<ContextoVentoinha>()));
+    }
+
+    [Fact]
+    public void RegraDeVentoinhaSemLeitura_NaoDisparaAlertaComValorVelho()
+    {
+        var monitor = new MonitorAlertas();
+        var avisos = new List<Alerta>();
+        monitor.Alertar += a => avisos.Add(a);
+
+        var regra = Regra("vent", MonitorAlertas.PrefixoVentoinha + "ITE IT8655E|Fan #1", "<=", 0);
+
+        // A ventoinha está no contexto, mas sem leitura: não há RPM para
+        // comparar, e a regra não pode avisar com o valor de antes.
+        monitor.Verificar(DateTime.Now, new[] { regra }, new ContextoSensores
+        {
+            Ventoinhas = new[] { new ContextoVentoinha("ITE IT8655E|Fan #1", "Fan #1 (ITE IT8655E)", null) },
+        });
+
+        Assert.Empty(avisos);
+    }
+
+    [Fact]
     public void ComparacaoMenorOuIgualFunciona()
     {
         var monitor = new MonitorAlertas();

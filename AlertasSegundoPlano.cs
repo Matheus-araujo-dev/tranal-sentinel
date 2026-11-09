@@ -114,6 +114,47 @@ public sealed class MonitorAlertas
         return (item?.Rotulo ?? chave, item?.Unidade ?? "", item?.Dica ?? "");
     }
 
+    /// <summary>
+    /// A frase que diz que a regra não está vigiando nada (null quando ela
+    /// está vigindo).
+    ///
+    /// <para>
+    /// Uma regra de ventoinha aponta para a identidade de uma ventoinha
+    /// ("ventoinha:hardware|nome"). Se essa ventoinha não existe mais na
+    /// máquina — outro driver, outro nome de sensor, o arquivo de
+    /// configuração copiado para outro PC — a regra cala em silêncio e o
+    /// usuário fica achando que está protegido. O app precisa dizer que
+    /// ela não está vigiando nada.
+    ///
+    /// <para>
+    /// São duas frases diferentes porque são dois problemas diferentes: a
+    /// ventoinha <b>não está nesta máquina</b> (o id não bate com nada) e
+    /// a ventoinha <b>não está dando leitura</b> (o sensor parou de
+    /// responder agora).
+    /// </para>
+    /// </summary>
+    /// <param name="chave">A chave da regra.</param>
+    /// <param name="ventoinhas">As ventoinhas que o app conhece agora.</param>
+    /// <returns>A frase do problema, ou null quando a regra está vigiando.</returns>
+    public static string? RegraInativa(string chave, IReadOnlyList<ContextoVentoinha> ventoinhas)
+    {
+        if (!chave.StartsWith(PrefixoVentoinha, StringComparison.Ordinal)) return null;
+
+        string id = chave[PrefixoVentoinha.Length..];
+
+        var ventoinha = ventoinhas.FirstOrDefault(v => v.Id == id);
+
+        if (ventoinha is not null)
+        {
+            if (ventoinha.Rpm is not null) return null;
+
+            return $"A ventoinha {ventoinha.Rotulo} não está dando leitura agora — esta regra não está vigiando nada.";
+        }
+
+        // O id cru não pode aparecer na tela: o nome do sensor serve.
+        return $"A ventoinha {VentoinhaRegras.NomeLegivel(id)} não está nesta máquina — esta regra não está vigiando nada.";
+    }
+
     /// <summary>O nome da bateria nos avisos (a chave não está no catálogo).</summary>
     public const string BateriaRotulo = "Carga da bateria";
 
@@ -289,7 +330,10 @@ public sealed class MonitorAlertas
         var ventoinha = VentoinhaDoContexto(sensor, contexto);
         if (ventoinha is not null)
         {
-            vale = true;
+            // A ventoinha que parou de dar leitura continua na lista, mas
+            // sem RPM: não há valor para comparar, e a regra não pode
+            // avisar com o número de antes.
+            vale = ventoinha.Rpm is not null;
             return ventoinha.Rpm;
         }
 

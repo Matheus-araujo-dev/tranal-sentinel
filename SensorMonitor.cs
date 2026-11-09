@@ -209,6 +209,36 @@ public sealed class SensorMonitor : IDisposable
     }
 
     /// <summary>
+    /// As linhas que a coleta entregou na leva atual.
+    ///
+    /// <para>
+    /// A lista de todos os sensores que o app já viu (<see cref="Rows"/>)
+    /// não serve para medir: um sensor que sai da coleta continua lá,
+    /// com o valor antigo. Quem mede precisa saber o que veio <b>agora</b>
+    /// — é a diferença entre "a ventoinha parou de responder" e "a
+    /// ventoinha está a 3.400 RPM".
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<SensorRow> LinhasDaColeta { get; private set; } = Array.Empty<SensorRow>();
+
+    /// <summary>
+    /// Quando a coleta entregou a leva atual (null = não há leva em vigor).
+    ///
+    /// <para>
+    /// A janela redesenha a cada segundo e a coleta nem sempre chegou
+    /// nesse meio tempo: o instante da leva é o que diz se a leitura é
+    /// nova ou se o app está olhando para o mesmo valor de novo.
+    /// </para>
+    /// </summary>
+    public DateTime? MomentoDaColeta { get; private set; }
+
+    /// <summary>
+    /// A leva que a interface já pintou (para não refazer a lista a cada
+    /// tique).
+    /// </summary>
+    private SensorSnapshot? _levaPintada;
+
+    /// <summary>
     /// Passa a última coleta para a lista da interface. Só copia o que a
     /// thread de leitura já brought do disco — não lê arquivo nem faz JSON
     /// na thread da janela (isso engasgava o benchmark).
@@ -216,7 +246,20 @@ public sealed class SensorMonitor : IDisposable
     public void Refresh()
     {
         var snap = Volatile.Read(ref _snapshot);
-        if (snap is null) return;
+        if (snap is null)
+        {
+            // Sem leva não há sensor: o que ficou na lista é o valor velho.
+            LinhasDaColeta = Array.Empty<SensorRow>();
+            MomentoDaColeta = null;
+            _levaPintada = null;
+            return;
+        }
+
+        // A leva só é montada quando a coleta traz uma nova: a janela
+        // redesenha a cada segundo, e refazer a lista a cada tique seria
+        // desperdício.
+        bool mudou = !ReferenceEquals(snap, _levaPintada);
+        List<SensorRow>? linhas = mudou ? new List<SensorRow>(snap.Leituras.Count) : null;
 
         foreach (var leitura in snap.Leituras)
         {
@@ -235,6 +278,14 @@ public sealed class SensorMonitor : IDisposable
                 Rows.Add(row);
             }
             row.Update(leitura.Value, leitura.Min, leitura.Max);
+            linhas?.Add(row);
+        }
+
+        if (mudou)
+        {
+            _levaPintada = snap;
+            LinhasDaColeta = linhas!;
+            MomentoDaColeta = snap.Momento;
         }
 
         PrepararAmostra(snap);

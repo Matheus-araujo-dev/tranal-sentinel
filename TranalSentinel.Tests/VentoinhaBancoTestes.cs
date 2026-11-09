@@ -258,11 +258,37 @@ public class VentoinhaBancoTestes : IDisposable
         var dias = Banco.LerVentoinhasDoDia(Dia);
         Assert.True(dias.Completa);
 
-        // O reparo não pode perder o histórico das ventoinhas em silêncio:
-        // ou ele volta, ou o relato diz quantos se perderam.
-        bool voltaram = registros.Linhas.Count > 0 || dias.Linhas.Count > 0;
-        bool contou = resultado.Relato.Contains("ventoinha") && resultado.Relato.Contains("perderam");
-        Assert.True(voltaram || contou, resultado.Relato);
+        // O reparo não pode perder o histórico das ventoinhas: o que ele
+        // salva volta. O relato dizendo "perderam" NÃO serve aqui — o
+        // próprio app escreve essa frase quando não deu para contar, e
+        // um teste que aceitasse as duas passaria mesmo com as
+        // ventoinhas perdidas em silêncio.
+        Assert.NotEmpty(registros.Linhas);
+        Assert.NotEmpty(dias.Linhas);
+    }
+
+    [Fact]
+    public void RelatoDaPerda_ComVentoinhasPerdidas_DizQuantasSePerderam()
+    {
+        var relato = Banco.RelatoDaPerda(10, 10, 0, 0, null, null, null, null, 5, 3, 2, 1);
+
+        // A contagem da perda é o dado que o usuário precisa: "se perderam
+        // 2 registros de ventoinha" é uma informação; "perderam" solto não
+        // é nada.
+        Assert.Contains("Se perderam 2 registros de ventoinha.", relato);
+        Assert.Contains("Se perderam 1 agregados diários de ventoinha.", relato);
+    }
+
+    [Fact]
+    public void RelatoDaPerda_ComAContagemQueNaoDeu_NaoDizQuantasSePerderam()
+    {
+        var relato = Banco.RelatoDaPerda(10, 10, 0, 0, null, null, null, null, -1, -1, -1, -1);
+
+        // "Não deu para contar" e "perdeu e contou" são frases diferentes.
+        // A primeira diz que o app não sabe; a segunda diz que o dado
+        // sumiu. O app não pode trocar uma pela outra.
+        Assert.Contains("Não deu para contar os registros de ventoinha", relato);
+        Assert.DoesNotContain("Se perderam", relato);
     }
 
     [Fact]
@@ -351,7 +377,7 @@ public class VentoinhaBancoTestes : IDisposable
         };
         linha.Update(3000, null, null);
 
-        monitor.Registrar(new[] { linha }, 85f, null, DateTime.Now);
+        monitor.Registrar(new[] { linha }, 85f, null, DateTime.Now, DateTime.Now);
         monitor.Gravar();
 
         // A base do dia tem de vir do banco: sem ela, a gravação seguinte
@@ -390,7 +416,7 @@ public class VentoinhaBancoTestes : IDisposable
         };
         linha.Update(3000, null, null);
 
-        monitor.Registrar(new[] { linha }, 85f, null, DateTime.Now);
+        monitor.Registrar(new[] { linha }, 85f, null, DateTime.Now, DateTime.Now);
 
         // Sem a base do banco, gravar o agregado de agora apagaria o que já
         // estava salvo do dia. O app espera a base aparecer — e diz que

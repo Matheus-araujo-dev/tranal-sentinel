@@ -452,11 +452,21 @@ public partial class MainWindow
     /// (<see cref="MonitorAlertas.ResolverSensor"/>): a chave da regra de
     /// ventoinha é uma identificação interna, e o usuário lê o nome da
     /// ventoinha.
+    ///
+    /// <para>
+    /// Uma regra que aponta para uma ventoinha que não está nesta máquina
+    /// (ou que parou de dar leitura) não está vigiando nada — e o app diz
+    /// isso em vez de descrever uma regra que não vale.
     /// </para>
     /// </summary>
     private string DescreverRegra(RegraAlerta regra)
     {
-        var (sensor, unidade, _) = MonitorAlertas.ResolverSensor(regra.Sensor, VentoinhasDoContexto());
+        var ventoinhas = VentoinhasDoContexto();
+
+        var inativa = MonitorAlertas.RegraInativa(regra.Sensor, ventoinhas);
+        if (inativa is not null) return inativa;
+
+        var (sensor, unidade, _) = MonitorAlertas.ResolverSensor(regra.Sensor, ventoinhas);
         string espera = regra.SegundosMinimos > 0
             ? $" (a condição precisa valer por {NumeroTexto.Inteiro(regra.SegundosMinimos)} s antes do aviso)"
             : " (avisa na hora)";

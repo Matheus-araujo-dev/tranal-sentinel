@@ -224,9 +224,10 @@ public partial class MainWindow
     /// As ventoinhas que o app pode vigiar neste ciclo.
     ///
     /// <para>
-    /// Só a ventoinha que está dando leitura entra: uma ventoinha sem
-    /// leitura não tem RPM, e a regra que a vigia fica sem valor (o mesmo
-    /// que acontece com um sensor que sumiu).
+    /// Entra <b>toda</b> ventoinha que o app conhece — inclusive a que
+    /// parou de dar leitura (ela fica sem RPM). A regra só avalia a que
+    /// está lendo, e a lista completa é o que permite ao app dizer que a
+    /// regra da outra não está vigiando nada (e não calar sobre isso).
     /// </para>
     /// </summary>
     private List<ContextoVentoinha> VentoinhasDoContexto()
@@ -234,8 +235,8 @@ public partial class MainWindow
         try
         {
             return _ventoinhas.Cartoes()
-                .Where(c => c.RpmAtual is not null)
-                .Select(c => new ContextoVentoinha(c.Id, c.Rotulo, (float)c.RpmAtual!.Value))
+                .Select(c => new ContextoVentoinha(
+                    c.Id, c.Rotulo, c.RpmAtual is double rpm ? (float)rpm : null))
                 .ToList();
         }
         catch

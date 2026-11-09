@@ -459,12 +459,16 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   não dizia a verdade). A recusa vem antes, e o reparo cancelado limpa o
   banco novo: ele ocuparia dezenas de megabytes na pasta do histórico sem
   servir para nada.
-- **O banco reconstruído guarda a versão do esquema do banco velho**
-  (`PRAGMA user_version`). Sem ela, a próxima abertura acharia que o CSV
-  nunca entrou e o importaria de novo — por cima do histórico que o reparo
-  acabou de recuperar. Quando nada foi recuperado, a versão fica em zero de
-  propósito: o CSV antigo volta na abertura seguinte, em vez de ficar para
-  sempre fora do app.
+- **O banco reconstruído guarda a marca do histórico importado do banco
+  velho** (`PRAGMA user_version`). Sem ela, a próxima abertura acharia que o
+  CSV nunca entrou e o importaria de novo — por cima do histórico que o
+  reparo acabou de recuperar. Quando nada foi recuperado, a marca fica em
+  zero de propósito: o CSV antigo volta na abertura seguinte, em vez de
+  ficar para sempre fora do app.
+- **`user_version` não é a versão do esquema.** Ele marca **só** a importação
+  do CSV: as tabelas novas nascem por `CREATE TABLE IF NOT EXISTS` em toda
+  abertura e não dependem dele. A próxima versão que precisar migrar
+  **dados** precisa de outra marca, para não bater com esta.
 - **O retrato do banco é um só** (`Banco.Ver`): estado, tamanho, contagens e
   dias com histórico saem de uma leitura com a trava segurada. A linha de
   comando mostra os números do mesmo retrato — dois momentos diferentes podiam
@@ -514,7 +518,24 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   histórico diário passa. A poda do dia não pode usar `.Date`: com ele, o app
   guardava 31 dias.
 - **A ventoinha é regra de alerta como qualquer outro sensor** (a chave é
-  `ventoinha:<id>`), e a vigia só inclui as que estão dando leitura.
+  `ventoinha:<id>`). A vigia só **avalia** a regra da ventoinha que está
+  dando leitura — e a tela diz, para a que não está, que a regra **não está
+  vigiando nada**. Uma regra que aponta para uma ventoinha que não existe
+  mais na máquina cala em silêncio, e o usuário ficaria achando que está
+  protegido.
+- **A ventoinha que parou de dar leitura não vale mais com o RPM velho.** A
+  coleta entrega uma leva por vez, e o app mede a leva de agora — não a lista
+  de todos os sensores que ele já viu (um sensor que saiu da coleta continua
+  lá, com o valor antigo). Sem leitura: o cartão diz "SEM LEITURA" e diz
+  quando foi a última medida boa, o dia não conta medição que não existiu, a
+  queda que estava sendo observada deixa de contar, e a regra de alerta não
+  avisa com o número de antes. Número errado é pior que número ausente.
+- **A contagem do dia conta leitura, não tique.** A janela redesenha a cada
+  segundo e a coleta nem sempre chegou nesse meio tempo: medir a mesma leva
+  duas vezes não é ler o sensor duas vezes.
+- **A falha de gravação do dia aparece no diário.** A janela está fechando e o
+  usuário não vai ver a tela avisando: o diário é onde o app conta o que ele
+  fez.
 - **O número da tela sai de um lugar só** (`NumeroTexto`): vírgula decimal e
   ponto de milhar, aconteça o que acontecer com a cultura do Windows. Número
   que não é finito vira "—" — nunca um número inventado. Isso vale também

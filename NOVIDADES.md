@@ -28,8 +28,9 @@ O TRANAL SENTINEL passa a acompanhar as **ventoinhas do PC**: o novo cartão
   ventoinha sem leitura (o sensor que não devolve valor) não entra como
   "0 RPM" — não deu para ler é diferente de zero.
 - A ventoinha também virou **regra de alerta**: na aba de alertas e na vigia da
-  bandeja, dá para escolher "ventoinha" e o limite de RPM. A vigia só inclui as
-  ventoinhas que estão dando leitura.
+  bandeja, dá para escolher "ventoinha" e o limite de RPM. A vigia só **avalia**
+  a regra da ventoinha que está dando leitura — e a tela diz, para a que não
+  está, que a regra não está vigiando nada.
 
 **Correções (achadas rodando o app de verdade e nas revisões adversariais)**
 - O limite de 20% calava **exatamente no limite**: a conta arredondava para
@@ -66,6 +67,21 @@ O TRANAL SENTINEL passa a acompanhar as **ventoinhas do PC**: o novo cartão
 - A página de alertas explica que as **ventoinhas entram na lista** quando o
   sensor da placa-mãe ou da placa de vídeo começa a dar leitura.
 - A poda do histórico diário guardava **31 dias** em vez de 30.
+- A ventoinha que **parou de dar leitura** continuava valendo com o RPM velho:
+  o cartão mostrava o número antigo como se fosse o de agora, o dia contava
+  uma medição que não existiu e a regra de alerta disparava com o valor
+  velho. Agora o cartão diz **SEM LEITURA** e diz quando foi a última medida
+  boa, o dia não conta a medição que não existiu, a queda que estava sendo
+  observada deixa de contar e a regra não avisa com o número de antes.
+- Uma regra de alerta que aponta para uma ventoinha que **não está nesta
+  máquina** (outro driver, outro nome de sensor, o arquivo de configuração
+  copiado para outro PC) calava em silêncio, e a tela a descrevia como se
+  estivesse valendo. Agora a tela diz que a regra **não está vigiando nada**.
+- O agregado do dia contava **tiques do relógio** em vez de leituras: a janela
+  redesenha a cada segundo e a coleta nem sempre chegou nesse meio tempo.
+  Agora ele conta leitura.
+- A falha de gravação do histórico das ventoinhas no fechamento da janela
+  ficava só na memória do app. Agora ela aparece no **diário**.
 
 ## Novidades da v0.29 — o TRANAL REDE agora diz quanto cada programa usou a internet
 

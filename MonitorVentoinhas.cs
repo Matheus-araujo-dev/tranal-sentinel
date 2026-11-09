@@ -78,6 +78,18 @@ public sealed class MonitorVentoinhas
     private readonly Dictionary<string, Estado> _estados = new();
     private readonly object _trava = new();
 
+    /// <summary>
+    /// O instante da leva de leitura que o app já mediu.
+    ///
+    /// <para>
+    /// A janela redesenha a cada segundo e a coleta nem sempre chegou
+    /// nesse meio tempo. Medir a mesma leva duas vezes não é ler o
+    /// sensor duas vezes — e o agregado do dia precisa contar leitura,
+    /// não tique de relógio.
+    /// </para>
+    /// </summary>
+    private DateTime? _momentoDaColeta;
+
     /// <summary>O dia que o app está acumulando.</summary>
     private DateTime _dia = DateTime.MinValue;
 
@@ -215,20 +227,32 @@ public sealed class MonitorVentoinhas
     /// Registra a leitura de agora das ventoinhas.
     ///
     /// <para>
+    /// A lista recebida é a leva da <b>coleta de agora</b> — não a lista
+    /// de todos os sensores que o app já viu. A diferença importa: um
+    /// sensor que sai da coleta parou de responder, e a ventoinha dele
+    /// não pode continuar valendo com o RPM velho. "Número errado é pior
+    /// que número ausente" vale aqui — sem leitura, o cartão diz "SEM
+    /// LEITURA" e diz quando foi a última medida boa.
+    ///
+    /// <para>
     /// Uma linha de sensor sem valor não entra: um sensor que não sabe o
     /// valor (o LibreHardwareMonitor devolve infinito nesses casos) não é
     /// "0 RPM" — é ausência de leitura.
     /// </para>
     /// </summary>
-    /// <param name="linhas">As linhas de sensor da volta.</param>
+    /// <param name="linhas">As linhas de sensor da leva de agora.</param>
     /// <param name="tempCpu">A temperatura da CPU agora (null se não deu para ler).</param>
     /// <param name="tempGpu">A temperatura da GPU agora (null se não deu para ler).</param>
     /// <param name="agora">O instante da leitura.</param>
+    /// <param name="momentoDaColeta">
+    /// Quando a coleta entregou esta leva (null = não há leva em vigor).
+    /// </param>
     public void Registrar(
         IReadOnlyList<SensorRow> linhas,
         float? tempCpu,
         float? tempGpu,
-        DateTime agora)
+        DateTime agora,
+        DateTime? momentoDaColeta)
     {
         try
         {
@@ -236,6 +260,26 @@ public sealed class MonitorVentoinhas
 
             lock (_trava)
             {
+                // Sem leva em vigor não há leitura nenhuma: as ventoinhas
+                // que o app conhece ficam sem RPM (e o app diz isso).
+                if (momentoDaColeta is null)
+                {
+                    foreach (var estado in _estados.Values)
+                        SemLeitura(estado);
+
+                    return;
+                }
+
+                // A mesma leva repetida não é uma leitura nova: o sensor
+                // não foi lido de novo, e o dia não pode contar uma
+                // medição que não aconteceu.
+                if (_momentoDaColeta == momentoDaColeta) return;
+
+                _momentoDaColeta = momentoDaColeta;
+
+                // Os ids que deram leitura nesta leva.
+                var idsComLeitura = new HashSet<string>(StringComparer.Ordinal);
+
                 foreach (var linha in linhas)
                 {
                     if (linha.Type != SensorType.Fan) continue;
@@ -251,6 +295,7 @@ public sealed class MonitorVentoinhas
                         TemperaturaDe(fonte, tempCpu, tempGpu));
 
                     var estado = EstadoDe(leitura.Id);
+                    idsComLeitura.Add(leitura.Id);
 
                     // A primeira leitura desta ventoinha desde que o app
                     // subiu: a queda de RPM pode ter começado antes, e o
@@ -286,6 +331,16 @@ public sealed class MonitorVentoinhas
                         estado.QuedaJaEstavaAoSubir = false;
                     }
                 }
+
+                // A ventoinha que não veio na leva de agora parou de dar
+                // leitura: ela fica sem RPM e sem veredito, a queda que
+                // estava sendo observada deixa de contar, e o dia não
+                // ganha medição que não existiu.
+                foreach (var estado in _estados.Values)
+                {
+                    if (idsComLeitura.Contains(estado.Id)) continue;
+                    SemLeitura(estado);
+                }
             }
         }
         catch
@@ -295,6 +350,23 @@ public sealed class MonitorVentoinhas
         }
     }
 
+    /// <summary>
+    /// A ventoinha parou de dar leitura: ela fica sem RPM e sem veredito.
+    ///
+    /// <para>
+    /// O instante da última medida boa continua no registro — é ele que
+    /// permite dizer "a última medida foi em ...". A queda que estava
+    /// sendo observada deixa de contar: o app não pode confirmar
+    /// desgaste de uma condição que ele não está vendo.
+    /// </para>
+    /// </summary>
+    private static void SemLeitura(Estado estado)
+    {
+        estado.Leitura = null;
+        estado.Veredito = null;
+        estado.InicioDaQueda = null;
+        estado.QuedaJaEstavaAoSubir = false;
+    }
     /// <summary>
     /// A temperatura de referência da ventoinha, conforme a fonte do seu
     /// hardware.
