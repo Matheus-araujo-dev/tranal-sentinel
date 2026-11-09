@@ -51,6 +51,20 @@ O TRANAL SENTINEL passa a acompanhar as **ventoinhas do PC**: o novo cartão
   agora sai no **TRANAL SAÚDE** e no relatório da linha de comando.
 - O histórico mostrava o identificador cru ("ITE IT8655E|Fan #1") quando o
   registro da ventoinha se perdia; agora mostra o nome do sensor.
+- A regra de alerta da ventoinha era descrita na tela com o **identificador
+  interno** ("ventoinha:ITE IT8655E|Fan #1") e com o limite sem unidade. Agora
+  a tela mostra o **nome da ventoinha** e a unidade (RPM) — o mesmo texto que
+  sai no aviso.
+- O número do aviso e da descrição da regra passou a sair sempre do mesmo
+  jeito (vírgula decimal), independente da cultura do Windows: o mesmo evento
+  não pode aparecer escrito de dois modos em PCs diferentes.
+- A queda de RPM que **já estava valendo quando o app subiu** é dita como
+  tal: o app não sabe quando ela começou, e só confirma o desgaste depois de
+  5 minutos de observação dele.
+- O cartão do dia mostra agora a **temperatura do instante do máximo** (o
+  RPM sozinho não conta a história inteira).
+- A página de alertas explica que as **ventoinhas entram na lista** quando o
+  sensor da placa-mãe ou da placa de vídeo começa a dar leitura.
 - A poda do histórico diário guardava **31 dias** em vez de 30.
 
 ## Novidades da v0.29 — o TRANAL REDE agora diz quanto cada programa usou a internet
