@@ -414,4 +414,53 @@ public class TrafegoRegrasTestes
             "%) nao bate com os numeros medidos (" + real + "%).");
     }
 
+    [Fact]
+    public void Relatorio_DeDiaGuardado_SemTrafego_NaoFalaDoDiaDeHoje()
+    {
+        // O cartao de ontem nao pode dizer "desde que o app comecou a
+        // medir (hoje e 14:32)": o numero veio do banco, e o app so
+        // mede enquanto esta rodando.
+        var relatorio = TrafegoRegras.Relatorio(
+            new List<TrafegoPrograma>(), DateTime.Today.AddDays(-1), DateTime.Today,
+            DateTime.Now, true, null, 0);
+
+        Assert.DoesNotContain("hoje é", relatorio.Cartao.Reasons);
+        Assert.DoesNotContain("O app só mede enquanto está rodando", relatorio.Cartao.Reasons);
+        Assert.Contains("neste dia", relatorio.Cartao.Reasons);
+    }
+
+    [Fact]
+    public void Relatorio_DeHoje_SemTrafego_FalaDaMedicaoAoVivo()
+    {
+        var relatorio = TrafegoRegras.Relatorio(
+            new List<TrafegoPrograma>(), DateTime.Today, DateTime.Today,
+            DateTime.Now, true, null, 0);
+
+        Assert.Contains("O app só mede enquanto está rodando", relatorio.Cartao.Reasons);
+    }
+
+    [Fact]
+    public void NumeroInteiro_ContaGrande_NaoPerdeCasa()
+    {
+        // A contagem de pacotes descartados e um long no banco: passar
+        // por um double a perderia acima de 2^53, e um int a cortaria
+        // em 2.147.483.647.
+        Assert.Equal("3000000000", TrafegoRegras.NumeroInteiro(3000000000L));
+        Assert.Equal("0", TrafegoRegras.NumeroInteiro(0));
+        Assert.Equal("-1", TrafegoRegras.NumeroInteiro(-1));
+    }
+
+    [Fact]
+    public void Relatorio_ComMuitosDescarte_NaoSaturaEmInt()
+    {
+        var relatorio = TrafegoRegras.Relatorio(
+            new List<TrafegoPrograma>(), DateTime.Today, DateTime.Today,
+            DateTime.Now, true, null, 3000000000L);
+
+        var descartados = relatorio.Cartao.Metrics
+            .First(m => m.Key == "PACOTES DEIXADOS DE FORA");
+
+        Assert.Equal("3000000000", descartados.Value);
+    }
+
 }

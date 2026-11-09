@@ -319,9 +319,14 @@ public static class Banco
             // O tamanho do arquivo continua sendo o do disco: "0 B" ao lado
             // de "não deu para contar as amostras" seria dois números
             // falsos — o arquivo tem tamanho, e ele é o do banco de verdade.
+            //
+            // A contagem do tráfego também é -1: deixar o campo no padrão
+            // (0) faria a tela dizer "0 registros de tráfego" ao lado de
+            // "não deu para contar as amostras" — um número inventado.
             return new Diagnostico(
                 "O banco de dados não pôde ser lido.",
-                TamanhoDoArquivo(), -1, -1, Caminho, null, _aviso, 0);
+                TamanhoDoArquivo(), -1, -1, Caminho, null, _aviso, 0,
+                File.Exists(Caminho) ? -1 : 0);
         }
     }
 
@@ -805,9 +810,7 @@ public static class Banco
 
         return EmBanco(b => b.EmTransacao(t =>
         {
-            int entradas = t.ExecutarEmLote(
-                "INSERT OR REPLACE INTO trafego (dia, processo, enviado, recebido) VALUES (?, ?, ?, ?)",
-                linhas);
+            int entradas = t.ExecutarEmLote(InsertTrafego, linhas);
 
             // A contagem de entradas é conferida: se o lote parou no meio,
             // o dia ficaria com parte dos programas — e o total da tela
@@ -884,14 +887,25 @@ public static class Banco
             // As duas tabelas do tráfego são cortadas juntas: a contagem de
             // pacotes perdidos de um dia sem a linha de tráfego não serve
             // para nada, e o inverso também.
-            if (!b.Executar("DELETE FROM trafego WHERE dia < ?", limite))
-                return 0;
+            //
+            // E o corte é de uma vez: se o segundo DELETE falhar, o
+            // primeiro é desfeito — senão sobrariam linhas órfãs de
+            // "pacotes descartados" em dias que o seletor já não mostra,
+            // e ninguém veria nem aviso.
+            int apagados = 0;
 
-            int apagados = b.Alteracoes;
+            bool ok = b.EmTransacao(t =>
+            {
+                if (!t.Executar("DELETE FROM trafego WHERE dia < ?", limite))
+                    throw new InvalidOperationException("não foi possível apagar o tráfego antigo");
 
-            b.Executar("DELETE FROM trafego_perdidos WHERE dia < ?", limite);
+                apagados = t.Alteracoes;
 
-            return apagados;
+                if (!t.Executar("DELETE FROM trafego_perdidos WHERE dia < ?", limite))
+                    throw new InvalidOperationException("não foi possível apagar a contagem de pacotes descartados");
+            });
+
+            return ok ? apagados : 0;
         }, 0);
     }
 
@@ -904,9 +918,13 @@ public static class Banco
     {
         long momento = Sqlite.MomentoParaUnix(dia.Date);
 
+        // O -1 é "não deu para contar" e chega até aqui: gravar 0 seria
+        // dizer que nenhum pacote foi descartado, que é uma afirmação
+        // diferente. O banco guarda o -1, e a leitura o devolve como -1.
+        long valor = perdidos < 0 ? -1 : perdidos;
+
         return EmBanco(b => b.Executar(
-            "INSERT OR REPLACE INTO trafego_perdidos (dia, perdidos) VALUES (?, ?)",
-            momento, Math.Max(0, perdidos)), false);
+            InsertTrafegoPerdidos, momento, valor), false);
     }
 
     /// <summary>
@@ -1521,16 +1539,27 @@ public static class Banco
         bool falhouTrafegos = false;
         bool falhouPerdidos = false;
 
-        bool tinhaTabelaTrafegos = TabelaExiste(banco, "trafego");
-        bool tinhaTabelaPerdidos = TabelaExiste(banco, "trafego_perdidos");
+        // A pergunta ao esquema tem três respostas, e não duas: a tabela
+        // existe, a tabela não existe (um banco de antes da v0.29) ou a
+        // consulta ao esquema quebrou. A terceira é uma leitura que
+        // falhou — e é diferente de "não tinha tráfego guardado": sem
+        // essa distinção, a tabela seria descartada em silêncio.
+        bool falhouEsquemaTrafegos;
+        bool falhouEsquemaPerdidos;
 
-        if (tinhaTabelaTrafegos)
+        bool tinhaTabelaTrafegos = TabelaExiste(banco, "trafego", out falhouEsquemaTrafegos);
+        bool tinhaTabelaPerdidos = TabelaExiste(banco, "trafego_perdidos", out falhouEsquemaPerdidos);
+
+        if (falhouEsquemaTrafegos) falhouTrafegos = true;
+        if (falhouEsquemaPerdidos) falhouPerdidos = true;
+
+        if (tinhaTabelaTrafegos && !falhouTrafegos)
         {
             totalTrafegos = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM trafego");
             trafegos = LerLinhas(banco, "SELECT dia, processo, enviado, recebido FROM trafego", out falhouTrafegos);
         }
 
-        if (tinhaTabelaPerdidos)
+        if (tinhaTabelaPerdidos && !falhouPerdidos)
         {
             totalPerdidos = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM trafego_perdidos");
             perdidos = LerLinhas(banco, "SELECT dia, perdidos FROM trafego_perdidos", out falhouPerdidos);
@@ -1545,10 +1574,21 @@ public static class Banco
     /// erro do SQLite ("no such table") diria o mesmo que uma leitura que
     /// quebrou no meio, e as duas coisas precisam ser diferentes.
     /// </summary>
-    private static bool TabelaExiste(Sqlite banco, string tabela)
+    private static bool TabelaExiste(Sqlite banco, string tabela, out bool falhou)
     {
+        falhou = false;
+
         var linhas = banco.Consultar(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", tabela);
+
+        // A consulta ao esquema pode quebrar (o banco está avariado). Aí
+        // a resposta não é "a tabela não existe": é "não deu para
+        // perguntar" — e as duas coisas precisam ser diferentes.
+        if (linhas.Count == 0 && banco.UltimoErro.Length > 0)
+        {
+            falhou = true;
+            return false;
+        }
 
         return linhas.Count > 0;
     }

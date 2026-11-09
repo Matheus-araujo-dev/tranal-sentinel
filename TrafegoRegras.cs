@@ -138,6 +138,18 @@ public static class TrafegoRegras
         valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
 
     /// <summary>
+    /// Um número inteiro, sem casas decimais.
+    ///
+    /// <para>
+    /// É um método à parte do <see cref="Numero(double)"/> de propósito: as
+    /// contagens (de pacotes, de programas) são inteiras e grandes, e
+    /// passar por um double as perderia.
+    /// </para>
+    /// </summary>
+    public static string NumeroInteiro(long valor) =>
+        valor.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
     /// Uma quantidade de bytes em unidade legível (B, KB, MB, GB, TB).
     ///
     /// <para>
@@ -325,7 +337,7 @@ public static class TrafegoRegras
         DateTime agora,
         bool leituraCompleta,
         string? erro,
-        int eventosPerdidos,
+        long eventosPerdidos,
         string? aviso = null)
     {
         string titulo = "TRÁFEGO DE " + RotuloDoDia(dia, hoje);
@@ -357,13 +369,14 @@ public static class TrafegoRegras
         // -1 é "não deu para contar" — e é diferente de zero (nenhum pacote
         // descartado). O cartão diz que não deu, em vez de mostrar zero.
         bool perdidosDesconhecidos = eventosPerdidos < 0;
-        int perdidos = Math.Max(0, eventosPerdidos);
+        long perdidos = Math.Max(0, eventosPerdidos);
 
         string selo = semMedicao && semNada
             ? "SEM MEDIÇÃO"
             : TextoDosBytes(total);
 
-        string reasons = MontarReasons(ranking, totalProgramas, total, erro, perdidos, perdidosDesconhecidos, semNada, agora, aviso);
+        string reasons = MontarReasons(ranking, totalProgramas, total, erro, perdidos, perdidosDesconhecidos,
+            semNada, dia.Date == hoje.Date, agora, aviso);
 
         var metricas = new List<KeyValuePair<string, string>>
         {
@@ -376,7 +389,7 @@ public static class TrafegoRegras
         };
 
         if (perdidos > 0)
-            metricas.Add(new KeyValuePair<string, string>("PACOTES DEIXADOS DE FORA", Numero(perdidos)));
+            metricas.Add(new KeyValuePair<string, string>("PACOTES DEIXADOS DE FORA", NumeroInteiro(perdidos)));
 
         bool alerta = semMedicao || perdidos > 0 || perdidosDesconhecidos;
 
@@ -394,9 +407,10 @@ public static class TrafegoRegras
         int totalProgramas,
         long total,
         string? erro,
-        int perdidos,
+        long perdidos,
         bool perdidosDesconhecidos,
         bool semNada,
+        bool diaCorrente,
         DateTime agora,
         string? aviso)
     {
@@ -410,8 +424,14 @@ public static class TrafegoRegras
 
         if (semNada)
         {
-            partes.Add("Nenhum programa registrou tráfego de internet desde que o app começou a medir" +
-                $" (hoje é {agora.ToString("HH:mm", CultureInfo.InvariantCulture)}). O app só mede enquanto está rodando.");
+            // O texto é do dia corrente ou de um dia guardado? São duas
+            // afirmações diferentes: dizer "desde que o app começou a
+            // medir (hoje é 14:32)" num cartão de ontem seria uma
+            // afirmação falsa sobre a origem do número.
+            partes.Add(diaCorrente
+                ? "Nenhum programa registrou tráfego de internet desde que o app começou a medir" +
+                    $" (hoje é {agora.ToString("HH:mm", CultureInfo.InvariantCulture)}). O app só mede enquanto está rodando."
+                : "Nenhum programa registrou tráfego de internet neste dia.");
         }
         else
         {
@@ -421,7 +441,7 @@ public static class TrafegoRegras
 
         if (perdidos > 0)
         {
-            partes.Add($"A coleta deixou de fora {Numero(perdidos)} pacotes (a fila do log do kernel encheu): " +
+            partes.Add($"A coleta deixou de fora {NumeroInteiro(perdidos)} pacotes (a fila do log do kernel encheu): " +
                 "o total é menor do que foi o real.");
         }
         else if (perdidosDesconhecidos)

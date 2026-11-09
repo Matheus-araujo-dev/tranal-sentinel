@@ -301,6 +301,26 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   ranking usa o nome já guardado (`ColetorTrafego.NomeEmCache`); a
   conferência periódica (o Windows reusa o número do processo) roda na
   thread de fundo.
+- **O retrato que falha conta -1 em TODAS as tabelas.** O caminho de
+  exceção do `Banco.Ver()` passa a contagem do tráfego como -1 quando o
+  arquivo existe: deixar o campo no padrão (0) faria a tela dizer "0
+  registros de tráfego" ao lado de "não deu para contar as amostras" —
+  um número inventado no meio de dois números honestos.
+- **"A tabela não existe" e "a consulta ao esquema quebrou" são coisas
+  diferentes.** No reparo, `TabelaExiste` olha o erro do SQLite: se a
+  consulta ao esquema falhou, a tabela é tratada como **leitura que
+  falhou** (o reparo é cancelado e o relato diz), e não como "não tinha
+  tráfego guardado" (a tabela seria descartada em silêncio).
+- **A contagem de pacotes descartados é `long` de ponta a ponta**, e o -1
+  ("não deu para contar") é **gravado como -1**: gravar 0 seria dizer que
+  nenhum pacote foi descartado — outra afirmação, e falsa. No cartão, a
+  contagem entra como `long` (`TrafegoRegras.NumeroInteiro`): passar por
+  um `int` a cortaria em 2.147.483.647.
+- **O cartão fala do dia que ele mostra.** O texto de "não teve
+  tráfego" tem duas versões: a do dia corrente (que cita a hora e diz
+  que o app só mede enquanto está rodando) e a de um dia guardado no
+  banco (que não fala de "hoje"). Um cartão de ontem dizendo "hoje é
+  14:32" é uma afirmação falsa sobre a origem do número.
 - **A verificação de integridade é uma só: a completa (`integrity_check`).**
   A rápida (`quick_check`) foi descartada porque ela não confere o conteúdo
   dos índices contra o das tabelas — e o esquema tem dois índices na tabela

@@ -332,7 +332,7 @@ public partial class MainWindow
             }
 
             return TrafegoRegras.Relatorio(
-                numeros, dia, hoje, agora, true, _trafego.Erro, ParaInt(perdidos), aviso);
+                numeros, dia, hoje, agora, true, _trafego.Erro, perdidos, aviso);
         }
 
         // Um dia passado: o número vem do banco, e só do banco.
@@ -340,7 +340,7 @@ public partial class MainWindow
         long perdidosDia = Banco.LerTrafegoPerdidos(dia);
 
         return TrafegoRegras.Relatorio(
-            leitura.Linhas, dia, hoje, agora, leitura.Completa, null, ParaInt(perdidosDia));
+            leitura.Linhas, dia, hoje, agora, leitura.Completa, null, perdidosDia);
     }
 
     /// <summary>
@@ -457,13 +457,6 @@ public partial class MainWindow
     {
         if (LerBaseDoDia(_trafegoDiaGravado)) _trafegoGravavel = true;
     }
-
-    /// <summary>
-    /// Converte a contagem de pacotes para o número que o cartão mostra
-    /// (-1 continua sendo "não deu para contar").
-    /// </summary>
-    private static int ParaInt(long valor) =>
-        valor < 0 ? -1 : (int)Math.Min(valor, int.MaxValue);
 
     /// <summary>
     /// Coloca o relatório na tela.

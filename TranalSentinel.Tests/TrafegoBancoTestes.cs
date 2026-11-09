@@ -260,11 +260,24 @@ public class TrafegoBancoTestes : IDisposable
     }
 
     [Fact]
-    public void TrafegoPerdidos_NegativoNaoEntra()
+    public void TrafegoPerdidos_NegativoViraNaoDeuParaContar()
     {
         UsarPastasTemporarias();
 
-        Banco.GravarTrafegoPerdidos(Dia, -10);
+        // O -1 é "não deu para contar". Gravar 0 seria dizer que nenhum
+        // pacote foi descartado — que é outra afirmação, e falsa.
+        Banco.GravarTrafegoPerdidos(Dia, -1);
+
+        Assert.Equal(-1, Banco.LerTrafegoPerdidos(Dia));
+    }
+
+    [Fact]
+    public void TrafegoPerdidos_ZeroFicaZero()
+    {
+        UsarPastasTemporarias();
+
+        // Zero é zero: nenhum pacote descartado. E não pode virar -1.
+        Banco.GravarTrafegoPerdidos(Dia, 0);
 
         Assert.Equal(0, Banco.LerTrafegoPerdidos(Dia));
     }
