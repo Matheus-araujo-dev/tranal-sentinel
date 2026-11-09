@@ -149,6 +149,30 @@ public partial class MainWindow
     private bool _trafegoPerdidosDesconhecidos;
 
     /// <summary>
+    /// A janela já está fechando.
+    ///
+    /// <para>
+    /// A subida da coleta é assíncrona (a base do banco vem de fora da
+    /// thread da tela). Se a janela fechar no meio, a continuação não pode
+    /// subir a sessão da ETW nem ligar o relógio: eles ficariam vivos num
+    /// app que já está saindo, e ninguém pararia.
+    /// </para>
+    /// </summary>
+    private volatile bool _janelaFechada;
+
+    /// <summary>
+    /// O motivo da última gravação que falhou (vazio quando deu certo).
+    ///
+    /// <para>
+    /// A gravação do total do dia pode falhar com o banco aberto: disco
+    /// cheio, arquivo trancado por antivírus, banco corrompido no meio da
+    /// sessão. Sem este aviso, o cartão mostraria um total que não está em
+    /// lugar nenhum — e ele se perderia em silêncio.
+    /// </para>
+    /// </summary>
+    private string? _trafegoAvisoGravacao;
+
+    /// <summary>
     /// Sobe a coleta do tráfego e o relógio que grava o total do dia.
     /// </summary>
     private async void IniciarTrafego()
@@ -164,6 +188,11 @@ public partial class MainWindow
             bool leuBase = await Task.Run(() => LerBaseDoDia(hoje));
 
             _trafegoGravavel = leuBase;
+
+            // A janela pode ter fechado enquanto a base era lida: subir a
+            // sessão da ETW e ligar o relógio agora deixaria os dois vivos
+            // num app que já está saindo, sem ninguém para parar.
+            if (_janelaFechada) return;
 
             // A ETW é do kernel: se ela não subir, o motivo fica guardado
             // e a tela mostra. O app continua funcionando.
@@ -269,8 +298,18 @@ public partial class MainWindow
     }
 
     /// <summary>Botão "ATUALIZAR": recarrega o dia mostrado.</summary>
-    private async void BtnTrafegoAtualizar_Click(object sender, RoutedEventArgs e) =>
-        await AtualizarTrafegoAsync();
+    private async void BtnTrafegoAtualizar_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await AtualizarTrafegoAsync();
+        }
+        catch (Exception)
+        {
+            // O botão é um atalho: uma falha dele não pode derrubar o app
+            // (o que já aconteceu uma vez com o tique do relógio).
+        }
+    }
 
     /// <summary>
     /// Recarrega o cartão do dia. A leitura é I/O de banco — vai para fora
@@ -324,7 +363,8 @@ public partial class MainWindow
                 ? -1
                 : _trafegoPerdidosBase + _trafego.EventosPerdidosDoDia(dia);
 
-            string? aviso = null;
+            string? aviso = _trafegoAvisoGravacao;
+
             if (!_trafegoGravavel)
             {
                 aviso = "O histórico do dia não pôde ser lido quando o app abriu: " +
@@ -411,11 +451,32 @@ public partial class MainWindow
         }
 
         var numeros = _trafego.Acumulado(dia);
+
+        // A gravação devolve se deu certo — e a resposta é conferida: uma
+        // gravação que falha com o banco aberto (disco cheio, arquivo
+        // trancado) deixaria o cartão mostrar um total que não está
+        // guardado em lugar nenhum, e ele se perderia em silêncio.
         if (numeros.Count > 0)
-            Banco.GravarTrafego(dia, numeros);
+        {
+            bool gravou = Banco.GravarTrafego(dia, numeros);
+
+            _trafegoAvisoGravacao = gravou
+                ? null
+                : "O total do dia não pôde ser gravado no banco (o disco pode estar cheio, " +
+                  "ou o arquivo do banco pode estar trancado). O número acima é só o que foi " +
+                  "medido nesta execução — quando o app fechar, o que não foi gravado se perde.";
+        }
 
         if (!_trafegoPerdidosDesconhecidos)
-            Banco.GravarTrafegoPerdidos(dia, _trafegoPerdidosBase + _trafego.EventosPerdidosDoDia(dia));
+        {
+            bool gravou = Banco.GravarTrafegoPerdidos(
+                dia, _trafegoPerdidosBase + _trafego.EventosPerdidosDoDia(dia));
+
+            if (!gravou && _trafegoAvisoGravacao == null)
+            {
+                _trafegoAvisoGravacao = "A contagem de pacotes descartados não pôde ser gravada no banco.";
+            }
+        }
     }
 
     /// <summary>
@@ -439,6 +500,13 @@ public partial class MainWindow
             {
                 GravarDiaDoTrafego(_trafegoDiaGravado);
                 _trafegoDiaGravado = hoje;
+
+                // A base de descartes zera junto com a virada: sem isto, o
+                // dia novo gravaria a base do dia velho somada ao que
+                // acumulou — o vazamento entre dias que a gravação do
+                // relógio já corrigia.
+                _trafegoPerdidosBase = 0;
+                _trafegoPerdidosDesconhecidos = false;
             }
 
             GravarDiaDoTrafego(hoje);
@@ -474,11 +542,18 @@ public partial class MainWindow
             TrafegoRanking.Visibility = linhas.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             TrafegoVazio.Visibility = linhas.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // A aba do tráfego é uma leitura: se a montagem falhar, a página
-            // fica como está. Derrubar o app por causa de um texto seria
-            // absurdo.
+            // A aba do tráfego é uma leitura: se a montagem falhar, o app
+            // continua. Mas a tela NÃO pode ficar mostrando o número do
+            // dia anterior como se fosse o de hoje — o seletor já mudou.
+            TrafegoCards.ItemsSource = null;
+            TrafegoRanking.ItemsSource = null;
+            TrafegoRanking.Visibility = Visibility.Collapsed;
+            TrafegoVazio.Text = "Não deu para montar o cartão do tráfego: " + ex.Message;
+            TrafegoVazio.Visibility = Visibility.Visible;
+
+            RegistroDiario.Registrar("Falha ao montar o cartão do tráfego: " + ex.Message, "REDE");
         }
     }
 
