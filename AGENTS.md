@@ -503,6 +503,10 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
 - **A base do dia vem do banco antes da medição.** O app pode ser fechado e
   aberto várias vezes no mesmo dia: sem a base, cada abertura reescreveria o
   agregado do dia pela metade e o histórico da manhã desapareceria sem aviso.
+  E, se a base **não puder** ser lida, o app **não grava** o dia: ele espera
+  a base aparecer, em vez de destruir o que já estava salvo (a mesma regra do
+  tráfego de internet). Quando a base volta depois, ela é **juntada** com o
+  que já foi medido — não trocada — e as duas partes formam o dia inteiro.
   Medido no PC do dono em 09/11/2026: com a base, o dia foi de 495 para 506
   amostras na primeira gravação depois de reabrir o app.
 - **O recorde não tem prazo de poda; o agregado do dia tem 30.** O recorde é
