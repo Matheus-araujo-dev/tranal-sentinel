@@ -470,6 +470,51 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   comando mostra os números do mesmo retrato — dois momentos diferentes podiam
   dar dois bancos diferentes.
 
+- **A ventoinha é comparada com ela mesma.** O app não tem curva de RPM por
+  temperatura nem tabela de fabricante: o que ele compara é o maior RPM que a
+  ventoinha já deu (com a temperatura do mesmo instante) contra o RPM de agora.
+  Nenhum número inventado entra no caminho — e o teste garante isso.
+- **O sinal de degradação tem três travas, e as três moram no núcleo puro**
+  (`VentoinhaRegras`): o RPM precisa estar **pelo menos 20% abaixo** do
+  recorde, a temperatura de agora precisa ser **igual ou maior** que a do
+  recorde, e a condição precisa valer **5 minutos seguidos**. A perda é
+  calculada como *diferença dividida pelo recorde*: subtrair depois
+  ("1 - rpm/recorde") arredonda o limite de 20% para baixo, e o app calava
+  exatamente no limite que ele promete acusar. E sem tempo medido não há
+  persistência provada — o selo de degradação não sai. A trava mora no núcleo,
+  e não em quem consome o veredito.
+- **O recorde só sobe, e a temperatura dele só sobe com medida.** Um recorde
+  novo lido sem temperatura (a referência da CPU/GPU não foi lida naquele
+  instante) não apaga a temperatura que já foi medida: perder um fato medido é
+  pior do que uma temperatura um pouco mais antiga.
+- **A fonte da temperatura de referência sai do tipo do hardware dono**
+  (medido na biblioteca 0.9.6 do LibreHardwareMonitor): `SuperIO`,
+  `Motherboard`, `Cooler` e `EmbeddedController` → CPU; `GpuNvidia`, `GpuAmd` e
+  `GpuIntel` → GPU; o resto → nenhuma. Ventoinha de disco não tem referência,
+  e o app não compara.
+- **"Não tem" e "não deu para resolver" são frases diferentes.** O registro da
+  ventoinha vem do banco, mas a fonte da temperatura só é resolvida na
+  primeira leitura do ciclo: até lá, o cartão diz que a fonte **ainda não foi
+  resolvida** — ele não afirma que a ventoinha não tem referência.
+- **O piso de 300 RPM.** Uma ventoinha que nunca passou de 300 RPM não tem
+  histórico que sustente um veredito: o cartão diz "sem histórico" e diz o
+  porquê. E sensor sem valor não entra como "0 RPM": não deu para ler é
+  diferente de zero.
+- **A base do dia vem do banco antes da medição.** O app pode ser fechado e
+  aberto várias vezes no mesmo dia: sem a base, cada abertura reescreveria o
+  agregado do dia pela metade e o histórico da manhã desapareceria sem aviso.
+  Medido no PC do dono em 09/11/2026: com a base, o dia foi de 495 para 506
+  amostras na primeira gravação depois de reabrir o app.
+- **O recorde não tem prazo de poda; o agregado do dia tem 30.** O recorde é
+  uma linha por ventoinha e é justamente o que precisa sobrar quando o
+  histórico diário passa. A poda do dia não pode usar `.Date`: com ele, o app
+  guardava 31 dias.
+- **A ventoinha é regra de alerta como qualquer outro sensor** (a chave é
+  `ventoinha:<id>`), e a vigia só inclui as que estão dando leitura.
+- **O número da tela sai de um lugar só** (`NumeroTexto`): vírgula decimal e
+  ponto de milhar, aconteça o que acontecer com a cultura do Windows. Número
+  que não é finito vira "—" — nunca um número inventado.
+
 ## Publicar
 
 ```powershell
@@ -504,6 +549,10 @@ auto-update procura.
 | `UsoHistorico.cs` / `UsoJanela.cs` / `UsoAmostrador.cs` | O histórico de uso: a gravação da troca de programa no banco, a leitura da janela em foco (user32) e o amostrador que grava só na troca de programa. |
 | `TrafegoRegras.cs` / `ColetorTrafego.cs` | O tráfego de internet por programa: a regra pura (ranking, bytes, textos do cartão) e o coletor que mede pela ETW do kernel. |
 | `Banco.cs` | O banco de dados do histórico: esquema, migração do CSV antigo, consulta por período, contagem, poda e a rotina de reparo (que guarda a cópia do banco estragado). |
+| `VentoinhaRegras.cs` | A regra pura do desgaste da ventoinha: o recorde, o veredito, as três travas e todos os textos da tela. |
+| `MonitorVentoinhas.cs` | A coleta das ventoinhas: a leitura de cada uma, o recorde em memória, o agregado do dia e a gravação no banco. |
+| `NumeroTexto.cs` | A formatação de todo número e data da tela (um lugar só, independente da cultura do Windows). |
+| `MainWindow.Ventoinhas.cs` | A página TRANAL VENTOINHAS: os cartões e o "RPM com o tempo". |
 | `Leitura.cs` | A leitura de um histórico: as linhas lidas e se a leitura ficou completa (a mesma regra para o CSV antigo e para o banco). |
 | `InstanciaUnica.cs` | A trava de instância única: o app não sobe duas vezes, e a linha de comando só repara o histórico com o app fechado. |
 | `Sqlite.cs` / `SqliteLinha.cs` | O acesso ao SQLite do Windows por P/Invoke (`winsqlite3.dll`), sem dependência nova, e a linha tipada da consulta. |

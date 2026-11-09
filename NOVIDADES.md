@@ -1,3 +1,58 @@
+## Novidades da v0.30 — o TRANAL VENTOINHAS diz se a ventoinha está gasta
+
+O TRANAL SENTINEL passa a acompanhar as **ventoinhas do PC**: o novo cartão
+**TRANAL VENTOINHAS** mostra o RPM de cada uma, o maior RPM que ela já deu (o
+**recorde**) e o veredito sobre o desgaste.
+
+**Novo · a página TRANAL VENTOINHAS**
+- O RPM de cada ventoinha da placa-mãe e da placa de vídeo, a temperatura de
+  referência de cada uma (a da CPU para a ventoinha da placa-mãe, a da GPU
+  para a da placa de vídeo) e o selo do veredito.
+- O **recorde** de cada ventoinha, com o instante e a temperatura em que ele
+  aconteceu — e o máximo do dia, com a quantidade de medições.
+- O histórico **"RPM com o tempo"** dos últimos 30 dias, guardado no mesmo
+  banco do resto do histórico do PC.
+
+**Novo · a regra do desgaste (sem tabela de fabricante)**
+- O app compara a ventoinha **com ela mesma**: o maior RPM que ela já deu
+  (com a temperatura do mesmo instante) contra o RPM de agora. Não existe
+  "RPM esperado" de catálogo no app — ele não inventa número que ninguém
+  mediu.
+- O sinal de degradação tem **três travas**, e as três moram no mesmo lugar:
+  o RPM precisa estar **pelo menos 20% abaixo** do recorde, a temperatura de
+  agora precisa ser **igual ou maior** que a do recorde, e a condição precisa
+  valer **5 minutos seguidos**. Antes disso, o cartão diz **OBSERVANDO** e
+  diz há quanto tempo a queda apareceu.
+- Uma ventoinha que nunca passou de **300 RPM** não tem histórico que sustente
+  um veredito: o cartão diz **SEM HISTÓRICO** e explica o porquê. E uma
+  ventoinha sem leitura (o sensor que não devolve valor) não entra como
+  "0 RPM" — não deu para ler é diferente de zero.
+- A ventoinha também virou **regra de alerta**: na aba de alertas e na vigia da
+  bandeja, dá para escolher "ventoinha" e o limite de RPM. A vigia só inclui as
+  ventoinhas que estão dando leitura.
+
+**Correções (achadas rodando o app de verdade e nas revisões adversariais)**
+- O limite de 20% calava **exatamente no limite**: a conta arredondava para
+  baixo, e uma ventoinha 20% abaixo do recorde era dada como saudável.
+- A trava dos 5 minutos podia ser furada por quem consumisse o veredito: ela
+  foi para dentro do núcleo, junto com as outras regras.
+- O cartão dizia **"sem temperatura de referência"** antes da primeira leitura
+  do ciclo — quando o app ainda não tinha resolvido de onde vem a
+  temperatura. Agora ele diz que a fonte **ainda não foi resolvida**.
+- Um recorde novo lido sem temperatura **apagava** a temperatura que já tinha
+  sido medida: o app voltava a "sem comparação" sem que nada estivesse errado
+  com a ventoinha.
+- O **agregado do dia** começava do zero quando o app era reaberto no mesmo
+  dia, e a gravação seguinte reescrevia o dia pela metade. Medido no PC do
+  dono em 09/11/2026: com a correção, o dia foi de 495 para 506 amostras na
+  primeira gravação depois de reabrir o app — o histórico da manhã continua
+  lá.
+- A contagem das ventoinhas com recorde não aparecia em lugar nenhum: ela
+  agora sai no **TRANAL SAÚDE** e no relatório da linha de comando.
+- O histórico mostrava o identificador cru ("ITE IT8655E|Fan #1") quando o
+  registro da ventoinha se perdia; agora mostra o nome do sensor.
+- A poda do histórico diário guardava **31 dias** em vez de 30.
+
 ## Novidades da v0.29 — o TRANAL REDE agora diz quanto cada programa usou a internet
 
 O TRANAL SENTINEL passa a medir o **tráfego de internet por programa**: o
