@@ -67,7 +67,14 @@ TRANAL SAÚDE
   banco se ele estiver estragado - o banco velho é guardado como cópia
   datada na mesma pasta, e o botão RESTAURAR CÓPIA desfaz. Pela linha de
   comando: TranalSentinel.exe --banco (e --banco --reparar --confirmar - o
-  reparo pela linha de comando precisa da confirmação).
+  reparo pela linha de comando precisa da confirmação e precisa do
+  TRANAL SENTINEL fechado: com o programa aberto, o Windows segura o
+  arquivo do banco e a troca não dá certo).
+- Se a importação do histórico antigo (os arquivos CSV) ficar pela meio -
+  o antivírus com o arquivo aberto, o disco cheio -, o cartão do banco
+  avisa que parte do histórico pode não ter entrado, e o app tenta de novo
+  na abertura seguinte. O histórico que não entrou não é dado como
+  perdido em silêncio.
 
 TRANAL MEMÓRIA
 - No menu lateral, grupo "TRANAL MEMÓRIA" -> aba "Módulos". Clique em LER MÓDULOS.

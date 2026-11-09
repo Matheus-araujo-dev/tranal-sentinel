@@ -16,6 +16,10 @@ verificação de integridade e uma rotina de reparo.
 - O que já existia em CSV (o log de sensores e o histórico de uso) foi
   importado na primeira vez que o banco foi aberto. **Os CSV antigos não foram
   apagados**: continuam no disco como cópia do histórico anterior.
+- A importação não passa em silêncio: se a leitura do CSV parar no meio (o
+  antivírus com o arquivo aberto, o disco cheio), o cartão do banco avisa que
+  parte do histórico pode não ter entrado, e o app tenta de novo na abertura
+  seguinte. O que não entrou não é dado como perdido em silêncio.
 - O histórico do uso continua sendo apagado depois de 30 dias, e o dos sensores
   depois de 15.
 - Pela linha de comando: `TranalSentinel.exe --banco` mostra o estado do
@@ -23,7 +27,8 @@ verificação de integridade e uma rotina de reparo.
   tem), e `--banco --reparar --confirmar` reconstrói o banco estragado. A
   confirmação é obrigatória: trocar o arquivo do histórico é decisão do
   usuário, e uma linha de comando digitada sem querer não pode tomar essa
-  decisão.
+  decisão. O reparo também exige o TRANAL SENTINEL fechado: com o programa
+  aberto, o Windows segura o arquivo do banco e a troca não dá certo.
 
 **Novo · verificação e reparo no TRANAL SAÚDE**
 - O TRANAL SAÚDE ganhou o cartão **BANCO DE DADOS DO HISTÓRICO**: o estado do
@@ -39,6 +44,9 @@ verificação de integridade e uma rotina de reparo.
   relato diz que o banco novo começa vazio, e a cópia antiga continua no disco.
   E quando a contagem do banco velho não dá para fazer, o relato diz isso — em
   vez de dizer que não se perdeu nada.
+- O banco reconstruído guarda a marca de "o CSV já entrou": sem ela, a próxima
+  abertura importaria o histórico antigo de novo, por cima do que o reparo
+  acabou de recuperar.
 
 **O que continua igual**
 - A aba TRANAL USO mostra as mesmas coisas (tempo de tela, sessões mais longas,
