@@ -277,6 +277,24 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
 - **A perda é contada por tabela.** Cada tabela tem a sua contagem e o seu
   "não deu para contar": uma contagem que falhou não pode apagar a conta
   da outra tabela (`Banco.RelatoDaPerda`, que é pura e testada).
+- **A conta dos pacotes descartados é por dia.** A sessão do Windows conta
+  os descartes desde que ela subiu, e esse número só cresce: usado como
+  está, o dia novo nasce com os descartes do dia anterior — e o dia velho
+  recebe os do dia novo. Cada leitura compara o total da sessão com o da
+  leitura passada, e a diferença vai para o dia em que ela foi vista
+  (`ColetorTrafego.EventosPerdidosDoDia`).
+- **O total do dia é gravado também quando o app fecha.** O relógio grava a
+  cada dez segundos, e o app pode fechar entre um tique e outro: o
+  tráfego desses segundos (e o que ainda estava na fila do kernel) seria
+  perdido **em silêncio**. A última gravação acontece no `Closed`, depois
+  que a coleta para (`MainWindow.Net.GravarTrafegoFinal`).
+- **A consulta ao Windows sobre o processo fica fora da trava da coleta.**
+  `Process.GetProcessById` é lento: dentro da trava ela pararia a fila de
+  pacotes da ETW (o total sairia menor do que o real, sem aviso) e a
+  montagem do cartão na tela. O nome é resolvido fora da trava, e o
+  ranking usa o nome já guardado (`ColetorTrafego.NomeEmCache`); a
+  conferência periódica (o Windows reusa o número do processo) roda na
+  thread de fundo.
 - **A verificação de integridade é uma só: a completa (`integrity_check`).**
   A rápida (`quick_check`) foi descartada porque ela não confere o conteúdo
   dos índices contra o das tabelas — e o esquema tem dois índices na tabela

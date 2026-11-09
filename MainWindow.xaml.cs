@@ -146,7 +146,14 @@ public partial class MainWindow : Window
             // A coleta do tráfego para junto com a janela: a sessão do
             // kernel é do sistema, e deixar ela viva (com o app fechado)
             // ocuparia memória e continuaria contando pacotes de nada.
+            // A coleta para ANTES da ultima gravacao: a fila do kernel
+            // ainda tem pacotes esperando, e eles sao trafego de verdade.
             _trafego.Dispose();
+
+            // E o total do dia e gravado por ultimo: sem isso, o trafego
+            // medido nos ultimos segundos (e o que estava na fila) seria
+            // perdido sem aviso.
+            GravarTrafegoFinal();
             UnregisterHotKey(new System.Windows.Interop.WindowInteropHelper(this).Handle, HotkeyId);
             ShutdownInteg();
             _launchCts?.Cancel();

@@ -64,6 +64,9 @@ public sealed class ColetorTrafego : IDisposable
     /// <summary>Quanto tempo a coleta espera, ao ser desligada, para os últimos pacotes saírem da fila.</summary>
     private static readonly TimeSpan DrenagemAoParar = TimeSpan.FromMilliseconds(400);
 
+    /// <summary>De quanto em quanto tempo o nome dos processos é conferido de novo.</summary>
+    private static readonly TimeSpan IntervaloDaConferencia = TimeSpan.FromSeconds(30);
+
     private readonly object _tranca = new();
 
     /// <summary>O que a coleta mediu, por dia e por processo.</summary>
@@ -82,6 +85,12 @@ public sealed class ColetorTrafego : IDisposable
     private TraceEventSession? _sessao;
     private Thread? _thread;
 
+    /// <summary>A thread de fundo que confere os nomes dos processos.</summary>
+    private Thread? _threadConferencia;
+
+    /// <summary>Pede para a conferência de nomes parar.</summary>
+    private volatile bool _pararConferencia;
+
     /// <summary>O dia que a coleta está medindo agora.</summary>
     private DateTime _dia = DateTime.Today;
 
@@ -89,6 +98,24 @@ public sealed class ColetorTrafego : IDisposable
     private DateTime _diaChecadoEm = DateTime.MinValue;
 
     private long _eventosPerdidos;
+
+    /// <summary>
+    /// Os pacotes descartados, separados por dia.
+    ///
+    /// <para>
+    /// A sessão do Windows conta os descartes desde que ela subiu, e esse
+    /// número só cresce. Usado como está, o dia novo nasceria com os
+    /// descartes do dia anterior — e o dia velho receberia os do dia novo.
+    /// </para>
+    /// </summary>
+    private readonly Dictionary<DateTime, long> _perdidosPorDia = new();
+
+    /// <summary>
+    /// O total de descartos da sessão na última leitura — é por ele que se
+    /// sabe o que é novo desde a leitura passada.
+    /// </summary>
+    private long _perdidosLidos;
+
     private string? _erro;
 
     /// <summary>A coleta está rodando.</summary>
@@ -104,7 +131,7 @@ public sealed class ColetorTrafego : IDisposable
     }
 
     /// <summary>
-    /// Quantos pacotes a coleta deixou de fora.
+    /// Quantos pacotes a coleta deixou de fora num dia.
     ///
     /// <para>
     /// A fila do log do kernel tem tamanho fixo: quando ela enche, o Windows
@@ -112,32 +139,59 @@ public sealed class ColetorTrafego : IDisposable
     /// foi o real — e o cartão avisa, em vez de mostrar um número que parece
     /// completo e não é.
     /// </para>
+    ///
+    /// <para>
+    /// <b>A conta é por dia.</b> A sessão do Windows conta os descartes desde
+    /// que ela subiu, e o número só cresce. Cada leitura compara o total da
+    /// sessão com o da leitura passada, e a diferença vai para o dia em que
+    /// ela foi vista — assim o dia novo não nasce com os descartes do dia
+    /// anterior, nem o dia velho recebe os do dia novo.
+    /// </para>
     /// </summary>
-    public long EventosPerdidos
+    /// <param name="dia">O dia que se quer saber.</param>
+    public long EventosPerdidosDoDia(DateTime dia)
     {
-        get
+        lock (_tranca)
         {
-            lock (_tranca)
-            {
-                var sessao = _sessao;
-                if (sessao != null)
-                {
-                    try
-                    {
-                        long perdidos = sessao.EventsLost;
-                        if (perdidos > _eventosPerdidos) _eventosPerdidos = perdidos;
-                    }
-                    catch (Exception)
-                    {
-                        // A sessão pode já estar morta: o último valor
-                        // guardado continua valendo — e é o lado seguro
-                        // (o número só cresce).
-                    }
-                }
+            long acumulado = LerEventosPerdidos();
+            long novos = acumulado - _perdidosLidos;
+            _perdidosLidos = acumulado;
 
-                return _eventosPerdidos;
+            if (novos > 0)
+            {
+                DateTime hj = DateTime.Now.Date;
+                _perdidosPorDia.TryGetValue(hj, out var doDia);
+                _perdidosPorDia[hj] = doDia + novos;
+            }
+
+            _perdidosPorDia.TryGetValue(dia.Date, out var valor);
+            return valor;
+        }
+    }
+
+    /// <summary>
+    /// O total de descartos da sessão do Windows, do jeito mais alto que já
+    /// foi possível ler.
+    /// </summary>
+    private long LerEventosPerdidos()
+    {
+        var sessao = _sessao;
+        if (sessao != null)
+        {
+            try
+            {
+                long perdidos = sessao.EventsLost;
+                if (perdidos > _eventosPerdidos) _eventosPerdidos = perdidos;
+            }
+            catch (Exception)
+            {
+                // A sessão pode já estar morta: o último valor
+                // guardado continua valendo — e é o lado seguro
+                // (o número só cresce).
             }
         }
+
+        return _eventosPerdidos;
     }
 
     /// <summary>O dia que a coleta está medindo agora.</summary>
@@ -169,7 +223,7 @@ public sealed class ColetorTrafego : IDisposable
             {
                 foreach (var par in medido)
                 {
-                    string nome = NomeDoProcesso(par.Key);
+                    string nome = NomeEmCache(par.Key);
                     var atual = porNome.TryGetValue(nome, out var v) ? v : (Nome: nome, Enviados: 0L, Recebidos: 0L);
                     porNome[nome] = (atual.Nome, atual.Enviados + par.Value.Enviados, atual.Recebidos + par.Value.Recebidos);
                 }
@@ -246,15 +300,26 @@ public sealed class ColetorTrafego : IDisposable
     {
         DateTime agora = DateTime.Now;
 
-        if (_nomes.TryGetValue(pid, out var guardado) && agora - guardado.Checado < IntervaloDoNome)
-            return guardado.Nome;
-
         // O nome guardado pode ser NULO: um processo que já morreu antes de
         // ser perguntado deixa o cache sem nome nenhum. Sem esta guarda, o
         // nome nulo ia para o dicionário do ranking — e um dicionário não
         // aceita chave nula: a exceção derrubava o app inteiro.
-        string nome = guardado.Nome ?? "(encerrado)";
+        string nome = "(encerrado)";
 
+        lock (_tranca)
+        {
+            if (_nomes.TryGetValue(pid, out var guardado))
+            {
+                if (agora - guardado.Checado < IntervaloDoNome)
+                    return string.IsNullOrEmpty(guardado.Nome) ? "(encerrado)" : guardado.Nome;
+
+                if (!string.IsNullOrEmpty(guardado.Nome)) nome = guardado.Nome;
+            }
+        }
+
+        // A consulta ao Windows fica FORA da trava: ela é lenta, e dentro
+        // da trava pararia a fila de pacotes da coleta (o total sairia
+        // menor do que foi o real) e a montagem do cartão na tela.
         try
         {
             using var processo = Process.GetProcessById(pid);
@@ -276,8 +341,34 @@ public sealed class ColetorTrafego : IDisposable
             // continua sendo contado.
         }
 
-        _nomes[pid] = (nome, agora);
+        lock (_tranca) _nomes[pid] = (nome, agora);
         return nome;
+    }
+
+    /// <summary>
+    /// O nome do processo, só do que já está guardado.
+    ///
+    /// <para>
+    /// Não pergunta nada ao Windows: a montagem do cartão acontece na
+    /// thread da tela, e perguntar o nome de cada processo do dia a cada
+    /// leitura travaria a janela. O nome é resolvido quando o pacote chega
+    /// (fora do travamento), e a conferência periódica acontece na thread
+    /// de fundo.
+    /// </para>
+    ///
+    /// <para>
+    /// O nome <b>nunca</b> é nulo: um processo que ninguém perguntou ainda
+    /// vira "(desconhecido)".
+    /// </para>
+    /// </summary>
+    internal string NomeEmCache(int pid)
+    {
+        lock (_tranca)
+        {
+            return _nomes.TryGetValue(pid, out var guardado) && !string.IsNullOrEmpty(guardado.Nome)
+                ? guardado.Nome
+                : "(desconhecido)";
+        }
     }
 
     /// <summary>
@@ -335,6 +426,14 @@ public sealed class ColetorTrafego : IDisposable
             })
             { IsBackground = true, Name = "ETW trafego" };
             _thread.Start();
+
+            // A conferência dos nomes roda na thread de fundo: perguntar ao
+            // Windows o nome de cada processo na thread da tela travaria a
+            // janela a cada leitura.
+            _pararConferencia = false;
+            _threadConferencia = new Thread(ConferirNomes)
+            { IsBackground = true, Name = "conferencia de nomes" };
+            _threadConferencia.Start();
         }
         catch (UnauthorizedAccessException)
         {
@@ -360,6 +459,8 @@ public sealed class ColetorTrafego : IDisposable
     {
         if (pid <= 0 || tamanho <= 0) return;
 
+        bool nomeDesconhecido;
+
         lock (_tranca)
         {
             DateTime dia = DiaDeAgora();
@@ -378,8 +479,13 @@ public sealed class ColetorTrafego : IDisposable
 
             // O nome é resolvido na primeira vez (o processo pode fechar
             // depois, e aí não há mais quem pergunte).
-            if (!_nomes.ContainsKey(pid)) NomeDoProcesso(pid);
+            nomeDesconhecido = !_nomes.ContainsKey(pid);
         }
+
+        // A pergunta ao Windows sobre o processo fica FORA do travamento:
+        // dentro dele, uma leitura lenta pararia a fila de pacotes da
+        // coleta — e o total sairia menor do que foi o real, sem aviso.
+        if (nomeDesconhecido) NomeDoProcesso(pid);
     }
 
     /// <summary>
@@ -404,9 +510,46 @@ public sealed class ColetorTrafego : IDisposable
         return _dia;
     }
 
+    /// <summary>
+    /// Confere de tempos em tempos o nome dos processos que já foram vistos.
+    ///
+    /// <para>
+    /// O Windows reusa o número do processo: um programa novo que pegasse o
+    /// PID de um velho continuaria sendo creditado ao nome do velho. A
+    /// conferência acontece na thread de fundo — e só olha os processos do
+    /// dia de agora, que são os que ainda podem estar vivos.
+    /// </para>
+    /// </summary>
+    private void ConferirNomes()
+    {
+        while (!_pararConferencia)
+        {
+            try { Thread.Sleep(IntervaloDaConferencia); }
+            catch (ThreadInterruptedException) { return; }
+
+            if (_pararConferencia) return;
+
+            int[] pids;
+            lock (_tranca)
+            {
+                pids = _medido.TryGetValue(DiaDeAgora(), out var doDia)
+                    ? doDia.Keys.ToArray()
+                    : Array.Empty<int>();
+            }
+
+            foreach (int pid in pids)
+            {
+                if (_pararConferencia) return;
+                NomeDoProcesso(pid);
+            }
+        }
+    }
+
     /// <summary>Desliga a coleta e fecha a sessão ETW.</summary>
     public void Parar()
     {
+        _pararConferencia = true;
+
         TraceEventSession? sessao = _sessao;
         _sessao = null;
         Thread? thread = _thread;

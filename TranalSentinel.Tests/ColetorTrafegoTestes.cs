@@ -132,6 +132,69 @@ public class ColetorTrafegoTestes
     }
 
     [Fact]
+    public void EventosPerdidosDoDia_DeUmDiaSemDescarte_Zero()
+    {
+        using var coletor = new ColetorTrafego();
+
+        // Um dia que a coleta não descartou nada é zero — e não é o total
+        // acumulado da sessão, que contaria os descartes de outros dias.
+        Assert.Equal(0, coletor.EventosPerdidosDoDia(Dia));
+        Assert.Equal(0, coletor.EventosPerdidosDoDia(Dia.AddDays(-1)));
+    }
+
+    [Fact]
+    public void EventosPerdidosDoDia_NuncaVolta()
+    {
+        using var coletor = new ColetorTrafego();
+
+        // A conta dos descartes só cresce: o total da sessão é lido a cada
+        // vez, e o número guardado não volta atrás.
+        long primeiro = coletor.EventosPerdidosDoDia(Dia);
+        long segundo = coletor.EventosPerdidosDoDia(Dia);
+
+        Assert.Equal(primeiro, segundo);
+        Assert.True(segundo >= 0);
+    }
+
+    [Fact]
+    public void NomeEmCache_DeProcessoQueNaoExiste_NaoDevolveNulo()
+    {
+        using var coletor = new ColetorTrafego();
+
+        // O ranking usa o nome já guardado (sem perguntar ao Windows): um
+        // nome nulo derrubaria o app no dicionário.
+        string nome = coletor.NomeEmCache(999999);
+
+        Assert.False(string.IsNullOrEmpty(nome));
+        Assert.Equal("(desconhecido)", nome);
+    }
+
+    [Fact]
+    public void NomeEmCache_DepoisDeConhecerOProcesso_DevolveONome()
+    {
+        using var coletor = new ColetorTrafego();
+
+        // Depois que o nome foi resolvido, o cache devolve o mesmo nome.
+        string resolvido = coletor.NomeDoProcesso(Environment.ProcessId);
+        string emCache = coletor.NomeEmCache(Environment.ProcessId);
+
+        Assert.Equal(resolvido, emCache);
+        Assert.NotEqual("(desconhecido)", emCache);
+    }
+
+    [Fact]
+    public void NomeEmCache_DeProcessoQueNaoExiste_NuncaViraNulo()
+    {
+        using var coletor = new ColetorTrafego();
+
+        // Mesmo depois de uma tentativa (que devolve "(encerrado)"), o
+        // cache devolve um nome utilizável — nunca nulo.
+        coletor.NomeDoProcesso(999999);
+
+        Assert.False(string.IsNullOrEmpty(coletor.NomeEmCache(999999)));
+    }
+
+    [Fact]
     public void Parar_ComAColetaDesligada_NaoLanca()
     {
         using var coletor = new ColetorTrafego();

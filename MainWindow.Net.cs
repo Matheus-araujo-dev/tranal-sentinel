@@ -322,7 +322,7 @@ public partial class MainWindow
 
             long perdidos = _trafegoPerdidosDesconhecidos
                 ? -1
-                : _trafegoPerdidosBase + _trafego.EventosPerdidos;
+                : _trafegoPerdidosBase + _trafego.EventosPerdidosDoDia(dia);
 
             string? aviso = null;
             if (!_trafegoGravavel)
@@ -415,7 +415,39 @@ public partial class MainWindow
             Banco.GravarTrafego(dia, numeros);
 
         if (!_trafegoPerdidosDesconhecidos)
-            Banco.GravarTrafegoPerdidos(dia, _trafegoPerdidosBase + _trafego.EventosPerdidos);
+            Banco.GravarTrafegoPerdidos(dia, _trafegoPerdidosBase + _trafego.EventosPerdidosDoDia(dia));
+    }
+
+    /// <summary>
+    /// Grava o total do dia quando o app está fechando.
+    ///
+    /// <para>
+    /// O relógio grava a cada dez segundos, e o app pode fechar entre um
+    /// tique e outro: o tráfego desses segundos seria perdido sem aviso.
+    /// Esta gravação é a última — e ela não pode impedir o fechamento.
+    /// </para>
+    /// </summary>
+    private void GravarTrafegoFinal()
+    {
+        try
+        {
+            if (!_trafegoGravavel) return;
+
+            DateTime hoje = DateTime.Today;
+
+            if (hoje != _trafegoDiaGravado)
+            {
+                GravarDiaDoTrafego(_trafegoDiaGravado);
+                _trafegoDiaGravado = hoje;
+            }
+
+            GravarDiaDoTrafego(hoje);
+        }
+        catch (Exception)
+        {
+            // O app está fechando: a falha na última gravação não pode
+            // impedir o fechamento (e o cartão já dizia o que deu errado).
+        }
     }
 
     /// <summary>
