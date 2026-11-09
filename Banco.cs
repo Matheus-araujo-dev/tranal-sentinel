@@ -817,11 +817,6 @@ public static class Banco
 
             if (amostras.Count > 0 || trocas.Count > 0)
             {
-                // O cache do SQLite é maior durante a importação: com o
-                // cache padrão (2 MB) o banco de 37 MB não cabe, e cada
-                // página ia para o disco e voltava a cada linha. Medido:
-                // a migração de 260 mil linhas caiu de 4,2 s para 2,4 s.
-
                 bool fechou = banco.EmTransacao(b =>
                 {
                     // A versão é conferida de novo dentro da transação: o
@@ -858,12 +853,8 @@ public static class Banco
                     // migração é tentada de novo na próxima abertura (a
                     // versão do esquema continua atrás).
                     _estado = "Não foi possível migrar o histórico antigo para o banco de dados.";
-                        return;
+                    return;
                 }
-
-                // O cache volta ao tamanho normal: o app não precisa de
-                // 64 MB de memória para gravar uma amostra de 5 em 5
-                // segundos.
             }
             else
             {
