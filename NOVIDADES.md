@@ -1,3 +1,42 @@
+## Novidades da v0.29 — o TRANAL REDE agora diz quanto cada programa usou a internet
+
+O TRANAL SENTINEL passa a medir o **tráfego de internet por programa**: o
+cartão **TRÁFEGO DE HOJE**, na aba Rede, diz quanto cada programa enviou e
+recebeu pela rede, e o histórico dos últimos 30 dias fica guardado no mesmo
+banco do resto do histórico do PC.
+
+**Novo · o cartão do tráfego**
+- O total do dia, o ranking dos programas (até 10), e o detalhamento de
+  quanto cada um **recebeu** e quanto **enviou**.
+- O seletor de **DIA** mostra os dias que têm histórico: o número de um dia
+  que passou vem do banco, e o de hoje vem da medição que está rodando.
+- O histórico fica **neste computador** e nada sai daqui.
+
+**Novo · a medição (pelo próprio Windows)**
+- A leitura é feita pela ETW do kernel — a mesma fonte que o Monitor de
+  Recursos do Windows usa. O app **não ganha dependência nova**.
+- Conta os bytes de cada pacote **TCP e UDP**, em **IPv4 e IPv6**, com o
+  processo dono de cada pacote. Os processos do mesmo programa são somados
+  pelo nome (o Chrome abre um processo por aba).
+- Medido no PC do dono em 09/11/2026: **100 MB baixados apareceram como
+  105.006.683 bytes** — a diferença de **+0,14%** são os cabeçalhos TCP/IP,
+  que também são tráfego. O cartão diz isso na tela em vez de esconder.
+- Quando a fila do Windows descarta algum pacote, o app **conta quantos
+  foram** e avisa no cartão: o total é menor do que foi o real, e a tela
+  diz isso.
+- A ETW precisa de administrador. O TRANAL SENTINEL já pede administrador ao
+  abrir — e, se um dia subir sem, o cartão explica o motivo em vez de
+  mostrar um zero que parece "não teve tráfego".
+
+**Correções (achadas olhando a tela e rodando o app de verdade)**
+- O seletor de dia mostrava o registro inteiro (`OpcaoDia { Data = ... }`) em
+  vez do dia. Isso valia também para a aba TRANAL USO e para a de alertas, que
+  já estavam publicadas. O rótulo do dia agora mora em um lugar só, e as
+  páginas falam do mesmo dia do mesmo jeito.
+- Um programa que fechava no meio da medição derrubava o app (o nome do
+  processo chegava vazio no ranking). Agora ele não derruba mais, e a
+  medição continua.
+
 ## Novidades da v0.28 — o histórico do TRANAL SENTINEL agora mora num banco de verdade
 
 Até a v0.27 o histórico (o que o PC estava fazendo e qual programa estava em

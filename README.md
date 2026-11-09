@@ -531,6 +531,7 @@ um `.exe` em uso.
 - ✔ TRANAL COMPARAR: os benchmarks de um PC lado a lado com os de outro (v0.26)
 - ✔ TRANAL USO: tempo de tela por programa, "quem fez o calor" e o "por que disparou" de cada alerta (v0.27)
 - ✔ Banco de dados do histórico em SQLite (sem dependência nova), com verificação de integridade, reparo e restauração da cópia (v0.28)
+- ✔ TRANAL REDE: tráfego de internet por programa, medido pelo próprio Windows, com histórico de 30 dias (v0.29)
 
 ## Próximas ideias
 - Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina

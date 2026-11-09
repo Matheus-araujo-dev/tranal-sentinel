@@ -65,6 +65,18 @@ public static class Banco
     private const string InsertUso =
         "INSERT OR IGNORE INTO uso (momento, processo, titulo) VALUES (?, ?, ?)";
 
+    /// <summary>
+    /// O INSERT do tráfego por programa. O mesmo em toda gravação.
+    /// </summary>
+    private const string InsertTrafego =
+        "INSERT OR REPLACE INTO trafego (dia, processo, enviado, recebido) VALUES (?, ?, ?, ?)";
+
+    /// <summary>
+    /// O INSERT dos pacotes descartados por dia. O mesmo em toda gravação.
+    /// </summary>
+    private const string InsertTrafegoPerdidos =
+        "INSERT OR REPLACE INTO trafego_perdidos (dia, perdidos) VALUES (?, ?)";
+
     private static readonly object Tranca = new();
 
     private static Sqlite? _instancia;
@@ -1284,6 +1296,10 @@ public static class Banco
             bool falhouAmostras = false;
             bool falhouUsos = false;
 
+            // O tráfego lido do banco estragado (vê o registro
+            // <see cref="TrafegoDoReparo"/>).
+            var trafego = new TrafegoDoReparo(new List<object?[]>(), new List<object?[]>(), -1, -1, false, false, false, false);
+
             // A versão do esquema do banco velho é lida ANTES de
             // descartar a instância: o banco novo precisa da mesma
             // versão. Sem ela, a próxima abertura importaria o CSV de
@@ -1301,12 +1317,19 @@ public static class Banco
                     "SELECT momento, cpu_temp, cpu_carga, cpu_consumo, cpu_clock, gpu_temp, gpu_carga, gpu_clock, gpu_vram, ram_uso, disco_leitura, disco_escrita FROM amostras",
                     out falhouAmostras);
                 usos = LerLinhas(b, "SELECT momento, processo, titulo FROM uso", out falhouUsos);
+
+                // O tráfego: as tabelas podem não existir (um banco de antes
+                // da v0.29). Isso não é falha de leitura — é "não tinha
+                // tráfego guardado". Sem esta distinção, o reparo de um
+                // banco antigo seria cancelado, e o histórico de tráfego
+                // seria perdido sem o relato dizer nada.
+                trafego = LerTrafegoDoReparo(b);
             });
 
             // A leitura falhou (ou a transação): o reparo não pode trocar
             // o arquivo achando que leu tudo — e o que faltar tem que
             // aparecer no relato.
-            bool leituraFalhou = !leu || falhouAmostras || falhouUsos;
+            bool leituraFalhou = !leu || falhouAmostras || falhouUsos || trafego.FalhouTrafegos || trafego.FalhouPerdidos;
 
             // O arquivo que nem é um banco não tem nada a ler: reconstruí-lo
             // é o único caminho. Qualquer outro problema (banco trancado,
@@ -1329,7 +1352,7 @@ public static class Banco
             _instancia = null;
             _ultimaTentativa = DateTime.MinValue;
 
-            return Reconstruir(amostras, usos, integridade, totalAmostras, totalUso, versaoEsquema);
+            return Reconstruir(amostras, usos, trafego, integridade, totalAmostras, totalUso, versaoEsquema);
         }
     }
 
@@ -1453,10 +1476,81 @@ public static class Banco
     }
 
     /// <summary>
+    /// O que o reparo leu da parte do tráfego: as linhas de cada tabela, as
+    /// contagens e se a leitura deu para ser feita.
+    ///
+    /// <para>
+    /// As contagens são -1 quando a tabela não existe no banco velho (um
+    /// banco de antes da v0.29) — e nesse caso não houve perda: nunca
+    /// houve tráfego guardado ali.
+    /// </para>
+    /// </summary>
+    private sealed record TrafegoDoReparo(
+        List<object?[]> Trafegos,
+        List<object?[]> Perdidos,
+        long TotalTrafegos,
+        long TotalPerdidos,
+        bool FalhouTrafegos,
+        bool FalhouPerdidos,
+        bool TinhaTabelaTrafegos,
+        bool TinhaTabelaPerdidos);
+
+    /// <summary>
+    /// Lê as tabelas do tráfego do banco estragado.
+    ///
+    /// <para>
+    /// Uma tabela que não existe é "não tinha tráfego guardado", e não uma
+    /// leitura que falhou: os bancos anteriores à v0.29 não têm essas
+    /// tabelas, e o reparo deles não pode ser cancelado por causa disso.
+    /// </para>
+    /// </summary>
+    private static TrafegoDoReparo LerTrafegoDoReparo(Sqlite banco)
+    {
+        var trafegos = new List<object?[]>();
+        var perdidos = new List<object?[]>();
+
+        long totalTrafegos = 0;
+        long totalPerdidos = 0;
+        bool falhouTrafegos = false;
+        bool falhouPerdidos = false;
+
+        bool tinhaTabelaTrafegos = TabelaExiste(banco, "trafego");
+        bool tinhaTabelaPerdidos = TabelaExiste(banco, "trafego_perdidos");
+
+        if (tinhaTabelaTrafegos)
+        {
+            totalTrafegos = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM trafego");
+            trafegos = LerLinhas(banco, "SELECT dia, processo, enviado, recebido FROM trafego", out falhouTrafegos);
+        }
+
+        if (tinhaTabelaPerdidos)
+        {
+            totalPerdidos = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM trafego_perdidos");
+            perdidos = LerLinhas(banco, "SELECT dia, perdidos FROM trafego_perdidos", out falhouPerdidos);
+        }
+
+        return new TrafegoDoReparo(trafegos, perdidos, totalTrafegos, totalPerdidos,
+            falhouTrafegos, falhouPerdidos, tinhaTabelaTrafegos, tinhaTabelaPerdidos);
+    }
+
+    /// <summary>
+    /// True quando a tabela existe no banco. A pergunta vai ao esquema: o
+    /// erro do SQLite ("no such table") diria o mesmo que uma leitura que
+    /// quebrou no meio, e as duas coisas precisam ser diferentes.
+    /// </summary>
+    private static bool TabelaExiste(Sqlite banco, string tabela)
+    {
+        var linhas = banco.Consultar(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", tabela);
+
+        return linhas.Count > 0;
+    }
+
+    /// <summary>
     /// Cria um banco novo e copia o que foi lido do velho. Devolve o
     /// relato do que se salvou.
     /// </summary>
-    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, string integridade, long totalAmostras, long totalUso, int versaoEsquema)
+    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, TrafegoDoReparo trafego, string integridade, long totalAmostras, long totalUso, int versaoEsquema)
     {
         string novoCaminho = Caminho + ".reparo";
 
@@ -1478,6 +1572,8 @@ public static class Banco
         // operações mentia para cima.
         long salvasAmostras = 0;
         long salvosUsos = 0;
+        long salvosTrafegos = 0;
+        long salvosPerdidos = 0;
         string? motivo = null;
 
         // As amostras têm colunas que podem ser nulas (o sensor que não
@@ -1485,6 +1581,11 @@ public static class Banco
         // colunas obrigatórias.
         var amostrasGravaveis = LinhasGravaveis(amostras, 12, 1);
         var usosGravaveis = LinhasGravaveis(usos, 3, 3);
+
+        // O tráfego: todas as colunas são obrigatórias (o dia, o programa e
+        // os dois totais), e a contagem dos pacotes descartados também.
+        var trafegosGravaveis = LinhasGravaveis(trafego.Trafegos, 4, 4);
+        var perdidosGravaveis = LinhasGravaveis(trafego.Perdidos, 2, 2);
 
         // O cancelamento é anotado e o reparo sai aqui: a limpeza do banco
         // novo acontece DEPOIS do `using`, com o handle do SQLite já
@@ -1535,6 +1636,23 @@ public static class Banco
                             throw new InvalidOperationException(motivo);
                         }
 
+                        // O tráfego vai junto: sem ele, o reparo trocaria
+                        // o histórico de rede por um histórico sem rede — e
+                        // o relato não contaria nada disso.
+                        int salvosTrafego = b.ExecutarEmLote(InsertTrafego, trafegosGravaveis);
+                        if (salvosTrafego != trafegosGravaveis.Count)
+                        {
+                            motivo = "só " + salvosTrafego + " de " + trafegosGravaveis.Count + " registros de tráfego entraram no banco novo";
+                            throw new InvalidOperationException(motivo);
+                        }
+
+                        int salvosPerdidos = b.ExecutarEmLote(InsertTrafegoPerdidos, perdidosGravaveis);
+                        if (salvosPerdidos != perdidosGravaveis.Count)
+                        {
+                            motivo = "só " + salvosPerdidos + " de " + perdidosGravaveis.Count + " contagens de pacotes descartados entraram no banco novo";
+                            throw new InvalidOperationException(motivo);
+                        }
+
                         // A versão do esquema vai junto com as linhas: sem
                         // ela, a próxima abertura acharia que o CSV nunca
                         // entrou e o importaria de novo — por cima do
@@ -1546,7 +1664,8 @@ public static class Banco
                         // sem a marca de "o CSV já entrou" — e o histórico
                         // antigo volta do CSV na próxima abertura, em vez
                         // de ficar para sempre fora do app.
-                        bool recuperouAlgo = amostrasGravaveis.Count > 0 || usosGravaveis.Count > 0;
+                        bool recuperouAlgo = amostrasGravaveis.Count > 0 || usosGravaveis.Count > 0
+                            || trafegosGravaveis.Count > 0 || perdidosGravaveis.Count > 0;
                         int versaoFinal = recuperouAlgo ? versaoEsquema : 0;
 
                         if (!b.Executar($"PRAGMA user_version = {versaoFinal}"))
@@ -1567,6 +1686,8 @@ public static class Banco
                     {
                         salvasAmostras = Contar(novo, "SELECT COUNT(*) AS total FROM amostras");
                         salvosUsos = Contar(novo, "SELECT COUNT(*) AS total FROM uso");
+                        salvosTrafegos = Contar(novo, "SELECT COUNT(*) AS total FROM trafego");
+                        salvosPerdidos = Contar(novo, "SELECT COUNT(*) AS total FROM trafego_perdidos");
                     }
                 }
             }
@@ -1591,8 +1712,8 @@ public static class Banco
         // Tinha linha para copiar e nenhuma entrou: alguma coisa deu errado
         // (disco cheio, arquivo trancado). Trocar o banco agora trocaria
         // histórico por um banco vazio — o cancelamento é mais honesto.
-        int lidas = amostras.Count + usos.Count;
-        if (lidas > 0 && salvasAmostras == 0 && salvosUsos == 0)
+        int lidas = amostras.Count + usos.Count + trafegosGravaveis.Count + perdidosGravaveis.Count;
+        if (lidas > 0 && salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0)
         {
             string resto = AvisoDoArquivoQueFicou(ApagarBancoNovo(novoCaminho), novoCaminho);
             return new ResultadoReparo(false,
@@ -1708,11 +1829,17 @@ public static class Banco
         // se perdeu — e ela precisa aparecer no relato.
         string relato =
             $"O banco estava com problema ({TraduzirIntegridade(integridade)}). " +
-            RelatoDoSalvo(salvasAmostras, salvosUsos);
+            RelatoDoSalvo(salvasAmostras, salvosUsos,
+                trafego.TinhaTabelaTrafegos ? salvosTrafegos : (long?)null,
+                trafego.TinhaTabelaPerdidos ? salvosPerdidos : (long?)null);
 
-        relato += RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos);
+        relato += RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos,
+            trafego.TinhaTabelaTrafegos ? trafego.TotalTrafegos : (long?)null,
+            trafego.TinhaTabelaTrafegos ? salvosTrafegos : (long?)null,
+            trafego.TinhaTabelaPerdidos ? trafego.TotalPerdidos : (long?)null,
+            trafego.TinhaTabelaPerdidos ? salvosPerdidos : (long?)null);
 
-        if (salvasAmostras == 0 && salvosUsos == 0)
+        if (salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0)
         {
             relato += " Nada pôde ser lido do banco estragado: o banco novo começa vazio.";
             relato += " Se o histórico antigo em CSV ainda estiver no disco, apagar o arquivo do banco faz o app importá-lo de novo.";
@@ -1740,25 +1867,55 @@ public static class Banco
     /// </summary>
     /// <param name="salvasAmostras">Quantas amostras entraram no banco novo (-1 = a contagem não deu).</param>
     /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
-    internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos)
+    internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos) =>
+        RelatoDoSalvo(salvasAmostras, salvosUsos, null, null);
+
+    /// <summary>
+    /// O relato do reparo com o tráfego incluído.
+    ///
+    /// <para>
+    /// As contagens do tráfego são anuláveis: null é "o banco velho não
+    /// tinha tabela de tráfego" (um banco de antes da v0.29), e o relato
+    /// fica quieto sobre isso — não houve tráfego para salvar. Um número
+    /// (-1) é "não deu para contar", e o relato diz isso.
+    /// </para>
+    /// </summary>
+    /// <param name="salvasAmostras">Quantas amostras entraram no banco novo (-1 = a contagem não deu).</param>
+    /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
+    /// <param name="salvosTrafegos">Quantos registros de tráfego entraram no banco novo (null = a tabela não existia).</param>
+    /// <param name="salvosPerdidos">Quantas contagens de pacotes descartados entraram (null = a tabela não existia).</param>
+    internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos, long? salvosTrafegos, long? salvosPerdidos)
     {
         // Nenhuma das duas contagens deu: não dá para dizer o que foi
         // salvo, e a frase não pode dizer que algo foi salvo.
         if (salvasAmostras < 0 && salvosUsos < 0)
             return "Foi reconstruído, mas não deu para contar o que entrou no banco novo.";
 
-        var texto = new StringBuilder("Foi reconstruído: ");
+        var partes = new List<string>();
 
-        texto.Append(salvasAmostras >= 0
+        partes.Add(salvasAmostras >= 0
             ? $"{salvasAmostras} amostras de sensor foram salvas"
             : "não deu para contar as amostras de sensor que entraram no banco novo");
 
-        texto.Append(salvosUsos >= 0
-            ? $" e {salvosUsos} registros de uso foram salvos"
-            : " e não deu para contar os registros de uso que entraram no banco novo");
+        partes.Add(salvosUsos >= 0
+            ? $"{salvosUsos} registros de uso foram salvos"
+            : "não deu para contar os registros de uso que entraram no banco novo");
 
-        texto.Append(".");
-        return texto.ToString();
+        if (salvosTrafegos is not null)
+        {
+            partes.Add(salvosTrafegos.Value >= 0
+                ? $"{salvosTrafegos.Value} registros de tráfego foram salvos"
+                : "não deu para contar os registros de tráfego que entraram no banco novo");
+        }
+
+        if (salvosPerdidos is not null)
+        {
+            partes.Add(salvosPerdidos.Value >= 0
+                ? $"{salvosPerdidos.Value} contagens de pacotes descartados foram salvas"
+                : "não deu para contar as contagens de pacotes descartados que entraram no banco novo");
+        }
+
+        return "Foi reconstruído: " + string.Join(" e ", partes) + ".";
     }
 
     /// <summary>
@@ -1787,7 +1944,26 @@ public static class Banco
     /// <param name="salvasAmostras">Quantas amostras entraram no banco novo (-1 = a contagem não deu).</param>
     /// <param name="totalUso">Quantos registros de uso o banco velho tinha (-1 = a contagem não deu).</param>
     /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
-    internal static string RelatoDaPerda(long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos)
+    internal static string RelatoDaPerda(long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos) =>
+        RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos, null, null, null, null);
+
+    /// <summary>
+    /// O relato da perda com o tráfego incluído.
+    ///
+    /// <para>
+    /// As contagens do tráfego são anuláveis: null é "o banco velho não
+    /// tinha tabela de tráfego" — e não houve tráfego para perder, então o
+    /// relato fica quieto. Um número (-1) é "não deu para contar", e o
+    /// relato diz que não dá para dizer.
+    /// </para>
+    /// </summary>
+    /// <param name="totalTrafegos">Quantos registros de tráfego o banco velho tinha (null = a tabela não existia).</param>
+    /// <param name="salvosTrafegos">Quantos entraram no banco novo (null = a tabela não existia).</param>
+    /// <param name="totalPerdidos">Quantas contagens de pacotes descartados o banco velho tinha (null = a tabela não existia).</param>
+    /// <param name="salvosPerdidos">Quantas entraram no banco novo (null = a tabela não existia).</param>
+    internal static string RelatoDaPerda(
+        long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos,
+        long? totalTrafegos, long? salvosTrafegos, long? totalPerdidos, long? salvosPerdidos)
     {
         bool contaAmostras = totalAmostras >= 0 && salvasAmostras >= 0;
         bool contaUsos = totalUso >= 0 && salvosUsos >= 0;
@@ -1823,7 +1999,47 @@ public static class Banco
             texto.Append($" Se perderam {perdidosUsos} registros de uso.");
         }
 
-        if (perdidasAmostras > 0 || perdidosUsos > 0)
+        // O tráfego: a mesma regra das outras tabelas — cada uma conta por
+        // si, e uma contagem que falhou não apaga a conta da outra.
+        bool contaTrafegos = totalTrafegos is not null && salvosTrafegos is not null
+            && totalTrafegos.Value >= 0 && salvosTrafegos.Value >= 0;
+
+        if (totalTrafegos is not null && salvosTrafegos is not null)
+        {
+            if (totalTrafegos.Value < 0)
+            {
+                texto.Append(" Não deu para contar os registros de tráfego do banco antigo, então não é possível dizer quantos se perderam.");
+            }
+            else if (salvosTrafegos.Value < 0)
+            {
+                texto.Append(" Não deu para contar os registros de tráfego que entraram no banco novo, então não é possível dizer quantos se perderam.");
+            }
+            else if (totalTrafegos.Value - salvosTrafegos.Value > 0)
+            {
+                texto.Append($" Se perderam {totalTrafegos.Value - salvosTrafegos.Value} registros de tráfego.");
+            }
+        }
+
+        bool contaPerdidos = totalPerdidos is not null && salvosPerdidos is not null
+            && totalPerdidos.Value >= 0 && salvosPerdidos.Value >= 0;
+
+        if (totalPerdidos is not null && salvosPerdidos is not null)
+        {
+            if (totalPerdidos.Value < 0)
+            {
+                texto.Append(" Não deu para contar as contagens de pacotes descartados do banco antigo, então não é possível dizer quantas se perderam.");
+            }
+            else if (salvosPerdidos.Value < 0)
+            {
+                texto.Append(" Não deu para contar as contagens de pacotes descartados que entraram no banco novo, então não é possível dizer quantas se perderam.");
+            }
+            else if (totalPerdidos.Value - salvosPerdidos.Value > 0)
+            {
+                texto.Append($" Se perderam {totalPerdidos.Value - salvosPerdidos.Value} contagens de pacotes descartados.");
+            }
+        }
+
+        if (perdidasAmostras > 0 || perdidosUsos > 0 || contaTrafegos && totalTrafegos!.Value - salvosTrafegos!.Value > 0 || contaPerdidos && totalPerdidos!.Value - salvosPerdidos!.Value > 0)
             texto.Append(" O banco antigo, com o que ficou nele, está guardado na cópia.");
 
         return texto.ToString();

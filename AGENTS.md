@@ -267,6 +267,13 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   sobrar, o relato diz — em **todos** os caminhos de cancelamento (a
   gravação que falhou, o cancelamento por banco vazio, a troca que não
   deu certo e a exceção), e a frase é a mesma nos quatro.
+- **O reparo conhece todas as tabelas.** A reconstrução do banco lê e
+  reescreve as amostras, o uso, o tráfego por programa **e** a contagem de
+  pacotes descartados: uma tabela nova que o reparo não conhecesse seria
+  perdida **em silêncio** (o relato contaria só as outras duas). E uma
+  tabela que **não existe** no banco velho (um banco de antes da v0.29) é
+  "não tinha tráfego guardado", e não uma leitura que falhou — senão o
+  reparo de um banco antigo seria cancelado à toa.
 - **A perda é contada por tabela.** Cada tabela tem a sua contagem e o seu
   "não deu para contar": uma contagem que falhou não pode apagar a conta
   da outra tabela (`Banco.RelatoDaPerda`, que é pura e testada).

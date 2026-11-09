@@ -284,4 +284,139 @@ public class TrafegoBancoTestes : IDisposable
         Assert.Empty(Banco.LerTrafego(Dia).Linhas);
         Assert.Equal(0, Banco.LerTrafegoPerdidos(Dia));
     }
+
+    // ------------------------------------------------------------------ reparo
+
+    [Fact]
+    public void Reparar_ComBancoSemAsTabelasDeTrafego_NaoECancelado()
+    {
+        UsarPastasTemporarias();
+
+        for (int i = 0; i < 300; i++)
+            Banco.GravarAmostra(new AmostraSensor(DateTime.Today.AddMinutes(i),
+                70f, 40f, 90f, 3200f, 60f, 50f, 2000f, 2048f, 80f, 10f, 1f));
+
+        Banco.GravarUso(new TrocaUso(DateTime.Today.AddHours(10), "chrome", "Painel"));
+
+        // Um banco de antes da v0.29: as tabelas do tráfego não existem.
+        // Isso NÃO é falha de leitura — e o reparo não pode ser cancelado
+        // por causa disso.
+        Banco.Instancia?.Executar("DROP TABLE trafego");
+        Banco.Instancia?.Executar("DROP TABLE trafego_perdidos");
+        Banco.Fechar();
+
+        BancoCorrupcao.CorromperPaginaLegivel(Banco.Caminho, 300, 1);
+
+        var resultado = Banco.Reparar();
+
+        Assert.True(resultado.Sucesso, resultado.Relato);
+        Assert.Equal(300, resultado.AmostrasRecuperadas);
+
+        // O relato não pode inventar uma perda de tráfego: nunca houve
+        // tráfego guardado nesse banco.
+        Assert.DoesNotContain("registros de tráfego", resultado.Relato);
+    }
+
+    [Fact]
+    public void Reparar_ComBancoCorrompido_MantemOTrafegoOuContaAPerda()
+    {
+        UsarPastasTemporarias();
+
+        for (int i = 0; i < 300; i++)
+            Banco.GravarAmostra(new AmostraSensor(DateTime.Today.AddMinutes(i),
+                70f, 40f, 90f, 3200f, 60f, 50f, 2000f, 2048f, 80f, 10f, 1f));
+
+        Banco.GravarUso(new TrocaUso(DateTime.Today.AddHours(10), "chrome", "Painel"));
+
+        // Many programs across several days: the traffic is spread over
+        // more pages, and the corruption of a single page does not take
+        // everything with it.
+        for (int dia = 0; dia < 10; dia++)
+        {
+            Banco.GravarTrafego(Dia.AddDays(-dia), new[]
+            {
+                new TrafegoPrograma("chrome", 1000 * (dia + 1), 2000 * (dia + 1)),
+                new TrafegoPrograma("opera", 500 * (dia + 1), 0),
+            });
+        }
+
+        Banco.GravarTrafegoPerdidos(Dia, 3);
+
+        // A conta é feita com o banco aberto (a corruption precisa do
+        // arquivo solto).
+        int antes = ContarLinhasDoTrafego();
+        Banco.Fechar();
+
+        BancoCorrupcao.CorromperPaginaLegivel(Banco.Caminho, 300, 1);
+
+        var resultado = Banco.Reparar();
+
+        Assert.True(resultado.Sucesso, resultado.Relato);
+
+        int depois = ContarLinhasDoTrafego();
+
+        // O reparo não pode perder o tráfego em silêncio: ou ele volta, ou
+        // o relato diz quantos se perderam.
+        Assert.Contains("tráfego", resultado.Relato);
+
+        if (depois < antes)
+            Assert.Contains("Se perderam", resultado.Relato);
+
+        Assert.True(depois <= antes, $"O reparo inventou linhas de tráfego: {antes} -> {depois}.");
+    }
+
+    /// <summary>
+    /// Quantas linhas de tráfego o banco tem (em todos os dias).
+    /// </summary>
+    private static int ContarLinhasDoTrafego()
+    {
+        var banco = Banco.Instancia;
+        if (banco == null) return 0;
+
+        var linhas = banco.Consultar("SELECT COUNT(*) AS total FROM trafego");
+        return linhas.Count > 0 ? (int)linhas[0].Inteiro("total") : 0;
+    }
+
+    // ------------------------------------------------------------------ relato do reparo
+
+    [Fact]
+    public void RelatoDoSalvo_ComOTrafego_ContaOTrafego()
+    {
+        string texto = Banco.RelatoDoSalvo(191, 10, 5, 2);
+
+        Assert.Contains("191 amostras de sensor", texto);
+        Assert.Contains("10 registros de uso", texto);
+        Assert.Contains("5 registros de tráfego foram salvos", texto);
+        Assert.Contains("2 contagens de pacotes descartados foram salvas", texto);
+    }
+
+    [Fact]
+    public void RelatoDaPerda_ComOTrafego_ContaAPerdaDoTrafego()
+    {
+        string texto = Banco.RelatoDaPerda(300, 250, 60, 50, 20, 18, 3, 3);
+
+        Assert.Contains("Se perderam 50 amostras de sensor", texto);
+        Assert.Contains("Se perderam 10 registros de uso", texto);
+        Assert.Contains("Se perderam 2 registros de tráfego", texto);
+    }
+
+    [Fact]
+    public void RelatoDaPerda_SemOTrafegoNoBancoVelho_NaoInventaPerda()
+    {
+        // Um banco de antes da v0.29: null nas contagens do tráfego quer
+        // dizer "não havia tabela", e não "não deu para contar".
+        string texto = Banco.RelatoDaPerda(300, 300, 60, 60, null, null, null, null);
+
+        Assert.DoesNotContain("tráfego", texto);
+        Assert.DoesNotContain("Se perderam", texto);
+    }
+
+    [Fact]
+    public void RelatoDaPerda_ComContagemDoTrafegoQueNaoDeu_NaoInventaNumero()
+    {
+        string texto = Banco.RelatoDaPerda(300, 300, 60, 60, -1, 0, 3, 3);
+
+        Assert.DoesNotContain("-1", texto);
+        Assert.Contains("Não deu para contar os registros de tráfego do banco antigo", texto);
+    }
 }
