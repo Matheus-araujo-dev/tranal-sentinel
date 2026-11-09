@@ -104,6 +104,20 @@ public class BancoCliTestes : IDisposable
         }
     }
 
+    [Fact]
+    public void RelatorioNaoInventaZeroQuandoACountagemNaoDeu()
+    {
+        // -1 = a contagem não deu para fazer (o banco está estragado).
+        // "0 amostras" seria mentira.
+        var dados = new Banco.Diagnostico("O banco de dados precisa de reparo", 2048, -1, -1, @"C:\banco\historico.db", null);
+
+        string texto = BancoCli.MontarRelatorio(dados);
+
+        Assert.Contains("não deu para contar", texto);
+        Assert.DoesNotContain("Amostras de sensor: 0", texto);
+        Assert.DoesNotContain("Registros de uso: 0", texto);
+    }
+
     // ------------------------------------------------------------------ reparo pela linha de comando
 
     [Fact]

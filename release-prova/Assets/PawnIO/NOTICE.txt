@@ -1,0 +1,54 @@
+TRANAL SENTINEL — módulos PawnIO embutidos
+===========================================
+
+Os arquivos SmbusPIIX4.bin, SmbusI801.bin e AMDFamily17.bin são módulos do
+projeto "PawnIO.Modules" (https://github.com/namazso/PawnIO.Modules),
+carregados pelo driver PawnIO (https://github.com/namazso/PawnIO).
+
+Eles existem aqui para que o TRANAL SENTINEL consiga ler o que só o
+processador sabe:
+
+* SmbusPIIX4.bin e SmbusI801.bin — ler o SPD dos módulos de memória pelo
+  barramento SMBus do processador, a mesma informação que o CPU-Z e o
+  HWiNFO mostram.
+* AMDFamily17.bin — ler os registradores do System Management Network (SMN)
+  do AMD, de onde saem os tempos de memória que estão ATIVOS agora no
+  controlador (o que a BIOS programou), e não só o que o módulo de memória
+  oferece. Só é usado em processadores das famílias 17h a 1Ah (Zen 2, Zen 3
+  e Zen 4).
+
+Licença
+-------
+Copyright (c) 2021 Steve-Tech (https://github.com/namazso)
+Copyright (c) 2024 PawnIO contributors
+
+Estes módulos são distribuídos sob a GNU Lesser General Public License,
+versão 2.1 ou posterior. O texto completo da licença está no arquivo
+COPYING, que acompanha esta instalação.
+
+O que a LGPL exige e como foi cumprido
+---------------------------------------
+1. Os módulos acompanham o TRANAL SENTINEL como arquivos separados (vêm
+   embutidos no executável e são extraídos para a pasta do usuário na
+   primeira leitura). Trocar o módulo por uma versão mais nova é só
+   substituir o arquivo .bin nessa pasta — nada precisa ser recompilado
+   nem reinstalado.
+2. O código-fonte correspondente a cada módulo está no mesmo projeto:
+   https://github.com/namazso/PawnIO.Modules/blob/main/SmbusPIIX4.p
+   https://github.com/namazso/PawnIO.Modules/blob/main/SmbusI801.p
+   https://github.com/namazso/PawnIO.Modules/blob/main/AMDFamily17.p
+3. Esta nota e o texto da licença acompanham a instalação.
+
+Onde os módulos ficam depois da instalação
+------------------------------------------
+%LOCALAPPDATA%\TranalSentinel\PawnIO\
+
+nessa pasta há o arquivo COPYING (a licença), o NOTICE.txt (esta nota) e os
+módulos SmbusPIIX4.bin, SmbusI801.bin e AMDFamily17.bin. O TRANAL SENTINEL
+não modifica os módulos: ele apenas os carrega no driver PawnIO e chama as
+funções públicas deles.
+
+Sobre o AMDFamily17.bin
+-----------------------
+Este módulo é usado SOMENTE para leitura (a função ioctl_read_smn). Nenhum
+registrador do processador é escrito pelo TRANAL SENTINEL.

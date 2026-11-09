@@ -161,8 +161,8 @@ public static class BancoCli
         texto.AppendLine("Estado: " + (dados.Estado == "ok" ? "íntegro" : dados.Estado));
         texto.AppendLine("Arquivo: " + dados.Caminho);
         texto.AppendLine("Tamanho: " + TamanhoLegivel(dados.TamanhoBytes));
-        texto.AppendLine("Amostras de sensor: " + dados.Amostras.ToString(CultureInfo.InvariantCulture));
-        texto.AppendLine("Registros de uso: " + dados.Uso.ToString(CultureInfo.InvariantCulture));
+        texto.AppendLine("Amostras de sensor: " + ContagemLegivel(dados.Amostras));
+        texto.AppendLine("Registros de uso: " + ContagemLegivel(dados.Uso));
 
         var dias = Banco.DiasComUso();
         texto.AppendLine("Dias com histórico de uso: " + dias.Count.ToString(CultureInfo.InvariantCulture));
@@ -172,6 +172,14 @@ public static class BancoCli
 
         return texto.ToString();
     }
+
+    /// <summary>
+    /// A contagem de linhas, ou "não deu para contar" quando a consulta
+    /// falhou (o banco estragado). Número errado é pior que número
+    /// ausente.
+    /// </summary>
+    private static string ContagemLegivel(long linhas) =>
+        linhas < 0 ? "não deu para contar" : linhas.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// O tamanho em bytes, KB ou MB (sem locale: o número não pode depender

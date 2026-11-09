@@ -315,8 +315,8 @@ public partial class MainWindow
             SaudeBancoResumo.ItemsSource = new List<InfoNode>
             {
                 new InfoNode { Header = "Tamanho do histórico", Value = TamanhoLegivel(dados.TamanhoBytes) },
-                new InfoNode { Header = "Amostras de sensor", Value = dados.Amostras.ToString(CultureInfo.InvariantCulture) },
-                new InfoNode { Header = "Registros de uso", Value = dados.Uso.ToString(CultureInfo.InvariantCulture) },
+                new InfoNode { Header = "Amostras de sensor", Value = ContagemLegivel(dados.Amostras) },
+                new InfoNode { Header = "Registros de uso", Value = ContagemLegivel(dados.Uso) },
                 new InfoNode { Header = "Arquivo", Value = dados.Caminho }
             };
 
@@ -328,6 +328,14 @@ public partial class MainWindow
             SaudeBancoEstado.Text = "Não foi possível ler o banco de dados: " + ex.Message;
         }
     }
+
+    /// <summary>
+    /// A contagem de linhas, ou "não deu para contar" quando a consulta
+    /// falhou (o banco estragado). Número errado é pior que número
+    /// ausente: "0 amostras" num banco com milhares seria mentira.
+    /// </summary>
+    private static string ContagemLegivel(long linhas) =>
+        linhas < 0 ? "não deu para contar" : linhas.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// O tamanho em kilobytes ou megabytes (sem locale: a tela do Windows

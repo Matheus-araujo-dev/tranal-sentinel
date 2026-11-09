@@ -189,6 +189,25 @@ public static class Banco
     }
 
     /// <summary>
+    /// O retrato quando não há instância aberta: sem banco não há contagem
+    /// a fazer, e o retrato diz que o banco não está disponível. Com o
+    /// arquivo no lugar (e ele não pôde ser aberto), a contagem não deu
+    /// para fazer — e "0 amostras" seria mentira.
+    /// </summary>
+    private static Diagnostico SemInstancia()
+    {
+        bool temArquivo = File.Exists(Caminho);
+
+        return new Diagnostico(
+            EstadoSemInstancia(),
+            temArquivo ? TamanhoDoArquivo() : 0,
+            temArquivo ? -1 : 0,
+            temArquivo ? -1 : 0,
+            Caminho,
+            CopiaAvariadaRecente());
+    }
+
+    /// <summary>
     /// O retrato do banco para a tela: o estado, o tamanho, quantas linhas
     /// tem e onde fica a cópia avariada (quando existe).
     /// </summary>
@@ -230,7 +249,7 @@ public static class Banco
                     Contar(b, "SELECT COUNT(*) AS total FROM uso"),
                     Caminho,
                     CopiaAvariadaRecente()),
-                new Diagnostico(EstadoSemInstancia(), 0, 0, 0, Caminho, CopiaAvariadaRecente()));
+                SemInstancia());
         }
         catch
         {
@@ -665,17 +684,34 @@ public static class Banco
 
     // ------------------------------------------------------------------ contagem e tamanho
 
-    /// <summary>Quantas linhas tem cada tabela (para o diagnóstico).</summary>
+    /// <summary>
+    /// Quantas linhas tem cada tabela (para o diagnóstico).
+    ///
+    /// <para>
+    /// Devolve -1 na tabela cuja contagem não deu para fazer (o banco está
+    /// estragado): número errado é pior que número ausente, e "0
+    /// amostras" num banco com milhares seria mentira. A tela e a linha de
+    /// comando mostram "não deu para contar" nesse caso.
+    /// </para>
+    /// </summary>
     public static (long Amostras, long Uso) Contagem()
     {
+        // Sem instância e com arquivo no lugar: o banco existe, mas não
+        // pôde ser aberto — a contagem não deu para fazer. "0" seria
+        // mentira (o banco pode ter milhares de linhas).
         return EmBanco(b => (Contar(b, "SELECT COUNT(*) AS total FROM amostras"),
-                             Contar(b, "SELECT COUNT(*) AS total FROM uso")), (0L, 0L));
+                             Contar(b, "SELECT COUNT(*) AS total FROM uso")),
+            File.Exists(Caminho) ? (-1L, -1L) : (0L, 0L));
     }
 
+    /// <summary>
+    /// Conta as linhas de uma tabela. Devolve -1 quando a consulta falhou
+    /// (a tabela vazia devolve 0 — as duas coisas precisam ser diferentes).
+    /// </summary>
     private static long Contar(Sqlite banco, string sql)
     {
         var linhas = banco.Consultar(sql);
-        if (linhas.Count == 0) return 0;
+        if (linhas.Count == 0) return banco.UltimoErro.Length > 0 ? -1 : 0;
 
         string coluna = linhas[0].Colunas.Count > 0 ? linhas[0].Colunas[0] : "total";
         return linhas[0].Inteiro(coluna);

@@ -237,6 +237,27 @@ public class BancoCorrecoesTestes : IDisposable
         Assert.Contains("1 registros de uso", resultado.Relato);
     }
 
+    [Fact]
+    public void Ver_ComBancoEstragado_NaoDizQueTemZeroAmostras()
+    {
+        UsarPastasTemporarias();
+
+        for (int i = 0; i < 30; i++)
+            Banco.GravarAmostra(Amostra(DateTime.Today.AddMinutes(i)));
+
+        Banco.Fechar();
+        CorromperCabecalho(Banco.Caminho);
+
+        var retrato = Banco.Ver();
+
+        // O banco não abre: a tela diz que precisa de reparo — e a
+        // contagem mostra que não deu para fazer. "0 amostras" num banco
+        // que tem 30 linhas seria mentira.
+        Assert.NotEqual("ok", retrato.Estado);
+        Assert.Equal(-1, retrato.Amostras);
+        Assert.Equal(-1, retrato.Uso);
+    }
+
     // ------------------------------------------------------------------ lista de dias
 
     [Fact]
