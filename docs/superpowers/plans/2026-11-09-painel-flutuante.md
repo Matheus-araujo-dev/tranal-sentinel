@@ -62,15 +62,25 @@ novo:
 4. **"%" é inteiro em todo lugar.** `NumeroTexto.Percentual` (que vivia em
    produção no alerta "41,18% abaixo do recorde") é **removido**, sem
    compatibilidade artificial: o `SensorTexto.Porcentual` passa a ser o único
-   "%" do app, e o alerta passa a dizer "41% abaixo do recorde".
+   "%" **do núcleo**, e o alerta passa a dizer "41% abaixo do recorde".
 5. **"V" tem um formatador só, com a casa certa por grandeza.**
    `SensorTexto.Volts(double? valor, int casas = 3)`; a tensão do módulo de
    memória pede 2 casas ("1,35 V") e a do núcleo da GPU mantém 3 ("1,234 V").
 
-A dívida antiga de "%" fora do núcleo (`UsoTexto.Percentual`, que escreve
-"42,4 %", e o `BatteryInfo`, que escreve "50%") fica **fora da v0.31**: é
-dívida de antes, em outro subsistema, e mexer nela aqui seria ampliar o
-escopo sem plano.
+A dívida antiga de "%" fora do núcleo fica **fora da v0.31**: é dívida de
+antes, em outro subsistema, e mexer nela aqui seria ampliar o escopo sem
+plano. Os "%" que sobram, por arquivo:
+
+| Onde | O que escreve | Regra |
+| --- | --- | --- |
+| `UsoTexto.cs:51` | "42 %" / "42,4 %" (1 casa, com espaço) | subsistema de uso |
+| `CompararCli.cs:224` | "5,23%" (inline, `NumeroTexto.Numero` + "%") | linha de comando |
+| `MainWindow.Comparar.cs:251` | "5,23%" (inline, `NumeroTexto.Numero` + "%") | tela de comparação |
+| `BatteryInfo.cs:90-106` | "50%" / "12,3%" (interpolação crua) | bateria |
+| `AlertasSegundoPlano.cs:162` | a unidade "%" do aviso de bateria | alertas |
+
+O núcleo (`SensorTexto.Porcentual`) é o único "%" que passa pelo
+`NumeroTexto`.
 
 ---
 
@@ -371,6 +381,11 @@ public static class SensorTexto
     /// GPU tem três casas ("1,234 V") e a de um módulo de memória tem duas
     /// ("1,35 V"). O formatador é um só — o que muda é a casa pedida.
     /// </para>
+    ///
+    /// <para>
+    /// A casa é ajustada para o intervalo de 0 a 15, que é o que o formato
+    /// aceita — o mesmo ajuste do <see cref="NumeroTexto.Numero(double, int)"/>.
+    /// </para>
     public static string Volts(double? valor, int casas = 3) =>
         valor is double v && CabeNaTela(v)
             ? NumeroTexto.Numero(
@@ -451,19 +466,59 @@ travam "41,18%" passam a travar "41%":
             Assert.Equal("41%", SensorTexto.Porcentual(41.176));
 ```
 
-**O zero negativo também sai.** O `Math.Round` pode devolver um zero com sinal
-(-0), e o .NET 10 imprime o sinal: "-0 °C" na tela é número errado. A
-normalização fica no `NumeroTexto` (é o lugar de formatação de número do app),
-nos dois métodos de número decimal — o de uma casa e o de casas fixas:
+**O zero negativo também sai — em qualquer chamada.** O `Math.Round` pode
+devolver um zero com sinal (-0), e o .NET 10 imprime o sinal: "-0 °C" na tela
+é número errado. E o mesmo acontece com um valor negativo pequeno que
+arredonda para zero na casa mostrada: `NumeroTexto.Numero(-0.0001)` devolve
+"-0" e `NumeroTexto.Numero(-0.0004, 3)` devolve "-0,000" (esse furo é
+alcançável em produção, por exemplo em `MainWindow.Comparar.cs:251`).
+
+A normalização fica no `NumeroTexto` (é o lugar de formatação de número do
+app), nos dois métodos de número decimal — o de uma casa e o de casas fixas. A
+regra é: **o número formatado não leva sinal quando ele é zero**. O jeito é
+tirar o sinal do texto já formatado, sem mexer nos dígitos (mudar o valor
+passado ao `ToString` mudaria o arredondamento de outras casas):
 
 ```csharp
     public static string Numero(double valor)
     {
         if (!double.IsFinite(valor)) return "—";
-        // O zero negativo (-0) sai de um arredondamento; na tela viraria
-        // "-0". Numero errado e pior que numero ausente.
-        double limpo = valor == 0 ? 0 : valor;
-        return limpo.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+        string texto = valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+        return SemSinalDeZero(texto);
+    }
+
+    /// <summary>Tira o sinal de um texto que é zero ("-0", "-0,000").</summary>
+    private static string SemSinalDeZero(string texto)
+    {
+        if (!texto.StartsWith("-", StringComparison.Ordinal)) return texto;
+        string resto = texto.Substring(1);
+        foreach (char c in resto)
+            if (c != '0' && c != ',') return texto;
+        return resto;
+    }
+```
+
+E o mesmo helper entra no método de casas fixas:
+
+```csharp
+    public static string Numero(double valor, int casas)
+    {
+        if (!double.IsFinite(valor)) return "—";
+        int fixas = Math.Clamp(casas, 0, 15);
+        string texto = valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+        return SemSinalDeZero(texto);
+    }
+```
+
+Com os testes:
+
+```csharp
+    [Fact]
+    public void ZeroNegativo_NaoViraSinal()
+    {
+        Assert.Equal("0", NumeroTexto.Numero(-0.0001));
+        Assert.Equal("0,000", NumeroTexto.Numero(-0.0004, 3));
+        Assert.Equal("0", NumeroTexto.Numero(0.0001));
     }
 ```
 
