@@ -38,4 +38,18 @@ public class PainelJanelaTestes
     {
         Assert.False(PainelWindow.DentroDaTela(-400, -300, 260, 120, 0, 0, 1920, 1080));
     }
+
+    [Fact]
+    public void PainelEncostadoForaDaTela_NaoFica()
+    {
+        // A borda invisível conta como fora: o painel termina exatamente
+        // onde a tela começa (à esquerda) e começa exatamente onde ela
+        // termina (à direita). Com ">" virando ">=", ele passaria a
+        // contar como dentro — e o painel voltaria para um monitor que
+        // não é mais o dele.
+        Assert.False(PainelWindow.DentroDaTela(-260, 100, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelWindow.DentroDaTela(1920, 100, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelWindow.DentroDaTela(100, -120, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelWindow.DentroDaTela(100, 1080, 260, 120, 0, 0, 1920, 1080));
+    }
 }

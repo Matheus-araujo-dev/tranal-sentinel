@@ -1550,7 +1550,8 @@ Crie `PainelWindow.xaml` (LF):
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="TRANAL SENTINEL painel" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize" SizeToContent="WidthAndHeight"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" Focusable="False"
+        ResizeMode="NoResize" SizeToContent="WidthAndHeight"
         WindowStartupLocation="Manual" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
     <Border x:Name="Box" Background="#D90A0A0A" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="6" Padding="12,9">
         <StackPanel TextElement.FontFamily="Cascadia Mono, Consolas" TextElement.FontSize="12" TextElement.Foreground="#F5F5F5">
@@ -1608,6 +1609,8 @@ public partial class PainelWindow : Window
 {
     private bool _arrastando;
     private Point _origemEmPixels;
+    private double _leftInicial;
+    private double _topInicial;
 
     public PainelWindow()
     {
@@ -1617,20 +1620,40 @@ public partial class PainelWindow : Window
         MouseLeftButtonDown += (_, e) =>
         {
             if (e.ButtonState != MouseButtonState.Pressed) return;
-            _arrastando = true;
+
+            // A posição inicial é guardada aqui: o arrasto soma o
+            // deslocamento do mouse a ela. Sem ela, o painel saltaria
+            // para o canto da tela em vez de andar.
+            _leftInicial = Left;
+            _topInicial = Top;
             _origemEmPixels = PointToScreen(e.GetPosition(this));
-            try { CaptureMouse(); }
+
+            try
+            {
+                // Sem a captura do mouse, o arrasto só funciona com o
+                // cursor sobre o painel — e o painel "gruda" quando o
+                // mouse sai da janela.
+                if (!CaptureMouse()) return;
+                _arrastando = true;
+            }
             catch
             {
                 // A captura do mouse pode falhar se a janela perdeu o foco
-                // entre o clique e a captura: o arrasto simplesmente não
+                // entre o clique e a captura: sem captura, o arrasto não
                 // começa, e o painel continua onde está.
             }
         };
 
         MouseMove += (_, e) => Arrastando(e);
         MouseLeftButtonUp += (_, _) => FimDoArrasto();
-        MouseDoubleClick += (_, _) => AoAbrirJanela?.Invoke();
+        MouseDoubleClick += (_, e) =>
+        {
+            // O botão "×" fica dentro do painel, e o duplo clique nele
+            // chega na janela: fechar o painel não pode acabar abrindo a
+            // janela principal por baixo dele.
+            if (VeioDoBotao(e.OriginalSource)) return;
+            AoAbrirJanela?.Invoke();
+        };
     }
 
     /// <summary>Disparado quando o dono pede para abrir a janela principal (duplo clique).</summary>
@@ -1684,8 +1707,12 @@ public partial class PainelWindow : Window
 
         // PointToScreen devolve pixels do dispositivo; Left/Top são DIPs.
         // Sem a conversão, o painel andaria torto em tela com escala.
-        Left = (tela.X - _origemEmPixels.X) / dpi.DpiScaleX;
-        Top = (tela.Y - _origemEmPixels.Y) / dpi.DpiScaleY;
+        //
+        // E o que entra em Left/Top é a posição inicial mais o
+        // deslocamento: a diferença entre o mouse de agora e o mouse do
+        // pressionar é o quanto o painel andou, não onde ele está.
+        Left = _leftInicial + (tela.X - _origemEmPixels.X) / dpi.DpiScaleX;
+        Top = _topInicial + (tela.Y - _origemEmPixels.Y) / dpi.DpiScaleY;
     }
 
     private void FimDoArrasto()
@@ -1699,6 +1726,18 @@ public partial class PainelWindow : Window
     }
 
     private void BtnFechar_Click(object sender, RoutedEventArgs e) => AoFechar?.Invoke();
+
+    /// <summary>
+    /// O clique veio do botão "×"?
+    ///
+    /// <para>
+    /// O botão está dentro do painel, e o clique nele chega na janela
+    /// antes de ser tratado pelo botão. Sem esta guarda, apertar o "×"
+    /// também acabaria arrastando a janela.
+    /// </para>
+    /// </summary>
+    private bool VeioDoBotao(object? origem) =>
+        origem is DependencyObject d && BtnFechar.IsAncestorOf(d);
 }
 ```
 

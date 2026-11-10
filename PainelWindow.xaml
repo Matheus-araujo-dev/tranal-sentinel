@@ -2,15 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="TRANAL SENTINEL painel" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize" SizeToContent="WidthAndHeight"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" Focusable="False"
+        ResizeMode="NoResize" SizeToContent="WidthAndHeight"
         WindowStartupLocation="Manual" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
     <Border x:Name="Box" Background="#D90A0A0A" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="6" Padding="12,9">
         <StackPanel TextElement.FontFamily="Cascadia Mono, Consolas" TextElement.FontSize="12" TextElement.Foreground="#F5F5F5">
             <Grid>
                 <TextBlock Text="TRANAL SENTINEL" Foreground="#5A5A5A" FontSize="10" VerticalAlignment="Center"/>
-                <!-- A fonte do botão é literal: o recurso "Icons" mora no Theme.xaml,
-                     que é mesclado no App.xaml — e esta janela solitária nao o enxerga. -->
-                <Button x:Name="BtnFechar" Content="&#xE711;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"
+                <Button x:Name="BtnFechar" Content="&#xE711;" FontFamily="{StaticResource Icons}" FontSize="10"
                         Foreground="#8C8C8C" Background="Transparent" BorderThickness="0" Padding="4,0,0,0"
                         HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="Hand" Click="BtnFechar_Click"/>
             </Grid>
