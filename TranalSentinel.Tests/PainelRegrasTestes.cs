@@ -57,6 +57,14 @@ public class PainelRegrasTestes
     }
 
     [Fact]
+    public void LinhaDaGpu_ComTemperaturaECarga_MostraOsDois()
+    {
+        var gpu = PainelRegras.Linhas(Retrato())[1];
+
+        Assert.Equal("44 °C · 12%", gpu.Valor);
+    }
+
+    [Fact]
     public void LinhaDaRam_ComValor_MostraOPorcentual()
     {
         var ram = PainelRegras.Linhas(Retrato())[2];
@@ -75,11 +83,13 @@ public class PainelRegrasTestes
     [Fact]
     public void EscolherVentoinha_ComVariasAMaiorRpmVence()
     {
+        // A vencedora entra por ultimo: se a regra voltasse a ser "a
+        // primeira que esta dando leitura", este teste quebraria.
         var escolhida = PainelRegras.EscolherVentoinha(new[]
         {
-            new PainelVentoinha("Fan #1", 3409),
-            new PainelVentoinha("Fan #2", 0),
             new PainelVentoinha("GPU Fan", 1407),
+            new PainelVentoinha("Fan #2", 0),
+            new PainelVentoinha("Fan #1", 3409),
         });
 
         Assert.Equal("Fan #1", escolhida!.Nome);
@@ -100,10 +110,13 @@ public class PainelRegrasTestes
     [Fact]
     public void EscolherVentoinha_SemNenhumaLendo_EscolheUmaComRpmAusente()
     {
+        // A primeira por ordem alfabetica entra por ultimo: se o desempate
+        // voltasse a ser a ordem de chegada dos sensores, este teste
+        // quebraria.
         var escolhida = PainelRegras.EscolherVentoinha(new[]
         {
-            new PainelVentoinha("Fan #2", null),
             new PainelVentoinha("Fan #3", null),
+            new PainelVentoinha("Fan #2", null),
         });
 
         Assert.Equal("Fan #2", escolhida!.Nome);
@@ -135,6 +148,17 @@ public class PainelRegrasTestes
         var vent = PainelRegras.Linhas(Retrato())[3];
 
         Assert.Equal("Fan #1 · 3.409 RPM", vent.Valor);
+    }
+
+    [Fact]
+    public void LinhaDaVentoinha_SemNomeMostraSoORpm()
+    {
+        var vent = PainelRegras.Linhas(Retrato(ventoinhas: new[]
+        {
+            new PainelVentoinha("", 3409),
+        }))[3];
+
+        Assert.Equal("3.409 RPM", vent.Valor);
     }
 
     [Fact]

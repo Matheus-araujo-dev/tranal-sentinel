@@ -44,6 +44,9 @@ public sealed record PainelLinha(string Rotulo, string Valor);
 /// </summary>
 public static class PainelRegras
 {
+    /// <summary>O separador entre as partes de uma linha (" · ").</summary>
+    private const string Separador = " · ";
+
     /// <summary>As quatro linhas do painel.</summary>
     public static IReadOnlyList<PainelLinha> Linhas(PainelRetrato retrato)
     {
@@ -88,7 +91,7 @@ public static class PainelRegras
         string rpm = SensorTexto.Rpm(ventoinha.Rpm);
         if (string.IsNullOrWhiteSpace(ventoinha.Nome)) return rpm;
 
-        return ventoinha.Nome + " · " + rpm;
+        return ventoinha.Nome + Separador + rpm;
     }
 
     /// <summary>
@@ -99,6 +102,6 @@ public static class PainelRegras
     {
         var uteis = partes.Where(p => p != SensorTexto.Ausente).ToList();
         if (uteis.Count == 0) return SensorTexto.Ausente;
-        return string.Join(" · ", uteis);
+        return string.Join(Separador, uteis);
     }
 }
