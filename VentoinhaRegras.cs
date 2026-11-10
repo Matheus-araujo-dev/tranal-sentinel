@@ -855,10 +855,7 @@ public static class VentoinhaRegras
     /// tela mostraria uma mentira com a cara de medida.
     /// </para>
     /// </summary>
-    public static string TextoDoRpm(double rpm) =>
-        double.IsFinite(rpm)
-            ? NumeroTexto.Inteiro((long)Math.Round(rpm, MidpointRounding.AwayFromZero)) + " RPM"
-            : "—";
+    public static string TextoDoRpm(double rpm) => SensorTexto.Rpm(rpm);
 
     /// <summary>
     /// Uma temperatura no padrão da tela ("85,4 °C").
@@ -869,7 +866,7 @@ public static class VentoinhaRegras
     /// </para>
     /// </summary>
     public static string TextoDaTemperatura(double temperatura) =>
-        NumeroTexto.Numero(Math.Round(temperatura, 1)) + " °C";
+        SensorTexto.Temperatura(temperatura);
 
     /// <summary>Uma duração no padrão da tela ("4 min", "1 h 12 min").</summary>
     public static string TextoDaDuracao(TimeSpan duracao)

@@ -528,4 +528,13 @@ public class VentoinhaRegrasTestes
         Assert.Equal("85,5 °C", linhas[0].Temperatura);
         Assert.Equal("143", linhas[0].Amostras);
     }
+
+    [Fact]
+    public void OTextoDaTemperaturaEDoRpmSaoOsDoFormatadorDaCasa()
+    {
+        // O texto visível não muda com o refactor: ele só passa a sair do
+        // mesmo lugar que o resto do app.
+        Assert.Equal("50,4 °C", VentoinhaRegras.TextoDaTemperatura(50.35));
+        Assert.Equal("3.409 RPM", VentoinhaRegras.TextoDoRpm(3409.4));
+    }
 }

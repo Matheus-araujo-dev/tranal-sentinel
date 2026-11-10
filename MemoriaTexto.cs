@@ -20,9 +20,9 @@ public static class MemoriaTexto
     public static string Ps(double picossegundos) => NumeroTexto.Numero(picossegundos) + " ps";
 
     /// <summary>Uma tensão em volts.</summary>
-    public static string Voltagem(double volts) => NumeroTexto.Numero(volts) + " V";
+    public static string Voltagem(double volts) => SensorTexto.Volts(volts, 2);
 
     /// <summary>Uma quantidade de bytes em gigabytes.</summary>
     public static string Bytes(long bytes) =>
-        NumeroTexto.Numero(Math.Round(bytes / 1024.0 / 1024.0 / 1024.0, 1)) + " GB";
+        SensorTexto.Gigabytes(Math.Round(bytes / 1024.0 / 1024.0 / 1024.0, 1));
 }
