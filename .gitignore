@@ -24,5 +24,8 @@ workspace/
 # Local
 *.log
 
+# Rascunho do trabalho por plano (ledger, briefings, pacotes de revisao)
+.superpowers/
+
 # Drivers seriais embutidos (TRANAL MAKER): as DLLs fazem parte dos pacotes assinados
 !Drivers/**

@@ -15,7 +15,7 @@
 - Idioma **pt-BR** em comentários, XML docs, textos de tela e mensagens.
 - **Regra em um lugar só**: núcleo puro; o resto consome. `catch { }` vazio só com comentário explicando por que é seguro.
 - **Número errado é pior que número ausente**: valor ausente vira "—", nunca zero e nunca um valor velho.
-- Todo número visível sai do `NumeroTexto` (vírgula decimal, ponto de milhar, independente da cultura do Windows). As **unidades** ("°C", "%", "GB", "MHz", "W", "V", "RPM") saem do `SensorTexto`.
+- Todo número visível sai do `NumeroTexto` (vírgula decimal, ponto de milhar, independente da cultura do Windows). As **unidades** ("°C", "%", "GB", "MHz", "GHz", "W", "V", "RPM") saem do `SensorTexto`.
 - **Não adicionar PackageReference novo**. `net10.0-windows`. Sem WinForms.
 - **Baseline de avisos: 16 no app, 0 no instalador**. Qualquer aviso novo = regressão.
 - Fim de linha por arquivo novo: **LF**. Não converter arquivos existentes.
@@ -32,13 +32,40 @@
 
 ---
 
+## Arbitragens do owner (09/11/2026)
+
+A Task 1 expôs uma contradição dentro do próprio plano: o bloco de restrições
+diz que todo número visível sai do `NumeroTexto`, mas o código de implementação
+da Task 1 usava `NumeroTexto.Numero(...)` — que corta os zeros à direita
+(formato "0.##") e, portanto, faz o próprio teste do plano ("8,0 GB", "1,234 V")
+falhar. O owner arbitrou em 09/11/2026:
+
+1. **As casas decimais fixas moram no `NumeroTexto`.** Ele ganha a sobrecarga
+   `NumeroTexto.Numero(double valor, int casas)`; o `SensorTexto` só consome.
+   Continua valendo uma casa só de formatação no app.
+2. **O texto do overlay pode mudar no refactor.** O overlay passa a usar o
+   `SensorTexto` (°C com uma casa, ponto de milhar em MHz/RPM) e o **GHz entra
+   no `SensorTexto`** — o `:0.00` do clock da CPU dependia da cultura do
+   Windows. A afirmação "o texto visível não muda" valia para o cartão de
+   ventoinha, não para o overlay.
+3. **Um jeito só de escrever gigabytes.** `MemoriaTexto.Bytes` passa a delegar
+   ao `SensorTexto.Gigabytes` ("31,9 GB" em todo lugar).
+
+Além disso: um valor de sensor que não cabe em um inteiro exato tem que virar
+"—", e não um número de 19 dígitos na tela (número errado é pior que número
+ausente).
+
+---
+
 ### Task 1: `SensorTexto` — o núcleo puro das unidades dos sensores
 
 O overlay (`MainWindow.Overlay.cs:84`) formata os números com interpolação crua (`$"{x:0.0}"`), ou seja, **depende da cultura do Windows**. O painel novo precisa dos mesmos números. Este núcleo é o único lugar onde "temperatura", "porcentagem", "gigabytes" etc. viram texto — e ele é testável sem WPF.
 
 **Files:**
 - Create: `SensorTexto.cs`
+- Modify: `NumeroTexto.cs` (a sobrecarga `Numero(valor, casas)` — arbitragem 1)
 - Test: `TranalSentinel.Tests/SensorTextoTestes.cs`
+- Test: `TranalSentinel.Tests/NumeroTextoTestes.cs` (a sobrecarga nova)
 
 **Interfaces:**
 - Produces: `public static class SensorTexto` com
@@ -46,6 +73,7 @@ O overlay (`MainWindow.Overlay.cs:84`) formata os números com interpolação cr
   - `string Porcentual(double? valor)` → "47%" / "—"
   - `string Gigabytes(double? valor)` → "8,0 GB" / "—"
   - `string Mhz(double? valor)` → "2.790 MHz" / "—"
+  - `string Gigahertz(double? valor)` → "4,45 GHz" / "—"
   - `string Watts(double? valor)` → "120 W" / "—"
   - `string Volts(double? valor)` → "1,234 V" / "—"
   - `string Rpm(double? valor)` → "3.409 RPM" / "—"
@@ -148,6 +176,81 @@ public class SensorTextoTestes
             CultureInfo.CurrentCulture = cultura;
         }
     }
+
+    [Fact]
+    public void Gigahertz_ComValor_UsaDuasCasas()
+    {
+        Assert.Equal("4,45 GHz", SensorTexto.Gigahertz(4.451));
+    }
+
+    [Fact]
+    public void ValorQueNaoCabeEmUmInteiro_ViraEmDash()
+    {
+        // Um sensor que devolvesse 1e30 faria o cast saturar em
+        // long.MaxValue e a tela mostraria 19 digitos. Numero errado e
+        // pior que numero ausente.
+        Assert.Equal("—", SensorTexto.Rpm(1e30));
+        Assert.Equal("—", SensorTexto.Porcentual(1e30));
+        Assert.Equal("—", SensorTexto.Mhz(1e30));
+        Assert.Equal("—", SensorTexto.Gigabytes(1e30));
+        Assert.Equal("—", SensorTexto.Volts(1e30));
+        Assert.Equal("—", SensorTexto.Gigahertz(1e30));
+    }
+}
+```
+
+E, no arquivo novo `TranalSentinel.Tests/NumeroTextoTestes.cs`, o teste da
+sobrecarga que nasce na Task 1 (as casas fixas moram no `NumeroTexto`, e não
+dentro do `SensorTexto`):
+
+```csharp
+using System.Globalization;
+using Xunit;
+
+namespace TranalSentinel.Tests;
+
+/// <summary>
+/// Testes do formatador de números da casa.
+/// </summary>
+public class NumeroTextoTestes
+{
+    [Fact]
+    public void NumeroComCasas_GaranteAsCasas()
+    {
+        Assert.Equal("8,0", NumeroTexto.Numero(8.0, 1));
+        Assert.Equal("1,234", NumeroTexto.Numero(1.234, 3));
+    }
+
+    [Fact]
+    public void NumeroComCasas_Arredonda()
+    {
+        Assert.Equal("8,0", NumeroTexto.Numero(8.04, 1));
+        Assert.Equal("4,45", NumeroTexto.Numero(4.451, 2));
+    }
+
+    [Fact]
+    public void NumeroComCasas_NaoDependeDaCultura()
+    {
+        var cultura = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("en-US");
+
+            Assert.Equal("1,234", NumeroTexto.Numero(1.234, 3));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = cultura;
+        }
+    }
+
+    [Fact]
+    public void NumeroComCasas_ComValorNaoFinito_ViraEmDash()
+    {
+        Assert.Equal("—", NumeroTexto.Numero(double.NaN, 1));
+        Assert.Equal("—", NumeroTexto.Numero(double.PositiveInfinity, 3));
+    }
 }
 ```
 
@@ -189,46 +292,93 @@ public static class SensorTexto
 
     /// <summary>Uma temperatura em °C (uma casa decimal).</summary>
     public static string Temperatura(double? valor) =>
-        valor is double v && double.IsFinite(v)
+        valor is double v && CabeNaTela(v)
             ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero)) + " °C"
             : Ausente;
 
     /// <summary>Uma porcentagem (inteiro, arredondado).</summary>
     public static string Porcentual(double? valor) =>
-        valor is double v && double.IsFinite(v)
+        valor is double v && CabeNaTela(v)
             ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + "%"
             : Ausente;
 
-    /// <summary>Um tamanho em gigabytes (uma casa decimal).</summary>
+    /// <summary>Um tamanho em gigabytes (uma casa decimal, sempre presente).</summary>
     public static string Gigabytes(double? valor) =>
-        valor is double v && double.IsFinite(v)
-            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero)) + " GB"
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " GB"
             : Ausente;
 
     /// <summary>Uma frequência em MHz.</summary>
     public static string Mhz(double? valor) =>
-        valor is double v && double.IsFinite(v)
+        valor is double v && CabeNaTela(v)
             ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " MHz"
+            : Ausente;
+
+    /// <summary>Uma frequência em GHz (duas casas decimais).</summary>
+    public static string Gigahertz(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 2, MidpointRounding.AwayFromZero), 2) + " GHz"
             : Ausente;
 
     /// <summary>Uma potência em watts.</summary>
     public static string Watts(double? valor) =>
-        valor is double v && double.IsFinite(v)
+        valor is double v && CabeNaTela(v)
             ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " W"
             : Ausente;
 
     /// <summary>Uma tensão em volts (três casas decimais).</summary>
     public static string Volts(double? valor) =>
-        valor is double v && double.IsFinite(v)
-            ? NumeroTexto.Numero(Math.Round(v, 3, MidpointRounding.AwayFromZero)) + " V"
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 3, MidpointRounding.AwayFromZero), 3) + " V"
             : Ausente;
 
     /// <summary>Um número de rotações por minuto.</summary>
     public static string Rpm(double? valor) =>
-        valor is double v && double.IsFinite(v)
+        valor is double v && CabeNaTela(v)
             ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " RPM"
             : Ausente;
+
+    /// <summary>
+    /// O valor é um número que cabe na tela: um inteiro exato dentro do
+    /// limite do <see cref="double"/> (2^53) e, portanto, dentro do
+    /// <see cref="long"/>.
+    ///
+    /// <para>
+    /// Um sensor que devolvesse 1e30 faria o cast saturar em
+    /// <see cref="long.MaxValue"/> e a tela mostraria
+    /// "9.223.372.036.854.775.807 RPM" — 19 dígitos. Número errado é pior
+    /// que número ausente: fora do limite, o texto é "—".
+    /// </para>
+    /// </summary>
+    private static bool CabeNaTela(double valor) =>
+        double.IsFinite(valor) && Math.Abs(valor) <= 9.007199254740992E15;
 }
+```
+
+E, no `NumeroTexto.cs` (arquivo existente), a sobrecarga que recebe o
+número de casas fixas — as casas decimais moram no formatador de números da casa,
+e não dentro do `SensorTexto`:
+
+```csharp
+    /// <summary>
+    /// Número no padrão brasileiro (vírgula decimal) com um número fixo de
+    /// casas decimais ("8,0", "1,234").
+    ///
+    /// <para>
+    /// O <see cref="Numero(double)"/> corta os zeros à direita (formato
+    /// "0.##"), e isso não serve para as unidades que pedem casas fixas
+    /// (gigabytes, volts, gigahertz). Esta sobrecarga garante as casas, no
+    /// mesmo padrão do app: vírgula decimal e independente da cultura do
+    /// Windows.
+    /// </para>
+    /// </summary>
+    public static string Numero(double valor, int casas)
+    {
+        if (!double.IsFinite(valor)) return "—";
+        int fixas = Math.Clamp(casas, 0, 15);
+        return valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+    }
+```
 ```
 
 - [ ] **Step 4: Rode o teste e veja passar**
@@ -248,15 +398,20 @@ O texto das unidades dos sensores mora em um lugar so
 O overlay formatava os numeros com interpolacao crua, e isso dependia da
 cultura do Windows: o mesmo numero saia de dois jeitos em PCs diferentes.
 Agora existe um nucleo puro (SensorTexto) que e o unico lugar onde
-temperatura, porcentagem, gigabytes, megahertz, watts, volts e rpm viram
-texto. O numero continua saindo do NumeroTexto, e valor ausente ou nao
-finito vira traco.
+temperatura, porcentagem, gigabytes, megahertz, gigahertz, watts, volts e rpm
+viram texto. O numero continua saindo do NumeroTexto, e valor ausente, nao
+finito ou fora do limite de um inteiro vira traco.
 
-Testes: o novo SensorTextoTestes, mais a suite do app inteira.
+As casas decimais fixas (gigabytes, volts, gigahertz) moram no NumeroTexto,
+que ganhou a sobrecarga Numero(valor, casas): continua havendo um lugar so
+de formacao de numero no app.
+
+Testes: o novo SensorTextoTestes, o novo NumeroTextoTestes, mais a suite do
+app inteira.
 ```
 
 ```bash
-git add SensorTexto.cs TranalSentinel.Tests/SensorTextoTestes.cs
+git add SensorTexto.cs NumeroTexto.cs TranalSentinel.Tests/SensorTextoTestes.cs TranalSentinel.Tests/NumeroTextoTestes.cs
 git commit -F "<workspace>/msg-v031-t1.txt"
 ```
 (A mensagem vai num arquivo UTF-8 **sem BOM**; não pode começar com "-" nem conter palavra em inglês.)
@@ -589,11 +744,16 @@ O `BuildOverlayLines` (`MainWindow.Overlay.cs:84`) e o `VentoinhaRegras` formatt
 **Files:**
 - Modify: `MainWindow.Overlay.cs` (as linhas `T(...)`, `P(...)` e as interpolações de clock, power, volt, VRAM e fan)
 - Modify: `VentoinhaRegras.cs` (`TextoDaTemperatura` e `TextoDoRpm` delegam ao `SensorTexto`)
-- Test: `TranalSentinel.Tests/VentoinhaRegrasTestes.cs` (o texto não muda — os testes existentes têm que continuar verdes)
+- Modify: `MemoriaTexto.cs` (`Bytes` delega ao `SensorTexto.Gigabytes` — arbitragem 3)
+- Test: `TranalSentinel.Tests/VentoinhaRegrasTestes.cs` (o texto da ventoinha não muda — os testes existentes têm que continuar verdes)
 
 **Interfaces:**
 - Consumes: `SensorTexto` (Task 1).
-- Produces: nada novo. O texto visível **não muda** — só a origem da formatação.
+- Produces: nada novo na API. **O texto do overlay muda** (arbitragem 2): o °C
+  passa a ter uma casa ("51,4 °C"), o MHz e o RPM ganham ponto de milhar
+  ("2.790 MHz", "1.407 RPM") e o clock da CPU sai em GHz com duas casas
+  ("4,45 GHz") — igual ao cartão de ventoinha. O texto do **cartão de
+  ventoinha** não muda.
 
 - [ ] **Step 1: Escreva o teste que prende o texto atual**
 
@@ -659,23 +819,48 @@ E a VRAM:
         if (show.Contains("vram_used")) vram.Add(vr is { } a ? SensorTexto.Gigabytes(a.Used) : SensorTexto.Ausente);
 ```
 
+E o clock da CPU (que hoje sai com `:0.00` e depende da cultura do Windows) e a
+RAM usada (que hoje sai com `:0.0`):
+
+```csharp
+        if (show.Contains("cpu_clock")) cpu.Add(avg is float ca ? SensorTexto.Gigahertz(ca / 1000) : SensorTexto.Ausente);
+        if (show.Contains("cpu_clockmax")) cpu.Add(max is float cm ? $"pico {SensorTexto.Gigahertz(cm / 1000)}" : "pico —");
+        if (show.Contains("ram_used")) ram.Add(total > 0 ? SensorTexto.Gigabytes((total - availB) / 1073741824.0) : SensorTexto.Ausente);
+```
+
 > **Atenção:** o `SensorTexto.Mhz` devolve "2.790 MHz" (com ponto de milhar, padrão da casa) e não "2790 MHz". Isso é a regra do app: o mesmo número sai do mesmo jeito em todo lugar.
 
-- [ ] **Step 5: Rode a suíte inteira**
+- [ ] **Step 5: Faça o `MemoriaTexto` delegar ao `SensorTexto`**
+
+O `MemoriaTexto.Bytes` (`MemoriaTexto.cs:26`) monta o texto de gigabytes por
+conta própria. Agora ele delega (arbitragem 3 — um jeito só de escrever GB no
+app):
+
+```csharp
+    /// <summary>Uma quantidade de bytes em gigabytes.</summary>
+    public static string Bytes(long bytes) =>
+        SensorTexto.Gigabytes(Math.Round(bytes / 1024.0 / 1024.0 / 1024.0, 1));
+```
+
+> **Atenção:** o texto muda de "8 GB" para "8,0 GB" na tela de memória. É a
+> consequência da arbitragem 3, e é o mesmo número que o painel e o overlay
+> mostram.
+
+- [ ] **Step 6: Rode a suíte inteira**
 
 ```
 dotnet test "E:\projetos\tranal-sentinel\TranalSentinel.Tests\TranalSentinel.Tests.csproj" -c Release
 ```
 Esperado: todos PASS (o número de testes sobe em 1 — o teste novo do `SensorTexto`).
 
-- [ ] **Step 6: Build e contagem de avisos**
+- [ ] **Step 7: Build e contagem de avisos**
 
 ```
 dotnet build "E:\projetos\tranal-sentinel\TranalSentinel.csproj" -c Release -t:Rebuild
 ```
 Esperado: **16 avisos, 0 erros**. Qualquer aviso novo = regressão: pare e investigue.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 Antes do commit, grave a mensagem num arquivo UTF-8 **sem BOM** em <workspace>/msg-v031-t3.txt:
 
@@ -686,12 +871,17 @@ O overlay e a aba de ventoinhas formattavam os numeros por conta propria.
 Agora eles consomem o SensorTexto, e o numero continua saindo do NumeroTexto:
 o mesmo numero nao pode sair de dois jeitos no app.
 
-O texto visivel nao muda, exceto pelo separador de milhar (o clock da GPU
-passa a sair como 2.790 MHz, que e o padrao da casa).
+O texto do cartao de ventoinha nao muda. O do overlay muda, e muda para o
+padrao da casa: a temperatura ganha a casa decimal (51,4 °C), o clock e o
+fan da GPU ganham o ponto de milhar (2.790 MHz, 1.407 RPM) e o clock da CPU
+sai em gigahertz (4,45 GHz), que antes dependia da cultura do Windows.
+
+A memoria passa a escrever gigabyte do mesmo jeito que o resto do app
+(8,0 GB, e nao 8 GB).
 ```
 
 ```bash
-git add MainWindow.Overlay.cs VentoinhaRegras.cs SensorTexto.cs TranalSentinel.Tests/SensorTextoTestes.cs TranalSentinel.Tests/VentoinhaRegrasTestes.cs
+git add MainWindow.Overlay.cs VentoinhaRegras.cs MemoriaTexto.cs TranalSentinel.Tests/VentoinhaRegrasTestes.cs
 git commit -F "<workspace>/msg-v031-t3.txt"
 ```
 
@@ -1164,7 +1354,57 @@ Esperado: 16 avisos, 0 erros; suíte verde.
 1. Feche o app (se estiver rodando): `workspace\sair.ps1` (elevado).
 2. Publique: `dotnet publish ... -o "E:\projetos\tranal-sentinel\release-prova-v031"`.
 3. Suba o app (elevado) e abra a página "Painel" (grupo TRANAL ASSISTENTE).
-4. Ligue "Mostrar o painel flutuante" e capture a tela do painel (`workspace\prova-ventoinhas.ps1` serve de modelo — copie para `workspace\prova-painel.ps1` e aponte para a aba "Painel").
+4. Ligue "Mostrar o painel flutuante" e capture o painel.
+
+   O painel **não é uma aba**: é uma janela separada, com o título
+   "TRANAL SENTINEL painel". A captura precisa achá-la pelo título (o
+   `prova-ventoinhas.ps1` serve de modelo, mas ele captura a janela
+   principal). Crie `workspace\prova-painel.ps1` com este conteúdo:
+
+   ```powershell
+   param([string]$Arquivo = 'painel.png')
+   $ErrorActionPreference = 'Continue'
+   Add-Type -AssemblyName System.Drawing
+   Add-Type -AssemblyName UIAutomationClient
+
+   $w = 'C:\Users\Matheus\.minimax\sessions\mvs_033f5363b29e40f8a95383634bf92f4b\workspace'
+   $png = Join-Path $w $Arquivo
+
+   Add-Type @"
+   using System;
+   using System.Runtime.InteropServices;
+   public class JanelaPainel {
+     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
+     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT lpRect);
+     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+   }
+   "@
+
+   # A janela do painel e a que tem o titulo proprio.
+   $proc = Get-Process TranalSentinel -ErrorAction SilentlyContinue |
+           Where-Object { $_.MainWindowTitle -like '*painel*' } | Select-Object -First 1
+   if (-not $proc) { Write-Output 'ERRO: a janela do painel nao foi encontrada'; exit 1 }
+
+   $h = $proc.MainWindowHandle
+   $r = New-Object JanelaPainel+RECT
+   [JanelaPainel]::GetWindowRect($h, [ref]$r) | Out-Null
+   $larg = $r.Right - $r.Left
+   $alt = $r.Bottom - $r.Top
+   if ($larg -le 0 -or $alt -le 0) { Write-Output 'ERRO: a janela do painel nao tem tamanho'; exit 1 }
+
+   $bmp = New-Object System.Drawing.Bitmap($larg, $alt)
+   $g = [System.Drawing.Graphics]::FromImage($bmp)
+   $hdc = $g.GetHdc()
+   [JanelaPainel]::PrintWindow($h, $hdc, 2) | Out-Null
+   $g.ReleaseHdc($hdc)
+   $g.Dispose()
+   $bmp.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
+   $bmp.Dispose()
+   Write-Output ('captura: ' + $png)
+   ```
+
+   Rode elevado (a janela do app é elevada):
+   `Start-Process cmd.exe -Verb RunAs -Wait -ArgumentList '/c',"powershell -ExecutionPolicy Bypass -File `"<workspace>\prova-painel.ps1`" -Arquivo `"painel.png`""`
 5. Arraste o painel, feche o app, abra de novo: o painel tem que voltar no mesmo lugar.
 
 - [ ] **Step 10: Commit**
@@ -1276,8 +1516,10 @@ git commit -F "<workspace>/msg-v031-t6.txt"
 1. Feche o app (elevado): `workspace\sair.ps1`.
 2. Publique em `release-prova-v031` e suba o app.
 3. Ligue o painel, arraste-o para um canto, e capture:
-   - o painel flutuante sobre o desktop;
-   - a página "Painel" da janela principal.
+   - o painel flutuante (a janela "TRANAL SENTINEL painel"), com o script
+     `workspace\prova-painel.ps1` criado na Task 5, Step 9;
+   - a página "Painel" da janela principal (com o `prova-ventoinhas.ps1`,
+     no grupo TRANAL ASSISTENTE).
 4. Feche o app (o "Sair" da bandeja) e confirme que o painel some junto.
 5. Confira o banco: `--banco` continua igual (o painel **não** grava nada — ele só lê).
 
