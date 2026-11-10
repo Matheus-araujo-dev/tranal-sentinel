@@ -63,6 +63,11 @@ public static class SensorTexto
     /// GPU tem três casas ("1,234 V") e a de um módulo de memória tem duas
     /// ("1,35 V"). O formatador é um só — o que muda é a casa pedida.
     /// </para>
+    ///
+    /// <para>
+    /// A casa é ajustada para o intervalo de 0 a 15, que é o que o formato
+    /// aceita — o mesmo ajuste do <see cref="NumeroTexto.Numero(double, int)"/>.
+    /// </para>
     public static string Volts(double? valor, int casas = 3) =>
         valor is double v && CabeNaTela(v)
             ? NumeroTexto.Numero(

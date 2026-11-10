@@ -72,4 +72,14 @@ public class NumeroTextoTestes
         Assert.Equal("0", NumeroTexto.Numero(-0.0));
         Assert.Equal("0,000", NumeroTexto.Numero(-0.0, 3));
     }
+
+    [Fact]
+    public void ZeroNegativo_NaoViraSinal()
+    {
+        // Um valor negativo pequeno arredonda para zero na casa mostrada, e o
+        // .NET imprime o sinal: "-0" e "-0,000" na tela são número errado.
+        Assert.Equal("0", NumeroTexto.Numero(-0.0001));
+        Assert.Equal("0,000", NumeroTexto.Numero(-0.0004, 3));
+        Assert.Equal("0", NumeroTexto.Numero(0.0001));
+    }
 }

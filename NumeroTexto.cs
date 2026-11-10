@@ -37,10 +37,8 @@ public static class NumeroTexto
     public static string Numero(double valor)
     {
         if (!double.IsFinite(valor)) return "—";
-        // O zero negativo (-0) sai de um arredondamento; na tela viraria
-        // "-0". Número errado é pior que número ausente.
-        double limpo = valor == 0 ? 0 : valor;
-        return limpo.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+        string texto = valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+        return SemSinalDeZero(texto);
     }
 
     /// <summary>
@@ -65,11 +63,26 @@ public static class NumeroTexto
     {
         if (!double.IsFinite(valor)) return "—";
         int fixas = Math.Clamp(casas, 0, 15);
-        // O zero negativo (-0) aparece quando o arredondamento devolve um
-        // zero com sinal: na tela sairia "-0 °C". Número errado é pior que
-        // número ausente: o zero negativo é o zero.
-        double limpo = valor == 0 ? 0 : valor;
-        return limpo.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+        string texto = valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+        return SemSinalDeZero(texto);
+    }
+
+    /// <summary>Tira o sinal de um texto que é zero ("-0", "-0,000").</summary>
+    ///
+    /// <para>
+    /// A regra do app é: o número formatado não leva sinal quando ele é zero.
+    /// O sinal sai do texto já formatado, sem mexer nos dígitos — mudar o valor
+    /// passado ao <c>ToString</c> mudaria o arredondamento das outras casas.
+    /// </para>
+    private static string SemSinalDeZero(string texto)
+    {
+        if (!texto.StartsWith("-", StringComparison.Ordinal)) return texto;
+        string resto = texto.Substring(1);
+        foreach (char c in resto)
+        {
+            if (c != '0' && c != ',') return texto;
+        }
+        return resto;
     }
 
     /// <summary>
