@@ -1923,6 +1923,7 @@ using System.Windows.Threading;
 
 namespace TranalSentinel;
 
+/// <summary>Painel flutuante: liga e desliga a janela do painel, o relógio que a atualiza e a posição guardada.</summary>
 public partial class MainWindow
 {
     /// <summary>O painel flutuante (null enquanto ele não foi ligado).</summary>
@@ -1955,8 +1956,14 @@ public partial class MainWindow
             // ficar acima das outras janelas.
             _painel.Topmost = _settings.PainelSempreNoTopo;
 
-            RestaurarPosicaoDoPainel();
             if (!_painel.IsVisible) _painel.Show();
+
+            // A posição é conferida depois de a janela aparecer: só aí o
+            // painel tem o tamanho medido, e é com ele que a conferência
+            // com a tela é feita. O canto automático e o botão "VOLTAR
+            // PARA O CANTO" têm que dar a mesma posição.
+            _painel.UpdateLayout();
+            RestaurarPosicaoDoPainel();
 
             _painelTimer ??= new DispatcherTimer(
                 TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) => UpdatePainel(), Dispatcher);
@@ -2054,13 +2061,22 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>Guarda a posição do painel (em DIPs).</summary>
+    /// <summary>
+    /// Guarda a posição do painel (em DIPs) e escreve no arquivo.
+    ///
+    /// <para>
+    /// A gravação no arquivo mora aqui, e não em quem chama: se a posição
+    /// ficasse só na memória, o painel voltaria para o canto na próxima
+    /// vez que o app abrisse.
+    /// </para>
+    /// </summary>
     private void SalvarPosicaoDoPainel()
     {
         if (_painel is null || !_painel.IsVisible) return;
 
         _settings.PainelX = _painel.Left;
         _settings.PainelY = _painel.Top;
+        _settings.Save();
     }
 
     /// <summary>
