@@ -400,9 +400,9 @@ public static class SensorTexto
             : Ausente;
 
     /// <summary>
-    /// O valor é um número que cabe na tela: um inteiro exato dentro do
-    /// limite do <see cref="double"/> (2^53) e, portanto, dentro do
-    /// <see cref="long"/>.
+    /// O valor é um número que cabe na tela: um inteiro exatamente
+    /// representável em <see cref="double"/> (o maior deles é 2^53 - 1) e,
+    /// portanto, dentro do <see cref="long"/>.
     ///
     /// <para>
     /// Um sensor que devolvesse 1e30 faria o cast saturar em
@@ -412,7 +412,7 @@ public static class SensorTexto
     /// </para>
     /// </summary>
     private static bool CabeNaTela(double valor) =>
-        double.IsFinite(valor) && Math.Abs(valor) <= 9.007199254740992E15;
+        double.IsFinite(valor) && Math.Abs(valor) <= 9.007199254740991E15;
 }
 ```
 
@@ -433,20 +433,66 @@ e não dentro do `SensorTexto`:
     /// Windows.
     /// </para>
     /// </summary>
+    public static string Numero(double valor)
+    {
+        if (!double.IsFinite(valor)) return "—";
+        string texto = valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+        return SemSinalDeZero(texto);
+    }
+
+    /// <summary>
+    /// Número no padrão brasileiro (vírgula decimal) com um número fixo de
+    /// casas decimais ("8,0", "1,234").
+    ///
+    /// <para>
+    /// O <see cref="Numero(double)"/> corta os zeros à direita (formato
+    /// "0.##"), e isso não serve para as unidades que pedem casas fixas
+    /// (gigabytes, volts, gigahertz). Esta sobrecarga garante as casas, no
+    /// mesmo padrão do app: vírgula decimal e independente da cultura do
+    /// Windows.
+    /// </para>
+    ///
+    /// <para>
+    /// As casas são limitadas a 0..15: o formato "F" do <see cref="double"/>
+    /// não passa de 15 casas decimais, e casa negativa não existe. Pedir fora
+    /// da faixa não quebra nada — o pedido é ajustado.
+    /// </para>
+    /// </summary>
     public static string Numero(double valor, int casas)
     {
         if (!double.IsFinite(valor)) return "—";
         int fixas = Math.Clamp(casas, 0, 15);
-        // O zero negativo (-0) aparece quando o arredondamento devolve um
-        // zero com sinal: na tela sairia "-0 °C". Numero errado e pior que
-        // numero ausente: o zero negativo e o zero.
-        double limpo = valor == 0 ? 0 : valor;
-        return limpo.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+        string texto = valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+        return SemSinalDeZero(texto);
+    }
+
+    /// <summary>Tira o sinal de um texto que é zero ("-0", "-0,000").</summary>
+    ///
+    /// <para>
+    /// A regra do app é: o número formatado não leva sinal quando ele é zero.
+    /// O sinal sai do texto já formatado, sem mexer nos dígitos — mudar o valor
+    /// passado ao <c>ToString</c> mudaria o arredondamento das outras casas.
+    /// </para>
+    /// </summary>
+    private static string SemSinalDeZero(string texto)
+    {
+        if (!texto.StartsWith("-", StringComparison.Ordinal)) return texto;
+        string resto = texto.Substring(1);
+        foreach (char c in resto)
+        {
+            if (c != '0' && c != ',') return texto;
+        }
+        return resto;
     }
 ```
 ```
 
-- [ ] **Step 3b: Tire o `NumeroTexto.Percentual` (arbitragem 4)**
+- [ ] **Step 3b: Tire o `NumeroTexto.Percentual` (arbitragem 4) e normalize o zero com sinal**
+
+> O código do Step 3 acima já é o canônico (com o `CabeNaTela` em 2^53 - 1 e o
+> `SemSinalDeZero` no `NumeroTexto`): ele foi sincronizado com a implementação
+> depois da rodada 3 de correção. O Step 3b abaixo conta o que fazer além
+> dele.
 
 O `NumeroTexto.Percentual` escrevia "%" em dois formatos diferentes do app
 ("41,18%" no alerta da ventoinha, "47%" no novo `SensorTexto`). Ele sai, sem
