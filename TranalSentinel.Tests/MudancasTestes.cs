@@ -211,9 +211,9 @@ public class MudancasTestes
     public void MemoriaEmBytesViraGigabytes()
     {
         // O WMI devolve a capacidade em bytes: 16 GB não é 16384 GB.
-        Assert.Equal(16, Mudancas.BytesEmGb(16L * 1024 * 1024 * 1024));
-        Assert.Equal(32, Mudancas.BytesEmGb(32L * 1024 * 1024 * 1024));
-        Assert.Equal(0, Mudancas.BytesEmGb(0));
+        Assert.Equal("16,0 GB", MemoriaTexto.Bytes(16L * 1024 * 1024 * 1024));
+        Assert.Equal("32,0 GB", MemoriaTexto.Bytes(32L * 1024 * 1024 * 1024));
+        Assert.Equal("0,0 GB", MemoriaTexto.Bytes(0));
     }
 
     // ---------------------------------------------------------------- perfil de recursos

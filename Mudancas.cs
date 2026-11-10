@@ -259,9 +259,6 @@ public static class Mudancas
         int corte = item.LastIndexOf(" · ", StringComparison.Ordinal);
         return corte > 0 ? item[(corte + 3)..] : "";
     }
-
-    /// <summary>Converte bytes em GB (o WMI devolve a capacidade da memória em bytes).</summary>
-    public static long BytesEmGb(long bytes) => bytes / (1024L * 1024 * 1024);
 }
 
 /// <summary>
@@ -433,10 +430,10 @@ public static class ColetaInstantaneo
                 if (vel > velocidade) velocidade = vel;
                 string local = linha["DeviceLocator"];
                 string fabricante = linha["Manufacturer"];
-                modulos.Add($"{local} {fabricante} {Mudancas.BytesEmGb(capacidade)} GB".Trim());
+                modulos.Add($"{local} {fabricante} {MemoriaTexto.Bytes(capacidade)}".Trim());
             }
             if (modulos.Count == 0) return "";
-            return $"{Mudancas.BytesEmGb(total)} GB em {modulos.Count} módulo(s) · {velocidade} MHz · {string.Join(" / ", modulos)}";
+            return $"{MemoriaTexto.Bytes(total)} em {modulos.Count} módulo(s) · {SensorTexto.Mhz(velocidade)} · {string.Join(" / ", modulos)}";
         }
         catch { return ""; }
     }

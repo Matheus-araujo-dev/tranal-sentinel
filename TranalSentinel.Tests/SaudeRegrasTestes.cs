@@ -409,7 +409,7 @@ public class SaudeRegrasTestes
         var achado = AchadoComArea(SaudeRegras.Avaliar(dados), "Estabilidade");
         Assert.NotNull(achado);
         Assert.Equal(Severidade.Medio, achado.Severidade);
-        Assert.Contains("3466 MHz", achado.Mensagem);
+        Assert.Contains("3.466 MHz", achado.Mensagem);
     }
 
     [Fact]

@@ -923,7 +923,7 @@ public partial class MainWindow : Window
         BenchHistory.ItemsSource = runs.Select(r =>
         {
             string label = $"{r.Date:dd/MM HH:mm}{(r.Sustained ? " · 10 min" : "")}";
-            string value = $"{(r.Multi is double m ? $"{m:N0}" : "—")} / {(r.Single is double s ? $"{s:N0}" : "—")}";
+            string value = $"{(r.Multi is double m ? NumeroTexto.Inteiro((long)Math.Round(m, MidpointRounding.AwayFromZero)) : "—")} / {(r.Single is double s ? NumeroTexto.Inteiro((long)Math.Round(s, MidpointRounding.AwayFromZero)) : "—")}";
             double frac = r.Multi is double mm ? mm / bestMt : r.Single is double ss ? ss / bestSt : 0;
             return new MeterItem(label, value, frac);
         }).ToList();

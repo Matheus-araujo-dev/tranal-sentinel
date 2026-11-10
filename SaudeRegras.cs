@@ -445,7 +445,7 @@ public static class SaudeRegras
             {
                 Severidade = Severidade.Medio,
                 Area = "Estabilidade",
-                Mensagem = $"RAM em {m.VelocidadeConfigMHz} MHz (slot {m.Slot}) - acima do spec oficial de 3200 do Ryzen 5000",
+                Mensagem = $"RAM em {SensorTexto.Mhz(m.VelocidadeConfigMHz)} (slot {m.Slot}) - acima do spec oficial de 3200 do Ryzen 5000",
                 Acao = "Teste em 3200 para isolar instabilidade"
             });
         }
