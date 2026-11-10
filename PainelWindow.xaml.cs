@@ -36,9 +36,8 @@ public partial class PainelWindow : Window
             // A posição inicial é guardada aqui: o arrasto soma o
             // deslocamento do mouse a ela. Sem ela, o painel saltaria
             // para o canto da tela em vez de andar.
-            _leftInicial = Left;
-            _topInicial = Top;
             _origemEmPixels = PointToScreen(e.GetPosition(this));
+            GuardarPosicaoInicial();
 
             try
             {
@@ -137,15 +136,46 @@ public partial class PainelWindow : Window
         }
     }
 
+    /// <summary>
+    /// Guarda de onde o painel parte (em DIPs).
+    ///
+    /// <para>
+    /// O <c>Left</c> e o <c>Top</c> saem <c>NaN</c> enquanto a janela não foi
+    /// posicionada, e o WPF não avisa: o arrasto summiria em silêncio, com o
+    /// painel grudado no lugar. Quando é esse o caso, a posição inicial vem
+    /// do canto da janela na tela.
+    /// </para>
+    /// </summary>
+    private void GuardarPosicaoInicial()
+    {
+        if (!double.IsNaN(Left) && !double.IsNaN(Top))
+        {
+            _leftInicial = Left;
+            _topInicial = Top;
+            return;
+        }
+
+        var canto = PointToScreen(new Point(0, 0));
+        var dpi = VisualTreeHelper.GetDpi(this);
+        _leftInicial = canto.X / dpi.DpiScaleX;
+        _topInicial = canto.Y / dpi.DpiScaleY;
+    }
+
     private void BtnFechar_Click(object sender, RoutedEventArgs e) => AoFechar?.Invoke();
 
     /// <summary>
     /// O clique veio do botão "×"?
     ///
     /// <para>
-    /// O botão está dentro do painel, e o clique nele chega na janela
-    /// antes de ser tratado pelo botão. Sem esta guarda, apertar o "×"
-    /// também acabaria arrastando a janela.
+    /// O botão está dentro do painel, e o duplo clique nele chega na
+    /// janela. Sem esta guarda, fechar o painel com dois cliques abriria
+    /// a janela principal por baixo dele.
+    /// </para>
+    ///
+    /// <para>
+    /// O acerto do botão resolve para o glifo (o TextBlock do "×") ou
+    /// para o template dele — e os dois são descendentes do botão, então
+    /// a guarda os alcança.
     /// </para>
     /// </summary>
     private bool VeioDoBotao(object? origem) =>
