@@ -55,6 +55,23 @@ Além disso: um valor de sensor que não cabe em um inteiro exato tem que virar
 "—", e não um número de 19 dígitos na tela (número errado é pior que número
 ausente).
 
+A revisão da Task 1 (09/11/2026) achou mais duas divergências de unidade, do
+mesmo tipo da que o owner já arbitrou para gigabytes — e o owner arbitrou de
+novo:
+
+4. **"%" é inteiro em todo lugar.** `NumeroTexto.Percentual` (que vivia em
+   produção no alerta "41,18% abaixo do recorde") é **removido**, sem
+   compatibilidade artificial: o `SensorTexto.Porcentual` passa a ser o único
+   "%" do app, e o alerta passa a dizer "41% abaixo do recorde".
+5. **"V" tem um formatador só, com a casa certa por grandeza.**
+   `SensorTexto.Volts(double? valor, int casas = 3)`; a tensão do módulo de
+   memória pede 2 casas ("1,35 V") e a do núcleo da GPU mantém 3 ("1,234 V").
+
+A dívida antiga de "%" fora do núcleo (`UsoTexto.Percentual`, que escreve
+"42,4 %", e o `BatteryInfo`, que escreve "50%") fica **fora da v0.31**: é
+dívida de antes, em outro subsistema, e mexer nela aqui seria ampliar o
+escopo sem plano.
+
 ---
 
 ### Task 1: `SensorTexto` — o núcleo puro das unidades dos sensores
@@ -63,9 +80,11 @@ O overlay (`MainWindow.Overlay.cs:84`) formata os números com interpolação cr
 
 **Files:**
 - Create: `SensorTexto.cs`
-- Modify: `NumeroTexto.cs` (a sobrecarga `Numero(valor, casas)` — arbitragem 1)
+- Modify: `NumeroTexto.cs` (a sobrecarga `Numero(valor, casas)` — arbitragem 1; e o `Percentual` sai — arbitragem 4)
+- Modify: `VentoinhaRegras.cs` (a linha do alerta de degradação passa a usar o `SensorTexto.Porcentual` — arbitragem 4)
 - Test: `TranalSentinel.Tests/SensorTextoTestes.cs`
 - Test: `TranalSentinel.Tests/NumeroTextoTestes.cs` (a sobrecarga nova)
+- Test: `TranalSentinel.Tests/VentoinhaRegrasTestes.cs` (o percentual do alerta passa a ser "41%")
 
 **Interfaces:**
 - Produces: `public static class SensorTexto` com
@@ -181,6 +200,25 @@ public class SensorTextoTestes
     public void Gigahertz_ComValor_UsaDuasCasas()
     {
         Assert.Equal("4,45 GHz", SensorTexto.Gigahertz(4.451));
+    }
+
+    [Fact]
+    public void Volts_ComDuasCasas_UsasAsDuasCasas()
+    {
+        // A casa e um parametro porque a grandeza manda: o modulo de
+        // memoria tem duas casas, o nucleo da GPU tem tres.
+        Assert.Equal("1,35 V", SensorTexto.Volts(1.35, 2));
+        Assert.Equal("1,234 V", SensorTexto.Volts(1.234));
+    }
+
+    [Fact]
+    public void ZeroNegativo_NaoViraSinal()
+    {
+        // O arredondamento pode devolver um zero com sinal: "-0 °C" na tela
+        // seria numero errado.
+        Assert.Equal("0 °C", SensorTexto.Temperatura(-0.04));
+        Assert.Equal("0,0 GB", SensorTexto.Gigabytes(-0.02));
+        Assert.Equal("0,000 V", SensorTexto.Volts(-0.0004));
     }
 
     [Fact]
@@ -326,10 +364,18 @@ public static class SensorTexto
             ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " W"
             : Ausente;
 
-    /// <summary>Uma tensão em volts (três casas decimais).</summary>
-    public static string Volts(double? valor) =>
+    /// <summary>Uma tensão em volts (três casas decimais por padrão).</summary>
+    ///
+    /// <para>
+    /// A casa é um parâmetro porque a grandeza manda: a tensão do núcleo da
+    /// GPU tem três casas ("1,234 V") e a de um módulo de memória tem duas
+    /// ("1,35 V"). O formatador é um só — o que muda é a casa pedida.
+    /// </para>
+    public static string Volts(double? valor, int casas = 3) =>
         valor is double v && CabeNaTela(v)
-            ? NumeroTexto.Numero(Math.Round(v, 3, MidpointRounding.AwayFromZero), 3) + " V"
+            ? NumeroTexto.Numero(
+                Math.Round(v, Math.Clamp(casas, 0, 15), MidpointRounding.AwayFromZero),
+                Math.Clamp(casas, 0, 15)) + " V"
             : Ausente;
 
     /// <summary>Um número de rotações por minuto.</summary>
@@ -376,9 +422,49 @@ e não dentro do `SensorTexto`:
     {
         if (!double.IsFinite(valor)) return "—";
         int fixas = Math.Clamp(casas, 0, 15);
-        return valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+        // O zero negativo (-0) aparece quando o arredondamento devolve um
+        // zero com sinal: na tela sairia "-0 °C". Numero errado e pior que
+        // numero ausente: o zero negativo e o zero.
+        double limpo = valor == 0 ? 0 : valor;
+        return limpo.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
     }
 ```
+```
+
+- [ ] **Step 3b: Tire o `NumeroTexto.Percentual` (arbitragem 4)**
+
+O `NumeroTexto.Percentual` escrevia "%" em dois formatos diferentes do app
+("41,18%" no alerta da ventoinha, "47%" no novo `SensorTexto`). Ele sai, sem
+compatibilidade artificial — e o "%" fica em um lugar só, o `SensorTexto`:
+
+```csharp
+// No NumeroTexto.cs, apague o metodo Percentual.
+//
+// No VentoinhaRegras.cs (a linha do alerta de degradacao, em 562):
+                $"{SensorTexto.Porcentual(perda * 100)} abaixo do recorde, com a temperatura no mesmo patamar ou mais alta.",
+```
+
+E, no `TranalSentinel.Tests/VentoinhaRegrasTestes.cs`, as duas asserções que
+travam "41,18%" passam a travar "41%":
+
+```csharp
+            Assert.Equal("41%", SensorTexto.Porcentual(41.176));
+```
+
+**O zero negativo também sai.** O `Math.Round` pode devolver um zero com sinal
+(-0), e o .NET 10 imprime o sinal: "-0 °C" na tela é número errado. A
+normalização fica no `NumeroTexto` (é o lugar de formatação de número do app),
+nos dois métodos de número decimal — o de uma casa e o de casas fixas:
+
+```csharp
+    public static string Numero(double valor)
+    {
+        if (!double.IsFinite(valor)) return "—";
+        // O zero negativo (-0) sai de um arredondamento; na tela viraria
+        // "-0". Numero errado e pior que numero ausente.
+        double limpo = valor == 0 ? 0 : valor;
+        return limpo.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+    }
 ```
 
 - [ ] **Step 4: Rode o teste e veja passar**
@@ -832,11 +918,15 @@ RAM usada (que hoje sai com `:0.0`):
 
 - [ ] **Step 5: Faça o `MemoriaTexto` delegar ao `SensorTexto`**
 
-O `MemoriaTexto.Bytes` (`MemoriaTexto.cs:26`) monta o texto de gigabytes por
-conta própria. Agora ele delega (arbitragem 3 — um jeito só de escrever GB no
-app):
+O `MemoriaTexto.Bytes` (`MemoriaTexto.cs:26`) e o `MemoriaTexto.Voltagem`
+(`MemoriaTexto.cs:23`) montam o texto por conta própria. Agora os dois
+delegam (arbitragem 3 e arbitragem 5 — um jeito só de escrever GB e de
+escrever volt no app):
 
 ```csharp
+    /// <summary>Uma tensão em volts.</summary>
+    public static string Voltagem(double volts) => SensorTexto.Volts(volts, 2);
+
     /// <summary>Uma quantidade de bytes em gigabytes.</summary>
     public static string Bytes(long bytes) =>
         SensorTexto.Gigabytes(Math.Round(bytes / 1024.0 / 1024.0 / 1024.0, 1));
@@ -844,7 +934,8 @@ app):
 
 > **Atenção:** o texto muda de "8 GB" para "8,0 GB" na tela de memória. É a
 > consequência da arbitragem 3, e é o mesmo número que o painel e o overlay
-> mostram.
+> mostram. A tensão do módulo continua com duas casas ("1,35 V") — o
+> `SensorTexto.Volts` é o mesmo formatador, com a casa que a grandeza pede.
 
 - [ ] **Step 6: Rode a suíte inteira**
 
