@@ -67,6 +67,11 @@ novo:
    `SensorTexto.Volts(double? valor, int casas = 3)`; a tensão do módulo de
    memória pede 2 casas ("1,35 V") e a do núcleo da GPU mantém 3 ("1,234 V").
 
+6. **O rótulo "mem" do clock de memória da GPU fica.** O refactor do overlay
+   tirou o prefixo do valor (e deixou no fallback): com os dois clocks
+   ligados, o overlay mostrava dois MHz indistinguíveis. A lista de mudanças
+   arbitradas não mencionava perder a distinção — então ela fica.
+
 A dívida antiga de "%" fora do núcleo fica **fora da v0.31**: é dívida de
 antes, em outro subsistema, e mexer nela aqui seria ampliar o escopo sem
 plano. Os "%" que sobram, por arquivo:
@@ -1031,7 +1036,7 @@ E as linhas que usam clock, power, volt, VRAM e fan:
 
 ```csharp
         if (show.Contains("gpu_clock")) gpu.Add(MainGpuClock(Nvml.ClockGraphics, "GPU Core") is uint c ? SensorTexto.Mhz(c) : SensorTexto.Ausente);
-        if (show.Contains("gpu_memclock")) gpu.Add(MainGpuClock(Nvml.ClockMem, "GPU Memory") is uint mc ? SensorTexto.Mhz(mc) : "mem —");
+        if (show.Contains("gpu_memclock")) gpu.Add(MainGpuClock(Nvml.ClockMem, "GPU Memory") is uint mc ? $"mem {SensorTexto.Mhz(mc)}" : "mem —");
         if (show.Contains("gpu_power")) gpu.Add(MainGpuPower() is float w ? SensorTexto.Watts(w) : SensorTexto.Ausente);
         if (show.Contains("gpu_volt")) gpu.Add(GpuRow(SensorType.Voltage, "GPU Core")?.RawValue is float v ? SensorTexto.Volts(v) : SensorTexto.Ausente);
         if (show.Contains("gpu_fan"))
@@ -1055,6 +1060,10 @@ RAM usada (que hoje sai com `:0.0`):
 ```
 
 > **Atenção:** o `SensorTexto.Mhz` devolve "2.790 MHz" (com ponto de milhar, padrão da casa) e não "2790 MHz". Isso é a regra do app: o mesmo número sai do mesmo jeito em todo lugar.
+>
+> O prefixo "mem" do clock de memória **fica** (arbitragem do owner em 09/11/2026,
+> depois da revisão da task): sem ele, o overlay mostra dois MHz indistinguíveis
+> — o do núcleo e o da memória. O dono não pediu para perder essa distinção.
 
 - [ ] **Step 5: Faça o `MemoriaTexto` delegar ao `SensorTexto`**
 
@@ -1114,6 +1123,319 @@ A memoria passa a escrever gigabyte do mesmo jeito que o resto do app
 ```bash
 git add MainWindow.Overlay.cs VentoinhaRegras.cs MemoriaTexto.cs TranalSentinel.Tests/VentoinhaRegrasTestes.cs
 git commit -F "<workspace>/msg-v031-t3.txt"
+```
+
+---
+
+### Task 3b: A lista de sensores e o resto dos números passam a sair do `SensorTexto`
+
+O refactor do overlay deixou a lista de sensores (`SensorRow.Format`)
+formatando as unidades na mão: o **mesmo número passava a sair de dois
+jeitos** — "2790 MHz" na lista contra "2.790 MHz" no overlay, "1407 RPM"
+contra "1.407 RPM" — e ainda dependia da cultura do Windows (a lista usa os
+formatadores cruais, com a cultura corrente). É exatamente o defeito de
+classe que o owner arbitrou duas vezes, e é esta task que fecha.
+
+Sobraram ainda dois lugares do mesmo tipo: o tempo de quadro em ms do overlay
+de FPS (`:0.0`, cultura corrente) e o gigabyte da linha de comando da memória
+("8 GB" ao lado do "8,0 GB" do app).
+
+**Files:**
+- Modify: `SensorTexto.cs` (os formatadores das unidades que ainda não existiam)
+- Modify: `SensorRow.cs` (o `Format` delega por tipo)
+- Modify: `MainWindow.xaml.cs` (o tempo de quadro em ms do rodapé do overlay)
+- Modify: `OverlayWindow.xaml.cs` (o tempo de quadro em ms da janela do overlay)
+- Modify: `MemoriaCli.cs` (o gigabyte do módulo)
+- Test: `TranalSentinel.Tests/SensorTextoTestes.cs` (os formatadores novos)
+- Test: `TranalSentinel.Tests/SensorRowTestes.cs` (a lista falando a língua da casa)
+
+**Interfaces:**
+- Consumes: `SensorTexto` (Task 1).
+- Produces: no `SensorTexto`, os formatadores que faltavam —
+  `Megabytes(double?)`, `MegabytesPorSegundo(double?)`, `Ampere(double?)`,
+  `LitrosPorHora(double?)`, `Hertz(double?)`, `MiliwattHora(double?)` e
+  `Milissegundos(double?)`.
+
+**Arbitragem do owner (09/11/2026, revisão da Task 3):** as casas de cada
+unidade nova são estas, e as unidades que já tinham formatador passam a falar
+a língua da casa:
+
+| Unidade | Formato | Texto |
+| --- | --- | --- |
+| °C | `SensorTexto.Temperatura` | "51,4 °C" |
+| % | `SensorTexto.Porcentual` (inteiro) | "47%" |
+| MHz | `SensorTexto.Mhz` | "2.790 MHz" |
+| W | `SensorTexto.Watts` (inteiro) | "120 W" |
+| V | `SensorTexto.Volts` (3 casas) | "1,234 V" |
+| RPM | `SensorTexto.Rpm` | "1.407 RPM" |
+| GB | `SensorTexto.Gigabytes` (1 casa) | "8,5 GB" |
+| MB | `SensorTexto.Megabytes` (1 casa) | "8,0 MB" |
+| MB/s | `SensorTexto.MegabytesPorSegundo` (1 casa) | "150,0 MB/s" |
+| A | `SensorTexto.Ampere` (3 casas) | "1,234 A" |
+| L/h | `SensorTexto.LitrosPorHora` (1 casa) | "12,5 L/h" |
+| Hz | `SensorTexto.Hertz` (inteiro) | "1000 Hz" |
+| mWh | `SensorTexto.MiliwattHora` (1 casa) | "150,5 mWh" |
+| ms | `SensorTexto.Milissegundos` (1 casa) | "16,7 ms" |
+
+- [ ] **Step 1: Escreva os testes que falham**
+
+No `TranalSentinel.Tests/SensorTextoTestes.cs`, acrescente:
+
+```csharp
+    [Fact]
+    public void AsUnidadesNovasUsamACasaDaCasa()
+    {
+        Assert.Equal("8,0 MB", SensorTexto.Megabytes(8.04));
+        Assert.Equal("150,0 MB/s", SensorTexto.MegabytesPorSegundo(150));
+        Assert.Equal("1,234 A", SensorTexto.Ampere(1.234));
+        Assert.Equal("12,5 L/h", SensorTexto.LitrosPorHora(12.5));
+        Assert.Equal("1000 Hz", SensorTexto.Hertz(1000));
+        Assert.Equal("150,5 mWh", SensorTexto.MiliwattHora(150.5));
+        Assert.Equal("16,7 ms", SensorTexto.Milissegundos(16.7));
+    }
+
+    [Fact]
+    public void AsUnidadesNovasNaoDependemDaCultura()
+    {
+        var cultura = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("en-US");
+
+            Assert.Equal("1,234 A", SensorTexto.Ampere(1.234));
+            Assert.Equal("16,7 ms", SensorTexto.Milissegundos(16.7));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = cultura;
+        }
+    }
+```
+
+E, no arquivo novo `TranalSentinel.Tests/SensorRowTestes.cs`, o teste que
+mostra a lista falando a mesma língua do overlay:
+
+```csharp
+using LibreHardwareMonitor.Hardware;
+using Xunit;
+
+namespace TranalSentinel.Tests;
+
+/// <summary>
+/// Testes do texto da linha de sensor.
+///
+/// <para>
+/// A lista de sensores e o overlay mostram o mesmo numero: ele tem que
+/// sair do mesmo jeito nos dois.
+/// </para>
+/// </summary>
+public class SensorRowTestes
+{
+    private static SensorRow Linha(SensorType tipo, float valor)
+    {
+        var linha = new SensorRow { Type = tipo };
+        linha.Update(valor, null, null);
+        return linha;
+    }
+
+    [Fact]
+    public void OClockSaiComOPontoDeMilharDaCasa()
+    {
+        Assert.Equal("2.790 MHz", Linha(SensorType.Clock, 2790).Value);
+    }
+
+    [Fact]
+    public void OFanSaiComOPontoDeMilharDaCasa()
+    {
+        Assert.Equal("1.407 RPM", Linha(SensorType.Fan, 1407).Value);
+    }
+
+    [Fact]
+    public void APercentualEInteiro()
+    {
+        Assert.Equal("47%", Linha(SensorType.Load, 47.4).Value);
+    }
+
+    [Fact]
+    public void ADataSaiComUmaCasa()
+    {
+        Assert.Equal("8,5 GB", Linha(SensorType.Data, 8.5).Value);
+    }
+
+    [Fact]
+    public void AVazaoSaiEmMegabytesPorSegundo()
+    {
+        // O sensor entrega bytes por segundo; a lista mostra MB/s.
+        Assert.Equal("150,0 MB/s", Linha(SensorType.Throughput, 150 * 1048576f).Value);
+    }
+
+    [Fact]
+    public void SemValorViraEmDash()
+    {
+        var linha = new SensorRow { Type = SensorType.Temperature };
+
+        Assert.Equal("—", linha.Value);
+    }
+}
+```
+
+- [ ] **Step 2: Rode os testes e veja falhar**
+
+```
+dotnet test "E:\projetos\tranal-sentinel\TranalSentinel.Tests\TranalSentinel.Tests.csproj" -c Release --filter "FullyQualifiedName~SensorTextoTestes|FullyQualifiedName~SensorRowTestes"
+```
+
+Esperado: erro de compilação — os formatadores novos não existem.
+
+- [ ] **Step 3: Escreva os formatadores novos no `SensorTexto`**
+
+No `SensorTexto.cs`, ao lado dos outros:
+
+```csharp
+    /// <summary>Um tamanho em megabytes (uma casa decimal).</summary>
+    public static string Megabytes(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " MB"
+            : Ausente;
+
+    /// <summary>Uma velocidade em megabytes por segundo (uma casa decimal).</summary>
+    public static string MegabytesPorSegundo(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " MB/s"
+            : Ausente;
+
+    /// <summary>Uma corrente em ampere (três casas decimais).</summary>
+    public static string Ampere(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 3, MidpointRounding.AwayFromZero), 3) + " A"
+            : Ausente;
+
+    /// <summary>Um fluxo em litros por hora (uma casa decimal).</summary>
+    public static string LitrosPorHora(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " L/h"
+            : Ausente;
+
+    /// <summary>Uma frequência em hertz (inteiro).</summary>
+    public static string Hertz(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " Hz"
+            : Ausente;
+
+    /// <summary>Uma energia em miliwatt-hora (uma casa decimal).</summary>
+    public static string MiliwattHora(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " mWh"
+            : Ausente;
+
+    /// <summary>Um tempo em milissegundos (uma casa decimal).</summary>
+    public static string Milissegundos(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " ms"
+            : Ausente;
+```
+
+- [ ] **Step 4: Faça o `SensorRow.Format` delegar**
+
+O switch de 14 tipos vira uma delegação por tipo:
+
+```csharp
+    private string Format(float? v)
+    {
+        if (v == null) return SensorTexto.Ausente;
+
+        return Type switch
+        {
+            SensorType.Temperature => SensorTexto.Temperatura(v),
+            SensorType.Load or SensorType.Control or SensorType.Level or SensorType.Humidity => SensorTexto.Porcentual(v),
+            SensorType.Clock => SensorTexto.Mhz(v),
+            SensorType.Power => SensorTexto.Watts(v),
+            SensorType.Voltage => SensorTexto.Volts(v),
+            SensorType.Current => SensorTexto.Ampere(v),
+            SensorType.Fan => SensorTexto.Rpm(v),
+            SensorType.Flow => SensorTexto.LitrosPorHora(v),
+            SensorType.Frequency => SensorTexto.Hertz(v),
+            SensorType.Data => SensorTexto.Gigabytes(v),
+            SensorType.SmallData => SensorTexto.Megabytes(v),
+            SensorType.Throughput => SensorTexto.MegabytesPorSegundo(v / 1048576f),
+            SensorType.Energy => SensorTexto.MiliwattHora(v),
+            _ => NumeroTexto.Numero(v.Value)
+        };
+    }
+```
+
+> **Atenção:** o throughput do sensor chega em bytes por segundo; quem divide
+> por 1048576 é o formatador (o `SensorTexto` recebe MB/s).
+
+- [ ] **Step 5: O tempo de quadro em ms dos dois lugares do overlay de FPS**
+
+No `OverlayWindow.xaml.cs`:
+
+```csharp
+            OFrameTime.Text = SensorTexto.Milissegundos(f.FrameTimeMs);
+```
+
+e, no ramo sem leitura, o texto passa a ser o travessão da casa:
+
+```csharp
+            OFrameTime.Text = fps ? "" : SensorTexto.Ausente;
+```
+
+No `MainWindow.xaml.cs` (o rodapé do overlay):
+
+```csharp
+        else if (f != null) OvStatus.Text = $"Ativa · {f.ProcessName}: {f.Fps:0} FPS ({SensorTexto.Milissegundos(f.FrameTimeMs)}) · 1% low {f.Low1Fps:0}";
+```
+
+- [ ] **Step 6: O gigabyte da linha de comando da memória**
+
+No `MemoriaCli.cs`:
+
+```csharp
+            sb.AppendLine($"  {spd.Fabricante} · {spd.PartNumber} · {SensorTexto.Gigabytes(spd.Gigabytes)}");
+```
+
+> **Atenção:** o texto muda de "8 GB" para "8,0 GB" — é o mesmo número que o
+> app mostra, e é a consequência da arbitragem 3.
+
+- [ ] **Step 7: Rode a suíte inteira**
+
+```
+dotnet test "E:\projetos\tranal-sentinel\TranalSentinel.Tests\TranalSentinel.Tests.csproj" -c Release
+```
+
+Esperado: todos PASS (o número de testes sobe em 8 — os 7 novos do
+`SensorTexto` e o arquivo novo do `SensorRow`).
+
+- [ ] **Step 8: Build e contagem de avisos**
+
+```
+dotnet build "E:\projetos\tranal-sentinel\TranalSentinel.csproj" -c Release -t:Rebuild
+```
+
+Esperado: **16 avisos, 0 erros**. Qualquer aviso novo = regressão: pare e investigue.
+
+- [ ] **Step 9: Commit**
+
+Antes do commit, grave a mensagem num arquivo UTF-8 **sem BOM** em <workspace>/msg-v031-t3b.txt:
+
+```
+A lista de sensores passa a falar a lingua do app
+
+O refactor do overlay deixou a lista de sensores formatando as unidades na
+mao: o mesmo numero saia de dois jeitos (2790 MHz na lista, 2.790 MHz no
+overlay), e ainda dependia da cultura do Windows.
+
+Agora a lista consome o SensorTexto, como o resto do app. As unidades que
+faltavam ganharam formatador proprio (megabytes, megabytes por segundo,
+ampere, litros por hora, hertz, miliwatt-hora e milissegundos), com a casa
+que o dono arbitrou para cada uma.
+```
+
+```bash
+git add SensorTexto.cs SensorRow.cs MainWindow.xaml.cs OverlayWindow.xaml.cs MemoriaCli.cs TranalSentinel.Tests/SensorTextoTestes.cs TranalSentinel.Tests/SensorRowTestes.cs
+git commit -F "<workspace>/msg-v031-t3b.txt"
 ```
 
 ---
