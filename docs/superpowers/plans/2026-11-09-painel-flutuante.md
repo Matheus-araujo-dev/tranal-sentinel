@@ -71,6 +71,10 @@ novo:
    tirou o prefixo do valor (e deixou no fallback): com os dois clocks
    ligados, o overlay mostrava dois MHz indistinguíveis. A lista de mudanças
    arbitradas não mencionava perder a distinção — então ela fica.
+7. **O Hertz tem ponto de milhar, como o MHz e o RPM.** O brief da Task 3b se
+   contradizia: o código mandava `NumeroTexto.Inteiro` (que sai "1.000 Hz") e
+   o teste dizia "1000 Hz". O dono arbitrou "1.000 Hz": todo inteiro do app
+   sai do mesmo jeito, e o Hertz não é a exceção.
 
 A dívida antiga de "%" fora do núcleo fica **fora da v0.31**: é dívida de
 antes, em outro subsistema, e mexer nela aqui seria ampliar o escopo sem
@@ -1143,9 +1147,11 @@ de FPS (`:0.0`, cultura corrente) e o gigabyte da linha de comando da memória
 **Files:**
 - Modify: `SensorTexto.cs` (os formatadores das unidades que ainda não existiam)
 - Modify: `SensorRow.cs` (o `Format` delega por tipo)
-- Modify: `MainWindow.xaml.cs` (o tempo de quadro em ms do rodapé do overlay)
+- Modify: `MainWindow.xaml.cs` (o tempo de quadro em ms do rodapé do overlay, a barra lateral e o quadro do bench)
 - Modify: `OverlayWindow.xaml.cs` (o tempo de quadro em ms da janela do overlay)
 - Modify: `MemoriaCli.cs` (o gigabyte do módulo)
+- Modify: `MainWindow.Memoria.cs` (o gigabyte do módulo na tela de memória)
+- Modify: `MainWindow.Saude.cs` (o gigabyte e o clock do módulo na tela de saúde)
 - Test: `TranalSentinel.Tests/SensorTextoTestes.cs` (os formatadores novos)
 - Test: `TranalSentinel.Tests/SensorRowTestes.cs` (a lista falando a língua da casa)
 
@@ -1173,7 +1179,7 @@ a língua da casa:
 | MB/s | `SensorTexto.MegabytesPorSegundo` (1 casa) | "150,0 MB/s" |
 | A | `SensorTexto.Ampere` (3 casas) | "1,234 A" |
 | L/h | `SensorTexto.LitrosPorHora` (1 casa) | "12,5 L/h" |
-| Hz | `SensorTexto.Hertz` (inteiro) | "1000 Hz" |
+| Hz | `SensorTexto.Hertz` (inteiro) | "1.000 Hz" |
 | mWh | `SensorTexto.MiliwattHora` (1 casa) | "150,5 mWh" |
 | ms | `SensorTexto.Milissegundos` (1 casa) | "16,7 ms" |
 
@@ -1189,7 +1195,7 @@ No `TranalSentinel.Tests/SensorTextoTestes.cs`, acrescente:
         Assert.Equal("150,0 MB/s", SensorTexto.MegabytesPorSegundo(150));
         Assert.Equal("1,234 A", SensorTexto.Ampere(1.234));
         Assert.Equal("12,5 L/h", SensorTexto.LitrosPorHora(12.5));
-        Assert.Equal("1000 Hz", SensorTexto.Hertz(1000));
+        Assert.Equal("1.000 Hz", SensorTexto.Hertz(1000));
         Assert.Equal("150,5 mWh", SensorTexto.MiliwattHora(150.5));
         Assert.Equal("16,7 ms", SensorTexto.Milissegundos(16.7));
     }
@@ -1388,6 +1394,29 @@ No `MainWindow.xaml.cs` (o rodapé do overlay):
         else if (f != null) OvStatus.Text = $"Ativa · {f.ProcessName}: {f.Fps:0} FPS ({SensorTexto.Milissegundos(f.FrameTimeMs)}) · 1% low {f.Low1Fps:0}";
 ```
 
+- [ ] **Step 5b: A barra lateral e o quadro do bench (também no `MainWindow.xaml.cs`)**
+
+O mesmo arquivo tem mais dois números de sensor formatados na mão — a barra
+lateral da GPU e o quadro do bench. Com a lista agora invariante, eles ficariam
+mostrando "51.4 °C" ao lado de "51,4 °C" em máquina en-US:
+
+```csharp
+            SideGpuTemp.Text = MainGpuTemp() is float t ? SensorTexto.Temperatura(t) : SensorTexto.Ausente;
+            SideGpuLoad.Text = load?.RawValue is float l ? SensorTexto.Porcentual(l) : SensorTexto.Ausente;
+```
+
+e, no quadro do bench:
+
+```csharp
+            new KeyValuePair<string, string>("Temperatura", _monitor.CpuTemperature is float t ? SensorTexto.Temperatura(t) : SensorTexto.Ausente),
+            new KeyValuePair<string, string>("Clock médio", clocks.Count > 0 ? SensorTexto.Mhz(clocks.Average()) : SensorTexto.Ausente),
+            new KeyValuePair<string, string>("Consumo", _monitor.CpuPower is float p ? SensorTexto.Watts(p) : SensorTexto.Ausente),
+            new KeyValuePair<string, string>("Carga", _monitor.CpuLoad is float l ? SensorTexto.Porcentual(l) : SensorTexto.Ausente),
+```
+
+> **Atenção:** o clock médio passa a sair como "2.790 MHz" (com ponto de
+> milhar) e a carga como "47%" (sem espaço), como o resto do app.
+
 - [ ] **Step 6: O gigabyte da linha de comando da memória**
 
 No `MemoriaCli.cs`:
@@ -1398,6 +1427,22 @@ No `MemoriaCli.cs`:
 
 > **Atenção:** o texto muda de "8 GB" para "8,0 GB" — é o mesmo número que o
 > app mostra, e é a consequência da arbitragem 3.
+
+- [ ] **Step 6b: O gigabyte e o clock que sobraram na tela de memória**
+
+A CLI mostra "8,0 GB" e a aba de memória do app mostrava "8 GB" — o mesmo
+módulo, do mesmo campo, de dois jeitos. As duas linhas passam a usar o
+formatador da casa:
+
+```csharp
+// Em MainWindow.Memoria.cs (a identidade do modulo):
+            Identidade = $"{spd.Fabricante} · {spd.PartNumber} · {SensorTexto.Gigabytes(spd.Gigabytes)}",
+
+// Em MainWindow.Saude.cs (o modulo na tela de saude):
+                Value = $"{SensorTexto.Gigabytes(modulo.Gigabytes)} @ {SensorTexto.Mhz(modulo.VelocidadeConfigMHz)}"
+```
+
+> **Atenção:** o clock do módulo sai como "4.799 MHz" (com ponto de milhar).
 
 - [ ] **Step 7: Rode a suíte inteira**
 
@@ -1431,10 +1476,14 @@ Agora a lista consome o SensorTexto, como o resto do app. As unidades que
 faltavam ganharam formatador proprio (megabytes, megabytes por segundo,
 ampere, litros por hora, hertz, miliwatt-hora e milissegundos), com a casa
 que o dono arbitrou para cada uma.
+
+A tela de memoria do app tambem parou de escrever o gigabyte e o clock na
+mao: o mesmo modulo aparecia de dois jeitos, na janela e na linha de
+comando.
 ```
 
 ```bash
-git add SensorTexto.cs SensorRow.cs MainWindow.xaml.cs OverlayWindow.xaml.cs MemoriaCli.cs TranalSentinel.Tests/SensorTextoTestes.cs TranalSentinel.Tests/SensorRowTestes.cs
+git add SensorTexto.cs SensorRow.cs MainWindow.xaml.cs OverlayWindow.xaml.cs MemoriaCli.cs MainWindow.Memoria.cs MainWindow.Saude.cs TranalSentinel.Tests/SensorTextoTestes.cs TranalSentinel.Tests/SensorRowTestes.cs
 git commit -F "<workspace>/msg-v031-t3b.txt"
 ```
 
