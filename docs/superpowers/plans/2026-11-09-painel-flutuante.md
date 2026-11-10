@@ -95,6 +95,32 @@ mas o símbolo fica fora de um formatador de unidade. E o
 `SensorTexto.Porcentual` usa o `NumeroTexto.Inteiro`, não o
 `NumeroTexto.Numero`: os dois são do mesmo lugar, o formatador de número.
 
+## Dívida conhecida: números que ainda dependem da cultura do Windows
+
+A v0.31 fecha as **unidades dos sensores**: a lista de sensores, o overlay, o
+cartão de ventoinha, a tela de memória e a linha de comando da memória. Fora
+desse escopo, sobraram **139 ocorrências em 18 arquivos** do app que formatam
+número com a cultura corrente do Windows.
+
+**Critério (reprodutível):** buraco de interpolação `{expressão:formato}` cujo
+formato é numérico e sensível à cultura — `0.x` (uma ou mais casas decimais),
+`N` (separador de milhar), `P` (porcentagem) e `F` (ponto fixo) —, contado por
+**ocorrência** (não por linha), nos `.cs` do app versionados, fora da suíte de
+testes e fora de `bin/`/`obj/`. Formato só de inteiro (`:0`) não troca nada
+entre as cultures e não entra na conta.
+
+**Arquivos:** `BatteryInfo.cs`, `CorsairSdkInstaller.cs`, `DecodificadorSpd.cs`,
+`DiskHealth.cs`, `DriveMap.cs`, `DriverManager.cs`, `GpuGameBench.cs`,
+`GpuInfoCollector.cs`, `MainWindow.Dash.cs`, `MainWindow.Disks.cs`,
+`MainWindow.Driver.cs`, `MainWindow.Integ.cs`, `MainWindow.Oc.cs`,
+`MainWindow.Rt.cs`, `MainWindow.xaml.cs`, `NetworkTest.cs`, `Optimizer.cs`,
+`SystemInfoCollector.cs`.
+
+Em um Windows em inglês esses números saem com ponto no lugar da vírgula
+("8.5 GB" contra "8,5 GB"). A migração é a de sempre — cada unidade ganha o
+seu formatador no `SensorTexto` —, mas ela é uma task por si, com uma
+arbitragem de casa por unidade nova. **Fica fora da v0.31.**
+
 ---
 
 ### Task 1: `SensorTexto` — o núcleo puro das unidades dos sensores
