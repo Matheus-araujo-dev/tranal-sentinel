@@ -79,8 +79,12 @@ plano. Os "%" que sobram, por arquivo:
 | `BatteryInfo.cs:90-106` | "50%" / "12,3%" (interpolação crua) | bateria |
 | `AlertasSegundoPlano.cs:162` | a unidade "%" do aviso de bateria | alertas |
 
-O núcleo (`SensorTexto.Porcentual`) é o único "%" que passa pelo
-`NumeroTexto`.
+O `SensorTexto.Porcentual` é o único "%" que sai de um formatador de
+unidade. Os dois inline (`CompararCli` e `MainWindow.Comparar`) escrevem "%" na
+mão em volta do `NumeroTexto.Numero` — o número sai do formatador da casa,
+mas o símbolo fica fora de um formatador de unidade. E o
+`SensorTexto.Porcentual` usa o `NumeroTexto.Inteiro`, não o
+`NumeroTexto.Numero`: os dois são do mesmo lugar, o formatador de número.
 
 ---
 
