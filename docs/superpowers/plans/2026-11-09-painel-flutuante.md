@@ -99,8 +99,13 @@ mas o símbolo fica fora de um formatador de unidade. E o
 
 A v0.31 fecha as **unidades dos sensores**: a lista de sensores, o overlay, o
 cartão de ventoinha, a tela de memória e a linha de comando da memória. Fora
-desse escopo, sobraram **139 ocorrências em 18 arquivos** do app que formatam
+desse escopo, sobraram **136 ocorrências em 18 arquivos** do app que formatam
 número com a cultura corrente do Windows.
+
+O número é medido, não estimado: o script `docs/superpowers/plans/divida-cultura.py`
+(conferido contra o HEAD da branch) conta as ocorrências e imprime o total e a
+lista de arquivos. Rodar de novo depois de qualquer migração é o jeito de
+saber se a dívida caiu.
 
 **Critério (reprodutível):** buraco de interpolação `{expressão:formato}` cujo
 formato é numérico e sensível à cultura — `0.x` (uma ou mais casas decimais),
@@ -108,6 +113,11 @@ formato é numérico e sensível à cultura — `0.x` (uma ou mais casas decimai
 **ocorrência** (não por linha), nos `.cs` do app versionados, fora da suíte de
 testes e fora de `bin/`/`obj/`. Formato só de inteiro (`:0`) não troca nada
 entre as cultures e não entra na conta.
+
+**Escopo:** o projeto do app (`TranalSentinel.csproj`). O `Tranal.Setup/` e o
+`Tranal.Setup.Tests/` são projetos próprios (o instalador e os testes dele) e
+ficam de fora — o `Tranal.Setup/Infra/TarefaAgendadaWindows.cs`, por exemplo,
+não entra na conta.
 
 **Arquivos:** `BatteryInfo.cs`, `CorsairSdkInstaller.cs`, `DecodificadorSpd.cs`,
 `DiskHealth.cs`, `DriveMap.cs`, `DriverManager.cs`, `GpuGameBench.cs`,
@@ -1529,6 +1539,7 @@ git commit -F "<workspace>/msg-v031-t3b.txt"
   - `event Action? AoFechar` (botão "×")
   - `void Topmost` herdado de `Window`
   - `static bool DentroDaTela(double left, double top, double largura, double altura)` — decide se o painel está em algum monitor (a posição é salva em DIPs; a tela virtual também é lida em DIPs, via `SystemParameters`)
+  - `static bool DentroDaTela(double left, double top, double largura, double altura, double telaX, double telaY, double telaLargura, double telaAltura)` — a mesma decisão com os limites da tela recebidos: é a parte pura, e a suíte a testa sem WPF
 
 - [ ] **Step 1: Escreva o XAML**
 
@@ -1643,14 +1654,25 @@ public partial class PainelWindow : Window
     /// canto em vez de ficar fora da tela.
     /// </para>
     /// </summary>
-    public static bool DentroDaTela(double left, double top, double largura, double altura)
-    {
-        double x = SystemParameters.VirtualScreenLeft;
-        double y = SystemParameters.VirtualScreenTop;
-        double w = SystemParameters.VirtualScreenWidth;
-        double h = SystemParameters.VirtualScreenHeight;
+    public static bool DentroDaTela(double left, double top, double largura, double altura) =>
+        DentroDaTela(left, top, largura, altura,
+            SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+            SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
 
-        return left + largura > x && left < x + w && top + altura > y && top < y + h;
+    /// <summary>
+    /// A mesma decisão, com os limites da tela recebidos.
+    ///
+    /// <para>
+    /// A janela do WPF não dá para testar na suíte (ela exige uma thread com
+    /// STA), mas a pergunta — o painel ainda está em algum monitor? — é
+    /// aritmética pura. Por isso ela mora aqui, com a tela como argumento.
+    /// </para>
+    /// </summary>
+    public static bool DentroDaTela(double left, double top, double largura, double altura,
+                                     double telaX, double telaY, double telaLargura, double telaAltura)
+    {
+        return left + largura > telaX && left < telaX + telaLargura
+            && top + altura > telaY && top < telaY + telaAltura;
     }
 
     private void Arrastando(MouseEventArgs e)
@@ -1677,6 +1699,48 @@ public partial class PainelWindow : Window
     }
 
     private void BtnFechar_Click(object sender, RoutedEventArgs e) => AoFechar?.Invoke();
+}
+```
+
+- [ ] **Step 2b: O teste da parte pura**
+
+A janela em si não entra na suíte (o WPF exige uma thread com STA). A pergunta
+"o painel ainda está em algum monitor?" é aritmética pura, e mora em
+`PainelWindow.DentroDaTela` com a tela como argumento. Crie
+`TranalSentinel.Tests/PainelJanelaTestes.cs` (LF):
+
+```csharp
+using TranalSentinel;
+
+namespace TranalSentinel.Tests;
+
+public class PainelJanelaTestes
+{
+    [Fact]
+    public void PainelDentroDaTela_Fica()
+    {
+        Assert.True(PainelWindow.DentroDaTela(100, 100, 260, 120, 0, 0, 1920, 1080));
+    }
+
+    [Fact]
+    public void PainelForaDaTela_NaoFica()
+    {
+        Assert.False(PainelWindow.DentroDaTela(5000, 100, 260, 120, 0, 0, 1920, 1080));
+    }
+
+    [Fact]
+    public void PainelEncostadoNaBordaDaTela_Fica()
+    {
+        // A borda conta: um painel que termina exatamente na última coluna
+        // ainda está na tela.
+        Assert.True(PainelWindow.DentroDaTela(1660, 960, 260, 120, 0, 0, 1920, 1080));
+    }
+
+    [Fact]
+    public void PainelTotalmenteFora_NaoFica()
+    {
+        Assert.False(PainelWindow.DentroDaTela(-400, -300, 260, 120, 0, 0, 1920, 1080));
+    }
 }
 ```
 
@@ -1758,13 +1822,20 @@ public partial class MainWindow
     {
         if (ChkPainel.IsChecked == true)
         {
-            _painel ??= new PainelWindow();
-            _painel.AoFechar += () => ChkPainel.IsChecked = false;
-            _painel.AoAbrirJanela += () => Dispatcher.Invoke(MostrarJanela);
+            if (_painel is null)
+            {
+                // A janela nasce uma vez só, e os eventos se ligam uma vez
+                // só: se o dono desligar e ligar o painel, o duplo clique não
+                // pode acabar abrindo a janela principal duas vezes.
+                _painel = new PainelWindow();
+                _painel.AoFechar += () => ChkPainel.IsChecked = false;
+                _painel.AoAbrirJanela += () => Dispatcher.Invoke(MostrarJanela);
+            }
+
             _painel.Topmost = ChkPainelTopo.IsChecked == true;
 
             RestaurarPosicaoDoPainel();
-            _painel.Show();
+            if (!_painel.IsVisible) _painel.Show();
 
             _painelTimer ??= new DispatcherTimer(
                 TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) => UpdatePainel(), Dispatcher);
