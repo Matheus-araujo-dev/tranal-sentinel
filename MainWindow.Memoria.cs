@@ -185,7 +185,7 @@ public partial class MainWindow
         var vm = new MemoriaModuloVm
         {
             Titulo = $"MÓDULO {LetraSlot(modulo.EnderecoSmbus)} · SMBus 0x{modulo.EnderecoSmbus:X2}",
-            Identidade = $"{spd.Fabricante} · {spd.PartNumber} · {spd.Gigabytes:0.#} GB",
+            Identidade = $"{spd.Fabricante} · {spd.PartNumber} · {SensorTexto.Gigabytes(spd.Gigabytes)}",
             Detalhe = $"{spd.TipoModulo} · {spd.Ranks} rank{(spd.Ranks > 1 ? "s" : "")} · {spd.LarguraBits} bits ({spd.LarguraChip})" +
                       (spd.Serial.Length > 0 ? $" · SN {spd.Serial}" : "") +
                       (spd.FabricadoEm.Length > 0 ? $" · {spd.FabricadoEm}" : ""),

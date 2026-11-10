@@ -108,13 +108,13 @@ public static class SensorTexto
     /// <summary>Uma frequência em hertz (inteiro).</summary>
     ///
     /// <para>
-    /// O hertz é o inteiro sem ponto de milhar: é a casa arbitrada pelo
-    /// dono ("1000 Hz", e não "1.000 Hz"), diferente do MHz e do RPM, que
-    /// levam o separador de milhar.
+    /// O hertz é inteiro como o MHz e o RPM, e sai do mesmo jeito: com o
+    /// ponto de milhar da casa ("1.000 Hz"). Todo inteiro do app sai do
+    /// mesmo jeito — não há exceção.
     /// </para>
     public static string Hertz(double? valor) =>
         valor is double v && CabeNaTela(v)
-            ? NumeroTexto.Numero(Math.Round(v, MidpointRounding.AwayFromZero)) + " Hz"
+            ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " Hz"
             : Ausente;
 
     /// <summary>Uma energia em miliwatt-hora (uma casa decimal).</summary>

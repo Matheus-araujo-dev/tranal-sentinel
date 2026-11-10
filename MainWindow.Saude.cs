@@ -120,7 +120,7 @@ public partial class MainWindow
             resumo.Add(new InfoNode
             {
                 Header = $"RAM {modulo.Slot}",
-                Value = $"{modulo.Gigabytes:0.#} GB @ {modulo.VelocidadeConfigMHz} MHz"
+                Value = $"{SensorTexto.Gigabytes(modulo.Gigabytes)} @ {SensorTexto.Mhz(modulo.VelocidadeConfigMHz)}"
             });
         }
 

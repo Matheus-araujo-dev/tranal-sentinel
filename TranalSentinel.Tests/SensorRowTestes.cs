@@ -1,3 +1,4 @@
+using System.Globalization;
 using LibreHardwareMonitor.Hardware;
 using Xunit;
 
@@ -57,5 +58,37 @@ public class SensorRowTestes
         var linha = new SensorRow { Type = SensorType.Temperature };
 
         Assert.Equal("—", linha.Value);
+    }
+
+    [Fact]
+    public void AFrequenciaSaiComOPontoDeMilharDaCasa()
+    {
+        Assert.Equal("1.000 Hz", Linha(SensorType.Frequency, 1000).Value);
+    }
+
+    [Fact]
+    public void AListaNaoDependeDaCulturaDoWindows()
+    {
+        // Este era o defeito original: a lista formatava na mao, com a
+        // cultura corrente. Em en-US saia "51.4 °C" contra "51,4 °C" no
+        // overlay.
+        var cultura = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("en-US");
+
+            Assert.Equal("51,4 °C", Linha(SensorType.Temperature, 51.4).Value);
+            Assert.Equal("47%", Linha(SensorType.Load, 47.4).Value);
+            Assert.Equal("2.790 MHz", Linha(SensorType.Clock, 2790).Value);
+            Assert.Equal("1.407 RPM", Linha(SensorType.Fan, 1407).Value);
+            Assert.Equal("1.000 Hz", Linha(SensorType.Frequency, 1000).Value);
+            Assert.Equal("8,5 GB", Linha(SensorType.Data, 8.5).Value);
+            Assert.Equal("150,0 MB/s", Linha(SensorType.Throughput, 150 * 1048576f).Value);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = cultura;
+        }
     }
 }

@@ -550,8 +550,8 @@ public partial class MainWindow : Window
         {
             var load = _monitor.Rows.FirstOrDefault(r => r.Hardware == _gpus[0].Name && r.Type == SensorType.Load
                                                          && r.Name == "GPU Core");
-            SideGpuTemp.Text = MainGpuTemp() is float t ? $"{t:0.#} °C" : "—";
-            SideGpuLoad.Text = load?.RawValue is float l ? $"{l:0} %" : "—";
+            SideGpuTemp.Text = MainGpuTemp() is float t ? SensorTexto.Temperatura(t) : SensorTexto.Ausente;
+            SideGpuLoad.Text = load?.RawValue is float l ? SensorTexto.Porcentual(l) : SensorTexto.Ausente;
         }
         if (_gpu != null && PageGpu.IsVisible) GpuExtras.ItemsSource = _gpu.LiveExtras();
     }
@@ -908,10 +908,10 @@ public partial class MainWindow : Window
         {
             new KeyValuePair<string, string>("CPU", GameCatalog.ShortCpuName(_cpuName)),
             new KeyValuePair<string, string>("Threads", $"{Environment.ProcessorCount}"),
-            new KeyValuePair<string, string>("Temperatura", _monitor.CpuTemperature is float t ? $"{t:0.#} °C" : "—"),
-            new KeyValuePair<string, string>("Clock médio", clocks.Count > 0 ? $"{clocks.Average():0} MHz" : "—"),
-            new KeyValuePair<string, string>("Consumo", _monitor.CpuPower is float p ? $"{p:0.#} W" : "—"),
-            new KeyValuePair<string, string>("Carga", _monitor.CpuLoad is float l ? $"{l:0} %" : "—"),
+            new KeyValuePair<string, string>("Temperatura", _monitor.CpuTemperature is float t ? SensorTexto.Temperatura(t) : SensorTexto.Ausente),
+            new KeyValuePair<string, string>("Clock médio", clocks.Count > 0 ? SensorTexto.Mhz(clocks.Average()) : SensorTexto.Ausente),
+            new KeyValuePair<string, string>("Consumo", _monitor.CpuPower is float p ? SensorTexto.Watts(p) : SensorTexto.Ausente),
+            new KeyValuePair<string, string>("Carga", _monitor.CpuLoad is float l ? SensorTexto.Porcentual(l) : SensorTexto.Ausente),
         };
     }
 
