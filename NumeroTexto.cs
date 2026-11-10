@@ -41,6 +41,25 @@ public static class NumeroTexto
     }
 
     /// <summary>
+    /// Número no padrão brasileiro (vírgula decimal) com um número fixo de
+    /// casas decimais ("8,0", "1,234").
+    ///
+    /// <para>
+    /// O <see cref="Numero(double)"/> corta os zeros à direita (formato
+    /// "0.##"), e isso não serve para as unidades que pedem casas fixas
+    /// (gigabytes, volts, gigahertz). Esta sobrecarga garante as casas, no
+    /// mesmo padrão do app: vírgula decimal e independente da cultura do
+    /// Windows.
+    /// </para>
+    /// </summary>
+    public static string Numero(double valor, int casas)
+    {
+        if (!double.IsFinite(valor)) return "—";
+        int fixas = Math.Clamp(casas, 0, 15);
+        return valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+    }
+
+    /// <summary>
     /// Um número inteiro, com o separador de milhar do padrão brasileiro.
     ///
     /// <para>

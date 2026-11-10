@@ -91,4 +91,24 @@ public class SensorTextoTestes
             CultureInfo.CurrentCulture = cultura;
         }
     }
+
+    [Fact]
+    public void Gigahertz_ComValor_UsaDuasCasas()
+    {
+        Assert.Equal("4,45 GHz", SensorTexto.Gigahertz(4.451));
+    }
+
+    [Fact]
+    public void ValorQueNaoCabeEmUmInteiro_ViraEmDash()
+    {
+        // Um sensor que devolvesse 1e30 faria o cast saturar em
+        // long.MaxValue e a tela mostraria 19 dígitos. Número errado é
+        // pior que número ausente.
+        Assert.Equal("—", SensorTexto.Rpm(1e30));
+        Assert.Equal("—", SensorTexto.Porcentual(1e30));
+        Assert.Equal("—", SensorTexto.Mhz(1e30));
+        Assert.Equal("—", SensorTexto.Gigabytes(1e30));
+        Assert.Equal("—", SensorTexto.Volts(1e30));
+        Assert.Equal("—", SensorTexto.Gigahertz(1e30));
+    }
 }
