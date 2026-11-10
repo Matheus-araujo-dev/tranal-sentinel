@@ -559,7 +559,7 @@ public static class VentoinhaRegras
                 "SINAL DE DEGRADAÇÃO",
                 $"Agora {TextoDoRpm(leitura.Rpm)} com {TextoDaTemperatura(temperaturaAtual)}. " +
                 $"O recorde é {TextoDoRpm(rpmRecorde)}, a {TextoDaTemperatura(temperaturaRecorde)} — " +
-                $"{NumeroTexto.Percentual(perda * 100)} abaixo do recorde, com a temperatura no mesmo patamar ou mais alta.",
+                $"{SensorTexto.Porcentual(perda * 100)} abaixo do recorde, com a temperatura no mesmo patamar ou mais alta.",
                 perda * 100);
         }
 

@@ -56,10 +56,18 @@ public static class SensorTexto
             ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " W"
             : Ausente;
 
-    /// <summary>Uma tensão em volts (três casas decimais).</summary>
-    public static string Volts(double? valor) =>
+    /// <summary>Uma tensão em volts (três casas decimais por padrão).</summary>
+    ///
+    /// <para>
+    /// A casa é um parâmetro porque a grandeza manda: a tensão do núcleo da
+    /// GPU tem três casas ("1,234 V") e a de um módulo de memória tem duas
+    /// ("1,35 V"). O formatador é um só — o que muda é a casa pedida.
+    /// </para>
+    public static string Volts(double? valor, int casas = 3) =>
         valor is double v && CabeNaTela(v)
-            ? NumeroTexto.Numero(Math.Round(v, 3, MidpointRounding.AwayFromZero), 3) + " V"
+            ? NumeroTexto.Numero(
+                Math.Round(v, Math.Clamp(casas, 0, 15), MidpointRounding.AwayFromZero),
+                Math.Clamp(casas, 0, 15)) + " V"
             : Ausente;
 
     /// <summary>Um número de rotações por minuto.</summary>
@@ -69,9 +77,9 @@ public static class SensorTexto
             : Ausente;
 
     /// <summary>
-    /// O valor é um número que cabe na tela: um inteiro exato dentro do
-    /// limite do <see cref="double"/> (2^53) e, portanto, dentro do
-    /// <see cref="long"/>.
+    /// O valor é um número que cabe na tela: um inteiro exatamente
+    /// representável em <see cref="double"/> (o maior deles é 2^53 - 1) e,
+    /// portanto, dentro do <see cref="long"/>.
     ///
     /// <para>
     /// Um sensor que devolvesse 1e30 faria o cast saturar em
@@ -81,5 +89,5 @@ public static class SensorTexto
     /// </para>
     /// </summary>
     private static bool CabeNaTela(double valor) =>
-        double.IsFinite(valor) && Math.Abs(valor) <= 9.007199254740992E15;
+        double.IsFinite(valor) && Math.Abs(valor) <= 9.007199254740991E15;
 }

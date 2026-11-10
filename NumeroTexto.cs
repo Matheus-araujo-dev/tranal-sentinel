@@ -37,7 +37,10 @@ public static class NumeroTexto
     public static string Numero(double valor)
     {
         if (!double.IsFinite(valor)) return "—";
-        return valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+        // O zero negativo (-0) sai de um arredondamento; na tela viraria
+        // "-0". Número errado é pior que número ausente.
+        double limpo = valor == 0 ? 0 : valor;
+        return limpo.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
     }
 
     /// <summary>
@@ -51,12 +54,22 @@ public static class NumeroTexto
     /// mesmo padrão do app: vírgula decimal e independente da cultura do
     /// Windows.
     /// </para>
+    ///
+    /// <para>
+    /// As casas são limitadas a 0..15: o formato "F" do <see cref="double"/>
+    /// não passa de 15 casas decimais, e casa negativa não existe. Pedir fora
+    /// da faixa não quebra nada — o pedido é ajustado.
+    /// </para>
     /// </summary>
     public static string Numero(double valor, int casas)
     {
         if (!double.IsFinite(valor)) return "—";
         int fixas = Math.Clamp(casas, 0, 15);
-        return valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
+        // O zero negativo (-0) aparece quando o arredondamento devolve um
+        // zero com sinal: na tela sairia "-0 °C". Número errado é pior que
+        // número ausente: o zero negativo é o zero.
+        double limpo = valor == 0 ? 0 : valor;
+        return limpo.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
     }
 
     /// <summary>
@@ -70,9 +83,6 @@ public static class NumeroTexto
     /// </summary>
     public static string Inteiro(long valor) =>
         valor.ToString("N0", CultureInfo.InvariantCulture).Replace(",", ".");
-
-    /// <summary>Um número em porcentagem (47%).</summary>
-    public static string Percentual(double valor) => Numero(valor) + "%";
 
     /// <summary>
     /// Uma data e hora no padrão brasileiro, sem depender da cultura do

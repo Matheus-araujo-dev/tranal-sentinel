@@ -200,7 +200,7 @@ public class VentoinhaRegrasTestes
         // A frase traz os dois números: o de agora e o do recorde.
         Assert.Contains("2.000 RPM", veredito.Texto);
         Assert.Contains("3.400 RPM", veredito.Texto);
-        Assert.Contains("41,18%", veredito.Texto);
+        Assert.Contains("41%", veredito.Texto);
     }
 
     [Fact]
@@ -425,12 +425,12 @@ public class VentoinhaRegrasTestes
             // A máquina de integração roda em en-US: o mesmo texto tem que
             // sair em pt-BR nos dois lugares.
             CultureInfo.CurrentCulture = new CultureInfo("en-US");
-            Assert.Equal("41,18%", NumeroTexto.Percentual(41.176));
+            Assert.Equal("41%", SensorTexto.Porcentual(41.176));
             Assert.Equal("3.392 RPM", VentoinhaRegras.TextoDoRpm(3392));
             Assert.Equal("85,5 °C", VentoinhaRegras.TextoDaTemperatura(85.5));
 
             CultureInfo.CurrentCulture = new CultureInfo("pt-BR");
-            Assert.Equal("41,18%", NumeroTexto.Percentual(41.176));
+            Assert.Equal("41%", SensorTexto.Porcentual(41.176));
             Assert.Equal("85,5 °C", VentoinhaRegras.TextoDaTemperatura(85.5));
         }
         finally

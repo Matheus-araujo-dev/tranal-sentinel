@@ -111,4 +111,23 @@ public class SensorTextoTestes
         Assert.Equal("—", SensorTexto.Volts(1e30));
         Assert.Equal("—", SensorTexto.Gigahertz(1e30));
     }
+
+    [Fact]
+    public void Volts_ComDuasCasas_UsasAsDuasCasas()
+    {
+        // A casa é um parâmetro porque a grandeza manda: o módulo de
+        // memória tem duas casas, o núcleo da GPU tem três.
+        Assert.Equal("1,35 V", SensorTexto.Volts(1.35, 2));
+        Assert.Equal("1,234 V", SensorTexto.Volts(1.234));
+    }
+
+    [Fact]
+    public void ZeroNegativo_NaoViraSinal()
+    {
+        // O arredondamento pode devolver um zero com sinal: "-0 °C" na tela
+        // seria número errado.
+        Assert.Equal("0 °C", SensorTexto.Temperatura(-0.04));
+        Assert.Equal("0,0 GB", SensorTexto.Gigabytes(-0.02));
+        Assert.Equal("0,000 V", SensorTexto.Volts(-0.0004));
+    }
 }
