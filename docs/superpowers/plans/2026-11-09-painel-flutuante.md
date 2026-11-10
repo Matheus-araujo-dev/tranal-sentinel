@@ -1958,18 +1958,18 @@ public partial class MainWindow
 
             if (!_painel.IsVisible) _painel.Show();
 
-            // A posição é conferida depois de a janela aparecer: só aí o
-            // painel tem o tamanho medido, e é com ele que a conferência
-            // com a tela é feita. O canto automático e o botão "VOLTAR
-            // PARA O CANTO" têm que dar a mesma posição.
+            // As linhas primeiro, a medição depois. O tamanho da janela vem
+            // do conteúdo dela, e o painel começa vazio: medido antes das
+            // linhas, o canto seria calculado com um painel sem nada
+            // dentro, e a janela cresceria para a direita depois — por
+            // cima da borda da tela, bem onde fica o botão de fechar.
+            UpdatePainel();
             _painel.UpdateLayout();
             RestaurarPosicaoDoPainel();
 
             _painelTimer ??= new DispatcherTimer(
                 TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) => UpdatePainel(), Dispatcher);
             _painelTimer.Start();
-
-            UpdatePainel();
         }
         else
         {
@@ -2072,7 +2072,11 @@ public partial class MainWindow
     /// </summary>
     private void SalvarPosicaoDoPainel()
     {
-        if (_painel is null || !_painel.IsVisible) return;
+        // A posição é guardada mesmo com o painel escondido: a janela
+        // continua sabendo onde está, e é essa posição que volta quando o
+        // painel aparece de novo. (O botão "VOLTAR PARA O CANTO" também
+        // funciona com o painel escondido.)
+        if (_painel is null) return;
 
         _settings.PainelX = _painel.Left;
         _settings.PainelY = _painel.Top;

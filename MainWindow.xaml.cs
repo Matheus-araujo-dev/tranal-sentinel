@@ -210,8 +210,10 @@ public partial class MainWindow : Window
             // corresse agora acharia a bandeja já fechada.
             PararVigia();
 
-            // A posição do painel fica salva: ela só se perde se o dono
-            // arrastar o painel para outro lugar.
+            // A posição do painel fica salva no arquivo: sem isto, o
+            // painel voltaria para o canto na próxima vez que o app
+            // abrisse, mesmo com o dono o tendo arrastado para outro
+            // lugar.
             SalvarPosicaoDoPainel();
 
             // O painel é uma janela do app: ela morre com ele. Sem isto, uma
