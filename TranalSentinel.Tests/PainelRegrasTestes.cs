@@ -168,4 +168,78 @@ public class PainelRegrasTestes
 
         Assert.Equal("—", vent.Valor);
     }
+
+    [Fact]
+    public void LinhasSemLeitura_MostraTravessaoNasQuatroLinhas()
+    {
+        // Durante a cena de GPU o painel para de ler: o que ele mostra é o
+        // travessão, nunca o número de antes (número velho é pior que número
+        // ausente).
+        var linhas = PainelRegras.LinhasSemLeitura();
+
+        Assert.Equal(4, linhas.Count);
+        foreach (var linha in linhas)
+        {
+            Assert.Equal("—", linha.Valor);
+        }
+    }
+
+    [Fact]
+    public void PainelDentroDaTela_Fica()
+    {
+        Assert.True(PainelRegras.DentroDaTela(100, 100, 260, 120, 0, 0, 1920, 1080));
+    }
+
+    [Fact]
+    public void PainelForaDaTela_NaoFica()
+    {
+        Assert.False(PainelRegras.DentroDaTela(5000, 100, 260, 120, 0, 0, 1920, 1080));
+    }
+
+    [Fact]
+    public void PainelEncostadoNaBordaDaTela_Fica()
+    {
+        // A borda conta: um painel que termina exatamente na última coluna
+        // ainda está na tela.
+        Assert.True(PainelRegras.DentroDaTela(1660, 960, 260, 120, 0, 0, 1920, 1080));
+    }
+
+    [Fact]
+    public void PainelTotalmenteFora_NaoFica()
+    {
+        Assert.False(PainelRegras.DentroDaTela(-400, -300, 260, 120, 0, 0, 1920, 1080));
+    }
+
+    [Fact]
+    public void PainelEncostadoForaDaTela_NaoFica()
+    {
+        // A borda invisível conta como fora: o painel termina exatamente
+        // onde a tela começa (à esquerda) e começa exatamente onde ela
+        // termina (à direita). Com ">" virando ">=", ele passaria a
+        // contar como dentro — e o painel voltaria para um monitor que
+        // não é mais o dele.
+        Assert.False(PainelRegras.DentroDaTela(-260, 100, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(1920, 100, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(100, -120, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(100, 1080, 260, 120, 0, 0, 1920, 1080));
+    }
+
+    [Fact]
+    public void PosicaoSemValor_NaoPodeSerGravada()
+    {
+        // Uma janela que ainda não foi posicionada tem Left/Top sem valor:
+        // gravar isso no arquivo apagaria a posição que o dono tinha
+        // deixado. A regra é pura, e por isso dá para testar aqui.
+        Assert.False(PainelRegras.PosicaoValida(double.NaN, 100));
+        Assert.False(PainelRegras.PosicaoValida(100, double.NaN));
+        Assert.False(PainelRegras.PosicaoValida(double.NaN, double.NaN));
+    }
+
+    [Fact]
+    public void PosicaoComNumero_PodeSerGravada()
+    {
+        Assert.True(PainelRegras.PosicaoValida(2354, 12));
+        Assert.True(PainelRegras.PosicaoValida(0, 0));
+        Assert.True(PainelRegras.PosicaoValida(-400, -300));
+    }
 }

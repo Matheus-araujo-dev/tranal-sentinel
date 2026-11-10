@@ -748,81 +748,160 @@ E o mesmo helper entra no método de casas fixas:
 Com os testes:
 
 ```csharp
-    [Fact]
-    public void ZeroNegativo_NaoViraSinal()
+namespace TranalSentinel;
+
+/// <summary>
+/// Uma ventoinha como o painel a mostra: o nome legível e o RPM de agora
+/// (null quando ela não está dando leitura).
+/// </summary>
+/// <param name="Nome">O nome do sensor ("Fan #1"), nunca o id interno.</param>
+/// <param name="Rpm">As rotações por minuto (null quando não deu para ler).</param>
+public sealed record PainelVentoinha(string Nome, double? Rpm);
+
+/// <summary>
+/// O retrato do PC que o painel mostra agora.
+/// </summary>
+/// <param name="TemperaturaCpu">A temperatura da CPU em °C (null se não deu para ler).</param>
+/// <param name="CargaCpu">A carga total da CPU em % (null se não deu para ler).</param>
+/// <param name="TemperaturaGpu">A temperatura da GPU em °C (null se não deu para ler).</param>
+/// <param name="CargaGpu">A carga da GPU em % (null se não deu para ler).</param>
+/// <param name="RamPct">A memória RAM em uso em % (null se não deu para ler).</param>
+/// <param name="Ventoinhas">As ventoinhas que o app conhece agora.</param>
+public sealed record PainelRetrato(
+    double? TemperaturaCpu,
+    double? CargaCpu,
+    double? TemperaturaGpu,
+    double? CargaGpu,
+    double? RamPct,
+    IReadOnlyList<PainelVentoinha> Ventoinhas);
+
+/// <summary>Uma linha do painel: o rótulo e o valor (prontos para a tela).</summary>
+public sealed record PainelLinha(string Rotulo, string Valor);
+
+/// <summary>
+/// As regras do painel flutuante — toda ela mora aqui.
+///
+/// <para>
+/// O painel mostra quatro blocos, sempre na mesma ordem: CPU, GPU, RAM e
+/// ventoinha. O que não deu para ler <b>some da linha</b> (nunca zero e nunca
+/// um valor velho); quando não sobra nada, a linha inteira vira "—". Os
+/// números saem do <see cref="SensorTexto"/>.
+///
+/// <para>
+/// A ventoinha mostrada é a de <b>maior RPM entre as que estão dando
+/// leitura</b> (a que está trabalhando). Sem isso, o painel mostraria a
+/// ventoinha parada e o dono pensaria que o PC está com ela morta.
+/// </para>
+/// </summary>
+public static class PainelRegras
+{
+    /// <summary>O separador entre as partes de uma linha (" · ").</summary>
+    private const string Separador = " · ";
+
+    /// <summary>As quatro linhas do painel.</summary>
+    public static IReadOnlyList<PainelLinha> Linhas(PainelRetrato retrato)
     {
-        Assert.Equal("0", NumeroTexto.Numero(-0.0001));
-        Assert.Equal("0,000", NumeroTexto.Numero(-0.0004, 3));
-        Assert.Equal("0", NumeroTexto.Numero(0.0001));
+        return new[]
+        {
+            new PainelLinha("CPU", Juntar(SensorTexto.Temperatura(retrato.TemperaturaCpu), SensorTexto.Porcentual(retrato.CargaCpu))),
+            new PainelLinha("GPU", Juntar(SensorTexto.Temperatura(retrato.TemperaturaGpu), SensorTexto.Porcentual(retrato.CargaGpu))),
+            new PainelLinha("RAM", SensorTexto.Porcentual(retrato.RamPct)),
+            new PainelLinha("VENT", ValorDaVentoinha(EscolherVentoinha(retrato.Ventoinhas))),
+        };
     }
-```
 
-- [ ] **Step 4: Rode o teste e veja passar**
+    /// <summary>
+    /// A ventoinha que o painel mostra: a de maior RPM entre as que estão
+    /// dando leitura. Se nenhuma estiver dando leitura, a primeira que o app
+    /// conhece (sem RPM — o número que não existe não é inventado).
+    /// </summary>
+    public static PainelVentoinha? EscolherVentoinha(IReadOnlyList<PainelVentoinha> ventoinhas)
+    {
+        if (ventoinhas.Count == 0) return null;
 
-```
-dotnet test "E:\projetos\tranal-sentinel\TranalSentinel.Tests\TranalSentinel.Tests.csproj" -c Release --filter "FullyQualifiedName~SensorTextoTestes"
-```
-Esperado: todos PASS.
+        var comLeitura = ventoinhas.Where(v => v.Rpm is not null).ToList();
 
-- [ ] **Step 5: Commit**
+        if (comLeitura.Count > 0)
+        {
+            // O desempate é pelo nome: duas ventoinhas com o mesmo RPM têm
+            // que dar sempre o mesmo painel.
+            return comLeitura
+                .OrderByDescending(v => v.Rpm!.Value)
+                .ThenBy(v => v.Nome, StringComparer.Ordinal)
+                .First();
+        }
 
-Antes do commit, grave a mensagem num arquivo UTF-8 **sem BOM** em <workspace>/msg-v031-t1.txt:
+        return ventoinhas.OrderBy(v => v.Nome, StringComparer.Ordinal).First();
+    }
 
-```
-O texto das unidades dos sensores mora em um lugar so
+    /// <summary>O valor da linha da ventoinha ("Fan #1 · 3.409 RPM").</summary>
+    private static string ValorDaVentoinha(PainelVentoinha? ventoinha)
+    {
+        if (ventoinha is null) return SensorTexto.Ausente;
 
-O overlay formatava os numeros com interpolacao crua, e isso dependia da
-cultura do Windows: o mesmo numero saia de dois jeitos em PCs diferentes.
-Agora existe um nucleo puro (SensorTexto) que e o unico lugar onde
-temperatura, porcentagem, gigabytes, megahertz, gigahertz, watts, volts e rpm
-viram texto. O numero continua saindo do NumeroTexto, e valor ausente, nao
-finito ou fora do limite de um inteiro vira traco.
+        string rpm = SensorTexto.Rpm(ventoinha.Rpm);
+        if (string.IsNullOrWhiteSpace(ventoinha.Nome)) return rpm;
 
-As casas decimais fixas (gigabytes, volts, gigahertz) moram no NumeroTexto,
-que ganhou a sobrecarga Numero(valor, casas): continua havendo um lugar so
-de formacao de numero no app.
+        return ventoinha.Nome + Separador + rpm;
+    }
 
-Testes: o novo SensorTextoTestes, o novo NumeroTextoTestes, mais a suite do
-app inteira.
-```
+    /// <summary>
+    /// Junta as partes de uma linha: o que não deu para ler some (e não
+    /// vira "— · —").
+    /// </summary>
+    private static string Juntar(params string[] partes)
+    {
+        var uteis = partes.Where(p => p != SensorTexto.Ausente).ToList();
+        if (uteis.Count == 0) return SensorTexto.Ausente;
+        return string.Join(Separador, uteis);
+    }
 
-```bash
-git add SensorTexto.cs NumeroTexto.cs TranalSentinel.Tests/SensorTextoTestes.cs TranalSentinel.Tests/NumeroTextoTestes.cs
-git commit -F "<workspace>/msg-v031-t1.txt"
-```
-(A mensagem vai num arquivo UTF-8 **sem BOM**; não pode começar com "-" nem conter palavra em inglês.)
+    /// <summary>
+    /// Diz se a posição do painel pode ser gravada.
+    ///
+    /// <para>
+    /// Uma janela que ainda não foi posicionada tem <c>Left</c>/<c>Top</c>
+    /// sem valor (<see cref="double.NaN"/>). Gravar isso no arquivo
+    /// apagaria a posição que o dono tinha deixado — número nenhum é
+    /// melhor do que número inventado.
+    /// </para>
+    /// </summary>
+    public static bool PosicaoValida(double x, double y) => !double.IsNaN(x) && !double.IsNaN(y);
 
----
+    /// <summary>
+    /// As quatro linhas sem nenhuma leitura (todas "—").
+    /// </summary>
+    ///
+    /// <para>
+    /// É o que o painel mostra durante a cena de GPU, quando as leituras do
+    /// driver ficam pausadas: número velho é pior que número ausente.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<PainelLinha> LinhasSemLeitura() =>
+        Linhas(new PainelRetrato(null, null, null, null, null, Array.Empty<PainelVentoinha>()));
 
-### Task 2: `PainelRegras` — o núcleo puro que monta as quatro linhas do painel
-
-**Files:**
-- Create: `PainelRegras.cs`
-- Test: `TranalSentinel.Tests/PainelRegrasTestes.cs`
-
-> **Arbitragem do owner (09/11/2026, revisão da Task 2):** os dados de
-> entrada dos dois testes da escolha da ventoinha foram trocados para que eles
-> **discriminem** a regra — a vencedora por RPM entra por último, e no
-> fallback a primeira por ordem alfabética também entra por último. O
-> comportamento e as asserções não mudam; o que muda é que um refactor que
-> trocasse "maior RPM" por "primeira que está dando leitura" quebraria o
-> teste em vez de passar calado.
-
-**Interfaces:**
-- Consumes: `SensorTexto` (Task 1).
-- Produces:
-  - `public sealed record PainelVentoinha(string Nome, double? Rpm)`
-  - `public sealed record PainelRetrato(double? TemperaturaCpu, double? CargaCpu, double? TemperaturaGpu, double? CargaGpu, double? RamPct, IReadOnlyList<PainelVentoinha> Ventoinhas)`
-  - `public sealed record PainelLinha(string Rotulo, string Valor)`
-  - `public static class PainelRegras` com
-    - `IReadOnlyList<PainelLinha> Linhas(PainelRetrato retrato)`
-    - `PainelVentoinha? EscolherVentoinha(IReadOnlyList<PainelVentoinha> ventoinhas)`
-
-- [ ] **Step 1: Escreva os testes que falham**
-
-Crie `TranalSentinel.Tests/PainelRegrasTestes.cs`:
-
-```csharp
+    /// <summary>
+    /// A posição do painel está em algum monitor?
+    /// </summary>
+    ///
+    /// <para>
+    /// A posição é guardada em DIPs (a unidade do WPF) e a tela virtual é lida
+    /// na mesma unidade. Se o dono trocou de monitor, o painel volta para o
+    /// canto em vez de ficar fora da tela.
+    ///
+    /// <para>
+    /// A pergunta é aritmética pura, com a tela como argumento: por isso ela
+    /// mora no núcleo, e a janela só consome.
+    /// </para>
+    /// </summary>
+    public static bool DentroDaTela(double left, double top, double largura, double altura,
+                                    double telaX, double telaY, double telaLargura, double telaAltura)
+    {
+        return left + largura > telaX && left < telaX + telaLargura
+            && top + altura > telaY && top < telaY + telaAltura;
+    }
+}
+``````csharp
 namespace TranalSentinel;
 
 /// <summary>
@@ -1572,81 +1651,203 @@ módulo, do mesmo campo, de dois jeitos. As duas linhas passam a usar o
 formatador da casa:
 
 ```csharp
-// Em MainWindow.Memoria.cs (a identidade do modulo):
-            Identidade = $"{spd.Fabricante} · {spd.PartNumber} · {SensorTexto.Gigabytes(spd.Gigabytes)}",
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
 
-// Em MainWindow.Saude.cs (o modulo na tela de saude):
-                Value = $"{SensorTexto.Gigabytes(modulo.Gigabytes)} @ {SensorTexto.Mhz(modulo.VelocidadeConfigMHz)}"
-```
+namespace TranalSentinel;
 
-> **Atenção:** o clock do módulo sai como "4.799 MHz" (com ponto de milhar).
+/// <summary>
+/// O painel flutuante: uma janela pequena, arrastável, com os números do PC
+/// sempre à vista.
+///
+/// <para>
+/// Ela é a segunda janela do app (como o <see cref="OverlayWindow"/>), e não
+/// um app à parte: nasce com o TRANAL SENTINEL e morre com ele.
+///
+/// <para>
+/// O botão "×" esconde o painel — o app continua rodando na bandeja, e só o
+/// "Sair" da bandeja encerra tudo.
+/// </para>
+/// </summary>
+public partial class PainelWindow : Window
+{
+    private bool _arrastando;
+    private Point _origemEmPixels;
+    private double _leftInicial;
+    private double _topInicial;
 
-- [ ] **Step 7: Rode a suíte inteira**
+    public PainelWindow()
+    {
+        InitializeComponent();
 
-```
-dotnet test "E:\projetos\tranal-sentinel\TranalSentinel.Tests\TranalSentinel.Tests.csproj" -c Release
-```
+        // O painel nunca rouba o foco do jogo. O "ShowActivated=False" só
+        // protege o Show: sem este estilo do Windows, clicar no painel (ou
+        // arrastá-lo) ativa a janela e o jogo perde o foco. O mesmo cuidado
+        // que o overlay e o toast já têm.
+        SourceInitialized += (_, _) =>
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+            SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE);
+        };
 
-Esperado: todos PASS (o número de testes sobe em 8 — os 7 novos do
-`SensorTexto` e o arquivo novo do `SensorRow`).
+        // O corpo do painel é a alça de arrastar.
+        MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.ButtonState != MouseButtonState.Pressed) return;
 
-- [ ] **Step 8: Build e contagem de avisos**
+            // A posição inicial é guardada aqui: o arrasto soma o
+            // deslocamento do mouse a ela. Sem ela, o painel saltaria
+            // para o canto da tela em vez de andar.
+            _origemEmPixels = PointToScreen(e.GetPosition(this));
+            GuardarPosicaoInicial();
 
-```
-dotnet build "E:\projetos\tranal-sentinel\TranalSentinel.csproj" -c Release -t:Rebuild
-```
+            try
+            {
+                // Sem a captura do mouse, o arrasto só funciona com o
+                // cursor sobre o painel — e o painel "gruda" quando o
+                // mouse sai da janela.
+                if (!CaptureMouse()) return;
+                _arrastando = true;
+            }
+            catch
+            {
+                // A captura do mouse pode falhar se a janela perdeu o foco
+                // entre o clique e a captura: sem captura, o arrasto não
+                // começa, e o painel continua onde está.
+            }
+        };
 
-Esperado: **16 avisos, 0 erros**. Qualquer aviso novo = regressão: pare e investigue.
+        MouseMove += (_, e) => Arrastando(e);
+        MouseLeftButtonUp += (_, _) => FimDoArrasto();
+        MouseDoubleClick += (_, e) =>
+        {
+            // O botão "×" fica dentro do painel, e o duplo clique nele
+            // chega na janela: fechar o painel não pode acabar abrindo a
+            // janela principal por baixo dele.
+            if (VeioDoBotao(e.OriginalSource)) return;
+            AoAbrirJanela?.Invoke();
+        };
+    }
 
-- [ ] **Step 9: Commit**
+    /// <summary>Disparado quando o dono pede para abrir a janela principal (duplo clique).</summary>
+    public event Action? AoAbrirJanela;
 
-Antes do commit, grave a mensagem num arquivo UTF-8 **sem BOM** em <workspace>/msg-v031-t3b.txt:
+    /// <summary>Disparado quando o dono fecha o painel (ele se esconde; o app continua).</summary>
+    public event Action? AoFechar;
 
-```
-A lista de sensores passa a falar a lingua do app
+    /// <summary>Mostra as linhas (o texto já vem pronto do núcleo puro).</summary>
+    public void Update(IReadOnlyList<PainelLinha> linhas)
+    {
+        PLinhas.ItemsSource = linhas;
+    }
 
-O refactor do overlay deixou a lista de sensores formatando as unidades na
-mao: o mesmo numero saia de dois jeitos (2790 MHz na lista, 2.790 MHz no
-overlay), e ainda dependia da cultura do Windows.
+    /// <summary>
+    /// A posição do painel está em algum monitor?
+    ///
+    /// <para>
+    /// A regra é do núcleo puro (<see cref="PainelRegras.DentroDaTela"/>): a
+    /// janela só entrega a tela virtual em DIPs.
+    /// </para>
+    /// </summary>
+    public static bool DentroDaTela(double left, double top, double largura, double altura) =>
+        PainelRegras.DentroDaTela(left, top, largura, altura,
+            SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+            SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
 
-Agora a lista consome o SensorTexto, como o resto do app. As unidades que
-faltavam ganharam formatador proprio (megabytes, megabytes por segundo,
-ampere, litros por hora, hertz, miliwatt-hora e milissegundos), com a casa
-que o dono arbitrou para cada uma.
+    private void Arrastando(MouseEventArgs e)
+    {
+        if (!_arrastando || e.LeftButton != MouseButtonState.Pressed) return;
 
-A tela de memoria do app tambem parou de escrever o gigabyte e o clock na
-mao: o mesmo modulo aparecia de dois jeitos, na janela e na linha de
-comando.
-```
+        var tela = PointToScreen(e.GetPosition(this));
+        var dpi = VisualTreeHelper.GetDpi(this);
 
-```bash
-git add SensorTexto.cs SensorRow.cs MainWindow.xaml.cs OverlayWindow.xaml.cs MemoriaCli.cs MainWindow.Memoria.cs MainWindow.Saude.cs TranalSentinel.Tests/SensorTextoTestes.cs TranalSentinel.Tests/SensorRowTestes.cs
-git commit -F "<workspace>/msg-v031-t3b.txt"
-```
+        // PointToScreen devolve pixels do dispositivo; Left/Top são DIPs.
+        // Sem a conversão, o painel andaria torto em tela com escala.
+        //
+        // E o que entra em Left/Top é a posição inicial mais o
+        // deslocamento: a diferença entre o mouse de agora e o mouse do
+        // pressionar é o quanto o painel andou, não onde ele está.
+        Left = _leftInicial + (tela.X - _origemEmPixels.X) / dpi.DpiScaleX;
+        Top = _topInicial + (tela.Y - _origemEmPixels.Y) / dpi.DpiScaleY;
+    }
 
----
+    private void FimDoArrasto()
+    {
+        _arrastando = false;
+        try { ReleaseMouseCapture(); }
+        catch
+        {
+            // Se o mouse não estava capturado, não há o que liberar.
+        }
+    }
 
-### Task 4: `PainelWindow` — a janela flutuante
+    /// <summary>
+    /// Guarda de onde o painel parte (em DIPs).
+    ///
+    /// <para>
+    /// O <c>Left</c> e o <c>Top</c> saem <c>NaN</c> enquanto a janela não foi
+    /// posicionada, e o WPF não avisa: o arrasto summiria em silêncio, com o
+    /// painel grudado no lugar. Quando é esse o caso, a posição inicial vem
+    /// do canto da janela na tela.
+    /// </para>
+    /// </summary>
+    private void GuardarPosicaoInicial()
+    {
+        if (PainelRegras.PosicaoValida(Left, Top))
+        {
+            _leftInicial = Left;
+            _topInicial = Top;
+            return;
+        }
 
-**Files:**
-- Create: `PainelWindow.xaml`
-- Create: `PainelWindow.xaml.cs`
+        var canto = PointToScreen(new Point(0, 0));
+        var dpi = VisualTreeHelper.GetDpi(this);
+        _leftInicial = canto.X / dpi.DpiScaleX;
+        _topInicial = canto.Y / dpi.DpiScaleY;
+    }
 
-**Interfaces:**
-- Consumes: `PainelLinha` (Task 2).
-- Produces: `public partial class PainelWindow : Window` com
-  - `void Update(IReadOnlyList<PainelLinha> linhas)`
-  - `event Action? AoAbrirJanela` (duplo clique)
-  - `event Action? AoFechar` (botão "×")
-  - `void Topmost` herdado de `Window`
-  - `static bool DentroDaTela(double left, double top, double largura, double altura)` — decide se o painel está em algum monitor (a posição é salva em DIPs; a tela virtual também é lida em DIPs, via `SystemParameters`)
-  - `static bool DentroDaTela(double left, double top, double largura, double altura, double telaX, double telaY, double telaLargura, double telaAltura)` — a mesma decisão com os limites da tela recebidos: é a parte pura, e a suíte a testa sem WPF
+    private void BtnFechar_Click(object sender, RoutedEventArgs e) => AoFechar?.Invoke();
 
-- [ ] **Step 1: Escreva o XAML**
+    /// <summary>
+    /// O clique veio do botão "×"?
+    ///
+    /// <para>
+    /// O botão está dentro do painel, e o duplo clique nele chega na
+    /// janela. Sem esta guarda, fechar o painel com dois cliques abriria
+    /// a janela principal por baixo dele.
+    /// </para>
+    ///
+    /// <para>
+    /// O acerto do botão resolve para o glifo (o TextBlock do "×") ou
+    /// para o template dele — e os dois são descendentes do botão, então
+    /// a guarda os alcança.
+    /// </para>
+    /// </summary>
+    private bool VeioDoBotao(object? origem) =>
+        origem is DependencyObject d && BtnFechar.IsAncestorOf(d);
 
-Crie `PainelWindow.xaml` (LF):
+    /// <summary>O índice do estilo estendido da janela (GWL_EXSTYLE).</summary>
+    private const int GWL_EXSTYLE = -20;
 
-```xml
+    /// <summary>
+    /// O estilo que diz ao Windows que a janela não deve ser ativada.
+    /// </summary>
+    ///
+    /// <para>
+    /// Sem ele, clicar no painel (ou arrastá-lo) ativa a janela e o jogo
+    /// perde o foco. O overlay e o toast já usam o mesmo cuidado.
+    /// </para>
+    /// </summary>
+    private const int WS_EX_NOACTIVATE = 0x8000000;
+
+    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr h, int index);
+    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int index, int value);
+}
+``````xml
 <Window x:Class="TranalSentinel.PainelWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -1875,27 +2076,22 @@ public partial class PainelWindow : Window
 - [ ] **Step 2b: O teste da parte pura**
 
 A janela em si não entra na suíte (o WPF exige uma thread com STA). A pergunta
-"o painel ainda está em algum monitor?" é aritmética pura, e mora em
-`PainelWindow.DentroDaTela` com a tela como argumento. Crie
-`TranalSentinel.Tests/PainelJanelaTestes.cs` (LF):
+"o painel ainda está em algum monitor?" é aritmética pura, e mora no núcleo
+(`PainelRegras.DentroDaTela`) com a tela como argumento — a janela só
+consome. Os testes foram para `TranalSentinel.Tests/PainelRegrasTestes.cs`
+(LF), junto com o resto do núcleo:
 
 ```csharp
-using TranalSentinel;
-
-namespace TranalSentinel.Tests;
-
-public class PainelJanelaTestes
-{
     [Fact]
     public void PainelDentroDaTela_Fica()
     {
-        Assert.True(PainelWindow.DentroDaTela(100, 100, 260, 120, 0, 0, 1920, 1080));
+        Assert.True(PainelRegras.DentroDaTela(100, 100, 260, 120, 0, 0, 1920, 1080));
     }
 
     [Fact]
     public void PainelForaDaTela_NaoFica()
     {
-        Assert.False(PainelWindow.DentroDaTela(5000, 100, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(5000, 100, 260, 120, 0, 0, 1920, 1080));
     }
 
     [Fact]
@@ -1903,13 +2099,13 @@ public class PainelJanelaTestes
     {
         // A borda conta: um painel que termina exatamente na última coluna
         // ainda está na tela.
-        Assert.True(PainelWindow.DentroDaTela(1660, 960, 260, 120, 0, 0, 1920, 1080));
+        Assert.True(PainelRegras.DentroDaTela(1660, 960, 260, 120, 0, 0, 1920, 1080));
     }
 
     [Fact]
     public void PainelTotalmenteFora_NaoFica()
     {
-        Assert.False(PainelWindow.DentroDaTela(-400, -300, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(-400, -300, 260, 120, 0, 0, 1920, 1080));
     }
 
     [Fact]
@@ -1920,12 +2116,11 @@ public class PainelJanelaTestes
         // termina (à direita). Com ">" virando ">=", ele passaria a
         // contar como dentro — e o painel voltaria para um monitor que
         // não é mais o dele.
-        Assert.False(PainelWindow.DentroDaTela(-260, 100, 260, 120, 0, 0, 1920, 1080));
-        Assert.False(PainelWindow.DentroDaTela(1920, 100, 260, 120, 0, 0, 1920, 1080));
-        Assert.False(PainelWindow.DentroDaTela(100, -120, 260, 120, 0, 0, 1920, 1080));
-        Assert.False(PainelWindow.DentroDaTela(100, 1080, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(-260, 100, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(1920, 100, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(100, -120, 260, 120, 0, 0, 1920, 1080));
+        Assert.False(PainelRegras.DentroDaTela(100, 1080, 260, 120, 0, 0, 1920, 1080));
     }
-}
 ```
 
 - [ ] **Step 3: Compile**
@@ -2144,6 +2339,16 @@ public partial class MainWindow
 
         try
         {
+            // Durante a cena de GPU as leituras do driver ficam pausadas: cada
+            // consulta trava o driver por um instante e aparecia como engasgo
+            // no 1% low do benchmark. O painel para de ler junto — e mostra
+            // travessão em vez do número velho.
+            if (_gpuBenchActive)
+            {
+                _painel.Update(PainelRegras.LinhasSemLeitura());
+                return true;
+            }
+
             // A mesma leitura que o overlay usa: um número só no app.
             var s = BottleneckAnalyzer.Sample(_monitor, _gpus.FirstOrDefault(), null);
 
@@ -2218,7 +2423,7 @@ public partial class MainWindow
         var (largura, altura) = TamanhoDoPainel();
 
         if (_settings.PainelX is double x && _settings.PainelY is double y
-            && PainelWindow.DentroDaTela(x, y, largura, altura))
+            && PainelRegras.DentroDaTela(x, y, largura, altura))
         {
             _painel.Left = x;
             _painel.Top = y;
@@ -2229,14 +2434,22 @@ public partial class MainWindow
         _painel.Left = area.Right - largura - 12;
         _painel.Top = area.Top + 12;
     }
+
+    /// <summary>Prepara a página (chamada quando o menu "Painel" é aberto).</summary>
+    private void InitPainel()
+    {
+        // O interruptor reflete o que está ligado agora.
+        ChkPainel.IsChecked = _painel is not null && _painel.IsVisible;
+        ChkPainelTopo.IsChecked = _settings.PainelSempreNoTopo;
+    }
 }
-```
+``````
 
 > **A guarda da posição mora no núcleo puro.** Se a janela ainda não foi
 > posicionada, o `Left`/`Top` dela não tem valor (`NaN`), e gravar isso
 > apagaria a posição que o dono tinha deixado. A conta mora em
 > `PainelRegras.PosicaoValida` — e por isso tem teste em
-> `TranalSentinel.Tests/PainelJanelaTestes.cs` (o resto do caminho é um
+> `TranalSentinel.Tests/PainelRegrasTestes.cs` (o resto do caminho é um
 > evento de WPF, e evento de WPF não entra na suíte).
 
 - [ ] **Step 3: O item do menu**

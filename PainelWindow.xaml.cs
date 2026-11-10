@@ -1,5 +1,7 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace TranalSentinel;
@@ -27,6 +29,17 @@ public partial class PainelWindow : Window
     public PainelWindow()
     {
         InitializeComponent();
+
+        // O painel nunca rouba o foco do jogo. O "ShowActivated=False" só
+        // protege o Show: sem este estilo do Windows, clicar no painel (ou
+        // arrastá-lo) ativa a janela e o jogo perde o foco. O mesmo cuidado
+        // que o overlay e o toast já têm.
+        SourceInitialized += (_, _) =>
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+            SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE);
+        };
 
         // O corpo do painel é a alça de arrastar.
         MouseLeftButtonDown += (_, e) =>
@@ -83,31 +96,14 @@ public partial class PainelWindow : Window
     /// A posição do painel está em algum monitor?
     ///
     /// <para>
-    /// A posição é guardada em DIPs (a unidade do WPF) e a tela virtual é lida
-    /// na mesma unidade. Se o dono trocou de monitor, o painel volta para o
-    /// canto em vez de ficar fora da tela.
+    /// A regra é do núcleo puro (<see cref="PainelRegras.DentroDaTela"/>): a
+    /// janela só entrega a tela virtual em DIPs.
     /// </para>
     /// </summary>
     public static bool DentroDaTela(double left, double top, double largura, double altura) =>
-        DentroDaTela(left, top, largura, altura,
+        PainelRegras.DentroDaTela(left, top, largura, altura,
             SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
             SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
-
-    /// <summary>
-    /// A mesma decisão, com os limites da tela recebidos.
-    ///
-    /// <para>
-    /// A janela do WPF não dá para testar na suíte (ela exige uma thread com
-    /// STA), mas a pergunta — o painel ainda está em algum monitor? — é
-    /// aritmética pura. Por isso ela mora aqui, com a tela como argumento.
-    /// </para>
-    /// </summary>
-    public static bool DentroDaTela(double left, double top, double largura, double altura,
-                                    double telaX, double telaY, double telaLargura, double telaAltura)
-    {
-        return left + largura > telaX && left < telaX + telaLargura
-            && top + altura > telaY && top < telaY + telaAltura;
-    }
 
     private void Arrastando(MouseEventArgs e)
     {
@@ -180,4 +176,21 @@ public partial class PainelWindow : Window
     /// </summary>
     private bool VeioDoBotao(object? origem) =>
         origem is DependencyObject d && BtnFechar.IsAncestorOf(d);
+
+    /// <summary>O índice do estilo estendido da janela (GWL_EXSTYLE).</summary>
+    private const int GWL_EXSTYLE = -20;
+
+    /// <summary>
+    /// O estilo que diz ao Windows que a janela não deve ser ativada.
+    /// </summary>
+    ///
+    /// <para>
+    /// Sem ele, clicar no painel (ou arrastá-lo) ativa a janela e o jogo
+    /// perde o foco. O overlay e o toast já usam o mesmo cuidado.
+    /// </para>
+    /// </summary>
+    private const int WS_EX_NOACTIVATE = 0x8000000;
+
+    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr h, int index);
+    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int index, int value);
 }

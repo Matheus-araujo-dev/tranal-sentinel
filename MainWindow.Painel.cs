@@ -123,6 +123,16 @@ public partial class MainWindow
 
         try
         {
+            // Durante a cena de GPU as leituras do driver ficam pausadas: cada
+            // consulta trava o driver por um instante e aparecia como engasgo
+            // no 1% low do benchmark. O painel para de ler junto — e mostra
+            // travessão em vez do número velho.
+            if (_gpuBenchActive)
+            {
+                _painel.Update(PainelRegras.LinhasSemLeitura());
+                return true;
+            }
+
             // A mesma leitura que o overlay usa: um número só no app.
             var s = BottleneckAnalyzer.Sample(_monitor, _gpus.FirstOrDefault(), null);
 

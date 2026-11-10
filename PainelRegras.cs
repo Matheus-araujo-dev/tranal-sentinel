@@ -117,4 +117,37 @@ public static class PainelRegras
     /// </para>
     /// </summary>
     public static bool PosicaoValida(double x, double y) => !double.IsNaN(x) && !double.IsNaN(y);
+
+    /// <summary>
+    /// As quatro linhas sem nenhuma leitura (todas "—").
+    /// </summary>
+    ///
+    /// <para>
+    /// É o que o painel mostra durante a cena de GPU, quando as leituras do
+    /// driver ficam pausadas: número velho é pior que número ausente.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<PainelLinha> LinhasSemLeitura() =>
+        Linhas(new PainelRetrato(null, null, null, null, null, Array.Empty<PainelVentoinha>()));
+
+    /// <summary>
+    /// A posição do painel está em algum monitor?
+    /// </summary>
+    ///
+    /// <para>
+    /// A posição é guardada em DIPs (a unidade do WPF) e a tela virtual é lida
+    /// na mesma unidade. Se o dono trocou de monitor, o painel volta para o
+    /// canto em vez de ficar fora da tela.
+    ///
+    /// <para>
+    /// A pergunta é aritmética pura, com a tela como argumento: por isso ela
+    /// mora no núcleo, e a janela só consome.
+    /// </para>
+    /// </summary>
+    public static bool DentroDaTela(double left, double top, double largura, double altura,
+                                    double telaX, double telaY, double telaLargura, double telaAltura)
+    {
+        return left + largura > telaX && left < telaX + telaLargura
+            && top + altura > telaY && top < telaY + telaAltura;
+    }
 }

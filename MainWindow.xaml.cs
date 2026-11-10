@@ -161,7 +161,7 @@ public partial class MainWindow : Window
         };
         Closed += (_, _) =>
         {
-            _timer.Stop(); _overlayTimer?.Stop();
+            _timer.Stop(); _overlayTimer?.Stop(); _painelTimer?.Stop();
             _janelaFechada = true;
             _timerTrafego?.Stop();
             _stress.Stop(); _burn.Stop(); _benchCts?.Cancel();
