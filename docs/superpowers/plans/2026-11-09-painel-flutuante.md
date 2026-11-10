@@ -615,6 +615,14 @@ git commit -F "<workspace>/msg-v031-t1.txt"
 - Create: `PainelRegras.cs`
 - Test: `TranalSentinel.Tests/PainelRegrasTestes.cs`
 
+> **Arbitragem do owner (09/11/2026, revisão da Task 2):** os dados de
+> entrada dos dois testes da escolha da ventoinha foram trocados para que eles
+> **discriminem** a regra — a vencedora por RPM entra por último, e no
+> fallback a primeira por ordem alfabética também entra por último. O
+> comportamento e as asserções não mudam; o que muda é que um refactor que
+> trocasse "maior RPM" por "primeira que está dando leitura" quebraria o
+> teste em vez de passar calado.
+
 **Interfaces:**
 - Consumes: `SensorTexto` (Task 1).
 - Produces:
@@ -689,6 +697,14 @@ public class PainelRegrasTestes
     }
 
     [Fact]
+    public void LinhaDaGpu_ComTemperaturaECarga_MostraOsDois()
+    {
+        var gpu = PainelRegras.Linhas(Retrato())[1];
+
+        Assert.Equal("44 °C · 12%", gpu.Valor);
+    }
+
+    [Fact]
     public void LinhaDaRam_ComValor_MostraOPorcentual()
     {
         var ram = PainelRegras.Linhas(Retrato())[2];
@@ -707,11 +723,13 @@ public class PainelRegrasTestes
     [Fact]
     public void EscolherVentoinha_ComVariasAMaiorRpmVence()
     {
+        // A vencedora entra por ultimo: se a regra voltasse a ser "a
+        // primeira que esta dando leitura", este teste quebraria.
         var escolhida = PainelRegras.EscolherVentoinha(new[]
         {
-            new PainelVentoinha("Fan #1", 3409),
-            new PainelVentoinha("Fan #2", 0),
             new PainelVentoinha("GPU Fan", 1407),
+            new PainelVentoinha("Fan #2", 0),
+            new PainelVentoinha("Fan #1", 3409),
         });
 
         Assert.Equal("Fan #1", escolhida!.Nome);
@@ -732,10 +750,13 @@ public class PainelRegrasTestes
     [Fact]
     public void EscolherVentoinha_SemNenhumaLendo_EscolheUmaComRpmAusente()
     {
+        // A primeira por ordem alfabetica entra por ultimo: se o desempate
+        // voltasse a ser a ordem de chegada dos sensores, este teste
+        // quebraria.
         var escolhida = PainelRegras.EscolherVentoinha(new[]
         {
-            new PainelVentoinha("Fan #2", null),
             new PainelVentoinha("Fan #3", null),
+            new PainelVentoinha("Fan #2", null),
         });
 
         Assert.Equal("Fan #2", escolhida!.Nome);
@@ -767,6 +788,17 @@ public class PainelRegrasTestes
         var vent = PainelRegras.Linhas(Retrato())[3];
 
         Assert.Equal("Fan #1 · 3.409 RPM", vent.Valor);
+    }
+
+    [Fact]
+    public void LinhaDaVentoinha_SemNomeMostraSoORpm()
+    {
+        var vent = PainelRegras.Linhas(Retrato(ventoinhas: new[]
+        {
+            new PainelVentoinha("", 3409),
+        }))[3];
+
+        Assert.Equal("3.409 RPM", vent.Valor);
     }
 
     [Fact]
@@ -837,6 +869,9 @@ public sealed record PainelLinha(string Rotulo, string Valor);
 /// </summary>
 public static class PainelRegras
 {
+    /// <summary>O separador entre as partes de uma linha (" · ").</summary>
+    private const string Separador = " · ";
+
     /// <summary>As quatro linhas do painel.</summary>
     public static IReadOnlyList<PainelLinha> Linhas(PainelRetrato retrato)
     {
@@ -881,7 +916,7 @@ public static class PainelRegras
         string rpm = SensorTexto.Rpm(ventoinha.Rpm);
         if (string.IsNullOrWhiteSpace(ventoinha.Nome)) return rpm;
 
-        return ventoinha.Nome + " · " + rpm;
+        return ventoinha.Nome + Separador + rpm;
     }
 
     /// <summary>
@@ -892,7 +927,7 @@ public static class PainelRegras
     {
         var uteis = partes.Where(p => p != SensorTexto.Ausente).ToList();
         if (uteis.Count == 0) return SensorTexto.Ausente;
-        return string.Join(" · ", uteis);
+        return string.Join(Separador, uteis);
     }
 }
 ```
