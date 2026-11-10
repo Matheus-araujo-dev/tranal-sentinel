@@ -545,6 +545,38 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   mesmo formatador, e o teste `OTextoDoAvisoNaoDependeDaCulturaDoWindows`
   prende isso.
 
+### v0.31 — o painel flutuante
+
+- **O painel flutuante é a segunda janela do app** (`PainelWindow.xaml` e
+  `PainelWindow.xaml.cs`), como o overlay: nasce com o TRANAL SENTINEL e morre
+  com ele. Quem liga e desliga, quem atualiza as linhas, quem guarda a
+  posição e quem devolve o painel para o canto é `MainWindow.Painel.cs` — a
+  partial class da janela principal. A página "Painel" (grupo TRANAL
+  ASSISTENTE) é onde o dono liga isso.
+- **As quatro linhas do painel morem no núcleo puro** (`PainelRegras.Linhas`):
+  CPU, GPU, RAM e ventoinha, sempre nesta ordem. `PainelRegras` e
+  `SensorTexto` **não conhecem WPF** — devolvem o texto pronto, e a janela só
+  mostra. É o que deixa as linhas testáveis sem abrir uma janela (a janela do
+  WPF exige uma thread com STA).
+- **O que não deu para ler no painel é "—", nunca zero e nunca um valor
+  velho.** O traço mora em `SensorTexto.Ausente`; a parte que falta some da
+  linha em vez de virar "— · —". Número errado é pior que número ausente.
+- **A ventoinha do painel é a de maior RPM entre as que estão dando leitura**
+  (`PainelRegras.EscolherVentoinha`), com desempate pelo nome: duas
+  ventoinhas com o mesmo RPM têm que dar sempre o mesmo painel. Sem nenhuma
+  dando leitura, a linha mostra a primeira que o app conhece, sem número —
+  o painel não mostra a ventoinha parada como se fosse a que está trabalhando.
+- **`SensorTexto` é o único lugar das unidades dos sensores** (temperatura,
+  porcentagem, MHz, GHz, W, V, RPM, GB, MB, MB/s, A, L/h, Hz, mWh e ms) e
+  **`NumeroTexto` é o único lugar do número** (vírgula decimal, ponto de
+  milhar, independente da cultura do Windows). O overlay, o painel, a aba de
+  ventoinhas, a tela de memória e a lista de sensores consomem os dois:
+  nenhum deles escreve unidade nem vírgula por conta própria.
+- **A posição do painel é guardada em DIPs** (`AppSettings.PainelX` e
+  `PainelY`), e a tela virtual é lida na mesma unidade. Se o dono trocou de
+  monitor, o painel volta para o canto em vez de ficar fora da tela — e o
+  botão "VOLTAR PARA O CANTO" dá a mesma posição.
+
 ## Publicar
 
 ```powershell
@@ -582,6 +614,8 @@ auto-update procura.
 | `VentoinhaRegras.cs` | A regra pura do desgaste da ventoinha: o recorde, o veredito, as três travas e todos os textos da tela. |
 | `MonitorVentoinhas.cs` | A coleta das ventoinhas: a leitura de cada uma, o recorde em memória, o agregado do dia e a gravação no banco. |
 | `NumeroTexto.cs` | A formatação de todo número e data da tela (um lugar só, independente da cultura do Windows). |
+| `SensorTexto.cs` | O texto das unidades dos sensores (um lugar só): temperatura, porcentagem, MHz, GHz, W, V, RPM, GB, MB, MB/s, A, L/h, Hz, mWh e ms. |
+| `PainelRegras.cs` / `PainelWindow.xaml` / `MainWindow.Painel.cs` | O painel flutuante: as quatro linhas no núcleo puro (`PainelRegras`), a janela que as mostra (`PainelWindow`) e a integração no app — ligar, atualizar, guardar a posição (`MainWindow.Painel.cs`). |
 | `MainWindow.Ventoinhas.cs` | A página TRANAL VENTOINHAS: os cartões e o "RPM com o tempo". |
 | `Leitura.cs` | A leitura de um histórico: as linhas lidas e se a leitura ficou completa (a mesma regra para o CSV antigo e para o banco). |
 | `InstanciaUnica.cs` | A trava de instância única: o app não sobe duas vezes, e a linha de comando só repara o histórico com o app fechado. |

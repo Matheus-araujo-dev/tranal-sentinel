@@ -186,6 +186,24 @@ TRANAL USO
 - O app só registra enquanto está rodando. Se ele não estava aberto, o dia
   aparece sem histórico - a aba diz isso em vez de mostrar número errado.
 
+TRANAL PAINEL
+- No menu lateral, grupo "TRANAL ASSISTENTE" -> aba "Painel".
+- Uma janelinha flutuante com os números do PC sempre à vista: CPU (temperatura
+  e carga), GPU (temperatura e carga), RAM (o percentual em uso) e ventoinha (o
+  nome e o RPM). Você arrasta ela para onde quiser.
+- O botão "×" no canto só esconde o painel: o TRANAL SENTINEL continua rodando na
+  bandeja, e é o Sair da bandeja que encerra tudo. Duplo clique no painel abre a
+  janela principal.
+- A opção "Sempre no topo" deixa o painel acima das outras janelas (dá para
+  desligar quando ele atrapalhar o jogo). O botão VOLTAR PARA O CANTO devolve o
+  painel para o canto superior direito do monitor principal.
+- A posição fica guardada: da próxima vez que o app abre, o painel volta para onde
+  você deixou. Se você trocou de monitor, ele volta para o canto em vez de ficar
+  fora da tela.
+- O que não deu para ler aparece como "—": nunca zero e nunca o número velho. A
+  ventoinha mostrada é a que está trabalhando (a de maior RPM entre as que estão
+  dando leitura).
+
 INSTALAÇÃO
 - Portátil: abra o TranalSentinel.exe direto, sem instalar nada.
 - Instalado: baixe TranalSentinel.exe e TranalSetup.exe para a MESMA pasta e abra o

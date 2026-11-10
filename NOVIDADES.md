@@ -1,3 +1,43 @@
+## Novidades da v0.31 — o painel flutuante deixa os números do PC sempre à vista
+
+O TRANAL SENTINEL ganhou um **painel flutuante**: uma janelinha que fica no
+desktop com os números do PC sempre à vista, sem ocupar a janela principal.
+
+**Novo · o painel flutuante**
+- Quatro linhas, sempre na mesma ordem: **CPU** (temperatura e carga), **GPU**
+  (temperatura e carga), **RAM** (o percentual em uso) e **ventoinha** (o nome
+  e o RPM).
+- Você **arrasta** o painel para onde quiser. A posição fica guardada: da
+  próxima vez que o app abre, o painel aparece onde você deixou.
+- O botão **×** só **esconde** o painel — o TRANAL SENTINEL continua rodando na
+  bandeja, e é o "Sair" da bandeja que encerra tudo.
+- **Duplo clique** no painel abre a janela principal.
+- A opção **Sempre no topo** deixa o painel acima das outras janelas (dá para
+  desligar quando ele atrapalhar o jogo).
+- O botão **VOLTAR PARA O CANTO** devolve o painel para o canto superior
+  direito do monitor principal.
+- Ele se liga na aba **Painel** (menu TRANAL ASSISTENTE) e se atualiza a cada
+  meio segundo, com a mesma leitura que o overlay usa.
+- O que não deu para ler aparece como **—**: nunca zero e nunca o número
+  velho. A ventoinha mostrada é a que está **trabalhando** — a de maior RPM
+  entre as que estão dando leitura.
+
+**Correções (da refatoração do overlay, que agora usa o mesmo formatador do
+resto do app)**
+- A temperatura do overlay ganhou a **casa decimal**: 51,4 °C, e não 51 °C.
+- O clock da GPU e o RPM da ventoinha da GPU ganharam o **ponto de milhar**:
+  2.790 MHz e 1.407 RPM.
+- O clock da CPU passou a sair em **gigahertz** (4,45 GHz). Antes ele dependia
+  da cultura do Windows e saía de um jeito em cada PC.
+- A memória passou a escrever gigabyte do **mesmo jeito** do resto do app:
+  8,0 GB, e não 8 GB.
+- O "—" do overlay ficou limpo: a parte que faltava saía como "— MHz", "— W"
+  ou "— V"; agora é só "—".
+- O prefixo **mem** do clock da memória voltou ao overlay: com os dois clocks
+  ligados, o app mostrava dois "MHz" sem diferença entre eles.
+- O **zero com sinal** ("-0", "-0,000") deixou de aparecer em qualquer número
+  do app.
+
 ## Novidades da v0.30 — o TRANAL VENTOINHAS diz se a ventoinha está gasta
 
 O TRANAL SENTINEL passa a acompanhar as **ventoinhas do PC**: o novo cartão

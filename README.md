@@ -428,6 +428,7 @@ App WPF (.NET 10) com:
   - *Visão geral* (`MainWindow.Dash.cs`): gráfico de área CPU × GPU (temperatura, carga ou consumo; 1/5/15 min),
     desempenho do TRANAL BENCH, tabela de componentes, anéis de RAM/VRAM/disco, eventos recentes e saúde do PC.
   - **TRANAL SENTINEL** · Sistema, Sensores, Ventoinhas, Placa de vídeo, Discos, Energia, Rede.
+  - **TRANAL ASSISTENTE** · Linha do tempo, Uso, Painel.
   - **TRANAL JOGOS** · Biblioteca, FPS estimado, Gargalo, Overlay.
   - **TRANAL DESEMPENHO** · Benchmark, Stress test, Overclock.
   - **TRANAL FERRAMENTAS** · Otimização, Inicialização, Instalar apps, Drivers, Integração.
@@ -533,6 +534,7 @@ um `.exe` em uso.
 - ✔ Banco de dados do histórico em SQLite (sem dependência nova), com verificação de integridade, reparo e restauração da cópia (v0.28)
 - ✔ TRANAL REDE: tráfego de internet por programa, medido pelo próprio Windows, com histórico de 30 dias (v0.29)
 - ✔ TRANAL VENTOINHAS: o RPM de cada ventoinha comparado com o próprio recorde, para dizer se ela está gasta (v0.30)
+- ✔ PAINEL: a janela flutuante com CPU, GPU, RAM e ventoinha sempre à vista (v0.31)
 
 ## Próximas ideias
 - Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina

@@ -90,7 +90,14 @@ Três coisas que **nenhum** dos concorrentes faz ao mesmo tempo:
   falsa**: o LibreHardwareMonitor lê o chip Super I/O da placa-mãe (ITE
   IT8655E) e entrega o RPM da ventoinha da CPU, sem driver novo.
 - **Widgets e presença na barra de tarefas** (RigSight, Kinetik Stats): painel
-  flutuante com os números sempre à vista. **Entra na v0.31.**
+  flutuante com os números sempre à vista. **Entra na v0.31.** Medido na
+  pesquisa de 09/11/2026: o **Kinetik Stats** ganhou o widget de desktop na
+  v1.4.0 (barras e gráficos por métrica, ligado/desligado, no desktop ou
+  sempre no topo) e o **RigSight** tem 7 widgets no desktop, além das
+  leituras ao lado do relógio na barra de tarefas. Ficou **fora** do escopo
+  desta versão (anotado como v0.32+): a leitura **dentro** da barra de
+  tarefas (que exige injeção no `explorer.exe`) e o **widget oficial do
+  Windows 11** (Adaptive Cards/MSIX).
 - **Assistente de IA local** (Pulse Diagnostics): rodar um modelo local
   (Ollama/LM Studio) sobre o relatório, com a mesma promessa de privacidade —
   nada sai da máquina. É o próximo passo natural, porque o TRANAL SAÚDE já
