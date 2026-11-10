@@ -337,6 +337,12 @@
                                     <TextBlock Text="Overlay" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="NavPainel" Style="{StaticResource NavItem}" Tag="PagePainel" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE80F;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Painel" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
                             </StackPanel>
                             <ToggleButton x:Name="GrpPerf" Style="{StaticResource NavGroup}" Content="TRANAL DESEMPENHO"/>
                             <StackPanel x:Name="GrpPerfItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpPerf, Converter={StaticResource BoolVis}}">
@@ -2382,6 +2388,41 @@
                                     Vulkan/OpenGL só aparecem se o driver apresentar via DXGI. O overlay aparece em tela cheia
                                     "sem bordas" e na maioria dos jogos DX11/12 em tela cheia, mas não em tela cheia exclusiva antiga.
                                 </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ===== PAINEL ===== -->
+                <ScrollViewer x:Name="PagePainel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="36,30,36,30">
+                        <StackPanel Margin="0,0,0,20">
+                            <TextBlock Text="PAINEL" Style="{StaticResource H1}"/>
+                            <TextBlock Text="Os números do PC sempre à vista, numa janela que você arrasta" Style="{StaticResource Sub}"/>
+                        </StackPanel>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <CheckBox x:Name="ChkPainel" Content="Mostrar o painel flutuante" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed"/>
+                                <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
+                                    Uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser; o botão × só esconde o painel, e o TRANAL SENTINEL continua rodando na bandeja.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <CheckBox x:Name="ChkPainelTopo" Content="Sempre no topo" FontSize="15" Checked="ChkPainelOpcao_Changed" Unchecked="ChkPainelOpcao_Changed"/>
+                                <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
+                                    Desligue quando o painel atrapalhar o jogo. Deixado ligado, o painel fica acima das outras janelas.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="POSIÇÃO" Style="{StaticResource Label}"/>
+                                <Button Style="{StaticResource OutlineButton}" Content="VOLTAR PARA O CANTO" Padding="10,4" Click="PainelCanto_Click"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

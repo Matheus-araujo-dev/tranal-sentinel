@@ -99,6 +99,14 @@ public sealed class AppSettings
     /// <summary>Itens escolhidos para o overlay (chaves de OverlayMetrics); null = padrão.</summary>
     public List<string>? OverlayItems { get; set; }
 
+    // Painel flutuante: os números do PC sempre à vista.
+    public bool PainelVisivel { get; set; }
+    public bool PainelSempreNoTopo { get; set; } = true;
+    /// <summary>A posição do painel em DIPs (null = ainda nunca foi movido).</summary>
+    public double? PainelX { get; set; }
+    /// <summary>A posição do painel em DIPs (null = ainda nunca foi movido).</summary>
+    public double? PainelY { get; set; }
+
     /// <summary>
     /// As regras de alerta do usuário.
     ///

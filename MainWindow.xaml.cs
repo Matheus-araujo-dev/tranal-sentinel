@@ -209,6 +209,15 @@ public partial class MainWindow : Window
             // A vigia para ANTES da bandeja ser descartada: um tique que
             // corresse agora acharia a bandeja já fechada.
             PararVigia();
+
+            // A posição do painel fica salva: ela só se perde se o dono
+            // arrastar o painel para outro lugar.
+            SalvarPosicaoDoPainel();
+
+            // O painel é uma janela do app: ela morre com ele. Sem isto, uma
+            // janela flutuante sobraria na tela depois do app sair.
+            _painel?.Close();
+
             _bandeja?.Dispose();
             _timerInstantaneo?.Stop();
         };
@@ -218,6 +227,10 @@ public partial class MainWindow : Window
 
         // Vigia em segundo plano: programa travado e alertas de temperatura.
         IniciarVigia();
+
+        // O painel flutuante: o dono liga e desliga pela página "Painel".
+        // Se ele o deixou ligado da outra vez, ele volta.
+        if (_settings.PainelVisivel) ChkPainel.IsChecked = true;
     }
 
     /// <summary>Coletas lentas da abertura, em paralelo e fora da thread da janela; cada parte preenche a tela quando fica pronta.</summary>
@@ -386,12 +399,13 @@ public partial class MainWindow : Window
             case "PageUso": InitUso(); break;
             case "PageNet": InitRede(); break;
             case "PageVentoinhas": InitVentoinhas(); break;
+            case "PagePainel": InitPainel(); break;
         }
     }
 
     private void ShowPage(string name)
     {
-        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageVentoinhas, PageGpu, PageGames, PageBottleneck, PageOverlay, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline, PageUso })
+        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageVentoinhas, PageGpu, PageGames, PageBottleneck, PageOverlay, PagePainel, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline, PageUso })
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
     }
 

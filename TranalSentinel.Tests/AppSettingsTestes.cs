@@ -111,4 +111,23 @@ public class AppSettingsTestes : IDisposable
         Assert.NotNull(lida);
         Assert.Equal(1.0, lida.OverlayScale);
     }
+
+    [Fact]
+    public void ConfiguracoesDoPainel_VoltamAoAbrirOApp()
+    {
+        var s = new AppSettings
+        {
+            PainelVisivel = true,
+            PainelSempreNoTopo = false,
+            PainelX = 120.5,
+            PainelY = 64.0
+        };
+        s.Save();
+
+        var lido = AppSettings.Load();
+        Assert.True(lido.PainelVisivel);
+        Assert.False(lido.PainelSempreNoTopo);
+        Assert.Equal(120.5, lido.PainelX);
+        Assert.Equal(64.0, lido.PainelY);
+    }
 }
