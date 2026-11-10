@@ -126,6 +126,31 @@ não entra na conta.
 `MainWindow.Rt.cs`, `MainWindow.xaml.cs`, `NetworkTest.cs`, `Optimizer.cs`,
 `SystemInfoCollector.cs`.
 
+## Limitação conhecida: o painel em tela com escalas de DPI diferentes
+
+A checagem "o painel ainda está em algum monitor?" compara a posição do
+painel (em DIPs) com a tela virtual (em DIPs do Windows). Com **dois
+monitores na mesma escala** (o caso do dono: 5120x1441 em 100%) as duas
+unidades são a mesma, e a checagem acerta. Com **monitores de escalas
+diferentes**, o WPF interpreta o `Left`/`Top` do painel na escala do
+monitor onde ele está, enquanto a tela virtual vem do Windows na escala do
+sistema — e as duas medidas passam a falar de unidades diferentes. O
+efeito é de borda: o painel pode voltar para o canto mesmo cabendo, ou
+aceitar uma posição que não cabe.
+
+**Por que ficou registrado e não corrigido agora:** a correção exige
+decidir a posição do painel em pixels (como o overlay faz, com
+`GetMonitorInfo` + `SetWindowPos`) ou converter cada tela para a escala do
+monitor onde a posição cai. Nenhuma das duas é verificável na máquina do
+dono (uma escala só), e trocar a matemática da posição às cegas seria
+trocar um risco pequeno por um risco maior. O app é per-monitor DPI aware
+(WPF do .NET 10, sem `dpiAwareness` no manifesto), então o arrasto entre
+monitores de escalas diferentes também é um caso a conferir na tela.
+
+**Como verificar quando houver esse PC:** pôr escala 125% em um dos
+monitores, arrastar o painel para ele, fechar o app, abrir de novo — o
+painel tem de voltar para onde estava, e não para o canto.
+
 Em um Windows em inglês esses números saem com ponto no lugar da vírgula
 ("8.5 GB" contra "8,5 GB"). A migração é a de sempre — cada unidade ganha o
 seu formatador no `SensorTexto` —, mas ela é uma task por si, com uma
