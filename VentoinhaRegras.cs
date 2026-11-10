@@ -850,7 +850,10 @@ public static class VentoinhaRegras
         return sensor.Length > 0 ? sensor : nome;
     }
 
-    /// <summary>Um RPM no padrão da tela ("3.392 RPM").</summary>
+    /// <summary>
+    /// Um RPM no padrão da tela ("3.392 RPM").
+    ///
+    /// <para>
     /// guarda, um infinito viraria o maior número que cabe em um long — e a
     /// tela mostraria uma mentira com a cara de medida.
     /// </para>
