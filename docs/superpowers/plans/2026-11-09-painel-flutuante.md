@@ -757,8 +757,8 @@ public static class PainelRegras
 
         if (comLeitura.Count > 0)
         {
-            // O desempate é pelo nome: dois draws com o mesmo RPM têm que
-            // dar sempre o mesmo painel.
+            // O desempate é pelo nome: duas ventoinhas com o mesmo RPM têm
+            // que dar sempre o mesmo painel.
             return comLeitura
                 .OrderByDescending(v => v.Rpm!.Value)
                 .ThenBy(v => v.Nome, StringComparer.Ordinal)
