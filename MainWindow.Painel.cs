@@ -64,10 +64,29 @@ public partial class MainWindow
         if (_painel is null) return;
 
         var area = SystemParameters.WorkArea;
-        _painel.Left = area.Right - _painel.Width - 12;
+        var (largura, altura) = TamanhoDoPainel();
+        _painel.Left = area.Right - largura - 12;
         _painel.Top = area.Top + 12;
 
         SalvarPosicaoDoPainel();
+    }
+
+    /// <summary>
+    /// O tamanho do painel, em DIPs.
+    ///
+    /// <para>
+    /// A janela tem <c>SizeToContent</c>, então o tamanho vem do conteúdo
+    /// medido (<c>ActualWidth</c>), e não do <c>Width</c> pedido — que
+    /// nesse caso não tem valor. Antes da primeira medição (o painel ainda
+    /// escondido), o app usa um tamanho de reserva, para a conferência com
+    /// a tela não ficar sem parâmetro.
+    /// </para>
+    /// </summary>
+    private (double largura, double altura) TamanhoDoPainel()
+    {
+        double largura = _painel is { ActualWidth: > 0 } ? _painel.ActualWidth : 260;
+        double altura = _painel is { ActualHeight: > 0 } ? _painel.ActualHeight : 120;
+        return (largura, altura);
     }
 
     /// <summary>Atualiza as linhas do painel (a cada meio segundo).</summary>
@@ -125,8 +144,10 @@ public partial class MainWindow
     {
         if (_painel is null) return;
 
+        var (largura, altura) = TamanhoDoPainel();
+
         if (_settings.PainelX is double x && _settings.PainelY is double y
-            && PainelWindow.DentroDaTela(x, y, 260, 120))
+            && PainelWindow.DentroDaTela(x, y, largura, altura))
         {
             _painel.Left = x;
             _painel.Top = y;
@@ -134,7 +155,7 @@ public partial class MainWindow
         }
 
         var area = SystemParameters.WorkArea;
-        _painel.Left = area.Right - 260 - 12;
+        _painel.Left = area.Right - largura - 12;
         _painel.Top = area.Top + 12;
     }
 
