@@ -339,7 +339,7 @@ public static class SensorTexto
     private static bool CabeNaTela(double valor) =>
         double.IsFinite(valor) && Math.Abs(valor) <= 9.007199254740991E15;
 }
-``````
+`````````
 
 E, no arquivo novo `TranalSentinel.Tests/NumeroTextoTestes.cs`, o teste da
 sobrecarga que nasce na Task 1 (as casas fixas moram no `NumeroTexto`, e não
@@ -393,8 +393,63 @@ public class NumeroTextoTestes
         Assert.Equal("—", NumeroTexto.Numero(double.NaN, 1));
         Assert.Equal("—", NumeroTexto.Numero(double.PositiveInfinity, 3));
     }
+
+    [Fact]
+    public void NumeroComCasas_LimitaAsCasas()
+    {
+        // Casa negativa não existe, e o formato "F" do double não passa de 15
+        // casas decimais: o pedido fora da faixa é ajustado, não quebrado.
+        Assert.Equal("8", NumeroTexto.Numero(8.0, -3));
+        Assert.Equal("1,234000000000000", NumeroTexto.Numero(1.234, 20));
+    }
+
+    [Fact]
+    public void NumeroComCasas_ComValorGrande_SaiPorExtenso()
+    {
+        // Valor grande sai por extenso — nunca em notação científica ("1E+30"),
+        // que ninguém entende na tela.
+        Assert.Equal("1000000000000000,00", NumeroTexto.Numero(1e15, 2));
+        Assert.Equal("1234567890123456,000", NumeroTexto.Numero(1234567890123456.0, 3));
+    }
+
+    [Fact]
+    public void Numero_ComValorNoLimite_NaoPerdeDigito()
+    {
+        // O formato "0.##" arredonda para duas casas, e com números muito
+        // grandes esse arredondamento mexia no algarismo da parte inteira:
+        // o texto saía com um dígito trocado. Número errado é pior que
+        // número ausente.
+        Assert.Equal("9007199254740991", NumeroTexto.Numero(9007199254740991.0));
+        Assert.Equal("4503599627370496", NumeroTexto.Numero(4503599627370496.0));
+    }
+
+    [Fact]
+    public void NumeroComCasas_ComValorNoLimite_NaoPerdeDigito()
+    {
+        Assert.Equal("9007199254740991,0", NumeroTexto.Numero(9007199254740991.0, 1));
+        Assert.Equal("4503599627370496,0", NumeroTexto.Numero(4503599627370496.0, 1));
+    }
+
+    [Fact]
+    public void Numero_ComZeroNegativo_NaoViraSinal()
+    {
+        // O arredondamento pode devolver um zero com sinal: "-0" na tela é
+        // número errado.
+        Assert.Equal("0", NumeroTexto.Numero(-0.0));
+        Assert.Equal("0,000", NumeroTexto.Numero(-0.0, 3));
+    }
+
+    [Fact]
+    public void ZeroNegativo_NaoViraSinal()
+    {
+        // Um valor negativo pequeno arredonda para zero na casa mostrada, e o
+        // .NET imprime o sinal: "-0" e "-0,000" na tela são número errado.
+        Assert.Equal("0", NumeroTexto.Numero(-0.0001));
+        Assert.Equal("0,000", NumeroTexto.Numero(-0.0004, 3));
+        Assert.Equal("0", NumeroTexto.Numero(0.0001));
+    }
 }
-```
+``````
 
 - [ ] **Step 2: Rode o teste e veja falhar**
 
@@ -408,8 +463,6 @@ Esperado: erro de compilação — `SensorTexto` não existe.
 Crie `SensorTexto.cs` (LF, no raiz do projeto):
 
 ```csharp
-using System.Globalization;
-
 namespace TranalSentinel;
 
 /// <summary>
@@ -429,8 +482,15 @@ namespace TranalSentinel;
 /// </summary>
 public static class SensorTexto
 {
-    /// <summary>O texto de um valor que não deu para ler.</summary>
-    public const string Ausente = "—";
+    /// <summary>
+    /// O texto de um valor que não deu para ler.
+    ///
+    /// <para>
+    /// É a mesma constante do <see cref="NumeroTexto.Ausente"/>: o travessão
+    /// tem um significado só no app, e ele mora em um lugar só.
+    /// </para>
+    /// </summary>
+    public const string Ausente = NumeroTexto.Ausente;
 
     /// <summary>Uma temperatura em °C (uma casa decimal).</summary>
     public static string Temperatura(double? valor) =>
@@ -493,6 +553,54 @@ public static class SensorTexto
             ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " RPM"
             : Ausente;
 
+    /// <summary>Um tamanho em megabytes (uma casa decimal).</summary>
+    public static string Megabytes(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " MB"
+            : Ausente;
+
+    /// <summary>Uma velocidade em megabytes por segundo (uma casa decimal).</summary>
+    public static string MegabytesPorSegundo(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " MB/s"
+            : Ausente;
+
+    /// <summary>Uma corrente em ampere (três casas decimais).</summary>
+    public static string Ampere(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 3, MidpointRounding.AwayFromZero), 3) + " A"
+            : Ausente;
+
+    /// <summary>Um fluxo em litros por hora (uma casa decimal).</summary>
+    public static string LitrosPorHora(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " L/h"
+            : Ausente;
+
+    /// <summary>Uma frequência em hertz (inteiro).</summary>
+    ///
+    /// <para>
+    /// O hertz é inteiro como o MHz e o RPM, e sai do mesmo jeito: com o
+    /// ponto de milhar da casa ("1.000 Hz"). Todo inteiro do app sai do
+    /// mesmo jeito — não há exceção.
+    /// </para>
+    public static string Hertz(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " Hz"
+            : Ausente;
+
+    /// <summary>Uma energia em miliwatt-hora (uma casa decimal).</summary>
+    public static string MiliwattHora(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " mWh"
+            : Ausente;
+
+    /// <summary>Um tempo em milissegundos (uma casa decimal).</summary>
+    public static string Milissegundos(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " ms"
+            : Ausente;
+
     /// <summary>
     /// O valor é um número que cabe na tela: um inteiro exatamente
     /// representável em <see cref="double"/> (o maior deles é 2^53 - 1) e,
@@ -508,7 +616,7 @@ public static class SensorTexto
     private static bool CabeNaTela(double valor) =>
         double.IsFinite(valor) && Math.Abs(valor) <= 9.007199254740991E15;
 }
-```
+``````
 
 E, no `NumeroTexto.cs` (arquivo existente), a sobrecarga que recebe o
 número de casas fixas — as casas decimais moram no formatador de números da casa,
@@ -698,7 +806,7 @@ public static class NumeroTexto
     public static string Data(DateTime dia) =>
         dia.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
 }
-``````
+`````````
 ```
 
 - [ ] **Step 3b: Tire o `NumeroTexto.Percentual` (arbitragem 4) e normalize o zero com sinal**
@@ -926,7 +1034,7 @@ public static class PainelRegras
             && top + altura > telaY && top < telaY + telaAltura;
     }
 }
-``````csharp
+`````````csharp
 namespace TranalSentinel;
 
 /// <summary>
@@ -1046,8 +1154,41 @@ public static class PainelRegras
     /// </para>
     /// </summary>
     public static bool PosicaoValida(double x, double y) => !double.IsNaN(x) && !double.IsNaN(y);
+
+    /// <summary>
+    /// As quatro linhas sem nenhuma leitura (todas "—").
+    /// </summary>
+    ///
+    /// <para>
+    /// É o que o painel mostra durante a cena de GPU, quando as leituras do
+    /// driver ficam pausadas: número velho é pior que número ausente.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<PainelLinha> LinhasSemLeitura() =>
+        Linhas(new PainelRetrato(null, null, null, null, null, Array.Empty<PainelVentoinha>()));
+
+    /// <summary>
+    /// A posição do painel está em algum monitor?
+    /// </summary>
+    ///
+    /// <para>
+    /// A posição é guardada em DIPs (a unidade do WPF) e a tela virtual é lida
+    /// na mesma unidade. Se o dono trocou de monitor, o painel volta para o
+    /// canto em vez de ficar fora da tela.
+    ///
+    /// <para>
+    /// A pergunta é aritmética pura, com a tela como argumento: por isso ela
+    /// mora no núcleo, e a janela só consome.
+    /// </para>
+    /// </summary>
+    public static bool DentroDaTela(double left, double top, double largura, double altura,
+                                    double telaX, double telaY, double telaLargura, double telaAltura)
+    {
+        return left + largura > telaX && left < telaX + telaLargura
+            && top + altura > telaY && top < telaY + telaAltura;
+    }
 }
-``````
+`````````
 
 - [ ] **Step 2: Rode os testes e veja falhar**
 
@@ -1096,8 +1237,9 @@ public sealed record PainelLinha(string Rotulo, string Valor);
 ///
 /// <para>
 /// O painel mostra quatro blocos, sempre na mesma ordem: CPU, GPU, RAM e
-/// ventoinha. O que não deu para ler vira "—" (nunca zero e nunca um valor
-/// velho) e os números saem do <see cref="SensorTexto"/>.
+/// ventoinha. O que não deu para ler <b>some da linha</b> (nunca zero e nunca
+/// um valor velho); quando não sobra nada, a linha inteira vira "—". Os
+/// números saem do <see cref="SensorTexto"/>.
 ///
 /// <para>
 /// A ventoinha mostrada é a de <b>maior RPM entre as que estão dando
@@ -1179,8 +1321,41 @@ public static class PainelRegras
     /// </para>
     /// </summary>
     public static bool PosicaoValida(double x, double y) => !double.IsNaN(x) && !double.IsNaN(y);
+
+    /// <summary>
+    /// As quatro linhas sem nenhuma leitura (todas "—").
+    /// </summary>
+    ///
+    /// <para>
+    /// É o que o painel mostra durante a cena de GPU, quando as leituras do
+    /// driver ficam pausadas: número velho é pior que número ausente.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<PainelLinha> LinhasSemLeitura() =>
+        Linhas(new PainelRetrato(null, null, null, null, null, Array.Empty<PainelVentoinha>()));
+
+    /// <summary>
+    /// A posição do painel está em algum monitor?
+    /// </summary>
+    ///
+    /// <para>
+    /// A posição é guardada em DIPs (a unidade do WPF) e a tela virtual é lida
+    /// na mesma unidade. Se o dono trocou de monitor, o painel volta para o
+    /// canto em vez de ficar fora da tela.
+    ///
+    /// <para>
+    /// A pergunta é aritmética pura, com a tela como argumento: por isso ela
+    /// mora no núcleo, e a janela só consome.
+    /// </para>
+    /// </summary>
+    public static bool DentroDaTela(double left, double top, double largura, double altura,
+                                    double telaX, double telaY, double telaLargura, double telaAltura)
+    {
+        return left + largura > telaX && left < telaX + telaLargura
+            && top + altura > telaY && top < telaY + telaAltura;
+    }
 }
-```
+``````
 
 - [ ] **Step 4: Rode os testes e veja passar**
 
@@ -1872,7 +2047,7 @@ public partial class PainelWindow : Window
     [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr h, int index);
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int index, int value);
 }
-``````xml
+`````````xml
 <Window x:Class="TranalSentinel.PainelWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -1913,8 +2088,10 @@ public partial class PainelWindow : Window
 Crie `PainelWindow.xaml.cs` (LF):
 
 ```csharp
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace TranalSentinel;
@@ -1942,6 +2119,17 @@ public partial class PainelWindow : Window
     public PainelWindow()
     {
         InitializeComponent();
+
+        // O painel nunca rouba o foco do jogo. O "ShowActivated=False" só
+        // protege o Show: sem este estilo do Windows, clicar no painel (ou
+        // arrastá-lo) ativa a janela e o jogo perde o foco. O mesmo cuidado
+        // que o overlay e o toast já têm.
+        SourceInitialized += (_, _) =>
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+            SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE);
+        };
 
         // O corpo do painel é a alça de arrastar.
         MouseLeftButtonDown += (_, e) =>
@@ -1998,31 +2186,14 @@ public partial class PainelWindow : Window
     /// A posição do painel está em algum monitor?
     ///
     /// <para>
-    /// A posição é guardada em DIPs (a unidade do WPF) e a tela virtual é lida
-    /// na mesma unidade. Se o dono trocou de monitor, o painel volta para o
-    /// canto em vez de ficar fora da tela.
+    /// A regra é do núcleo puro (<see cref="PainelRegras.DentroDaTela"/>): a
+    /// janela só entrega a tela virtual em DIPs.
     /// </para>
     /// </summary>
     public static bool DentroDaTela(double left, double top, double largura, double altura) =>
-        DentroDaTela(left, top, largura, altura,
+        PainelRegras.DentroDaTela(left, top, largura, altura,
             SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
             SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
-
-    /// <summary>
-    /// A mesma decisão, com os limites da tela recebidos.
-    ///
-    /// <para>
-    /// A janela do WPF não dá para testar na suíte (ela exige uma thread com
-    /// STA), mas a pergunta — o painel ainda está em algum monitor? — é
-    /// aritmética pura. Por isso ela mora aqui, com a tela como argumento.
-    /// </para>
-    /// </summary>
-    public static bool DentroDaTela(double left, double top, double largura, double altura,
-                                     double telaX, double telaY, double telaLargura, double telaAltura)
-    {
-        return left + largura > telaX && left < telaX + telaLargura
-            && top + altura > telaY && top < telaY + telaAltura;
-    }
 
     private void Arrastando(MouseEventArgs e)
     {
@@ -2095,8 +2266,25 @@ public partial class PainelWindow : Window
     /// </summary>
     private bool VeioDoBotao(object? origem) =>
         origem is DependencyObject d && BtnFechar.IsAncestorOf(d);
+
+    /// <summary>O índice do estilo estendido da janela (GWL_EXSTYLE).</summary>
+    private const int GWL_EXSTYLE = -20;
+
+    /// <summary>
+    /// O estilo que diz ao Windows que a janela não deve ser ativada.
+    /// </summary>
+    ///
+    /// <para>
+    /// Sem ele, clicar no painel (ou arrastá-lo) ativa a janela e o jogo
+    /// perde o foco. O overlay e o toast já usam o mesmo cuidado.
+    /// </para>
+    /// </summary>
+    private const int WS_EX_NOACTIVATE = 0x8000000;
+
+    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr h, int index);
+    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int index, int value);
 }
-```
+``````
 
 - [ ] **Step 2b: O teste da parte pura**
 
@@ -2448,7 +2636,7 @@ public partial class MainWindow
         var (largura, altura) = TamanhoDoPainel();
 
         if (_settings.PainelX is double x && _settings.PainelY is double y
-            && PainelRegras.DentroDaTela(x, y, largura, altura))
+            && PainelWindow.DentroDaTela(x, y, largura, altura))
         {
             _painel.Left = x;
             _painel.Top = y;
@@ -2468,7 +2656,7 @@ public partial class MainWindow
         ChkPainelTopo.IsChecked = _settings.PainelSempreNoTopo;
     }
 }
-``````
+`````````
 
 > **A guarda da posição mora no núcleo puro.** Se a janela ainda não foi
 > posicionada, o `Left`/`Top` dela não tem valor (`NaN`), e gravar isso

@@ -10,10 +10,18 @@ desktop com os números do PC sempre à vista, sem ocupar a janela principal.
 - Você **arrasta** o painel para onde quiser. A posição fica guardada: da
   próxima vez que o app abre, o painel aparece onde você deixou.
 - O botão **×** só **esconde** o painel — o TRANAL SENTINEL continua rodando na
-  bandeja, e é o "Sair" da bandeja que encerra tudo.
+  bandeja, e é o "Sair" da bandeja que encerra tudo. Depois do "×" o painel
+  **não volta sozinho** na próxima abertura: é só ligar de novo na aba
+  **Painel** (a posição, essa, fica guardada).
 - **Duplo clique** no painel abre a janela principal.
 - A opção **Sempre no topo** deixa o painel acima das outras janelas (dá para
   desligar quando ele atrapalhar o jogo).
+- Ele **não rouba o foco**: clicar no painel ou arrastá-lo não tira o foco do
+  jogo nem ativa a janela dele. É o mesmo cuidado que o overlay do TRANAL
+  SENTINEL já tinha.
+- Durante as **cenas de benchmark** (a cena de GPU, a do OC, o bench de RT), o
+  painel para de ler — o driver da GPU fica pausado para não engasgar a
+  medição — e mostra **—** em vez do número de antes.
 - O botão **VOLTAR PARA O CANTO** devolve o painel para o canto superior
   direito do monitor principal.
 - Ele se liga na aba **Painel** (menu TRANAL ASSISTENTE) e se atualiza a cada

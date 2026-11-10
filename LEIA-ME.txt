@@ -192,8 +192,9 @@ TRANAL PAINEL
   e carga), GPU (temperatura e carga), RAM (o percentual em uso) e ventoinha (o
   nome e o RPM). Você arrasta ela para onde quiser.
 - O botão "×" no canto só esconde o painel: o TRANAL SENTINEL continua rodando na
-  bandeja, e é o Sair da bandeja que encerra tudo. Duplo clique no painel abre a
-  janela principal.
+  bandeja, e é o Sair da bandeja que encerra tudo. Depois do "×" o painel não
+  volta sozinho na próxima abertura (é só ligar de novo na aba "Painel"); a
+  posição, essa, fica guardada. Duplo clique no painel abre a janela principal.
 - A opção "Sempre no topo" deixa o painel acima das outras janelas (dá para
   desligar quando ele atrapalhar o jogo). O botão VOLTAR PARA O CANTO devolve o
   painel para o canto superior direito do monitor principal.
