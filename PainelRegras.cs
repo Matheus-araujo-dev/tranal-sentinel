@@ -104,4 +104,16 @@ public static class PainelRegras
         if (uteis.Count == 0) return SensorTexto.Ausente;
         return string.Join(Separador, uteis);
     }
+
+    /// <summary>
+    /// Diz se a posição do painel pode ser gravada.
+    ///
+    /// <para>
+    /// Uma janela que ainda não foi posicionada tem <c>Left</c>/<c>Top</c>
+    /// sem valor (<see cref="double.NaN"/>). Gravar isso no arquivo
+    /// apagaria a posição que o dono tinha deixado — número nenhum é
+    /// melhor do que número inventado.
+    /// </para>
+    /// </summary>
+    public static bool PosicaoValida(double x, double y) => !double.IsNaN(x) && !double.IsNaN(y);
 }

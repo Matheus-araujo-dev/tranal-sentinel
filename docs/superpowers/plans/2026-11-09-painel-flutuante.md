@@ -974,6 +974,18 @@ public static class PainelRegras
         if (uteis.Count == 0) return SensorTexto.Ausente;
         return string.Join(Separador, uteis);
     }
+
+    /// <summary>
+    /// Diz se a posição do painel pode ser gravada.
+    ///
+    /// <para>
+    /// Uma janela que ainda não foi posicionada tem <c>Left</c>/<c>Top</c>
+    /// sem valor (<see cref="double.NaN"/>). Gravar isso no arquivo
+    /// apagaria a posição que o dono tinha deixado — número nenhum é
+    /// melhor do que número inventado.
+    /// </para>
+    /// </summary>
+    public static bool PosicaoValida(double x, double y) => !double.IsNaN(x) && !double.IsNaN(y);
 }
 ```
 
@@ -1963,13 +1975,19 @@ public partial class MainWindow
             // linhas, o canto seria calculado com um painel sem nada
             // dentro, e a janela cresceria para a direita depois — por
             // cima da borda da tela, bem onde fica o botão de fechar.
-            UpdatePainel();
-            _painel.UpdateLayout();
-            RestaurarPosicaoDoPainel();
+            //
+            // E se a primeira leitura falhar, o painel se desliga: nesse
+            // caso não há o que posicionar, e o relógio não fica rodando
+            // para um painel escondido.
+            if (UpdatePainel())
+            {
+                _painel.UpdateLayout();
+                RestaurarPosicaoDoPainel();
 
-            _painelTimer ??= new DispatcherTimer(
-                TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) => UpdatePainel(), Dispatcher);
-            _painelTimer.Start();
+                _painelTimer ??= new DispatcherTimer(
+                    TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) => UpdatePainel(), Dispatcher);
+                _painelTimer.Start();
+            }
         }
         else
         {
@@ -2021,10 +2039,19 @@ public partial class MainWindow
         return (largura, altura);
     }
 
-    /// <summary>Atualiza as linhas do painel (a cada meio segundo).</summary>
-    private void UpdatePainel()
+    /// <summary>
+    /// Atualiza as linhas do painel (a cada meio segundo).
+    ///
+    /// <para>
+    /// Devolve <c>true</c> quando a atualização deu certo, e <c>false</c>
+    /// quando o painel não pôde ser lido (ou nem estava visível). Quem
+    /// liga o painel usa isso para não ficar com o relógio rodando e com o
+    /// painel fora da tela.
+    /// </para>
+    /// </summary>
+    private bool UpdatePainel()
     {
-        if (_painel is null || !_painel.IsVisible) return;
+        if (_painel is null || !_painel.IsVisible) return false;
 
         try
         {
@@ -2048,6 +2075,7 @@ public partial class MainWindow
                 s.CpuTemp, s.CpuTotal, s.GpuTemp, s.GpuLoad, s.RamPct, ventoinhas);
 
             _painel.Update(PainelRegras.Linhas(retrato));
+            return true;
         }
         catch (Exception ex)
         {
@@ -2058,6 +2086,7 @@ public partial class MainWindow
             ChkPainel.IsChecked = false;
             _painel?.Hide();
             RegistroDiario.Registrar("Falha ao atualizar o painel flutuante: " + ex.Message, "PAINEL");
+            return false;
         }
     }
 
@@ -2077,6 +2106,11 @@ public partial class MainWindow
         // painel aparece de novo. (O botão "VOLTAR PARA O CANTO" também
         // funciona com o painel escondido.)
         if (_painel is null) return;
+
+        // Uma janela que ainda não foi posicionada tem Left/Top sem valor
+        // (NaN). Gravar isso no arquivo apagaria a posição que o dono tinha
+        // deixado — número nenhum é melhor do que número inventado.
+        if (!PainelRegras.PosicaoValida(_painel.Left, _painel.Top)) return;
 
         _settings.PainelX = _painel.Left;
         _settings.PainelY = _painel.Top;
@@ -2108,6 +2142,13 @@ public partial class MainWindow
     }
 }
 ```
+
+> **A guarda da posição mora no núcleo puro.** Se a janela ainda não foi
+> posicionada, o `Left`/`Top` dela não tem valor (`NaN`), e gravar isso
+> apagaria a posição que o dono tinha deixado. A conta mora em
+> `PainelRegras.PosicaoValida` — e por isso tem teste em
+> `TranalSentinel.Tests/PainelJanelaTestes.cs` (o resto do caminho é um
+> evento de WPF, e evento de WPF não entra na suíte).
 
 - [ ] **Step 3: O item do menu**
 
@@ -2198,12 +2239,18 @@ Em `MainWindow.xaml.cs`, no construtor, depois de `IniciarVigia();` (linha 196),
 
 - [ ] **Step 7: Grave a posição no fechamento**
 
-Em `MainWindow.xaml.cs`, no bloco `Closed` (linhas 155-190), antes de `_bandeja?.Dispose();`, acrescente:
+Em `MainWindow.xaml.cs`, no bloco `Closed`, antes de `_bandeja?.Dispose();`, acrescente:
 
 ```csharp
-            // A posição do painel fica salva: ela só se perde se o dono
-            // arrastar o painel para outro lugar.
+            // A posição do painel fica salva no arquivo: sem isto, o
+            // painel voltaria para o canto na próxima vez que o app
+            // abrisse, mesmo com o dono o tendo arrastado para outro
+            // lugar.
             SalvarPosicaoDoPainel();
+
+            // O painel é uma janela do app: ela morre com ele. Sem isto, uma
+            // janela flutuante sobraria na tela depois do app sair.
+            _painel?.Close();
 ```
 
 - [ ] **Step 8: Compile e rode a suíte**

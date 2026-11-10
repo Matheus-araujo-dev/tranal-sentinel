@@ -43,13 +43,19 @@ public partial class MainWindow
             // linhas, o canto seria calculado com um painel sem nada
             // dentro, e a janela cresceria para a direita depois — por
             // cima da borda da tela, bem onde fica o botão de fechar.
-            UpdatePainel();
-            _painel.UpdateLayout();
-            RestaurarPosicaoDoPainel();
+            //
+            // E se a primeira leitura falhar, o painel se desliga: nesse
+            // caso não há o que posicionar, e o relógio não fica rodando
+            // para um painel escondido.
+            if (UpdatePainel())
+            {
+                _painel.UpdateLayout();
+                RestaurarPosicaoDoPainel();
 
-            _painelTimer ??= new DispatcherTimer(
-                TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) => UpdatePainel(), Dispatcher);
-            _painelTimer.Start();
+                _painelTimer ??= new DispatcherTimer(
+                    TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal, (_, _) => UpdatePainel(), Dispatcher);
+                _painelTimer.Start();
+            }
         }
         else
         {
@@ -101,10 +107,19 @@ public partial class MainWindow
         return (largura, altura);
     }
 
-    /// <summary>Atualiza as linhas do painel (a cada meio segundo).</summary>
-    private void UpdatePainel()
+    /// <summary>
+    /// Atualiza as linhas do painel (a cada meio segundo).
+    ///
+    /// <para>
+    /// Devolve <c>true</c> quando a atualização deu certo, e <c>false</c>
+    /// quando o painel não pôde ser lido (ou nem estava visível). Quem
+    /// liga o painel usa isso para não ficar com o relógio rodando e com o
+    /// painel fora da tela.
+    /// </para>
+    /// </summary>
+    private bool UpdatePainel()
     {
-        if (_painel is null || !_painel.IsVisible) return;
+        if (_painel is null || !_painel.IsVisible) return false;
 
         try
         {
@@ -128,6 +143,7 @@ public partial class MainWindow
                 s.CpuTemp, s.CpuTotal, s.GpuTemp, s.GpuLoad, s.RamPct, ventoinhas);
 
             _painel.Update(PainelRegras.Linhas(retrato));
+            return true;
         }
         catch (Exception ex)
         {
@@ -138,6 +154,7 @@ public partial class MainWindow
             ChkPainel.IsChecked = false;
             _painel?.Hide();
             RegistroDiario.Registrar("Falha ao atualizar o painel flutuante: " + ex.Message, "PAINEL");
+            return false;
         }
     }
 
@@ -157,6 +174,11 @@ public partial class MainWindow
         // painel aparece de novo. (O botão "VOLTAR PARA O CANTO" também
         // funciona com o painel escondido.)
         if (_painel is null) return;
+
+        // Uma janela que ainda não foi posicionada tem Left/Top sem valor
+        // (NaN). Gravar isso no arquivo apagaria a posição que o dono tinha
+        // deixado — número nenhum é melhor do que número inventado.
+        if (!PainelRegras.PosicaoValida(_painel.Left, _painel.Top)) return;
 
         _settings.PainelX = _painel.Left;
         _settings.PainelY = _painel.Top;

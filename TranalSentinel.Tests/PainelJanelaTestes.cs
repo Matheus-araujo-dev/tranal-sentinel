@@ -52,4 +52,23 @@ public class PainelJanelaTestes
         Assert.False(PainelWindow.DentroDaTela(100, -120, 260, 120, 0, 0, 1920, 1080));
         Assert.False(PainelWindow.DentroDaTela(100, 1080, 260, 120, 0, 0, 1920, 1080));
     }
+
+    [Fact]
+    public void PosicaoSemValor_NaoPodeSerGravada()
+    {
+        // Uma janela que ainda não foi posicionada tem Left/Top sem valor:
+        // gravar isso no arquivo apagaria a posição que o dono tinha
+        // deixado. A regra é pura, e por isso dá para testar aqui.
+        Assert.False(PainelRegras.PosicaoValida(double.NaN, 100));
+        Assert.False(PainelRegras.PosicaoValida(100, double.NaN));
+        Assert.False(PainelRegras.PosicaoValida(double.NaN, double.NaN));
+    }
+
+    [Fact]
+    public void PosicaoComNumero_PodeSerGravada()
+    {
+        Assert.True(PainelRegras.PosicaoValida(2354, 12));
+        Assert.True(PainelRegras.PosicaoValida(0, 0));
+        Assert.True(PainelRegras.PosicaoValida(-400, -300));
+    }
 }
