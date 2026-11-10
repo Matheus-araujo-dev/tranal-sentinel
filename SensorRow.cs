@@ -37,23 +37,24 @@ public class SensorRow : INotifyPropertyChanged
 
     private string Format(float? v)
     {
-        if (v == null) return "—";
+        if (v == null) return SensorTexto.Ausente;
+
         return Type switch
         {
-            SensorType.Temperature => $"{v:0.#} °C",
-            SensorType.Load or SensorType.Control or SensorType.Level or SensorType.Humidity => $"{v:0.#} %",
-            SensorType.Clock => $"{v:0} MHz",
-            SensorType.Power => $"{v:0.#} W",
-            SensorType.Voltage => $"{v:0.###} V",
-            SensorType.Current => $"{v:0.###} A",
-            SensorType.Fan => $"{v:0} RPM",
-            SensorType.Flow => $"{v:0.#} L/h",
-            SensorType.Frequency => $"{v:0.#} Hz",
-            SensorType.Data => $"{v:0.##} GB",
-            SensorType.SmallData => $"{v:0.#} MB",
-            SensorType.Throughput => $"{v / 1048576f:0.##} MB/s",
-            SensorType.Energy => $"{v:0.#} mWh",
-            _ => $"{v:0.##}"
+            SensorType.Temperature => SensorTexto.Temperatura(v),
+            SensorType.Load or SensorType.Control or SensorType.Level or SensorType.Humidity => SensorTexto.Porcentual(v),
+            SensorType.Clock => SensorTexto.Mhz(v),
+            SensorType.Power => SensorTexto.Watts(v),
+            SensorType.Voltage => SensorTexto.Volts(v),
+            SensorType.Current => SensorTexto.Ampere(v),
+            SensorType.Fan => SensorTexto.Rpm(v),
+            SensorType.Flow => SensorTexto.LitrosPorHora(v),
+            SensorType.Frequency => SensorTexto.Hertz(v),
+            SensorType.Data => SensorTexto.Gigabytes(v),
+            SensorType.SmallData => SensorTexto.Megabytes(v),
+            SensorType.Throughput => SensorTexto.MegabytesPorSegundo(v / 1048576f),
+            SensorType.Energy => SensorTexto.MiliwattHora(v),
+            _ => NumeroTexto.Numero(v.Value)
         };
     }
 

@@ -122,6 +122,36 @@ public class SensorTextoTestes
     }
 
     [Fact]
+    public void AsUnidadesNovasUsamACasaDaCasa()
+    {
+        Assert.Equal("8,0 MB", SensorTexto.Megabytes(8.04));
+        Assert.Equal("150,0 MB/s", SensorTexto.MegabytesPorSegundo(150));
+        Assert.Equal("1,234 A", SensorTexto.Ampere(1.234));
+        Assert.Equal("12,5 L/h", SensorTexto.LitrosPorHora(12.5));
+        Assert.Equal("1000 Hz", SensorTexto.Hertz(1000));
+        Assert.Equal("150,5 mWh", SensorTexto.MiliwattHora(150.5));
+        Assert.Equal("16,7 ms", SensorTexto.Milissegundos(16.7));
+    }
+
+    [Fact]
+    public void AsUnidadesNovasNaoDependemDaCultura()
+    {
+        var cultura = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("en-US");
+
+            Assert.Equal("1,234 A", SensorTexto.Ampere(1.234));
+            Assert.Equal("16,7 ms", SensorTexto.Milissegundos(16.7));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = cultura;
+        }
+    }
+
+    [Fact]
     public void ZeroNegativo_NaoViraSinal()
     {
         // O arredondamento pode devolver um zero com sinal: "-0 °C" na tela

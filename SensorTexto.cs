@@ -81,6 +81,54 @@ public static class SensorTexto
             ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " RPM"
             : Ausente;
 
+    /// <summary>Um tamanho em megabytes (uma casa decimal).</summary>
+    public static string Megabytes(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " MB"
+            : Ausente;
+
+    /// <summary>Uma velocidade em megabytes por segundo (uma casa decimal).</summary>
+    public static string MegabytesPorSegundo(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " MB/s"
+            : Ausente;
+
+    /// <summary>Uma corrente em ampere (três casas decimais).</summary>
+    public static string Ampere(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 3, MidpointRounding.AwayFromZero), 3) + " A"
+            : Ausente;
+
+    /// <summary>Um fluxo em litros por hora (uma casa decimal).</summary>
+    public static string LitrosPorHora(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " L/h"
+            : Ausente;
+
+    /// <summary>Uma frequência em hertz (inteiro).</summary>
+    ///
+    /// <para>
+    /// O hertz é o inteiro sem ponto de milhar: é a casa arbitrada pelo
+    /// dono ("1000 Hz", e não "1.000 Hz"), diferente do MHz e do RPM, que
+    /// levam o separador de milhar.
+    /// </para>
+    public static string Hertz(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, MidpointRounding.AwayFromZero)) + " Hz"
+            : Ausente;
+
+    /// <summary>Uma energia em miliwatt-hora (uma casa decimal).</summary>
+    public static string MiliwattHora(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " mWh"
+            : Ausente;
+
+    /// <summary>Um tempo em milissegundos (uma casa decimal).</summary>
+    public static string Milissegundos(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " ms"
+            : Ausente;
+
     /// <summary>
     /// O valor é um número que cabe na tela: um inteiro exatamente
     /// representável em <see cref="double"/> (o maior deles é 2^53 - 1) e,

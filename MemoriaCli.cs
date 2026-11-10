@@ -122,7 +122,7 @@ public static class MemoriaCli
 
             sb.AppendLine();
             sb.AppendLine($"MÓDULO A{modulo.EnderecoSmbus - SpdLeitor.PrimeiroEndereco + 1} · SMBus 0x{modulo.EnderecoSmbus:X2}");
-            sb.AppendLine($"  {spd.Fabricante} · {spd.PartNumber} · {spd.Gigabytes:0.#} GB");
+            sb.AppendLine($"  {spd.Fabricante} · {spd.PartNumber} · {SensorTexto.Gigabytes(spd.Gigabytes)}");
             sb.AppendLine($"  {spd.TipoModulo} · {spd.Ranks} rank{(spd.Ranks > 1 ? "s" : "")} · {spd.LarguraBits} bits ({spd.LarguraChip}) · VDD {MemoriaTexto.Voltagem(spd.TensaoNominal)}");
             if (spd.Serial.Length > 0) sb.AppendLine($"  Serial: {spd.Serial} · fabricado em {spd.FabricadoEm} · DRAM {spd.FabricanteDram}");
             sb.AppendLine($"  Padrão JEDEC: {spd.Jedec.VelocidadeMts} MT/s · {spd.Jedec.ResumoCiclos} · tCK {MemoriaTexto.Ps(spd.Jedec.TckPs)}");

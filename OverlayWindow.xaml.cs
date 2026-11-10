@@ -100,13 +100,13 @@ public partial class OverlayWindow : Window
         if (f != null)
         {
             OFps.Text = $"{f.Fps:0}";
-            OFrameTime.Text = $"{f.FrameTimeMs:0.0} ms";
+            OFrameTime.Text = SensorTexto.Milissegundos(f.FrameTimeMs);
             OLow.Text = $"1% low {f.Low1Fps:0}";
         }
         else
         {
             OFps.Text = "—";
-            OFrameTime.Text = fps ? "" : "— ms";
+            OFrameTime.Text = fps ? "" : SensorTexto.Ausente;
             OLow.Text = "aguardando jogo";
         }
         // Rodapé: nome do jogo e/ou hora.
