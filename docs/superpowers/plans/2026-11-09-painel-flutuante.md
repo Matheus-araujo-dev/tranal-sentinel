@@ -1861,6 +1861,7 @@ git commit -F "<workspace>/msg-v031-t4.txt"
 - Create: `MainWindow.Painel.cs`
 - Modify: `MainWindow.xaml` (o item do menu e a página "Painel")
 - Modify: `MainWindow.xaml.cs` (os campos `_painel`/`_painelTimer`, o `ShowPage` e o `Closed`)
+- Test: `TranalSentinel.Tests/AppSettingsTestes.cs` (as quatro configurações do painel voltam ao abrir o app)
 
 **Interfaces:**
 - Consumes: `PainelWindow` (Task 4), `PainelRegras` (Task 2), `BottleneckAnalyzer.Sample` (já existe), `VentoinhaRegras.NomeLegivel` (já existe).
@@ -1879,6 +1880,38 @@ Em `AppSettings.cs`, depois do bloco do Overlay, acrescente:
     /// <summary>A posição do painel em DIPs (null = ainda nunca foi movido).</summary>
     public double? PainelY { get; set; }
 ```
+
+- [ ] **Step 1b: O teste das configurações do painel**
+
+As quatro propriedades novas têm que voltar quando o app abre de novo: é
+isso que faz o painel voltar no mesmo lugar em que o dono o deixou.
+
+Em `TranalSentinel.Tests/AppSettingsTestes.cs`, acrescente:
+
+```csharp
+    [Fact]
+    public void ConfiguracoesDoPainel_VoltamAoAbrirOApp()
+    {
+        var s = new AppSettings
+        {
+            PainelVisivel = true,
+            PainelSempreNoTopo = false,
+            PainelX = 120.5,
+            PainelY = 64.0
+        };
+        s.Save();
+
+        var lido = AppSettings.Load();
+        Assert.True(lido.PainelVisivel);
+        Assert.False(lido.PainelSempreNoTopo);
+        Assert.Equal(120.5, lido.PainelX);
+        Assert.Equal(64.0, lido.PainelY);
+    }
+```
+
+> A classe `AppSettingsTestes` já é da coleção "Configuracoes" e já
+> redireciona a pasta das configurações para uma pasta temporária — o teste
+> novo fica na mesma classe, sem mexer nesse arranjo.
 
 - [ ] **Step 2: A integração**
 
