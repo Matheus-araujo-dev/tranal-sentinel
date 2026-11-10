@@ -65,6 +65,24 @@ public class NumeroTextoTestes
     }
 
     [Fact]
+    public void Numero_ComValorNoLimite_NaoPerdeDigito()
+    {
+        // O formato "0.##" arredonda para duas casas, e com números muito
+        // grandes esse arredondamento mexia no algarismo da parte inteira:
+        // o texto saía com um dígito trocado. Número errado é pior que
+        // número ausente.
+        Assert.Equal("9007199254740991", NumeroTexto.Numero(9007199254740991.0));
+        Assert.Equal("4503599627370496", NumeroTexto.Numero(4503599627370496.0));
+    }
+
+    [Fact]
+    public void NumeroComCasas_ComValorNoLimite_NaoPerdeDigito()
+    {
+        Assert.Equal("9007199254740991,0", NumeroTexto.Numero(9007199254740991.0, 1));
+        Assert.Equal("4503599627370496,0", NumeroTexto.Numero(4503599627370496.0, 1));
+    }
+
+    [Fact]
     public void Numero_ComZeroNegativo_NaoViraSinal()
     {
         // O arredondamento pode devolver um zero com sinal: "-0" na tela é

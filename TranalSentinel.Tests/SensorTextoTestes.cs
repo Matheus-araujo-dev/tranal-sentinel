@@ -55,6 +55,13 @@ public class SensorTextoTestes
         Assert.Equal("—", SensorTexto.Watts(null));
         Assert.Equal("—", SensorTexto.Volts(null));
         Assert.Equal("—", SensorTexto.Rpm(null));
+        Assert.Equal("—", SensorTexto.Megabytes(null));
+        Assert.Equal("—", SensorTexto.MegabytesPorSegundo(null));
+        Assert.Equal("—", SensorTexto.Ampere(null));
+        Assert.Equal("—", SensorTexto.LitrosPorHora(null));
+        Assert.Equal("—", SensorTexto.Hertz(null));
+        Assert.Equal("—", SensorTexto.MiliwattHora(null));
+        Assert.Equal("—", SensorTexto.Milissegundos(null));
     }
 
     [Fact]
@@ -71,6 +78,13 @@ public class SensorTextoTestes
         Assert.Equal("—", SensorTexto.Watts(double.NaN));
         Assert.Equal("—", SensorTexto.Volts(double.NaN));
         Assert.Equal("—", SensorTexto.Rpm(double.PositiveInfinity));
+        Assert.Equal("—", SensorTexto.Megabytes(double.NaN));
+        Assert.Equal("—", SensorTexto.MegabytesPorSegundo(double.NaN));
+        Assert.Equal("—", SensorTexto.Ampere(double.NaN));
+        Assert.Equal("—", SensorTexto.LitrosPorHora(double.NaN));
+        Assert.Equal("—", SensorTexto.Hertz(double.NaN));
+        Assert.Equal("—", SensorTexto.MiliwattHora(double.NaN));
+        Assert.Equal("—", SensorTexto.Milissegundos(double.NaN));
     }
 
     [Fact]

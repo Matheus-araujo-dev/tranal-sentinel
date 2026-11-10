@@ -33,8 +33,9 @@ public sealed record PainelLinha(string Rotulo, string Valor);
 ///
 /// <para>
 /// O painel mostra quatro blocos, sempre na mesma ordem: CPU, GPU, RAM e
-/// ventoinha. O que não deu para ler vira "—" (nunca zero e nunca um valor
-/// velho) e os números saem do <see cref="SensorTexto"/>.
+/// ventoinha. O que não deu para ler <b>some da linha</b> (nunca zero e nunca
+/// um valor velho); quando não sobra nada, a linha inteira vira "—". Os
+/// números saem do <see cref="SensorTexto"/>.
 ///
 /// <para>
 /// A ventoinha mostrada é a de <b>maior RPM entre as que estão dando

@@ -148,7 +148,7 @@ public partial class PainelWindow : Window
     /// </summary>
     private void GuardarPosicaoInicial()
     {
-        if (!double.IsNaN(Left) && !double.IsNaN(Top))
+        if (PainelRegras.PosicaoValida(Left, Top))
         {
             _leftInicial = Left;
             _topInicial = Top;

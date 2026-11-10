@@ -161,140 +161,160 @@ O overlay (`MainWindow.Overlay.cs:84`) formata os números com interpolação cr
 Crie `TranalSentinel.Tests/SensorTextoTestes.cs`:
 
 ```csharp
-using System.Globalization;
-using Xunit;
-
-namespace TranalSentinel.Tests;
+namespace TranalSentinel;
 
 /// <summary>
-/// Testes do formatador de unidades dos sensores.
+/// O texto das unidades dos sensores — o único lugar onde "temperatura",
+/// "porcentagem", "gigabytes" etc. viram texto.
 ///
 /// <para>
-/// O mesmo número tem que sair do mesmo jeito em PCs de culturas
-/// diferentes: vírgula decimal e ponto de milhar, sempre.
+/// O número sai sempre do <see cref="NumeroTexto"/> (vírgula decimal, ponto de
+/// milhar, independente da cultura do Windows). A unidade mora aqui, e não
+/// espalhada pelo overlay, pelo painel e pela aba de ventoinhas: o mesmo
+/// número tem que sair do mesmo jeito em todo o app.
+///
+/// <para>
+/// Valor ausente vira "—" (nunca zero e nunca um valor velho): número errado
+/// é pior que número ausente.
 /// </para>
 /// </summary>
-public class SensorTextoTestes
+public static class SensorTexto
 {
-    [Fact]
-    public void Temperatura_ComValor_ArredondaParaUmaCasa()
-    {
-        Assert.Equal("50,4 °C", SensorTexto.Temperatura(50.35));
-        Assert.Equal("50 °C", SensorTexto.Temperatura(50.0));
-    }
+    /// <summary>
+    /// O texto de um valor que não deu para ler.
+    ///
+    /// <para>
+    /// É a mesma constante do <see cref="NumeroTexto.Ausente"/>: o travessão
+    /// tem um significado só no app, e ele mora em um lugar só.
+    /// </para>
+    /// </summary>
+    public const string Ausente = NumeroTexto.Ausente;
 
-    [Fact]
-    public void Porcentual_ComValor_ArredondaParaInteiro()
-    {
-        Assert.Equal("47%", SensorTexto.Porcentual(47.4));
-        Assert.Equal("48%", SensorTexto.Porcentual(47.6));
-    }
+    /// <summary>Uma temperatura em °C (uma casa decimal).</summary>
+    public static string Temperatura(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero)) + " °C"
+            : Ausente;
 
-    [Fact]
-    public void Gigabytes_ComValor_ArredondaParaUmaCasa()
-    {
-        Assert.Equal("8,0 GB", SensorTexto.Gigabytes(8.04));
-    }
+    /// <summary>Uma porcentagem (inteiro, arredondado).</summary>
+    public static string Porcentual(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + "%"
+            : Ausente;
 
-    [Fact]
-    public void Mhz_ComValor_UsaPontoDeMilhar()
-    {
-        Assert.Equal("2.790 MHz", SensorTexto.Mhz(2790));
-    }
+    /// <summary>Um tamanho em gigabytes (uma casa decimal, sempre presente).</summary>
+    public static string Gigabytes(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " GB"
+            : Ausente;
 
-    [Fact]
-    public void Rpm_ComValor_UsaPontoDeMilhar()
-    {
-        Assert.Equal("3.409 RPM", SensorTexto.Rpm(3409.4));
-    }
+    /// <summary>Uma frequência em MHz.</summary>
+    public static string Mhz(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " MHz"
+            : Ausente;
 
-    [Fact]
-    public void ValorAusente_ViraEmDash()
-    {
-        Assert.Equal("—", SensorTexto.Temperatura(null));
-        Assert.Equal("—", SensorTexto.Porcentual(null));
-        Assert.Equal("—", SensorTexto.Gigabytes(null));
-        Assert.Equal("—", SensorTexto.Mhz(null));
-        Assert.Equal("—", SensorTexto.Watts(null));
-        Assert.Equal("—", SensorTexto.Volts(null));
-        Assert.Equal("—", SensorTexto.Rpm(null));
-    }
+    /// <summary>Uma frequência em GHz (duas casas decimais).</summary>
+    public static string Gigahertz(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 2, MidpointRounding.AwayFromZero), 2) + " GHz"
+            : Ausente;
 
-    [Fact]
-    public void ValorNaoFinito_ViraEmDash()
-    {
-        // O sensor pode devolver infinito ou NaN. O numero texto cuida
-        // disso quando o valor vira texto decimal, mas a conversao para
-        // inteiro nao: sem a guarda, o infinito viraria um numero
-        // gigante de 19 digitos na tela.
-        Assert.Equal("—", SensorTexto.Temperatura(double.NaN));
-        Assert.Equal("—", SensorTexto.Porcentual(double.NaN));
-        Assert.Equal("—", SensorTexto.Porcentual(double.PositiveInfinity));
-        Assert.Equal("—", SensorTexto.Mhz(double.PositiveInfinity));
-        Assert.Equal("—", SensorTexto.Watts(double.NaN));
-        Assert.Equal("—", SensorTexto.Volts(double.NaN));
-        Assert.Equal("—", SensorTexto.Rpm(double.PositiveInfinity));
-    }
+    /// <summary>Uma potência em watts.</summary>
+    public static string Watts(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " W"
+            : Ausente;
 
-    [Fact]
-    public void OsNumerosNaoDependemDaCulturaDoWindows()
-    {
-        var cultura = CultureInfo.CurrentCulture;
+    /// <summary>Uma tensão em volts (três casas decimais por padrão).</summary>
+    ///
+    /// <para>
+    /// A casa é um parâmetro porque a grandeza manda: a tensão do núcleo da
+    /// GPU tem três casas ("1,234 V") e a de um módulo de memória tem duas
+    /// ("1,35 V"). O formatador é um só — o que muda é a casa pedida.
+    /// </para>
+    ///
+    /// <para>
+    /// A casa é ajustada para o intervalo de 0 a 15, que é o que o formato
+    /// aceita — o mesmo ajuste do <see cref="NumeroTexto.Numero(double, int)"/>.
+    /// </para>
+    public static string Volts(double? valor, int casas = 3) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(
+                Math.Round(v, Math.Clamp(casas, 0, 15), MidpointRounding.AwayFromZero),
+                Math.Clamp(casas, 0, 15)) + " V"
+            : Ausente;
 
-        try
-        {
-            CultureInfo.CurrentCulture = new CultureInfo("en-US");
+    /// <summary>Um número de rotações por minuto.</summary>
+    public static string Rpm(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " RPM"
+            : Ausente;
 
-            Assert.Equal("50,4 °C", SensorTexto.Temperatura(50.35));
-            Assert.Equal("8,0 GB", SensorTexto.Gigabytes(8.04));
-            Assert.Equal("3.409 RPM", SensorTexto.Rpm(3409.4));
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = cultura;
-        }
-    }
+    /// <summary>Um tamanho em megabytes (uma casa decimal).</summary>
+    public static string Megabytes(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " MB"
+            : Ausente;
 
-    [Fact]
-    public void Gigahertz_ComValor_UsaDuasCasas()
-    {
-        Assert.Equal("4,45 GHz", SensorTexto.Gigahertz(4.451));
-    }
+    /// <summary>Uma velocidade em megabytes por segundo (uma casa decimal).</summary>
+    public static string MegabytesPorSegundo(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " MB/s"
+            : Ausente;
 
-    [Fact]
-    public void Volts_ComDuasCasas_UsasAsDuasCasas()
-    {
-        // A casa e um parametro porque a grandeza manda: o modulo de
-        // memoria tem duas casas, o nucleo da GPU tem tres.
-        Assert.Equal("1,35 V", SensorTexto.Volts(1.35, 2));
-        Assert.Equal("1,234 V", SensorTexto.Volts(1.234));
-    }
+    /// <summary>Uma corrente em ampere (três casas decimais).</summary>
+    public static string Ampere(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 3, MidpointRounding.AwayFromZero), 3) + " A"
+            : Ausente;
 
-    [Fact]
-    public void ZeroNegativo_NaoViraSinal()
-    {
-        // O arredondamento pode devolver um zero com sinal: "-0 °C" na tela
-        // seria numero errado.
-        Assert.Equal("0 °C", SensorTexto.Temperatura(-0.04));
-        Assert.Equal("0,0 GB", SensorTexto.Gigabytes(-0.02));
-        Assert.Equal("0,000 V", SensorTexto.Volts(-0.0004));
-    }
+    /// <summary>Um fluxo em litros por hora (uma casa decimal).</summary>
+    public static string LitrosPorHora(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " L/h"
+            : Ausente;
 
-    [Fact]
-    public void ValorQueNaoCabeEmUmInteiro_ViraEmDash()
-    {
-        // Um sensor que devolvesse 1e30 faria o cast saturar em
-        // long.MaxValue e a tela mostraria 19 digitos. Numero errado e
-        // pior que numero ausente.
-        Assert.Equal("—", SensorTexto.Rpm(1e30));
-        Assert.Equal("—", SensorTexto.Porcentual(1e30));
-        Assert.Equal("—", SensorTexto.Mhz(1e30));
-        Assert.Equal("—", SensorTexto.Gigabytes(1e30));
-        Assert.Equal("—", SensorTexto.Volts(1e30));
-        Assert.Equal("—", SensorTexto.Gigahertz(1e30));
-    }
+    /// <summary>Uma frequência em hertz (inteiro).</summary>
+    ///
+    /// <para>
+    /// O hertz é inteiro como o MHz e o RPM, e sai do mesmo jeito: com o
+    /// ponto de milhar da casa ("1.000 Hz"). Todo inteiro do app sai do
+    /// mesmo jeito — não há exceção.
+    /// </para>
+    public static string Hertz(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Inteiro((long)Math.Round(v, MidpointRounding.AwayFromZero)) + " Hz"
+            : Ausente;
+
+    /// <summary>Uma energia em miliwatt-hora (uma casa decimal).</summary>
+    public static string MiliwattHora(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " mWh"
+            : Ausente;
+
+    /// <summary>Um tempo em milissegundos (uma casa decimal).</summary>
+    public static string Milissegundos(double? valor) =>
+        valor is double v && CabeNaTela(v)
+            ? NumeroTexto.Numero(Math.Round(v, 1, MidpointRounding.AwayFromZero), 1) + " ms"
+            : Ausente;
+
+    /// <summary>
+    /// O valor é um número que cabe na tela: um inteiro exatamente
+    /// representável em <see cref="double"/> (o maior deles é 2^53 - 1) e,
+    /// portanto, dentro do <see cref="long"/>.
+    ///
+    /// <para>
+    /// Um sensor que devolvesse 1e30 faria o cast saturar em
+    /// <see cref="long.MaxValue"/> e a tela mostraria
+    /// "9.223.372.036.854.775.807 RPM" — 19 dígitos. Número errado é pior
+    /// que número ausente: fora do limite, o texto é "—".
+    /// </para>
+    /// </summary>
+    private static bool CabeNaTela(double valor) =>
+        double.IsFinite(valor) && Math.Abs(valor) <= 9.007199254740991E15;
 }
-```
+``````
 
 E, no arquivo novo `TranalSentinel.Tests/NumeroTextoTestes.cs`, o teste da
 sobrecarga que nasce na Task 1 (as casas fixas moram no `NumeroTexto`, e não
@@ -470,23 +490,66 @@ número de casas fixas — as casas decimais moram no formatador de números da 
 e não dentro do `SensorTexto`:
 
 ```csharp
+using System.Globalization;
+
+namespace TranalSentinel;
+
+/// <summary>
+/// A formatação dos números mostrados na tela, em um lugar só.
+///
+/// <para>
+/// O TRANAL SENTINEL mostra os mesmos números em vários lugares (o cartão do
+/// tráfego, a aba de memória, a comparação entre PCs, o resumo dos sensores)
+/// e o computador do usuário pode estar em português ou em inglês. Se cada
+/// lugar tiver o seu <c>ToString</c>, os mesmos números saem com formatos
+/// diferentes — e o que é pior, saem diferentes <b>na máquina do dono</b> e na
+/// máquina de integração, que roda em en-US.
+///
+/// <para>
+/// Por isso a formatação é invariante de propósito: o número sai sempre com
+/// vírgula decimal e ponto de milhar, aconteça o que acontecer com a cultura
+/// do Windows.
+///
+/// <para>
+/// Um número que não é finito (infinito, NaN) não vira texto de número: ele
+/// vira "—". Número errado é pior que número ausente.
+/// </para>
+/// </summary>
+public static class NumeroTexto
+{
     /// <summary>
-    /// Número no padrão brasileiro (vírgula decimal) com um número fixo de
-    /// casas decimais ("8,0", "1,234").
+    /// O texto de um número que não deu para ler (o travessão).
     ///
     /// <para>
-    /// O <see cref="Numero(double)"/> corta os zeros à direita (formato
-    /// "0.##"), e isso não serve para as unidades que pedem casas fixas
-    /// (gigabytes, volts, gigahertz). Esta sobrecarga garante as casas, no
-    /// mesmo padrão do app: vírgula decimal e independente da cultura do
-    /// Windows.
+    /// É a única definição do glifo no app: o <see cref="SensorTexto.Ausente"/>
+    /// aponta para esta mesma constante.
+    /// </para>
+    /// </summary>
+    public const string Ausente = "—";
+
+    /// <summary>
+    /// Número no padrão brasileiro (vírgula decimal), sem casas demais.
+    ///
+    /// <para>
+    /// A troca do ponto pela vírgula é feita à mão: a cultura invariante usa o
+    /// ponto, e o padrão brasileiro usa a vírgula — mas a máquina de
+    /// integração roda em en-US, onde a vírgula é o separador de milhar.
     /// </para>
     /// </summary>
     public static string Numero(double valor)
     {
-        if (!double.IsFinite(valor)) return "—";
-        string texto = valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
-        return SemSinalDeZero(texto);
+        if (!double.IsFinite(valor)) return Ausente;
+
+        string texto = valor.ToString("0.##", CultureInfo.InvariantCulture);
+
+        // O formato "0.##" arredonda para duas casas. Com números muito
+        // grandes, esse arredondamento muda o próprio número: a dupla não
+        // guarda as duas casas E o algarismo dos trilhões ao mesmo tempo, e
+        // o texto sai com um algarismo trocado. Quando os dígitos inteiros
+        // mudaram, o texto sai pelo formato fixo, que é exato.
+        if (!PreservaOsDigitosInteiros(valor, texto)) texto = TextoExato(valor);
+
+        return SemSinalDeZero(texto.Replace('.', ','));
     }
 
     /// <summary>
@@ -509,7 +572,7 @@ e não dentro do `SensorTexto`:
     /// </summary>
     public static string Numero(double valor, int casas)
     {
-        if (!double.IsFinite(valor)) return "—";
+        if (!double.IsFinite(valor)) return Ausente;
         int fixas = Math.Clamp(casas, 0, 15);
         string texto = valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
         return SemSinalDeZero(texto);
@@ -522,7 +585,6 @@ e não dentro do `SensorTexto`:
     /// O sinal sai do texto já formatado, sem mexer nos dígitos — mudar o valor
     /// passado ao <c>ToString</c> mudaria o arredondamento das outras casas.
     /// </para>
-    /// </summary>
     private static string SemSinalDeZero(string texto)
     {
         if (!texto.StartsWith("-", StringComparison.Ordinal)) return texto;
@@ -533,7 +595,85 @@ e não dentro do `SensorTexto`:
         }
         return resto;
     }
-```
+
+    /// <summary>
+    /// O texto ainda tem os mesmos dígitos inteiros do número?
+    /// </summary>
+    ///
+    /// <para>
+    /// O "0.##" corta as casas, mas não pode trocar o algarismo da parte
+    /// inteira. Quando ele troca, o número grande saiu errado — e a casa
+    /// prefere o número exato ao número arredondado.
+    /// </para>
+    /// </summary>
+    private static bool PreservaOsDigitosInteiros(double valor, string texto)
+    {
+        // Fora do inteiro exato do double não dá para comparar: o número já
+        // não cabe em long, e o texto exato sai de qualquer jeito.
+        if (Math.Abs(valor) >= 9.007199254740991E15) return false;
+
+        int ponto = texto.IndexOf('.');
+        string digitos = ponto < 0 ? texto : texto.Substring(0, ponto);
+        if (digitos.StartsWith("-", StringComparison.Ordinal)) digitos = digitos.Substring(1);
+
+        // Se não deu para ler os dígitos do texto, não se mexe: não há o que
+        // comparar, e o texto fica como está.
+        if (!long.TryParse(digitos, NumberStyles.None, CultureInfo.InvariantCulture, out long inteiro))
+        {
+            return true;
+        }
+
+        return inteiro == (long)Math.Truncate(Math.Abs(valor));
+    }
+
+    /// <summary>
+    /// O texto exato do número, em ponto fixo (sem notação científica).
+    /// </summary>
+    ///
+    /// <para>
+    /// A casa vai subindo até o texto devolver o mesmo número de volta: é
+    /// o menor texto que não perde nenhum dígito.
+    /// </para>
+    /// </summary>
+    private static string TextoExato(double valor)
+    {
+        for (int casas = 0; casas <= 15; casas++)
+        {
+            string texto = valor.ToString("F" + casas, CultureInfo.InvariantCulture);
+            if (double.TryParse(texto, NumberStyles.Float, CultureInfo.InvariantCulture, out double volta)
+                && volta == valor)
+            {
+                return texto;
+            }
+        }
+
+        return valor.ToString("F15", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Um número inteiro, com o separador de milhar do padrão brasileiro.
+    ///
+    /// <para>
+    /// "N0" com cultura invariante separa os milhares com vírgula; o padrão
+    /// brasileiro usa ponto. A troca é feita à mão para que o texto saia igual
+    /// no PC do dono e na máquina de integração.
+    /// </para>
+    /// </summary>
+    public static string Inteiro(long valor) =>
+        valor.ToString("N0", CultureInfo.InvariantCulture).Replace(",", ".");
+
+    /// <summary>
+    /// Uma data e hora no padrão brasileiro, sem depender da cultura do
+    /// Windows (09/11/2026 14:32).
+    /// </summary>
+    public static string DataHora(DateTime momento) =>
+        momento.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+
+    /// <summary>Uma data no padrão brasileiro, sem depender da cultura do Windows (09/11/2026).</summary>
+    public static string Data(DateTime dia) =>
+        dia.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+}
+``````
 ```
 
 - [ ] **Step 3b: Tire o `NumeroTexto.Percentual` (arbitragem 4) e normalize o zero com sinal**
@@ -577,7 +717,7 @@ passado ao `ToString` mudaria o arredondamento de outras casas):
 ```csharp
     public static string Numero(double valor)
     {
-        if (!double.IsFinite(valor)) return "—";
+        if (!double.IsFinite(valor)) return Ausente;
         string texto = valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
         return SemSinalDeZero(texto);
     }
@@ -598,7 +738,7 @@ E o mesmo helper entra no método de casas fixas:
 ```csharp
     public static string Numero(double valor, int casas)
     {
-        if (!double.IsFinite(valor)) return "—";
+        if (!double.IsFinite(valor)) return Ausente;
         int fixas = Math.Clamp(casas, 0, 15);
         string texto = valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
         return SemSinalDeZero(texto);
@@ -683,178 +823,127 @@ git commit -F "<workspace>/msg-v031-t1.txt"
 Crie `TranalSentinel.Tests/PainelRegrasTestes.cs`:
 
 ```csharp
-using Xunit;
-
-namespace TranalSentinel.Tests;
+namespace TranalSentinel;
 
 /// <summary>
-/// Testes das linhas do painel flutuante.
+/// Uma ventoinha como o painel a mostra: o nome legível e o RPM de agora
+/// (null quando ela não está dando leitura).
+/// </summary>
+/// <param name="Nome">O nome do sensor ("Fan #1"), nunca o id interno.</param>
+/// <param name="Rpm">As rotações por minuto (null quando não deu para ler).</param>
+public sealed record PainelVentoinha(string Nome, double? Rpm);
+
+/// <summary>
+/// O retrato do PC que o painel mostra agora.
+/// </summary>
+/// <param name="TemperaturaCpu">A temperatura da CPU em °C (null se não deu para ler).</param>
+/// <param name="CargaCpu">A carga total da CPU em % (null se não deu para ler).</param>
+/// <param name="TemperaturaGpu">A temperatura da GPU em °C (null se não deu para ler).</param>
+/// <param name="CargaGpu">A carga da GPU em % (null se não deu para ler).</param>
+/// <param name="RamPct">A memória RAM em uso em % (null se não deu para ler).</param>
+/// <param name="Ventoinhas">As ventoinhas que o app conhece agora.</param>
+public sealed record PainelRetrato(
+    double? TemperaturaCpu,
+    double? CargaCpu,
+    double? TemperaturaGpu,
+    double? CargaGpu,
+    double? RamPct,
+    IReadOnlyList<PainelVentoinha> Ventoinhas);
+
+/// <summary>Uma linha do painel: o rótulo e o valor (prontos para a tela).</summary>
+public sealed record PainelLinha(string Rotulo, string Valor);
+
+/// <summary>
+/// As regras do painel flutuante — toda ela mora aqui.
 ///
 /// <para>
-/// Quatro blocos, sempre, na mesma ordem: CPU, GPU, RAM e ventoinha. O que
-/// não deu para ler vira "—" — nunca zero, nunca o valor de antes.
+/// O painel mostra quatro blocos, sempre na mesma ordem: CPU, GPU, RAM e
+/// ventoinha. O que não deu para ler <b>some da linha</b> (nunca zero e nunca
+/// um valor velho); quando não sobra nada, a linha inteira vira "—". Os
+/// números saem do <see cref="SensorTexto"/>.
+///
+/// <para>
+/// A ventoinha mostrada é a de <b>maior RPM entre as que estão dando
+/// leitura</b> (a que está trabalhando). Sem isso, o painel mostraria a
+/// ventoinha parada e o dono pensaria que o PC está com ela morta.
 /// </para>
 /// </summary>
-public class PainelRegrasTestes
+public static class PainelRegras
 {
-    private static PainelRetrato Retrato(
-        double? tempCpu = 50.35, double? cargaCpu = 47,
-        double? tempGpu = 44, double? cargaGpu = 12,
-        double? ram = 68,
-        IReadOnlyList<PainelVentoinha>? ventoinhas = null) =>
-        new(tempCpu, cargaCpu, tempGpu, cargaGpu, ram,
-            ventoinhas ?? new[] { new PainelVentoinha("Fan #1", 3409) });
+    /// <summary>O separador entre as partes de uma linha (" · ").</summary>
+    private const string Separador = " · ";
 
-    [Fact]
-    public void Linhas_SempreComOsQuatroBlocosNaOrdem()
+    /// <summary>As quatro linhas do painel.</summary>
+    public static IReadOnlyList<PainelLinha> Linhas(PainelRetrato retrato)
     {
-        var linhas = PainelRegras.Linhas(Retrato());
-
-        Assert.Equal(4, linhas.Count);
-        Assert.Equal("CPU", linhas[0].Rotulo);
-        Assert.Equal("GPU", linhas[1].Rotulo);
-        Assert.Equal("RAM", linhas[2].Rotulo);
-        Assert.Equal("VENT", linhas[3].Rotulo);
-    }
-
-    [Fact]
-    public void LinhaDaCpu_ComTemperaturaECarga_MostraOsDois()
-    {
-        var cpu = PainelRegras.Linhas(Retrato())[0];
-
-        Assert.Equal("50,4 °C · 47%", cpu.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaCpu_ComSoTemperatura_MostraSoEla()
-    {
-        var cpu = PainelRegras.Linhas(Retrato(cargaCpu: null))[0];
-
-        Assert.Equal("50,4 °C", cpu.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaCpu_SemValor_NaoMostraZero()
-    {
-        var cpu = PainelRegras.Linhas(Retrato(tempCpu: null, cargaCpu: null))[0];
-
-        Assert.Equal("—", cpu.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaGpu_ComTemperaturaECarga_MostraOsDois()
-    {
-        var gpu = PainelRegras.Linhas(Retrato())[1];
-
-        Assert.Equal("44 °C · 12%", gpu.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaRam_ComValor_MostraOPorcentual()
-    {
-        var ram = PainelRegras.Linhas(Retrato())[2];
-
-        Assert.Equal("68%", ram.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaRam_SemValor_ViraEmDash()
-    {
-        var ram = PainelRegras.Linhas(Retrato(ram: null))[2];
-
-        Assert.Equal("—", ram.Valor);
-    }
-
-    [Fact]
-    public void EscolherVentoinha_ComVariasAMaiorRpmVence()
-    {
-        // A vencedora entra por ultimo: se a regra voltasse a ser "a
-        // primeira que esta dando leitura", este teste quebraria.
-        var escolhida = PainelRegras.EscolherVentoinha(new[]
+        return new[]
         {
-            new PainelVentoinha("GPU Fan", 1407),
-            new PainelVentoinha("Fan #2", 0),
-            new PainelVentoinha("Fan #1", 3409),
-        });
-
-        Assert.Equal("Fan #1", escolhida!.Nome);
+            new PainelLinha("CPU", Juntar(SensorTexto.Temperatura(retrato.TemperaturaCpu), SensorTexto.Porcentual(retrato.CargaCpu))),
+            new PainelLinha("GPU", Juntar(SensorTexto.Temperatura(retrato.TemperaturaGpu), SensorTexto.Porcentual(retrato.CargaGpu))),
+            new PainelLinha("RAM", SensorTexto.Porcentual(retrato.RamPct)),
+            new PainelLinha("VENT", ValorDaVentoinha(EscolherVentoinha(retrato.Ventoinhas))),
+        };
     }
 
-    [Fact]
-    public void EscolherVentoinha_ComEmpateEscolheOMesmoNomeSempre()
+    /// <summary>
+    /// A ventoinha que o painel mostra: a de maior RPM entre as que estão
+    /// dando leitura. Se nenhuma estiver dando leitura, a primeira que o app
+    /// conhece (sem RPM — o número que não existe não é inventado).
+    /// </summary>
+    public static PainelVentoinha? EscolherVentoinha(IReadOnlyList<PainelVentoinha> ventoinhas)
     {
-        var escolhidas = PainelRegras.EscolherVentoinha(new[]
+        if (ventoinhas.Count == 0) return null;
+
+        var comLeitura = ventoinhas.Where(v => v.Rpm is not null).ToList();
+
+        if (comLeitura.Count > 0)
         {
-            new PainelVentoinha("Fan #3", 2000),
-            new PainelVentoinha("Fan #1", 2000),
-        });
+            // O desempate é pelo nome: duas ventoinhas com o mesmo RPM têm
+            // que dar sempre o mesmo painel.
+            return comLeitura
+                .OrderByDescending(v => v.Rpm!.Value)
+                .ThenBy(v => v.Nome, StringComparer.Ordinal)
+                .First();
+        }
 
-        Assert.Equal("Fan #1", escolhidas!.Nome);
+        return ventoinhas.OrderBy(v => v.Nome, StringComparer.Ordinal).First();
     }
 
-    [Fact]
-    public void EscolherVentoinha_SemNenhumaLendo_EscolheUmaComRpmAusente()
+    /// <summary>O valor da linha da ventoinha ("Fan #1 · 3.409 RPM").</summary>
+    private static string ValorDaVentoinha(PainelVentoinha? ventoinha)
     {
-        // A primeira por ordem alfabetica entra por ultimo: se o desempate
-        // voltasse a ser a ordem de chegada dos sensores, este teste
-        // quebraria.
-        var escolhida = PainelRegras.EscolherVentoinha(new[]
-        {
-            new PainelVentoinha("Fan #3", null),
-            new PainelVentoinha("Fan #2", null),
-        });
+        if (ventoinha is null) return SensorTexto.Ausente;
 
-        Assert.Equal("Fan #2", escolhida!.Nome);
-        Assert.Null(escolhida.Rpm);
+        string rpm = SensorTexto.Rpm(ventoinha.Rpm);
+        if (string.IsNullOrWhiteSpace(ventoinha.Nome)) return rpm;
+
+        return ventoinha.Nome + Separador + rpm;
     }
 
-    [Fact]
-    public void EscolherVentoinha_SemNenhumaVentoinha_DevolveNulo()
+    /// <summary>
+    /// Junta as partes de uma linha: o que não deu para ler some (e não
+    /// vira "— · —").
+    /// </summary>
+    private static string Juntar(params string[] partes)
     {
-        Assert.Null(PainelRegras.EscolherVentoinha(Array.Empty<PainelVentoinha>()));
+        var uteis = partes.Where(p => p != SensorTexto.Ausente).ToList();
+        if (uteis.Count == 0) return SensorTexto.Ausente;
+        return string.Join(Separador, uteis);
     }
 
-    [Fact]
-    public void LinhaDaVentoinha_SemLeitura_NaoMostraORpmVelho()
-    {
-        var vent = PainelRegras.Linhas(Retrato(ventoinhas: new[]
-        {
-            new PainelVentoinha("Fan #1", null),
-        }))[3];
-
-        // A ventoinha que parou de dar leitura mostra o nome e um travessão:
-        // o RPM velho não pode aparecer como se fosse o de agora.
-        Assert.Equal("Fan #1 · —", vent.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaVentoinha_ComLeitura_MostraONomeEORpm()
-    {
-        var vent = PainelRegras.Linhas(Retrato())[3];
-
-        Assert.Equal("Fan #1 · 3.409 RPM", vent.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaVentoinha_SemNomeMostraSoORpm()
-    {
-        var vent = PainelRegras.Linhas(Retrato(ventoinhas: new[]
-        {
-            new PainelVentoinha("", 3409),
-        }))[3];
-
-        Assert.Equal("3.409 RPM", vent.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaVentoinha_SemVentoinhaNoApp_ViraEmDash()
-    {
-        var vent = PainelRegras.Linhas(Retrato(ventoinhas: Array.Empty<PainelVentoinha>()))[3];
-
-        Assert.Equal("—", vent.Valor);
-    }
+    /// <summary>
+    /// Diz se a posição do painel pode ser gravada.
+    ///
+    /// <para>
+    /// Uma janela que ainda não foi posicionada tem <c>Left</c>/<c>Top</c>
+    /// sem valor (<see cref="double.NaN"/>). Gravar isso no arquivo
+    /// apagaria a posição que o dono tinha deixado — número nenhum é
+    /// melhor do que número inventado.
+    /// </para>
+    /// </summary>
+    public static bool PosicaoValida(double x, double y) => !double.IsNaN(x) && !double.IsNaN(y);
 }
-```
+``````
 
 - [ ] **Step 2: Rode os testes e veja falhar**
 
@@ -1748,7 +1837,7 @@ public partial class PainelWindow : Window
     /// </summary>
     private void GuardarPosicaoInicial()
     {
-        if (!double.IsNaN(Left) && !double.IsNaN(Top))
+        if (PainelRegras.PosicaoValida(Left, Top))
         {
             _leftInicial = Left;
             _topInicial = Top;

@@ -17,8 +17,15 @@ namespace TranalSentinel;
 /// </summary>
 public static class SensorTexto
 {
-    /// <summary>O texto de um valor que não deu para ler.</summary>
-    public const string Ausente = "—";
+    /// <summary>
+    /// O texto de um valor que não deu para ler.
+    ///
+    /// <para>
+    /// É a mesma constante do <see cref="NumeroTexto.Ausente"/>: o travessão
+    /// tem um significado só no app, e ele mora em um lugar só.
+    /// </para>
+    /// </summary>
+    public const string Ausente = NumeroTexto.Ausente;
 
     /// <summary>Uma temperatura em °C (uma casa decimal).</summary>
     public static string Temperatura(double? valor) =>

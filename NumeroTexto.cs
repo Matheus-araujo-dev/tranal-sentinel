@@ -26,6 +26,16 @@ namespace TranalSentinel;
 public static class NumeroTexto
 {
     /// <summary>
+    /// O texto de um número que não deu para ler (o travessão).
+    ///
+    /// <para>
+    /// É a única definição do glifo no app: o <see cref="SensorTexto.Ausente"/>
+    /// aponta para esta mesma constante.
+    /// </para>
+    /// </summary>
+    public const string Ausente = "—";
+
+    /// <summary>
     /// Número no padrão brasileiro (vírgula decimal), sem casas demais.
     ///
     /// <para>
@@ -36,9 +46,18 @@ public static class NumeroTexto
     /// </summary>
     public static string Numero(double valor)
     {
-        if (!double.IsFinite(valor)) return "—";
-        string texto = valor.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
-        return SemSinalDeZero(texto);
+        if (!double.IsFinite(valor)) return Ausente;
+
+        string texto = valor.ToString("0.##", CultureInfo.InvariantCulture);
+
+        // O formato "0.##" arredonda para duas casas. Com números muito
+        // grandes, esse arredondamento muda o próprio número: a dupla não
+        // guarda as duas casas E o algarismo dos trilhões ao mesmo tempo, e
+        // o texto sai com um algarismo trocado. Quando os dígitos inteiros
+        // mudaram, o texto sai pelo formato fixo, que é exato.
+        if (!PreservaOsDigitosInteiros(valor, texto)) texto = TextoExato(valor);
+
+        return SemSinalDeZero(texto.Replace('.', ','));
     }
 
     /// <summary>
@@ -61,7 +80,7 @@ public static class NumeroTexto
     /// </summary>
     public static string Numero(double valor, int casas)
     {
-        if (!double.IsFinite(valor)) return "—";
+        if (!double.IsFinite(valor)) return Ausente;
         int fixas = Math.Clamp(casas, 0, 15);
         string texto = valor.ToString("F" + fixas, CultureInfo.InvariantCulture).Replace('.', ',');
         return SemSinalDeZero(texto);
@@ -83,6 +102,60 @@ public static class NumeroTexto
             if (c != '0' && c != ',') return texto;
         }
         return resto;
+    }
+
+    /// <summary>
+    /// O texto ainda tem os mesmos dígitos inteiros do número?
+    /// </summary>
+    ///
+    /// <para>
+    /// O "0.##" corta as casas, mas não pode trocar o algarismo da parte
+    /// inteira. Quando ele troca, o número grande saiu errado — e a casa
+    /// prefere o número exato ao número arredondado.
+    /// </para>
+    /// </summary>
+    private static bool PreservaOsDigitosInteiros(double valor, string texto)
+    {
+        // Fora do inteiro exato do double não dá para comparar: o número já
+        // não cabe em long, e o texto exato sai de qualquer jeito.
+        if (Math.Abs(valor) >= 9.007199254740991E15) return false;
+
+        int ponto = texto.IndexOf('.');
+        string digitos = ponto < 0 ? texto : texto.Substring(0, ponto);
+        if (digitos.StartsWith("-", StringComparison.Ordinal)) digitos = digitos.Substring(1);
+
+        // Se não deu para ler os dígitos do texto, não se mexe: não há o que
+        // comparar, e o texto fica como está.
+        if (!long.TryParse(digitos, NumberStyles.None, CultureInfo.InvariantCulture, out long inteiro))
+        {
+            return true;
+        }
+
+        return inteiro == (long)Math.Truncate(Math.Abs(valor));
+    }
+
+    /// <summary>
+    /// O texto exato do número, em ponto fixo (sem notação científica).
+    /// </summary>
+    ///
+    /// <para>
+    /// A casa vai subindo até o texto devolver o mesmo número de volta: é
+    /// o menor texto que não perde nenhum dígito.
+    /// </para>
+    /// </summary>
+    private static string TextoExato(double valor)
+    {
+        for (int casas = 0; casas <= 15; casas++)
+        {
+            string texto = valor.ToString("F" + casas, CultureInfo.InvariantCulture);
+            if (double.TryParse(texto, NumberStyles.Float, CultureInfo.InvariantCulture, out double volta)
+                && volta == valor)
+            {
+                return texto;
+            }
+        }
+
+        return valor.ToString("F15", CultureInfo.InvariantCulture);
     }
 
     /// <summary>
