@@ -28,7 +28,12 @@ public partial class MainWindow
                 _painel.AoAbrirJanela += () => Dispatcher.Invoke(MostrarJanela);
             }
 
-            _painel.Topmost = ChkPainelTopo.IsChecked == true;
+            // O "sempre no topo" vem da configuração guardada, e não do
+            // interruptor: no arranque (ou logo depois de ligar o painel)
+            // a página ainda não foi aberta, e o interruptor está no estado
+            // padrão do XAML — desligado. Assim, o painel voltaria sem
+            // ficar acima das outras janelas.
+            _painel.Topmost = _settings.PainelSempreNoTopo;
 
             RestaurarPosicaoDoPainel();
             if (!_painel.IsVisible) _painel.Show();
@@ -119,8 +124,11 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            // Um painel que falha não pode derrubar o app: ele simplesmente some.
+            // Um painel que falha não pode derrubar o app: ele simplesmente
+            // some. O interruptor desliga junto, senão a página continuaria
+            // dizendo que o painel está ligado.
             _painelTimer?.Stop();
+            ChkPainel.IsChecked = false;
             _painel?.Hide();
             RegistroDiario.Registrar("Falha ao atualizar o painel flutuante: " + ex.Message, "PAINEL");
         }
