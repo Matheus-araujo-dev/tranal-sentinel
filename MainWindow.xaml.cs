@@ -236,6 +236,10 @@ public partial class MainWindow : Window
 
         // Vigia da tecla presa: a preferência do dono vem gravada.
         ChkTeclaPresa.IsChecked = _settings.CorrigirTeclaPresa;
+        // O tempo do texto vem da regra (um lugar só): nada de "30
+        // segundos" escrito à mão na tela.
+        ChkTeclaPresaTexto.Text = ChkTeclaPresaTexto.Text
+            .Replace("{SEGUNDOS}", NumeroTexto.Inteiro(TeclaPresaRegras.SegundosMinimos));
     }
 
     /// <summary>Coletas lentas da abertura, em paralelo e fora da thread da janela; cada parte preenche a tela quando fica pronta.</summary>

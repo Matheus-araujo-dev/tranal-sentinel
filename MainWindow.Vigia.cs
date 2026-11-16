@@ -64,24 +64,38 @@ public partial class MainWindow
         {
             // O gancho de teclado tem que ser instalado numa thread que
             // bombeia mensagens: a thread da interface sempre bombeia.
-            _vigiaTeclado = new VigiaTeclado();
-            if (_vigiaTeclado.Instalar())
+            var vigia = new VigiaTeclado();
+            if (vigia.Instalar())
             {
+                _vigiaTeclado = vigia;
                 _monitorTeclaPresa = new MonitorTeclaPresa(
                     TeclasWindows.ModificadorasPressionadas,
-                    () => DateTime.UtcNow,
-                    () => _vigiaTeclado!.Silencio,
+                    // Relôgio monotônico: o de parede salta quando a hora é
+                    // corrigida, e o salto faria o app soltar a tecla que o dono
+                    // está segurando.
+                    () => Environment.TickCount64,
+                    () => vigia.Silencio,
                     () => TeclasWindows.RepeticaoDoTecladoLigada(),
                     TeclasWindows.SoltarTodas);
-                _monitorTeclaPresa.Corrigida += tecla => Dispatcher.Invoke(() => AoTeclaPresaCorrigida(tecla));
+                // InvokeAsync (e não Invoke): o aviso vai para a fila da
+                // interface sem prender a thread da vigia — e sem que a
+                // interface travada trave a vigia.
+                _monitorTeclaPresa.Corrigida += tecla => Dispatcher.InvokeAsync(() => AoTeclaPresaCorrigida(tecla));
+                _monitorTeclaPresa.NaoConseguiu += tecla => Dispatcher.InvokeAsync(() => AoTeclaPresaNaoSoltou(tecla));
                 _timerTeclaPresa = new System.Threading.Timer(_ => VigiarTeclaPresa(), null, 15000, 5000);
+                ChkTeclaPresaEstado.Text = "Vigia ativa: o app acompanha o teclado e solta a tecla que ficar presa.";
             }
             else
             {
                 // Sem o gancho o app não sabe se o teclado está em siléncio —
                 // e silêncio sem prova não corrige tecla nenhuma.
+                vigia.Remover();
+                ChkTeclaPresaEstado.Text = "O Windows recusou o gancho de teclado: a correção automática está desligada.";
                 try { RegistroDiario.Registrar("Vigia de tecla presa indisponível: o Windows recusou o gancho de teclado.", "VIGIA"); }
-                catch { }
+                catch
+                {
+                    // Diário é acessório: falhar nele não pode derrubar o app.
+                }
             }
         }
         catch (Exception ex)
@@ -365,8 +379,14 @@ public partial class MainWindow
         try
         {
             // O dono pode desligar a correção pela página do TRANAL
-            // SAÚDE: desligada, a vigia nem olha o teclado.
-            if (_settings.CorrigirTeclaPresa != true) return;
+            // SAÚDE: desligada, a vigia nem olha o teclado — e o que ela
+            // estava acompanhando é esquecido, para o silencio antigo não
+            // virar "prova" quando o dono religar.
+            if (_settings.CorrigirTeclaPresa != true)
+            {
+                _monitorTeclaPresa?.Esquecer();
+                return;
+            }
 
             if (Interlocked.Exchange(ref _vigiandoTecla, 1) == 1) return;
             try
@@ -394,15 +414,38 @@ public partial class MainWindow
     /// </summary>
     private void AoTeclaPresaCorrigida(TeclaPresa tecla)
     {
-        Toast("Tecla presa corrigida", TeclaPresaRegras.TextoDoAviso(tecla.Familia, tecla.HaQuanto), "✓");
+        Toast("Tecla presa corrigida", TeclaPresaRegras.TextoDoAviso(tecla.Familias, tecla.HaQuanto), "✓");
         try
         {
             RegistroDiario.Registrar(
-                $"{TeclaPresaRegras.TextoDaCorrecao(tecla.Familia)} "
+                $"{TeclaPresaRegras.TextoDaCorrecao(tecla.Familias)} "
                 + $"(pressionada há {NumeroTexto.Inteiro((long)tecla.HaQuanto.TotalSeconds)} s).",
                 "TECLA");
         }
-        catch { }
+        catch
+        {
+            // Diário é acessório: falhar nele não pode derrubar o app.
+        }
+    }
+
+    /// <summary>
+    /// O app tentou soltar a tecla e ela continuou presa: o dono é avisado
+    /// (o app não pode dizer que soltou o que não soltou).
+    /// </summary>
+    private void AoTeclaPresaNaoSoltou(TeclaPresa tecla)
+    {
+        Toast("Tecla presa", TeclaPresaRegras.TextoDoAvisoSemSucesso(tecla.Familias), "⚠");
+        try
+        {
+            RegistroDiario.Registrar(
+                $"Tentativa de soltar a tecla {TeclaPresaRegras.Juntar(tecla.Familias)} "
+                + "que continuou presa.",
+                "TECLA");
+        }
+        catch
+        {
+            // Diário é acessório: falhar nele não pode derrubar o app.
+        }
     }
 
     /// <summary>
@@ -412,7 +455,11 @@ public partial class MainWindow
     {
         try
         {
-            _settings.CorrigirTeclaPresa = ChkTeclaPresa.IsChecked == true;
+            bool novo = ChkTeclaPresa.IsChecked == true;
+            // Sem mudança não grava: a tela reescrevia o arquivo de
+            // configuração a cada abertura sem necessidade.
+            if (_settings.CorrigirTeclaPresa == novo) return;
+            _settings.CorrigirTeclaPresa = novo;
             _settings.Save();
         }
         catch

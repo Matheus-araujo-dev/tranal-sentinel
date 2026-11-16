@@ -18,6 +18,21 @@ public static class TeclasWindows
     /// <summary>Flag do key-up na injeção de tecla (KEYEVENTF_KEYUP).</summary>
     private const uint KeyUp = 0x0002;
 
+    /// <summary>
+    /// Flag da tecla estendida (KEYEVENTF_EXTENDEDKEY): o Windows precisa
+    /// dela para saber que é a tecla da direita.
+    /// </summary>
+    private const uint TeclaEstendida = 0x0001;
+
+    /// <summary>
+    /// As teclas que vivem na parte estendida do teclado: o Ctrl e o Alt
+    /// direitos e as duas do Windows. Sem a flag, o "soltar" injetado seria
+    /// entendido como o da esquerda — e a tecla da direita continuaria
+    /// marcada no Windows (que foi exatamente o caso medido no PC do dono:
+    /// o Shift direito).
+    /// </summary>
+    private static readonly HashSet<int> TeclasEstendidas = new() { 0xA3, 0xA5, 0x5B, 0x5C };
+
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
 
@@ -65,7 +80,12 @@ public static class TeclasWindows
     /// isso que o clique do owner virava clique com Shift).
     /// </para>
     /// </summary>
-    public static void Soltar(int vk) => keybd_event((byte)vk, 0, KeyUp, UIntPtr.Zero);
+    public static void Soltar(int vk)
+    {
+        uint flags = KeyUp;
+        if (TeclasEstendidas.Contains(vk)) flags |= TeclaEstendida;
+        keybd_event((byte)vk, 0, flags, UIntPtr.Zero);
+    }
 
     /// <summary>
     /// Injeta o "soltar" de várias teclas de uma vez.
@@ -89,7 +109,7 @@ public static class TeclasWindows
     {
         // O perfil do usuário primeiro; quando ele não tem o valor, o perfil
         // padrão do Windows é quem manda (medido no PC do dono em
-        // 16/11/2026: o valor estava só lá no perfil padrão).
+        // 16/11/2026: o valor estava só lá).
         RegistryKey? usuario = null;
         try { usuario = Registry.CurrentUser.OpenSubKey(@"Control Panel\Keyboard"); }
         catch { }
@@ -131,22 +151,6 @@ public static class TeclasWindows
 
     /// <summary>
     /// A repetição automática do teclado está ligada?
-    ///
-    /// <para>
-    /// A repetição automática é o que distingue "alguém está segurando a
-    /// tecla" de "a tecla ficou presa": quem segura continua mandando
-    /// repetição, quem ficou preso não manda nada. Se o dono desligou a
-    /// repetição do Windows, o silêncio não prova nada — e o app se cala
-    /// (solte a tecla que a pessoa está segurando é pior do que a tecla
-    /// presa).
-    /// </para>
-    ///
-    /// <para>
-    /// A configuração vive em <c>HKCU\Control Panel\Keyboard\Keyboard Speed</c>
-    /// (0 = desligada, 1 = ligada). Se não der para ler, o app assume que está
-    /// desligada e não age — do mesmo jeito que o número que não se lê não
-    /// vira zero.
-    /// </para>
     /// </summary>
     public static bool RepeticaoDoTecladoLigada() =>
         TeclaPresaRegras.RepeticaoDoTecladoLigada(VelocidadeDaRepeticao());
@@ -168,11 +172,35 @@ public static class TeclasWindows
 /// 10 s de gancho — e injetar o key-up limpa o estado. É essa diferença que
 /// permite pegar a tecla presa.
 /// </para>
+///
+/// <para>
+/// <b>O gancho mora numa thread só dele</b>, com a sua bomba de mensagens.
+/// O Windows remove um gancho de baixo nível em silêncio quando a thread que
+/// o instalou demora demais para responder — e a thread da interface do WPF
+/// trava (a análise do TRANAL SAÚDE, por exemplo, lê o log de eventos
+/// inteiro). Com o gancho na interface, ele morria sozinho e o silêncio
+/// congelado fazia o app soltar a tecla que o dono estava segurando.
+/// </para>
 /// </summary>
 public sealed class VigiaTeclado : IDisposable
 {
     /// <summary>WH_KEYBOARD_LL.</summary>
     private const int TecladoDeBaixoNivel = 13;
+
+    /// <summary>WM_QUIT: o pedido de fim da bomba de mensagens.</summary>
+    private const uint WmQuit = 0x0012;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Msg
+    {
+        public IntPtr Hwnd;
+        public uint Message;
+        public IntPtr WParam;
+        public IntPtr LParam;
+        public uint Time;
+        public int X;
+        public int Y;
+    }
 
     private delegate IntPtr ProcedimentoDoGancho(int codigo, IntPtr wParam, IntPtr lParam);
 
@@ -185,34 +213,45 @@ public sealed class VigiaTeclado : IDisposable
     [DllImport("user32.dll")]
     private static extern IntPtr CallNextHookEx(IntPtr gancho, int codigo, IntPtr wParam, IntPtr lParam);
 
-    // O modulo do proprio processo: IntPtr.Zero e o jeito de pedir "o
-    // modulo de quem chamou" (sem string nula, que e aviso do compilador).
+    [DllImport("user32.dll")]
+    private static extern int GetMessage(out Msg msg, IntPtr hwnd, uint min, uint max);
+
+    [DllImport("user32.dll")]
+    private static extern bool TranslateMessage(ref Msg msg);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr DispatchMessage(ref Msg msg);
+
+    [DllImport("user32.dll")]
+    private static extern bool PostThreadMessage(uint idThread, uint msg, IntPtr wParam, IntPtr lParam);
+
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetModuleHandle(IntPtr nomeDoModulo);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
 
     /// <summary>O delegate precisa sobreviver: sem ele, o Windows descarta o gancho.</summary>
     private ProcedimentoDoGancho? _procedimento;
 
     private IntPtr _gancho = IntPtr.Zero;
-
-    /// <summary>Instante do último evento de teclado (em ticks de <see cref="DateTime"/>).</summary>
-    private long _ultimaAtividade;
-
-    /// <summary>O gancho está instalado?</summary>
-    public bool Instalado => _gancho != IntPtr.Zero;
+    private Thread? _thread;
+    private uint _idDaThread;
+    private bool _instalado;
 
     /// <summary>
-    /// Quando foi o último evento de teclado. Null quando o gancho não está
-    /// instalado (e, portanto, o silêncio não é prova de nada).
+    /// Instante do último evento de teclado, em milissegundos do relógio
+    /// monotônico do Windows. O relógio de parede não serve aqui: ele salta
+    /// quando a hora é corrigida ou o fuso muda, e um salto faria o app
+    /// achar que o teclado está em silêncio há mais tempo do que está.
     /// </summary>
-    public DateTime? UltimaAtividade
-    {
-        get
-        {
-            if (!Instalado) return null;
-            return new DateTime(Interlocked.Read(ref _ultimaAtividade), DateTimeKind.Utc);
-        }
-    }
+    private long _ultimaAtividade;
+
+    /// <summary>Aguarda a thread instalar o gancho (ou desistir).</summary>
+    private readonly ManualResetEventSlim _pronto = new(false);
+
+    /// <summary>O gancho está instalado?</summary>
+    public bool Instalado => _instalado && _gancho != IntPtr.Zero;
 
     /// <summary>
     /// Há quanto tempo o teclado não manda evento nenhum.
@@ -223,69 +262,136 @@ public sealed class VigiaTeclado : IDisposable
     {
         get
         {
-            DateTime? ultima = UltimaAtividade;
-            if (!ultima.HasValue) return null;
-            TimeSpan silencio = DateTime.UtcNow - ultima.Value;
-            return silencio < TimeSpan.Zero ? TimeSpan.Zero : silencio;
+            if (!Instalado) return null;
+            long decorrido = Environment.TickCount64 - Interlocked.Read(ref _ultimaAtividade);
+            return TimeSpan.FromMilliseconds(decorrido < 0 ? 0 : decorrido);
         }
     }
 
     /// <summary>
-    /// Instala o gancho. Precisa ser chamado numa thread que bombeia
-    /// mensagens — a thread da interface do WPF sempre bombeia.
+    /// Quando foi o último evento de teclado. Null quando o gancho não está
+    /// instalado (e, portanto, o silêncio não é prova de nada).
+    /// </summary>
+    public DateTime? UltimaAtividade
+    {
+        get
+        {
+            TimeSpan? silencio = Silencio;
+            if (!silencio.HasValue) return null;
+            return DateTime.UtcNow - silencio.Value;
+        }
+    }
+
+    /// <summary>
+    /// Instala o gancho numa thread própria, com a sua bomba de mensagens.
     /// </summary>
     /// <returns>true se o Windows aceitou o gancho.</returns>
     public bool Instalar()
     {
         if (Instalado) return true;
-        try
-        {
-            _procedimento = Procedimento;
-            _gancho = SetWindowsHookEx(TecladoDeBaixoNivel, _procedimento, GetModuleHandle(IntPtr.Zero), 0);
-            if (_gancho == IntPtr.Zero) return false;
 
-            // O silêncio começa a contar agora: sem evento nenhum desde que o
-            // gancho entrou, o app não sabe se o teclado está em silêncio.
-            Interlocked.Exchange(ref _ultimaAtividade, DateTime.UtcNow.Ticks);
-            return true;
-        }
-        catch
+        _pronto.Reset();
+        _thread = new Thread(Rodar)
         {
-            // Gancho que não instala só significa que o app não vigia a tecla
-            // presa — o resto do app segue igual.
-            _gancho = IntPtr.Zero;
-            return false;
-        }
+            IsBackground = true,
+            Name = "vigia-teclado"
+        };
+        _thread.Start();
+
+        // A thread instala o gancho e avisa; se ela não conseguir (ou não
+        // conseguir a tempo), a vigia simplesmente não existe.
+        bool respondeu = _pronto.Wait(TimeSpan.FromSeconds(5));
+        return respondeu && Instalado;
     }
 
-    /// <summary>Desinstala o gancho.</summary>
+    /// <summary>Desinstala o gancho e fecha a thread dele.</summary>
     public void Remover()
     {
-        try
-        {
-            if (_gancho != IntPtr.Zero) UnhookWindowsHookEx(_gancho);
-        }
+        Thread? thread = _thread;
+        _thread = null;
+        _instalado = false;
+        if (thread is null) return;
+
+        try { PostThreadMessage(_idDaThread, WmQuit, IntPtr.Zero, IntPtr.Zero); }
         catch
         {
-            // Gancho que não sai não derruba o app na hora de fechar.
+            // A thread pode já ter morrido: o gancho foi desinstalado com ela.
         }
-        _gancho = IntPtr.Zero;
+
+        try { thread.Join(2000); }
+        catch
+        {
+            // Thread que não morreu a tempo: ela é de fundo (IsBackground), e
+            // o processo do app encerra sem esperar por ela.
+        }
     }
 
     /// <summary>Fecha o gancho (o <see cref="IDisposable"/>).</summary>
     public void Dispose() => Remover();
 
     /// <summary>
+    /// A thread do gancho: instala o gancho e fica bombeando mensagens.
+    /// </summary>
+    private void Rodar()
+    {
+        try
+        {
+            _idDaThread = GetCurrentThreadId();
+            _procedimento = Procedimento;
+            _gancho = SetWindowsHookEx(TecladoDeBaixoNivel, _procedimento, GetModuleHandle(IntPtr.Zero), 0);
+            _instalado = _gancho != IntPtr.Zero;
+
+            // O silêncio começa a contar agora: sem evento nenhum desde que o
+            // gancho entrou, o app não sabe se o teclado está em silêncio.
+            Interlocked.Exchange(ref _ultimaAtividade, Environment.TickCount64);
+        }
+        catch
+        {
+            // Gancho que não instala só significa que o app não vigia a tecla
+            // presa — o resto do app segue igual.
+            _gancho = IntPtr.Zero;
+            _instalado = false;
+        }
+        finally
+        {
+            _pronto.Set();
+        }
+
+        if (!_instalado) return;
+
+        Msg msg;
+        try
+        {
+            // A bomba de mensagens é o que entrega o callback do gancho: sem
+            // ela, o Windows não avisa nada (e remove o gancho).
+            while (GetMessage(out msg, IntPtr.Zero, 0, 0) > 0)
+            {
+                TranslateMessage(ref msg);
+                DispatchMessage(ref msg);
+            }
+        }
+        catch
+        {
+            // Falha na bomba de mensagens: o gancho sai junto com a thread.
+        }
+        finally
+        {
+            try { UnhookWindowsHookEx(_gancho); } catch { }
+            _gancho = IntPtr.Zero;
+            _instalado = false;
+        }
+    }
+
+    /// <summary>
     /// O callback do gancho: só registra o instante e passa a chave adiante.
-    /// Ele roda na thread que instalou o gancho, e o Windows descarta o
-    /// gancho se o callback demorar — por isso ele não faz nada além de
-    /// anotar a hora.
+    /// O Windows descarta o gancho se o callback demorar — por isso ele não
+    /// faz nada além de anotar a hora.
     /// </summary>
     private IntPtr Procedimento(int codigo, IntPtr wParam, IntPtr lParam)
     {
         if (codigo >= 0)
         {
-            Interlocked.Exchange(ref _ultimaAtividade, DateTime.UtcNow.Ticks);
+            Interlocked.Exchange(ref _ultimaAtividade, Environment.TickCount64);
         }
         return CallNextHookEx(_gancho, codigo, wParam, lParam);
     }

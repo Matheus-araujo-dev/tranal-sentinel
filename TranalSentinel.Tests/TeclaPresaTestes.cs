@@ -7,9 +7,9 @@ namespace TranalSentinel.Tests;
 /// Testes da regra e da vigia da tecla presa.
 ///
 /// <para>
-/// A regra é pura e a vigia recebe tudo por função (relógio, leitura do
-/// teclado, silêncio, repetição e o "soltar"), então dá para medir o
-/// comportamento inteiro sem Windows em cima.
+/// A regra é pura e a vigia recebe tudo por função (relógio monotônico,
+/// leitura do teclado, silêncio, repetição e o "soltar"), então dá para
+/// medir o comportamento inteiro sem Windows em cima.
 /// </para>
 /// </summary>
 public class TeclaPresaTestes
@@ -124,6 +124,15 @@ public class TeclaPresaTestes
     }
 
     [Fact]
+    public void VksDaFamilia_PegaAGenericaEAsLaterais()
+    {
+        // O Windows marca a genérica junto com a lateral: soltar só uma
+        // delas deixa o estado interno marcado.
+        Assert.Equal(new[] { 0x10, 0xA0, 0xA1 }, TeclaPresaRegras.VksDaFamilia("Shift"));
+        Assert.Equal(new[] { 0x11, 0xA2, 0xA3 }, TeclaPresaRegras.VksDaFamilia("Ctrl"));
+    }
+
+    [Fact]
     public void Familias_UneasSemRepetir()
     {
         var teclas = new[]
@@ -138,17 +147,29 @@ public class TeclaPresaTestes
     }
 
     [Fact]
+    public void TextoDaCorrecao_ConcordaComONumeroDeTeclas()
+    {
+        Assert.Equal("A tecla Shift ficou presa e foi solta",
+            TeclaPresaRegras.TextoDaCorrecao(new[] { "Shift" }));
+
+        Assert.Equal("As teclas Shift e Ctrl ficaram presas e foram soltas",
+            TeclaPresaRegras.TextoDaCorrecao(new[] { "Shift", "Ctrl" }));
+    }
+
+    [Fact]
     public void TextoDoAviso_NaoDependeDaCulturaDoWindows()
     {
         var cultura = CultureInfo.CurrentCulture;
         try
         {
             CultureInfo.CurrentCulture = new CultureInfo("en-US");
-            string texto = TeclaPresaRegras.TextoDoAviso("Shift", TimeSpan.FromSeconds(90));
 
-            // O número sai pelo lugar único (NumeroTexto), com vírgula
-            // decimal e ponto de milhar, aconteça o que acontecer com a cultura.
-            Assert.Contains("90", texto);
+            // 1.234 s: com o milhar trocado à mão (o NumeroTexto), o texto sai
+            // igual em qualquer cultura. Com o formato da cultura, sairia
+            // "1,234" — e o teste pegaria.
+            string texto = TeclaPresaRegras.TextoDoAviso(new[] { "Shift" }, TimeSpan.FromSeconds(1234));
+
+            Assert.Contains("1.234", texto);
             Assert.Contains("Shift", texto);
         }
         finally
@@ -181,14 +202,24 @@ public class TeclaPresaTestes
 
     private sealed class Ambiente
     {
-        public DateTime Agora = Inicio;
+        /// <summary>Relógio monotônico da vigia, em milissegundos.</summary>
+        public long Agora;
+
+        /// <summary>Relógio de parede (só para carimbar o diário).</summary>
+        public DateTime Relogio = Inicio;
+
         public IReadOnlyList<Modificadora> Estado = Array.Empty<Modificadora>();
         public TimeSpan? Silencio = TimeSpan.FromMinutes(10);
         public bool Repeticao = true;
         public bool LerFalha;
         public bool SoltarFalha;
+
+        /// <summary>Simula o "soltar" que não limpa o estado (tecla continua presa).</summary>
+        public bool SoltarLimpaEstado = true;
+
         public List<int> Soltadas = new();
         public List<TeclaPresa> Corrigidas = new();
+        public List<TeclaPresa> SemSucesso = new();
         public MonitorTeclaPresa Monitor = null!;
 
         public Ambiente()
@@ -202,15 +233,18 @@ public class TeclaPresaTestes
                 {
                     if (SoltarFalha) throw new InvalidOperationException("falhou ao soltar");
                     Soltadas.AddRange(vks);
-                    Estado = Array.Empty<Modificadora>();
-                });
+                    if (SoltarLimpaEstado) Estado = Array.Empty<Modificadora>();
+                },
+                () => Relogio);
             Monitor.Corrigida += tecla => Corrigidas.Add(tecla);
+            Monitor.NaoConseguiu += tecla => SemSucesso.Add(tecla);
         }
 
         /// <summary>Avança o relógio e roda um ciclo da vigia.</summary>
         public void Ciclo(int segundos)
         {
-            Agora = Agora.AddSeconds(segundos);
+            Agora += segundos * 1000L;
+            Relogio = Relogio.AddSeconds(segundos);
             Monitor.Verificar();
         }
     }
@@ -234,11 +268,11 @@ public class TeclaPresaTestes
         ambiente.Ciclo(5);
         ambiente.Ciclo(31);
 
-        Assert.Equal(new[] { 0xA1 }, ambiente.Soltadas);
+        // O "soltar" chega nas três teclas da família (a genérica e as duas
+        // laterais): soltar só a que foi vista deixa o estado marcado.
+        Assert.Equal(new[] { 0x10, 0xA0, 0xA1 }, ambiente.Soltadas);
         Assert.Single(ambiente.Corrigidas);
-        Assert.Equal("Shift", ambiente.Corrigidas[0].Familia);
-        // A tecla foi vista pela primeira vez no primeiro ciclo (5 s):
-        // de lá até a correção, 31 s.
+        Assert.Equal(new[] { "Shift" }, ambiente.Corrigidas[0].Familias);
         Assert.Equal(TimeSpan.FromSeconds(31), ambiente.Corrigidas[0].HaQuanto);
     }
 
@@ -292,22 +326,37 @@ public class TeclaPresaTestes
     [Fact]
     public void Vigia_NaoRepeteACorrecaoLogoEmSeguida()
     {
-        var ambiente = new Ambiente { Estado = new[] { Shift() } };
+        // O "soltar" não resolve de primeira: a tecla continua presa. É
+        // justamente aí que a espera de 5 min entra (com a tecla sempre caída,
+        // a condição dos 30 s continua valendo). O app avisa que tentou
+        // e não conseguiu — não que soltou.
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
 
         ambiente.Ciclo(5);
         ambiente.Ciclo(31);
-        Assert.Single(ambiente.Corrigidas);
+        Assert.Single(ambiente.SemSucesso);
 
-        // A tecla continua presa (o "soltar" não resolveu): a vigia espera
-        // antes de avisar de novo, para o aviso não virar spam.
-        ambiente.Estado = new[] { Shift() };
         ambiente.Ciclo(31);
-        Assert.Single(ambiente.Corrigidas);
+        Assert.Single(ambiente.SemSucesso);
 
         // Passados os 5 minutos, a vigia tenta de novo.
-        ambiente.Estado = new[] { Shift() };
-        ambiente.Ciclo(5 * 60 + 31);
-        Assert.Equal(2, ambiente.Corrigidas.Count);
+        ambiente.Ciclo(5 * 60);
+        Assert.Equal(2, ambiente.SemSucesso.Count);
+    }
+
+    [Fact]
+    public void Vigia_QuandoOSoltarNaoLimpaNaoDizQueSoltou()
+    {
+        // O app não pode anunciar "soltou a tecla" quando o estado continua
+        // marcado: ele diz que tentou e não conseguiu.
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+
+        Assert.Empty(ambiente.Corrigidas);
+        Assert.Single(ambiente.SemSucesso);
+        Assert.Equal(new[] { "Shift" }, ambiente.SemSucesso[0].Familias);
     }
 
     [Fact]
@@ -330,6 +379,8 @@ public class TeclaPresaTestes
         ambiente.Ciclo(31);
 
         Assert.Empty(ambiente.Corrigidas);
+        Assert.Empty(ambiente.SemSucesso);
+        Assert.Empty(ambiente.Soltadas);
     }
 
     [Fact]
@@ -344,24 +395,36 @@ public class TeclaPresaTestes
     }
 
     [Fact]
-    public void Vigia_SoltaTodasAsTeclasDaFamiliaQueEstavamCaidas()
+    public void Vigia_AEsperaDe5MinutosMORREComAFamiliaCerta()
     {
-        // O Windows marca a modificadora genérica junto com a lateral: as
-        // duas precisam do "soltar" para o estado interno largar a tecla.
-        var ambiente = new Ambiente
-        {
-            Estado = new[]
-            {
-                new Modificadora(0x10, "Shift", "Shift"),
-                new Modificadora(0xA1, "Shift direito", "Shift"),
-            }
-        };
+        // Corrigir o Shift não pode prender o Ctrl: a espera é por família.
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
 
         ambiente.Ciclo(5);
         ambiente.Ciclo(31);
+        Assert.Single(ambiente.SemSucesso);
 
-        Assert.Equal(new[] { 0x10, 0xA1 }, ambiente.Soltadas);
+        // Agora é o Ctrl que está preso: ele não espera a espera do Shift.
+        ambiente.Estado = new[] { new Modificadora(0x11, "Ctrl", "Ctrl") };
+        ambiente.Ciclo(31);      // o app vê o Ctrl pela primeira vez
+        ambiente.Ciclo(31);      // 31 s depois: a correção
+
+        Assert.Equal(2, ambiente.SemSucesso.Count);
+        Assert.Equal(new[] { "Ctrl" }, ambiente.SemSucesso[1].Familias);
+    }
+
+    [Fact]
+    public void Vigia_OTempoVemDoRelogioMonotonico()
+    {
+        // O relógio de parede (que salta quando a hora é corrigida) não entra
+        // na conta do tempo: a vigia mede pelo relógio que só anda para frente.
+        var ambiente = new Ambiente { Estado = new[] { Shift() } };
+
+        ambiente.Ciclo(5);
+        ambiente.Relogio = ambiente.Relogio.AddHours(-3);   // o relógio de parede volta
+        ambiente.Ciclo(31);
+
         Assert.Single(ambiente.Corrigidas);
-        Assert.Equal("Shift", ambiente.Corrigidas[0].Familia);
+        Assert.Equal(TimeSpan.FromSeconds(31), ambiente.Corrigidas[0].HaQuanto);
     }
 }

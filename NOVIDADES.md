@@ -14,8 +14,9 @@ não foi pedido.
   verdade continua mandando repetição; a tecla presa não manda evento
   nenhum. Só corrige com as três condições ao mesmo tempo — tecla caída
   há 30 segundos, teclado em siléncio há 30 segundos e repetição
-  automática do Windows ligada. Sem essa última, ninguém está segurando e
-  ninguém está com a tecla está presa dá na mesma situação: o app se cala.
+  automática do Windows ligada. Sem essa última, segurar a tecla de verdade
+  também não gera evento: o app não teria como distinguir as duas situações, e
+  por isso se cala.
 - O dono pode **desligar** a correção automática no cartão "Vigia de tecla
   presa", na página do TRANAL SAÚDE.
 - O app não guarda o que foi digitado: o gancho de teclado só anota o

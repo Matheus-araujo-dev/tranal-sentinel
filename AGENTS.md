@@ -65,7 +65,10 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   o modo original do serviço, o valor original do ASPM. Sem isso, "restaurar"
   não tem de onde voltar.
 - **O app nunca age por conta própria**: suspender serviço é sempre escolha do
-  usuário; o app só marca os que ele reconhece.
+  usuário; o app só marca os que ele reconhece. A **vigia da tecla presa** é a
+  exceção explícita (v0.32): ela solta uma tecla que o Windows deixou marcada
+  como pressionada, e o dono pode desligar isso na página do TRANAL SAÚDE
+  (a preferência `CorrigirTeclaPresa`, que vem ligada).
 - **Nada de `catch` vazio** sem comentário dizendo por que é seguro.
 
 ## Arquitetura que não se deve quebrar
@@ -602,9 +605,26 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   repetição ligada** (a decisão é pura e testada, em
   `TeclaPresaRegras.RepeticaoDoTecladoLigada`).
 - **O gancho é de baixo nível (`WH_KEYBOARD_LL`) e guarda só o instante** do
-  último evento — nunca o que foi digitado. Ele precisa de uma thread que
-  bombeia mensagens (a da interface do WPF sempre bombeia) e é desinstalado
-  quando o app fecha.
+  último evento — nunca o que foi digitado.
+- **O gancho mora numa thread só dele, com a sua bomba de mensagens.** O Windows
+  remove um gancho de baixo nível **em siléncio** quando a thread que o instalou
+  demora demais para responder — e a thread da interface do WPF trava (a análise do
+  TRANAL SAÚDE lê o log de eventos inteiro). Com o gancho na interface, ele morria
+  sozinho e o silêncio congelado fazia o app soltar a tecla que o dono estava
+  segurando. A thread do gancho só espera o gancho ser instalado (e avisa se o
+  Windows recusar) e é fechada quando o app fecha.
+- **O relôgio da vigia é monotônico** (milissegundos que só andam para frente), e
+  o mesmo vale para o instante do último evento do teclado. O relôgio de parede salta
+  quando a hora é corrigida ou o fuso muda: um salto de um minuto faria a vigia
+  achar que a tecla está caída muito mais tempo do que está.
+- **O "soltar" chega na famélia inteira** (a genérica e as duas laterais), e as teclas
+  da parte estendida do teclado (Ctrl e Alt direitos, Windows) são injetadas com
+  `KEYEVENTF_EXTENDEDKEY`: sem a flag, o "soltar" seria entendido como o da esquerda
+  e a tecla da direita continuaria marcada (que foi o caso medido no PC do dono: o
+  Shift direito).
+- **O app confere depois de soltar.** Sem a conferência, ele diria que soltou a tecla
+  mesmo quando o "soltar" não limpou o estado. Quando a tecla continua presa, o
+  aviso é outro ("tentou soltar, mas a tecla continuou presa").
 - **A correção é a mesma que o Windows faz**: injetar o key-up da tecla.
   O que o app fez fica no diário (categoria "TECLA") e num aviso — e o dono
   pode desligar a correção na página do TRANAL SAÚDE.

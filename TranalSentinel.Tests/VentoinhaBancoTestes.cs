@@ -23,7 +23,11 @@ public class VentoinhaBancoTestes : IDisposable
 {
     private string? _pastaBanco;
 
-    private static readonly DateTime Dia = new(2026, 11, 9, 0, 0, 0);
+    /// <summary>
+    /// O dia do teste, relativo a hoje: o banco poda o histórico velho (30
+    /// dias) assim que grava, e uma data fixa quebraria o teste sozinho.
+    /// </summary>
+    private static readonly DateTime Dia = DateTime.Today.AddDays(-7);
 
     public void Dispose()
     {

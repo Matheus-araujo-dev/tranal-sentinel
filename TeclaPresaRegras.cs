@@ -10,13 +10,13 @@ namespace TranalSentinel;
 public sealed record Modificadora(int Vk, string Nome, string Familia);
 
 /// <summary>
-/// Uma tecla que ficou presa: qual é e há quanto tempo o Windows continua
-/// achando que ela está pressionada.
+/// Uma tecla que ficou presa: quais são, quando o app agiu e há quanto tempo
+/// o Windows continua achando que elas estão pressionadas.
 /// </summary>
-/// <param name="Familia">A família da tecla (Shift, Ctrl, Alt, Win).</param>
-/// <param name="Desde">Quando o app percebeu a tecla caída.</param>
-/// <param name="HaQuanto">Há quanto tempo ela está caída.</param>
-public sealed record TeclaPresa(string Familia, DateTime Desde, TimeSpan HaQuanto);
+/// <param name="Familias">As famílias das teclas corrigidas (Shift, Ctrl, Alt, Win).</param>
+/// <param name="DetectadaEm">Quando o app agiu (serve para o diário).</param>
+/// <param name="HaQuanto">Há quanto tempo a tecla está caída.</param>
+public sealed record TeclaPresa(IReadOnlyList<string> Familias, DateTime DetectadaEm, TimeSpan HaQuanto);
 
 /// <summary>
 /// A regra da tecla presa: quando uma tecla modificadora conta como "presa".
@@ -77,39 +77,20 @@ public static class TeclaPresaRegras
     /// chegar em todas para o estado interno largar a tecla.
     /// </para>
     /// </summary>
-    public static IReadOnlyList<Modificadora> Modificadoras { get; } = new List<Modificadora>
+    public static IReadOnlyList<Modificadora> Modificadoras { get; } = Array.AsReadOnly(new[]
     {
-        new(0x10, "Shift", "Shift"),
-        new(0xA0, "Shift esquerdo", "Shift"),
-        new(0xA1, "Shift direito", "Shift"),
-        new(0x11, "Ctrl", "Ctrl"),
-        new(0xA2, "Ctrl esquerdo", "Ctrl"),
-        new(0xA3, "Ctrl direito", "Ctrl"),
-        new(0x12, "Alt", "Alt"),
-        new(0xA4, "Alt esquerdo", "Alt"),
-        new(0xA5, "Alt direito", "Alt"),
-        new(0x5B, "Win", "Win"),
-        new(0x5C, "Win direito", "Win"),
-    };
-
-    /// <summary>
-    /// A repetição automática do teclado está ligada?
-    /// </summary>
-    /// <param name="velocidade">
-    /// A velocidade da repetição que o Windows guardou (0 = desligada).
-    /// Null = o Windows não guardou o valor, e vale o padrão dele, que é a
-    /// repetição ligada.
-    /// </param>
-    /// <remarks>
-    /// A decisão mora aqui (e não no Windows) porque é ela que decide se o
-    /// app pode agir. Medido no PC do dono em 16/11/2026: o valor da
-    /// repetição não existe no perfil do usuário — ele está no perfil
-    /// padrão do Windows, e o padrao é a repetição ligada. Quem tratasse
-    /// "sem valor" como "desligada" desligaria a vigia inteira sem o dono
-    /// pedir.
-    /// </remarks>
-    public static bool RepeticaoDoTecladoLigada(int? velocidade) =>
-        !velocidade.HasValue || velocidade.Value != 0;
+        new Modificadora(0x10, "Shift", "Shift"),
+        new Modificadora(0xA0, "Shift esquerdo", "Shift"),
+        new Modificadora(0xA1, "Shift direito", "Shift"),
+        new Modificadora(0x11, "Ctrl", "Ctrl"),
+        new Modificadora(0xA2, "Ctrl esquerdo", "Ctrl"),
+        new Modificadora(0xA3, "Ctrl direito", "Ctrl"),
+        new Modificadora(0x12, "Alt", "Alt"),
+        new Modificadora(0xA4, "Alt esquerdo", "Alt"),
+        new Modificadora(0xA5, "Alt direito", "Alt"),
+        new Modificadora(0x5B, "Win", "Win"),
+        new Modificadora(0x5C, "Win direito", "Win"),
+    });
 
     /// <summary>
     /// A regra: esta tecla está presa?
@@ -146,11 +127,23 @@ public static class TeclaPresaRegras
     }
 
     /// <summary>
-    /// O nome da família de uma tecla (Shift, Ctrl, Alt, Win) — o que vai
-    /// escrito no aviso.
+    /// A repetição automática do teclado está ligada?
     /// </summary>
-    public static string Familia(int vk) => Modificadoras
-        .FirstOrDefault(m => m.Vk == vk)?.Familia ?? "desconhecida";
+    /// <param name="velocidade">
+    /// A velocidade da repetição que o Windows guardou (0 = desligada).
+    /// Null = o Windows não guardou o valor, e vale o padrão dele, que é a
+    /// repetição ligada.
+    /// </param>
+    /// <remarks>
+    /// A decisão mora aqui (e não no Windows) porque é ela que decide se o
+    /// app pode agir. Medido no PC do dono em 16/11/2026: o valor da
+    /// repetição não existe no perfil do usuário — ele está no perfil
+    /// padrão do Windows, e o padrão é a repetição ligada. Quem tratasse
+    /// "sem valor" como "desligada" desligaria a vigia inteira sem o dono
+    /// pedir.
+    /// </remarks>
+    public static bool RepeticaoDoTecladoLigada(int? velocidade) =>
+        !velocidade.HasValue || velocidade.Value != 0;
 
     /// <summary>
     /// As famílias de um conjunto de teclas, sem repetição ("Shift", "Ctrl").
@@ -167,32 +160,73 @@ public static class TeclaPresaRegras
     }
 
     /// <summary>
+    /// Todos os códigos de tecla de uma família (Shift = genérica, esquerda e
+    /// direita). O "soltar" tem que chegar em todos: o Windows marca a
+    /// genérica junto com a lateral.
+    /// </summary>
+    public static IReadOnlyList<int> VksDaFamilia(string familia) => Modificadoras
+        .Where(m => m.Familia == familia)
+        .Select(m => m.Vk)
+        .ToList();
+
+    /// <summary>
     /// Junta as famílias de um conjunto de teclas em uma frase ("Shift",
     /// "Shift e Ctrl").
     /// </summary>
     public static string Families(IEnumerable<Modificadora> modificadoras)
     {
         var familias = ListaDeFamilias(modificadoras);
+        return Juntar(familias);
+    }
+
+    /// <summary>
+    /// Junta uma lista de famílias em uma frase ("Shift", "Shift e Ctrl").
+    /// </summary>
+    public static string Juntar(IReadOnlyList<string> familias)
+    {
         if (familias.Count == 0) return "tecla";
         if (familias.Count == 1) return familias[0];
         return string.Join(", ", familias.Take(familias.Count - 1)) + " e " + familias[familias.Count - 1];
     }
 
     /// <summary>
-    /// A frase curta do que aconteceu (a do diário e do cartão).
+    /// A frase curta do que aconteceu (a do diário e do cartão). O verbo
+    /// concorda com o número de teclas.
     /// </summary>
-    public static string TextoDaCorrecao(string familias) =>
-        $"A tecla {familias} ficou presa e foi solta";
+    public static string TextoDaCorrecao(IReadOnlyList<string> familias)
+    {
+        if (familias.Count == 0) return "Uma tecla ficou presa e foi solta";
+        if (familias.Count == 1) return $"A tecla {familias[0]} ficou presa e foi solta";
+        return $"As teclas {Juntar(familias)} ficaram presas e foram soltas";
+    }
 
     /// <summary>
     /// A frase do aviso que o dono lê: o que o Windows achava, há quanto
     /// tempo, e o que o app fez.
     /// </summary>
-    public static string TextoDoAviso(string familias, TimeSpan haQuanto)
+    public static string TextoDoAviso(IReadOnlyList<string> familias, TimeSpan haQuanto)
     {
         long segundos = (long)Math.Round(haQuanto.TotalSeconds);
-        return $"O Windows continuava com {familias} pressionado há {NumeroTexto.Inteiro(segundos)} s "
+        string teclas = familias.Count == 1
+            ? $"a tecla {familias[0]}"
+            : $"as teclas {Juntar(familias)}";
+
+        return $"O Windows continuava com {teclas} pressionada há {NumeroTexto.Inteiro(segundos)} s "
              + "sem ninguém no teclado. O TRANAL SENTINEL soltou a tecla.";
+    }
+
+    /// <summary>
+    /// A frase do aviso quando o "soltar" não resolveu — o app não pode dizer
+    /// que soltou o que não soltou.
+    /// </summary>
+    public static string TextoDoAvisoSemSucesso(IReadOnlyList<string> familias)
+    {
+        string teclas = familias.Count == 1
+            ? $"a tecla {familias[0]}"
+            : $"as teclas {Juntar(familias)}";
+
+        return $"O Windows continua com {teclas} pressionada. O TRANAL SENTINEL tentou soltar, "
+             + "mas a tecla continuou presa.";
     }
 
     /// <summary>

@@ -542,6 +542,7 @@ um `.exe` em uso.
 - ✔ TRANAL REDE: tráfego de internet por programa, medido pelo próprio Windows, com histórico de 30 dias (v0.29)
 - ✔ TRANAL VENTOINHAS: o RPM de cada ventoinha comparado com o próprio recorde, para dizer se ela está gasta (v0.30)
 - ✔ PAINEL: a janela flutuante com CPU, GPU, RAM e ventoinha sempre à vista (v0.31)
+- ✔ VIGIA DE TECLA PRESA: quando o Windows deixa Shift, Ctrl, Alt ou Win marcado como pressionado, o app solta a tecla e avisa (v0.32)
 
 ## Próximas ideias
 - Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina

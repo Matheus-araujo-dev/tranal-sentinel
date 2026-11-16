@@ -76,6 +76,23 @@ TRANAL SAÚDE
   na abertura seguinte. O histórico que não entrou não é dado como
   perdido em silêncio.
 
+VIGIA DE TECLA PRESA
+- No grupo "TRANAL SAÚDE" -> aba "Diagnóstico", o cartão "VIGIA DE TECLA
+  PRESA" liga ou desliga a correção automática.
+- De vez em quando o Windows continua achando que Shift, Ctrl, Alt ou Win está
+  pressionado depois que você solta: o clique passa a valer como clique com a
+  tecla, o arrastar copia em vez de mover, o navegador faz o que não foi pedido.
+  Quando isso acontece, o app solta a tecla, avisa e registra no diário.
+- O app reconhece pela quietude do teclado: quem segura uma tecla de verdade
+  continua mandando repetição; a tecla presa não manda evento nenhum. Só
+  corrige com as três condições ao mesmo tempo (tecla caída há 30 segundos,
+  teclado quieto há 30 segundos e repetição automática do Windows ligada).
+- O app não guarda o que foi digitado: o gancho de teclado só anota a hora do
+  último evento.
+- Se a tecla presa voltar a acontecer, a causa costuma ser o receptor USB do
+  mouse ou do teclado: tire o receptor da tomada, recoloque e reinstale o driver
+  nas Configurações de dispositivos.
+
 TRANAL MEMÓRIA
 - No menu lateral, grupo "TRANAL MEMÓRIA" -> aba "Módulos". Clique em LER MÓDULOS.
 - Lê o SPD (o "cartão de visita" de 512 bytes) de cada módulo de memória pelo barramento
