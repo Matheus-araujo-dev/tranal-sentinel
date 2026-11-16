@@ -10,13 +10,20 @@ não foi pedido.
 - Quando a situação aparece, o app **solta a tecla** (injeta o "soltar" que
   o Windows faria quando o dedo levanta), **avisa** o dono e **registra no
   diário** o que aconteceu.
-- O reconhecimento é pelo **siléncio do teclado**: quem segura uma tecla de
+- O reconhecimento é pelo **silêncio do teclado**: quem segura uma tecla de
   verdade continua mandando repetição; a tecla presa não manda evento
   nenhum. Só corrige com as três condições ao mesmo tempo — tecla caída
-  há 30 segundos, teclado em siléncio há 30 segundos e repetição
+  há 30 segundos, teclado em silêncio há 30 segundos e repetição
   automática do Windows ligada. Sem essa última, segurar a tecla de verdade
   também não gera evento: o app não teria como distinguir as duas situações, e
   por isso se cala.
+- Antes de soltar, o app **prova que o gancho de teclado está vivo** (o
+  Windows pode matar um gancho em silêncio quando o PC trava). Se a prova
+  falha, ele **conserta o gancho e não solta nada** — soltar a tecla que o
+  dono está segurando seria pior do que a tecla presa.
+- O aviso diz **qual** tecla ficou presa ("Shift direito") e o tempo é um
+  piso: "pressionada há pelo menos N s", porque o app só começa a vigiar
+  depois que a tecla ficou presa.
 - O dono pode **desligar** a correção automática no cartão "Vigia de tecla
   presa", na página do TRANAL SAÚDE.
 - O app não guarda o que foi digitado: o gancho de teclado só anota o

@@ -25,13 +25,26 @@ public static class TeclasWindows
     private const uint TeclaEstendida = 0x0001;
 
     /// <summary>
-    /// As teclas que vivem na parte estendida do teclado: o Ctrl e o Alt
-    /// direitos e as duas do Windows. Sem a flag, o "soltar" injetado seria
-    /// entendido como o da esquerda — e a tecla da direita continuaria
-    /// marcada no Windows (que foi exatamente o caso medido no PC do dono:
-    /// o Shift direito).
+    /// As teclas que vivem na parte estendida do teclado: o Ctrl direito
+    /// (E0 1D), o Alt direito (E0 38) e as duas do Windows (E0 5B / E0 5C).
+    /// Sem a flag, o "soltar" injetado seria entendido como o da esquerda e
+    /// a tecla da direita continuaria marcada no Windows.
+    ///
+    /// <para>
+    /// O <b>Shift direito não é estendido</b>: o scancode dele é 0x36, sem o
+    /// prefixo E0 (tabela de tradução HID → PS/2 da Microsoft). Ele fica
+    /// <b>fora</b> da lista de propósito — com a flag, o "soltar" do Shift
+    /// direito viraria E0 36, que não é tecla nenhuma. (Medido em
+    /// 16/11/2026 com MapVirtualKey: VK_RSHIFT 0xA1 → 0x36, sem prefixo.)
+    /// </para>
     /// </summary>
     private static readonly HashSet<int> TeclasEstendidas = new() { 0xA3, 0xA5, 0x5B, 0x5C };
+
+    /// <summary>
+    /// A tecla de sondagem: F24. Ninguém digita F24 — por isso o key-up
+    /// injetado da sonda não atrapalha o dono nem o que ele está fazendo.
+    /// </summary>
+    private const byte VkDaSonda = 0x87;
 
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
@@ -96,6 +109,23 @@ public static class TeclasWindows
     }
 
     /// <summary>
+    /// A tecla precisa da flag de tecla estendida?
+    /// </summary>
+    public static bool EhEstendida(int vk) => TeclasEstendidas.Contains(vk);
+
+    /// <summary>
+    /// Injeta o "soltar" da tecla de sondagem (F24).
+    ///
+    /// <para>
+    /// Serve só para saber se o gancho de teclado ainda está vivo: o
+    /// Windows remove um gancho de baixo nível em silêncio quando o PC
+    /// trava, e aí o "silêncio" do teclado vira falso. Medido em
+    /// 16/11/2026: a injeção chega ao gancho (um evento por injeção).
+    /// </para>
+    /// </summary>
+    public static void InjetarSonda() => keybd_event(VkDaSonda, 0, KeyUp, UIntPtr.Zero);
+
+    /// <summary>
     /// A velocidade da repetição que o Windows guardou (0 = desligada).
     /// Null = não há valor guardado (vale o padrão do Windows).
     /// </summary>
@@ -112,14 +142,20 @@ public static class TeclasWindows
         // 16/11/2026: o valor estava só lá).
         RegistryKey? usuario = null;
         try { usuario = Registry.CurrentUser.OpenSubKey(@"Control Panel\Keyboard"); }
-        catch { }
+        catch
+        {
+            // Chave sem permissão: sem valor, e vale o padrão do Windows.
+        }
         int? velocidade = VelocidadeNaChave(usuario);
         usuario?.Dispose();
         if (velocidade.HasValue) return velocidade;
 
         RegistryKey? padrao = null;
         try { padrao = Registry.Users.OpenSubKey(@".DEFAULT\Control Panel\Keyboard"); }
-        catch { }
+        catch
+        {
+            // Chave sem permissão: sem valor, e vale o padrão do Windows.
+        }
         velocidade = VelocidadeNaChave(padrao);
         padrao?.Dispose();
         return velocidade;
@@ -150,10 +186,34 @@ public static class TeclasWindows
     }
 
     /// <summary>
+    /// Quando a repetição foi lida pela última vez (relógio monotônico, em
+    /// milissegundos).
+    /// </summary>
+    private static long _repeticaoLidaEm = long.MinValue;
+
+    /// <summary>O valor lido da última vez.</summary>
+    private static bool _repeticaoLigada;
+
+    /// <summary>
     /// A repetição automática do teclado está ligada?
     /// </summary>
-    public static bool RepeticaoDoTecladoLigada() =>
-        TeclaPresaRegras.RepeticaoDoTecladoLigada(VelocidadeDaRepeticao());
+    /// <remarks>
+    /// O valor do registro não muda sozinho: a vigia pergunta a cada 5
+    /// segundos, e abrir o registro duas vezes por ciclo o dia inteiro é
+    /// desperdício. A leitura é refeita de tempos em tempos (um minuto
+    /// basta para o dono mudar a configuração do teclado).
+    /// </remarks>
+    public static bool RepeticaoDoTecladoLigada()
+    {
+        long agora = Environment.TickCount64;
+        long ultima = Interlocked.Read(ref _repeticaoLidaEm);
+        if (ultima != long.MinValue && agora - ultima < 60_000) return _repeticaoLigada;
+
+        bool valor = TeclaPresaRegras.RepeticaoDoTecladoLigada(VelocidadeDaRepeticao());
+        _repeticaoLigada = valor;
+        Interlocked.Exchange(ref _repeticaoLidaEm, agora);
+        return valor;
+    }
 }
 
 /// <summary>
@@ -167,10 +227,21 @@ public static class TeclasWindows
 /// </para>
 ///
 /// <para>
-/// Medido no PC do dono em 16/11/2026: uma tecla injetada e nunca solta
-/// (que é o estado de uma tecla presa) <b>não</b> gera nenhum evento em
-/// 10 s de gancho — e injetar o key-up limpa o estado. É essa diferença que
-/// permite pegar a tecla presa.
+/// O que separa a tecla presa da tecla que o dono está segurando é o
+/// <b>evento</b>: a tecla presa de verdade (o Windows marcado como
+/// pressionado, sem dedo no teclado) não gera evento nenhum, e a tecla que
+/// alguém segura continua mandando repetição. Medido no PC do dono em
+/// 16/11/2026: uma tecla <b>injetada</b> e nunca solta <b>não gera
+/// repetição</b> (nenhum evento novo em 10 s de gancho) — por isso a injeção
+/// não serve para simular a tecla presa — e o key-up injetado limpou o
+/// estado.
+/// </para>
+///
+/// <para>
+/// Medido em 16/11/2026: a <b>injeção chega ao gancho</b> (um evento por
+/// injeção, com as duas bombas de mensagens). Por isso o "soltar" do app
+/// reinicia a contagem de silêncio — e é por isso que a sonda de vida
+/// funciona.
 /// </para>
 ///
 /// <para>
@@ -250,6 +321,22 @@ public sealed class VigiaTeclado : IDisposable
     /// <summary>Aguarda a thread instalar o gancho (ou desistir).</summary>
     private readonly ManualResetEventSlim _pronto = new(false);
 
+    /// <summary>
+    /// O pedido de fim: a thread confere antes de instalar o gancho.
+    /// </summary>
+    /// <remarks>
+    /// Sem isto, o "remover" que roda antes de a thread começar perdia o
+    /// pedido (medido em 16/11/2026: <c>PostThreadMessage</c> com id 0
+    /// falha com 1444) e o gancho ficava instalado até o fim do processo.
+    /// </remarks>
+    private readonly ManualResetEventSlim _cancelar = new(false);
+
+    /// <summary>Quando a sonda de vida foi feita (relógio monotônico).</summary>
+    private long _ultimaSonda;
+
+    /// <summary>O resultado da última sonda de vida.</summary>
+    private bool _vivaNaUltimaSonda;
+
     /// <summary>O gancho está instalado?</summary>
     public bool Instalado => _instalado && _gancho != IntPtr.Zero;
 
@@ -269,20 +356,6 @@ public sealed class VigiaTeclado : IDisposable
     }
 
     /// <summary>
-    /// Quando foi o último evento de teclado. Null quando o gancho não está
-    /// instalado (e, portanto, o silêncio não é prova de nada).
-    /// </summary>
-    public DateTime? UltimaAtividade
-    {
-        get
-        {
-            TimeSpan? silencio = Silencio;
-            if (!silencio.HasValue) return null;
-            return DateTime.UtcNow - silencio.Value;
-        }
-    }
-
-    /// <summary>
     /// Instala o gancho numa thread própria, com a sua bomba de mensagens.
     /// </summary>
     /// <returns>true se o Windows aceitou o gancho.</returns>
@@ -291,6 +364,9 @@ public sealed class VigiaTeclado : IDisposable
         if (Instalado) return true;
 
         _pronto.Reset();
+        _cancelar.Reset();
+        // O gancho é novo: a próxima sonda de vida tem que ser feita.
+        Interlocked.Exchange(ref _ultimaSonda, 0);
         _thread = new Thread(Rodar)
         {
             IsBackground = true,
@@ -310,12 +386,28 @@ public sealed class VigiaTeclado : IDisposable
         Thread? thread = _thread;
         _thread = null;
         _instalado = false;
+
+        // O pedido de fim chega por dois caminhos: o sinalizador (que a
+        // thread confere antes de instalar o gancho) e o WM_QUIT (que
+        // encerra a bomba de mensagens).
+        _cancelar.Set();
+
         if (thread is null) return;
 
-        try { PostThreadMessage(_idDaThread, WmQuit, IntPtr.Zero, IntPtr.Zero); }
-        catch
+        if (_idDaThread != 0)
         {
-            // A thread pode já ter morrido: o gancho foi desinstalado com ela.
+            try
+            {
+                if (!PostThreadMessage(_idDaThread, WmQuit, IntPtr.Zero, IntPtr.Zero))
+                {
+                    // O WM_QUIT não chegou (a thread ainda não tinha fila de
+                    // mensagens): o sinalizador segura a thread do mesmo jeito.
+                }
+            }
+            catch
+            {
+                // A thread pode já ter morrido: o gancho foi desinstalado com ela.
+            }
         }
 
         try { thread.Join(2000); }
@@ -324,6 +416,45 @@ public sealed class VigiaTeclado : IDisposable
             // Thread que não morreu a tempo: ela é de fundo (IsBackground), e
             // o processo do app encerra sem esperar por ela.
         }
+    }
+
+    /// <summary>
+    /// O gancho ainda está vivo (o Windows ainda o chama)?
+    /// </summary>
+    /// <remarks>
+    /// O Windows remove um gancho de baixo nível <b>em silêncio</b> quando o
+    /// PC trava: o app não recebe aviso nenhum, e o "silêncio" do teclado
+    /// passa a ser falso — e o app soltaria a tecla que o dono está
+    /// segurando. A sonda injeta um key-up de F24 (tecla que ninguém usa) e
+    /// confere se o gancho viu o evento. Medido em 16/11/2026: a injeção
+    /// chega ao gancho (um evento por injeção).
+    ///
+    /// <para>
+    /// A sonda é refeita no máximo uma vez por minuto: se o gancho está
+    /// morto, o app o repara em vez de ficar injetando sonda sem parar.
+    /// </para>
+    /// </remarks>
+    public bool EstaVivo()
+    {
+        if (!Instalado) return false;
+
+        long agora = Environment.TickCount64;
+        long ultima = Interlocked.Read(ref _ultimaSonda);
+        if (ultima != 0 && agora - ultima < 60_000) return _vivaNaUltimaSonda;
+
+        long antes = Interlocked.Read(ref _ultimaAtividade);
+        TeclasWindows.InjetarSonda();
+
+        bool viu = false;
+        for (int i = 0; i < 20 && !viu; i++)
+        {
+            Thread.Sleep(50);
+            viu = Interlocked.Read(ref _ultimaAtividade) != antes;
+        }
+
+        Interlocked.Exchange(ref _ultimaSonda, agora);
+        _vivaNaUltimaSonda = viu;
+        return viu;
     }
 
     /// <summary>Fecha o gancho (o <see cref="IDisposable"/>).</summary>
@@ -338,8 +469,23 @@ public sealed class VigiaTeclado : IDisposable
         {
             _idDaThread = GetCurrentThreadId();
             _procedimento = Procedimento;
+
+            // O pedido de fim pode ter chegado antes de a thread começar:
+            // nesse caso o gancho nem é instalado.
+            if (_cancelar.IsSet) return;
+
             _gancho = SetWindowsHookEx(TecladoDeBaixoNivel, _procedimento, GetModuleHandle(IntPtr.Zero), 0);
             _instalado = _gancho != IntPtr.Zero;
+
+            if (_cancelar.IsSet && _instalado)
+            {
+                // O pedido de fim chegou bem no meio: desinstala e sai, sem
+                // ficar com o gancho instalado até o fim do processo.
+                UnhookWindowsHookEx(_gancho);
+                _gancho = IntPtr.Zero;
+                _instalado = false;
+                return;
+            }
 
             // O silêncio começa a contar agora: sem evento nenhum desde que o
             // gancho entrou, o app não sabe se o teclado está em silêncio.
@@ -376,7 +522,12 @@ public sealed class VigiaTeclado : IDisposable
         }
         finally
         {
-            try { UnhookWindowsHookEx(_gancho); } catch { }
+            try { UnhookWindowsHookEx(_gancho); }
+            catch
+            {
+                // O gancho já foi desinstalado (ou a thread já morreu):
+                // não há mais nada a fazer.
+            }
             _gancho = IntPtr.Zero;
             _instalado = false;
         }

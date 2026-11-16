@@ -586,15 +586,21 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   estado da tecla, há quanto tempo ela está caída e há quanto tempo o
   teclado não manda evento, e devolve a resposta. Quem mede é
   `TeclasWindows` e a vigia (`MonitorTeclaPresa`); quem decide é a regra.
-- **A tecla presa se reconhece pelo siléncio do teclado.** Quem segura uma
+- **A tecla presa se reconhece pelo silêncio do teclado.** Quem segura uma
   tecla de verdade continua mandando repetição (o auto-repeat do
-  próprio Windows); a tecla presa não manda evento nenhum. Medido no PC
-  do dono em 16/11/2026: uma tecla injetada e nunca solta **não gerou
-  nenhum evento em 10 s de gancho**, e o key-up injetado limpou o estado.
+  próprio Windows); a tecla presa de verdade não manda evento nenhum (é o
+  estado interno do Windows que ficou marcado). Medido no PC do dono em
+  16/11/2026: uma tecla **injetada** e nunca solta **não gera repetição**
+  (nenhum evento novo em 10 s de gancho) — por isso a injeção não serve
+  para simular a tecla presa — e o key-up injetado limpou o estado.
+- **A injeção chega ao gancho** (medido em 16/11/2026: um evento por
+  injeção, com as duas bombas de mensagens). Por isso o "soltar" do app
+  reinicia a contagem de silêncio — e é por isso que a sonda de vida
+  funciona.
 - **São três condições ao mesmo tempo, e nenhuma é dispensável:** a
-  tecla caída há 30 s, o teclado em siléncio há 30 s e a repetição
-  automática do Windows ligada. Sem o gancho (não se sabe se o siléncio
-  é real) e sem a repetição (siléncio não distingue "preso" de
+  tecla caída há 30 s, o teclado em silêncio há 30 s e a repetição
+  automática do Windows ligada. Sem o gancho (não se sabe se o silêncio
+  é real) e sem a repetição (silêncio não distingue "preso" de
   "segurando"), o app **se cala**: soltar a tecla que o dono está segurando
   é pior do que a tecla presa.
 - **A repetição automática mora no perfil do Windows, não só no do usuário.**
@@ -607,24 +613,53 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
 - **O gancho é de baixo nível (`WH_KEYBOARD_LL`) e guarda só o instante** do
   último evento — nunca o que foi digitado.
 - **O gancho mora numa thread só dele, com a sua bomba de mensagens.** O Windows
-  remove um gancho de baixo nível **em siléncio** quando a thread que o instalou
+  remove um gancho de baixo nível **em silêncio** quando a thread que o instalou
   demora demais para responder — e a thread da interface do WPF trava (a análise do
   TRANAL SAÚDE lê o log de eventos inteiro). Com o gancho na interface, ele morria
   sozinho e o silêncio congelado fazia o app soltar a tecla que o dono estava
   segurando. A thread do gancho só espera o gancho ser instalado (e avisa se o
   Windows recusar) e é fechada quando o app fecha.
-- **O relôgio da vigia é monotônico** (milissegundos que só andam para frente), e
-  o mesmo vale para o instante do último evento do teclado. O relôgio de parede salta
+- **O relógio da vigia é monotônico** (milissegundos que só andam para frente), e
+  o mesmo vale para o instante do último evento do teclado. O relógio de parede salta
   quando a hora é corrigida ou o fuso muda: um salto de um minuto faria a vigia
   achar que a tecla está caída muito mais tempo do que está.
-- **O "soltar" chega na famélia inteira** (a genérica e as duas laterais), e as teclas
-  da parte estendida do teclado (Ctrl e Alt direitos, Windows) são injetadas com
-  `KEYEVENTF_EXTENDEDKEY`: sem a flag, o "soltar" seria entendido como o da esquerda
-  e a tecla da direita continuaria marcada (que foi o caso medido no PC do dono: o
-  Shift direito).
+- **O "soltar" chega na família inteira** (a genérica e as duas laterais). As
+  teclas estendidas de verdade — Ctrl direito (E0 1D), Alt direito (E0 38) e as
+  duas do Windows (E0 5B / E0 5C) — são injetadas com `KEYEVENTF_EXTENDEDKEY`:
+  sem a flag, o "soltar" seria entendido como o da esquerda e a tecla da
+  direita continuaria marcada. **O Shift direito não é estendido** (scancode
+  0x36, sem o prefixo E0 — tabela de tradução HID → PS/2 da Microsoft; medido
+  com MapVirtualKey): ele fica **fora** da lista de propósito, porque com a
+  flag o "soltar" dele viraria E0 36, que não é tecla nenhuma.
 - **O app confere depois de soltar.** Sem a conferência, ele diria que soltou a tecla
   mesmo quando o "soltar" não limpou o estado. Quando a tecla continua presa, o
   aviso é outro ("tentou soltar, mas a tecla continuou presa").
+- **Antes de soltar, o app prova que o gancho está vivo.** O Windows remove um
+  gancho de baixo nível **em silêncio** quando o PC trava, e aí o silêncio do
+  teclado é falso — e o app soltaria a tecla que o dono está segurando, que é
+  o pior dano possível. A prova é uma sonda: o app injeta o "soltar" de **F24**
+  (tecla que ninguém usa) e confere se o gancho viu o evento. Não viu, o app
+  **repara** o gancho e **não solta nada**.
+- **O tempo do aviso é um piso, e o número sai de um lugar só.** O app começa a
+  vigiar depois que a tecla ficou presa: o tempo que ele viu é o mínimo
+  ("pressionada há pelo menos N s"). O mesmo número arredondado sai no aviso e
+  no diário — o mesmo evento não pode sair com dois números. Com mais de uma
+  tecla no mesmo aviso, vale o tempo da mais recente (o mais conservador).
+- **O aviso de falha tem teto.** Tecla que não solta não pode virar spam (um
+  aviso a cada 5 minutos, para sempre): depois de três avisos por família, o
+  app cala o aviso e continua tentando soltar em silêncio.
+- **A preferência do dono é levada a sério.** Desligada, a vigia não fica nem
+  com o gancho de teclado instalado (o app não olha o teclado) e o que ela
+  estava acompanhando é esquecido — o silêncio antigo não vale como "prova"
+  quando o dono religa. O cartão da tela diz sempre o estado verdadeiro, e a
+  correção (única ação que o app faz por conta própria) fica no diário desde o
+  começo.
+- **O que ainda não foi medido:** a premissa de que "quem segura a tecla
+  continua mandando repetição" foi confirmada pela documentação da Microsoft e
+  pela injeção, mas **não foi medida no físico** (falta o dono segurar uma
+  tecla por 30 s com o app medindo). Sem ela, a regra pode confundir
+  "segurando" com "presa" — e por isso o app se cala quando a repetição
+  automática está desligada.
 - **A correção é a mesma que o Windows faz**: injetar o key-up da tecla.
   O que o app fez fica no diário (categoria "TECLA") e num aviso — e o dono
   pode desligar a correção na página do TRANAL SAÚDE.

@@ -18,6 +18,8 @@ public class TeclaPresaTestes
 
     private static Modificadora Shift() => new(0xA1, "Shift direito", "Shift");
 
+    private static Modificadora Ctrl() => new(0x11, "Ctrl", "Ctrl");
+
     // ------------------------------------------------------------------ regra
 
     [Fact]
@@ -149,11 +151,11 @@ public class TeclaPresaTestes
     [Fact]
     public void TextoDaCorrecao_ConcordaComONumeroDeTeclas()
     {
-        Assert.Equal("A tecla Shift ficou presa e foi solta",
-            TeclaPresaRegras.TextoDaCorrecao(new[] { "Shift" }));
+        Assert.Equal("A tecla Shift direito ficou presa e foi solta",
+            TeclaPresaRegras.TextoDaCorrecao(new[] { "Shift direito" }));
 
-        Assert.Equal("As teclas Shift e Ctrl ficaram presas e foram soltas",
-            TeclaPresaRegras.TextoDaCorrecao(new[] { "Shift", "Ctrl" }));
+        Assert.Equal("As teclas Shift direito e Ctrl ficaram presas e foram soltas",
+            TeclaPresaRegras.TextoDaCorrecao(new[] { "Shift direito", "Ctrl" }));
     }
 
     [Fact]
@@ -222,6 +224,9 @@ public class TeclaPresaTestes
         public List<TeclaPresa> SemSucesso = new();
         public MonitorTeclaPresa Monitor = null!;
 
+        /// <summary>O gancho de teclado está vivo?</summary>
+        public bool GanchoVivo = true;
+
         public Ambiente()
         {
             Monitor = new MonitorTeclaPresa(
@@ -235,7 +240,8 @@ public class TeclaPresaTestes
                     Soltadas.AddRange(vks);
                     if (SoltarLimpaEstado) Estado = Array.Empty<Modificadora>();
                 },
-                () => Relogio);
+                () => Relogio,
+                () => GanchoVivo);
             Monitor.Corrigida += tecla => Corrigidas.Add(tecla);
             Monitor.NaoConseguiu += tecla => SemSucesso.Add(tecla);
         }
@@ -426,5 +432,168 @@ public class TeclaPresaTestes
 
         Assert.Single(ambiente.Corrigidas);
         Assert.Equal(TimeSpan.FromSeconds(31), ambiente.Corrigidas[0].HaQuanto);
+    }
+
+    // ------------------------------------------------------- o que o dono lê
+
+    [Fact]
+    public void OTextoDoAvisoDizQueOTempoEUmPiso()
+    {
+        // O app começa a vigiar depois que a tecla ficou presa: o tempo que
+        // ele viu é o mínimo, não o tempo real.
+        string texto = TeclaPresaRegras.TextoDoAviso(new[] { "Shift direito" }, TimeSpan.FromSeconds(31));
+
+        Assert.Contains("pelo menos", texto);
+        Assert.Contains("31 s", texto);
+    }
+
+    [Fact]
+    public void OTextoDoAvisoNomeiaATeclaQueFicouPresa()
+    {
+        // No PC do dono a tecla que grudou foi a **direita**: o aviso tem que
+        // dizer qual foi.
+        string texto = TeclaPresaRegras.TextoDoAviso(new[] { "Shift direito" }, TimeSpan.FromSeconds(31));
+
+        Assert.Contains("Shift direito", texto);
+        Assert.DoesNotContain("\"", texto);
+    }
+
+    [Fact]
+    public void OAvisoEDiarioUsamOMesmoNumero()
+    {
+        // O mesmo evento não pode sair com dois números (o aviso arredonda e
+        // o diário trunca). O número vem de um lugar só.
+        Assert.Equal(31, TeclaPresaRegras.SegundosDoAviso(TimeSpan.FromSeconds(30.6)));
+        Assert.Equal(30, TeclaPresaRegras.SegundosDoAviso(TimeSpan.FromSeconds(30.4)));
+
+        string texto = TeclaPresaRegras.TextoDoAviso(new[] { "Shift direito" }, TimeSpan.FromSeconds(30.6));
+        Assert.Contains("31 s", texto);
+    }
+
+    [Fact]
+    public void OTextoDaTentativaNomeiaATecla()
+    {
+        Assert.Equal("Tentativa de soltar a tecla Shift direito, que continuou presa",
+            TeclaPresaRegras.TextoDaTentativa(new[] { "Shift direito" }));
+    }
+
+    // ---------------------------------------------------------- o gancho
+
+    [Fact]
+    public void AsEstendidasSaoSoAsQuatroDeVerdade()
+    {
+        // O Shift direito NÃO é estendida (scancode 0x36, sem o prefixo E0):
+        // colocá-lo na lista quebraria justamente o caso que o app existe
+        // para resolver (o "soltar" viraria E0 36, que não é tecla nenhuma).
+        Assert.True(TeclasWindows.EhEstendida(0xA3));   // Ctrl direito
+        Assert.True(TeclasWindows.EhEstendida(0xA5));   // Alt direito
+        Assert.True(TeclasWindows.EhEstendida(0x5B));   // Win
+        Assert.True(TeclasWindows.EhEstendida(0x5C));   // Win direito
+
+        Assert.False(TeclasWindows.EhEstendida(0xA1));  // Shift direito
+        Assert.False(TeclasWindows.EhEstendida(0xA0));  // Shift esquerdo
+        Assert.False(TeclasWindows.EhEstendida(0x10));  // Shift
+        Assert.False(TeclasWindows.EhEstendida(0x11));  // Ctrl
+        Assert.False(TeclasWindows.EhEstendida(0x12));  // Alt
+    }
+
+    [Fact]
+    public void OGanchoDeTecladoInstalaESai()
+    {
+        var vigia = new VigiaTeclado();
+        try
+        {
+            bool instalado = vigia.Instalar();
+            Assert.Equal(instalado, vigia.Instalado);
+
+            // O Windows pode recusar o gancho (aí não há o que medir).
+            if (!instalado) return;
+
+            Assert.NotNull(vigia.Silencio);
+        }
+        finally
+        {
+            vigia.Remover();
+        }
+
+        // O gancho não pode ficar instalado depois de sair.
+        Assert.False(vigia.Instalado);
+        Assert.Null(vigia.Silencio);
+    }
+
+    // ------------------------------------------------------- a vigia
+
+    [Fact]
+    public void Vigia_NaoSoltaComOGanchoMorto()
+    {
+        // O Windows remove um gancho de baixo nível em silêncio quando o PC
+        // trava: aí o "silêncio" do teclado é falso e o app soltaria a tecla
+        // que o dono está segurando. Sem prova de vida, o app se cala.
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, GanchoVivo = false };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+
+        Assert.Empty(ambiente.Soltadas);
+        Assert.Empty(ambiente.Corrigidas);
+        Assert.Empty(ambiente.SemSucesso);
+    }
+
+    [Fact]
+    public void Vigia_DizQualTeclaFicouPresa()
+    {
+        var ambiente = new Ambiente { Estado = new[] { Shift() } };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+
+        Assert.Single(ambiente.Corrigidas);
+        Assert.Equal(new[] { "Shift direito" }, ambiente.Corrigidas[0].Teclas);
+        Assert.Equal(new[] { "Shift" }, ambiente.Corrigidas[0].Familias);
+    }
+
+    [Fact]
+    public void Vigia_ComDuasTeclasUsaOTempoMaisConservador()
+    {
+        // O Shift caiu há 40 s e o Ctrl há 30 s: o aviso diz "pelo menos
+        // 30 s" — o número precisa valer para as duas teclas do aviso.
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, Silencio = TimeSpan.FromSeconds(2) };
+
+        ambiente.Ciclo(5);                       // o Shift aparece (t = 5)
+        ambiente.Estado = new[] { Shift(), Ctrl() };
+        ambiente.Silencio = TimeSpan.FromSeconds(20);
+        ambiente.Ciclo(10);                      // o Ctrl aparece (t = 15), silêncio curto
+        ambiente.Silencio = TimeSpan.FromSeconds(60);
+        ambiente.Ciclo(30);                      // t = 45: as duas caíram bastante
+
+        Assert.Single(ambiente.Corrigidas);
+        Assert.Equal(new[] { "Shift direito", "Ctrl" }, ambiente.Corrigidas[0].Teclas);
+        Assert.Equal(TimeSpan.FromSeconds(30), ambiente.Corrigidas[0].HaQuanto);
+    }
+
+    [Fact]
+    public void Vigia_AvisaNoMaximoTresVezes()
+    {
+        // Tecla que não solta: o aviso não pode virar spam (a cada 5 minutos,
+        // para sempre). Depois de três avisos o app cala — e continua
+        // tentando soltar.
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+        Assert.Single(ambiente.SemSucesso);
+
+        ambiente.Ciclo(5 * 60);
+        Assert.Equal(2, ambiente.SemSucesso.Count);
+
+        ambiente.Ciclo(5 * 60);
+        Assert.Equal(3, ambiente.SemSucesso.Count);
+
+        ambiente.Ciclo(5 * 60);
+        Assert.Equal(3, ambiente.SemSucesso.Count);      // o aviso para
+
+        // ... mas o app continua tentando soltar (a família inteira: 3 teclas).
+        Assert.Equal(12, ambiente.Soltadas.Count);
+        Assert.Equal(4, ambiente.Monitor.CorrecoesFeitas);
     }
 }

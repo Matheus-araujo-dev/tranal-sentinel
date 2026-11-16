@@ -89,6 +89,13 @@ VIGIA DE TECLA PRESA
   teclado quieto há 30 segundos e repetição automática do Windows ligada).
 - O app não guarda o que foi digitado: o gancho de teclado só anota a hora do
   último evento.
+- Antes de soltar, o app prova que o gancho de teclado ainda está vivo (o
+  Windows pode matar um gancho em silêncio quando o PC trava). Se a prova
+  falha, ele conserta o gancho e não solta nada: soltar a tecla que você
+  está segurando seria pior do que a tecla presa.
+- O aviso diz QUAL tecla ficou presa ("Shift direito") e o tempo é um piso
+  ("pressionada há pelo menos N s"), porque o app só começa a vigiar depois
+  que a tecla ficou presa.
 - Se a tecla presa voltar a acontecer, a causa costuma ser o receptor USB do
   mouse ou do teclado: tire o receptor da tomada, recoloque e reinstale o driver
   nas Configurações de dispositivos.

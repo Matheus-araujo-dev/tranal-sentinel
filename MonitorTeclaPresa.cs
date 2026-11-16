@@ -34,6 +34,7 @@ public sealed class MonitorTeclaPresa
     private readonly Func<bool> _repeticaoLigada;
     private readonly Action<IReadOnlyList<int>> _soltar;
     private readonly Func<DateTime> _relogio;
+    private readonly Func<bool> _ganchoEstaVivo;
 
     /// <summary>
     /// Desde quando cada tecla está caída (em milissegundos do relógio
@@ -44,6 +45,9 @@ public sealed class MonitorTeclaPresa
 
     /// <summary>Quando cada família foi corrigida pela última vez (espera de 5 min).</summary>
     private readonly Dictionary<string, long> _ultimaCorrecao = new();
+
+    /// <summary>Quantas vezes o "soltar" não resolveu, por família.</summary>
+    private readonly Dictionary<string, int> _falhas = new();
 
     /// <summary>Quantas correções a vigia tentou nesta sessão.</summary>
     private int _correcoes;
@@ -71,13 +75,19 @@ public sealed class MonitorTeclaPresa
     /// <param name="repeticaoLigada">A repetição automática do teclado está ligada?</param>
     /// <param name="soltar">Recebe as teclas a soltar.</param>
     /// <param name="relogio">Relógio de parede, só para carimbar o diário.</param>
+    /// <param name="ganchoEstaVivo">
+    /// O gancho de teclado está funcionando? O Windows remove um gancho de
+    /// baixo nível em silêncio quando o PC trava, e aí o "silêncio" do
+    /// teclado é falso. Sem essa prova, o app não solta nada.
+    /// </param>
     public MonitorTeclaPresa(
         Func<IReadOnlyList<Modificadora>> lerEstado,
         Func<long>? agora = null,
         Func<TimeSpan?>? silencioDoTeclado = null,
         Func<bool>? repeticaoLigada = null,
         Action<IReadOnlyList<int>>? soltar = null,
-        Func<DateTime>? relogio = null)
+        Func<DateTime>? relogio = null,
+        Func<bool>? ganchoEstaVivo = null)
     {
         _lerEstado = lerEstado;
         _agora = agora ?? (() => Environment.TickCount64);
@@ -85,6 +95,9 @@ public sealed class MonitorTeclaPresa
         _repeticaoLigada = repeticaoLigada ?? (() => false);
         _soltar = soltar ?? (_ => { });
         _relogio = relogio ?? (() => DateTime.UtcNow);
+        // Sem a prova, o app não solta: soltar a tecla que o dono está
+        // segurando é pior do que a tecla presa.
+        _ganchoEstaVivo = ganchoEstaVivo ?? (() => false);
     }
 
     /// <summary>
@@ -161,13 +174,24 @@ public sealed class MonitorTeclaPresa
         if (presas.Count == 0) return;
 
         var familias = TeclaPresaRegras.ListaDeFamilias(presas.Select(p => p.Modificadora));
+        var nomes = presas.Select(p => p.Modificadora.Nome).Distinct().ToList();
 
         // O "soltar" precisa chegar em todas as teclas da família (a genérica
         // e as duas laterais): o Windows marca a genérica junto com a lateral.
         var vks = new List<int>();
         foreach (var familia in familias) vks.AddRange(TeclaPresaRegras.VksDaFamilia(familia));
 
-        var haQuanto = TimeSpan.FromMilliseconds(agora - presas.Min(p => p.Desde));
+        // Com mais de uma família no mesmo aviso, o tempo é o da mais
+        // recente (o mais conservador): o texto diz "pelo menos", e o número
+        // precisa valer para todas as teclas do aviso.
+        var haQuanto = TimeSpan.FromMilliseconds(agora - presas.Max(p => p.Desde));
+
+        // Antes de soltar: o gancho pode ter morrido. O Windows remove um
+        // gancho de baixo nível **em silêncio** quando o PC trava — e com o
+        // gancho morto o "silêncio" do teclado é falso: o app soltaria a
+        // tecla que o dono está segurando, que é o pior dano possível.
+        // Sem prova de que o gancho está vivo, o app se cala.
+        if (!_ganchoEstaVivo()) return;
 
         try
         {
@@ -194,8 +218,14 @@ public sealed class MonitorTeclaPresa
             _correcoes++;
         }
 
-        var registro = new TeclaPresa(familias, _relogio(), haQuanto);
-        if (aindaPresa) NaoConseguiu?.Invoke(registro);
+        var registro = new TeclaPresa(nomes, familias, _relogio(), haQuanto);
+        if (aindaPresa)
+        {
+            // Tecla que não solta: o aviso não pode virar spam (a cada
+            // 5 minutos, para sempre). Depois de algumas tentativas, o
+            // app para de avisar e continua tentando em silencio.
+            if (PodeAvisarFalha(familias)) NaoConseguiu?.Invoke(registro);
+        }
         else Corrigida?.Invoke(registro);
     }
 
@@ -256,8 +286,38 @@ public sealed class MonitorTeclaPresa
         {
             _caidaEm.Clear();
             _ultimaCorrecao.Clear();
+            _falhas.Clear();
         }
     }
+
+    /// <summary>
+    /// O app ainda avisa que não conseguiu soltar a tecla?
+    /// </summary>
+    /// <remarks>
+    /// A resposta é sim até <see cref="MaximoDeAvisosDeFalha"/> vezes por
+    /// família: depois disso o app continua tentando soltar (em silêncio),
+    /// porque um aviso a cada 5 minutos não ajuda o dono — ele só ocupa a tela.
+    /// </remarks>
+    private bool PodeAvisarFalha(IReadOnlyList<string> familias)
+    {
+        lock (_tranco)
+        {
+            foreach (var familia in familias)
+            {
+                int falhas = _falhas.TryGetValue(familia, out int n) ? n : 0;
+                if (falhas >= MaximoDeAvisosDeFalha) return false;
+            }
+
+            foreach (var familia in familias) _falhas[familia] = (_falhas.TryGetValue(familia, out int n) ? n : 0) + 1;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Quantas vezes o app avisa que não conseguiu soltar a mesma tecla
+    /// (depois disso, ele tenta em silêncio).
+    /// </summary>
+    public const int MaximoDeAvisosDeFalha = 3;
 
     /// <summary>
     /// Quantas vezes a vigia tentou corrigir uma tecla presa nesta sessão.

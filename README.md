@@ -59,7 +59,7 @@ ganha a opção de **encerrar**; avisa também de **temperatura alta** da CPU
 **Vigia de tecla presa** — quando o Windows continua achando que Shift, Ctrl, Alt ou
 Win está pressionado depois que você solta (e o clique passa a valer como
 clique com a tecla), o app **solta a tecla**, avisa e registra no diário. O
-reconhecimento é pelo siléncio do teclado: quem segura uma tecla de verdade
+reconhecimento é pelo silêncio do teclado: quem segura uma tecla de verdade
 continua mandando repetição, a tecla presa não manda evento nenhum. A
 correção automática pode ser desligada na página do TRANAL SAÚDE.
 

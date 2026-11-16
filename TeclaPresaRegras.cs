@@ -13,10 +13,16 @@ public sealed record Modificadora(int Vk, string Nome, string Familia);
 /// Uma tecla que ficou presa: quais são, quando o app agiu e há quanto tempo
 /// o Windows continua achando que elas estão pressionadas.
 /// </summary>
+/// <param name="Teclas">O nome das teclas corrigidas ("Shift direito", "Ctrl").</param>
 /// <param name="Familias">As famílias das teclas corrigidas (Shift, Ctrl, Alt, Win).</param>
 /// <param name="DetectadaEm">Quando o app agiu (serve para o diário).</param>
-/// <param name="HaQuanto">Há quanto tempo a tecla está caída.</param>
-public sealed record TeclaPresa(IReadOnlyList<string> Familias, DateTime DetectadaEm, TimeSpan HaQuanto);
+/// <param name="HaQuanto">Há quanto tempo o app viu a tecla caída (um piso: a tecla
+/// pode estar presa desde antes do app começar a vigiar).</param>
+public sealed record TeclaPresa(
+    IReadOnlyList<string> Teclas,
+    IReadOnlyList<string> Familias,
+    DateTime DetectadaEm,
+    TimeSpan HaQuanto);
 
 /// <summary>
 /// A regra da tecla presa: quando uma tecla modificadora conta como "presa".
@@ -193,40 +199,72 @@ public static class TeclaPresaRegras
     /// A frase curta do que aconteceu (a do diário e do cartão). O verbo
     /// concorda com o número de teclas.
     /// </summary>
-    public static string TextoDaCorrecao(IReadOnlyList<string> familias)
+    /// <param name="teclas">
+    /// O nome das teclas ("Shift direito"). O nome da tecla é o que o dono
+    /// reconhece: no caso medido no PC dele, a tecla que grudou foi a
+    /// **direita** — e "Shift" sozinho não diz qual foi.
+    /// </param>
+    public static string TextoDaCorrecao(IReadOnlyList<string> teclas)
     {
-        if (familias.Count == 0) return "Uma tecla ficou presa e foi solta";
-        if (familias.Count == 1) return $"A tecla {familias[0]} ficou presa e foi solta";
-        return $"As teclas {Juntar(familias)} ficaram presas e foram soltas";
+        if (teclas.Count == 0) return "Uma tecla ficou presa e foi solta";
+        if (teclas.Count == 1) return $"A tecla {teclas[0]} ficou presa e foi solta";
+        return $"As teclas {Juntar(teclas)} ficaram presas e foram soltas";
     }
+
+    /// <summary>
+    /// A frase do diário quando o "soltar" não resolveu.
+    /// </summary>
+    public static string TextoDaTentativa(IReadOnlyList<string> teclas)
+    {
+        if (teclas.Count == 0) return "Tentativa de soltar uma tecla que continuou presa";
+        if (teclas.Count == 1) return $"Tentativa de soltar a tecla {teclas[0]}, que continuou presa";
+        return $"Tentativa de soltar as teclas {Juntar(teclas)}, que continuaram presas";
+    }
+
+    /// <summary>
+    /// Os segundos do aviso, arredondados — o mesmo número no aviso e no
+    /// diário (o mesmo evento não pode sair com dois números).
+    /// </summary>
+    public static long SegundosDoAviso(TimeSpan haQuanto) =>
+        (long)Math.Round(haQuanto.TotalSeconds);
 
     /// <summary>
     /// A frase do aviso que o dono lê: o que o Windows achava, há quanto
     /// tempo, e o que o app fez.
     /// </summary>
-    public static string TextoDoAviso(IReadOnlyList<string> familias, TimeSpan haQuanto)
+    /// <param name="teclas">O nome das teclas ("Shift direito").</param>
+    /// <param name="haQuanto">
+    /// Há quanto tempo o app viu a tecla caída. O texto diz "pelo menos":
+    /// o app começa a vigiar depois que a tecla ficou presa, e o tempo real
+    /// pode ser maior.
+    /// </param>
+    public static string TextoDoAviso(IReadOnlyList<string> teclas, TimeSpan haQuanto)
     {
-        long segundos = (long)Math.Round(haQuanto.TotalSeconds);
-        string teclas = familias.Count == 1
-            ? $"a tecla {familias[0]}"
-            : $"as teclas {Juntar(familias)}";
+        long segundos = SegundosDoAviso(haQuanto);
+        return $"O Windows continuava com {NomesDasTeclas(teclas)} pressionada há pelo menos "
+             + $"{NumeroTexto.Inteiro(segundos)} s, sem ninguém no teclado. "
+             + "O TRANAL SENTINEL soltou a tecla.";
+    }
 
-        return $"O Windows continuava com {teclas} pressionada há {NumeroTexto.Inteiro(segundos)} s "
-             + "sem ninguém no teclado. O TRANAL SENTINEL soltou a tecla.";
+    /// <summary>
+    /// Os nomes das teclas, como o dono lê: "a tecla Shift direito" ou
+    /// "as teclas Shift direito e Ctrl".
+    /// </summary>
+    public static string NomesDasTeclas(IReadOnlyList<string> teclas)
+    {
+        if (teclas.Count == 0) return "a tecla";
+        if (teclas.Count == 1) return $"a tecla {teclas[0]}";
+        return $"as teclas {Juntar(teclas)}";
     }
 
     /// <summary>
     /// A frase do aviso quando o "soltar" não resolveu — o app não pode dizer
     /// que soltou o que não soltou.
     /// </summary>
-    public static string TextoDoAvisoSemSucesso(IReadOnlyList<string> familias)
+    public static string TextoDoAvisoSemSucesso(IReadOnlyList<string> teclas)
     {
-        string teclas = familias.Count == 1
-            ? $"a tecla {familias[0]}"
-            : $"as teclas {Juntar(familias)}";
-
-        return $"O Windows continua com {teclas} pressionada. O TRANAL SENTINEL tentou soltar, "
-             + "mas a tecla continuou presa.";
+        return $"O Windows continua com {NomesDasTeclas(teclas)} pressionada. "
+             + "O TRANAL SENTINEL tentou soltar, mas a tecla continuou presa.";
     }
 
     /// <summary>
