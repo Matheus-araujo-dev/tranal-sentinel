@@ -60,8 +60,11 @@ ganha a opção de **encerrar**; avisa também de **temperatura alta** da CPU
 Win está pressionado depois que você solta (e o clique passa a valer como
 clique com a tecla), o app **solta a tecla**, avisa e registra no diário. O
 reconhecimento é pelo silêncio do teclado: quem segura uma tecla de verdade
-continua mandando repetição, a tecla presa não manda evento nenhum. A
-correção automática pode ser desligada na página do TRANAL SAÚDE.
+continua mandando repetição, a tecla presa não manda evento nenhum. Por
+isso a repetição automática do teclado (Configurações do Windows) precisa
+estar ligada — sem ela o app não age, porque não conseguiria distinguir
+"preso" de "segurando". A correção automática pode ser desligada na página
+do TRANAL SAÚDE.
 
 **TRANAL USO** — o app passa a lembrar **qual programa ficou em frente na tela**
 e a responder as duas perguntas que sempre sobraram: *"quanto tempo eu passei

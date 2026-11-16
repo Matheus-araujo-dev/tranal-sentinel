@@ -241,9 +241,13 @@ public static class TeclaPresaRegras
     public static string TextoDoAviso(IReadOnlyList<string> teclas, TimeSpan haQuanto)
     {
         long segundos = SegundosDoAviso(haQuanto);
-        return $"O Windows continuava com {NomesDasTeclas(teclas)} pressionada há pelo menos "
+        bool uma = teclas.Count == 1;
+        string quem = NomesDasTeclas(teclas);
+        string estado = uma ? "pressionada" : "pressionadas";
+        string acao = uma ? "soltou a tecla" : "soltou as teclas";
+        return $"O Windows continuava com {quem} {estado} há pelo menos "
              + $"{NumeroTexto.Inteiro(segundos)} s, sem ninguém no teclado. "
-             + "O TRANAL SENTINEL soltou a tecla.";
+             + $"O TRANAL SENTINEL {acao}.";
     }
 
     /// <summary>
@@ -263,8 +267,12 @@ public static class TeclaPresaRegras
     /// </summary>
     public static string TextoDoAvisoSemSucesso(IReadOnlyList<string> teclas)
     {
-        return $"O Windows continua com {NomesDasTeclas(teclas)} pressionada. "
-             + "O TRANAL SENTINEL tentou soltar, mas a tecla continuou presa.";
+        bool uma = teclas.Count == 1;
+        string quem = NomesDasTeclas(teclas);
+        string estado = uma ? "pressionada" : "pressionadas";
+        string ficou = uma ? "a tecla continuou presa" : "as teclas continuaram presas";
+        return $"O Windows continua com {quem} {estado}. "
+             + $"O TRANAL SENTINEL tentou soltar, mas {ficou}.";
     }
 
     /// <summary>

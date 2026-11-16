@@ -597,6 +597,12 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   injeção, com as duas bombas de mensagens). Por isso o "soltar" do app
   reinicia a contagem de silêncio — e é por isso que a sonda de vida
   funciona.
+- **O "30 s" dos documentos é citação da regra, não uma segunda fonte.**
+  O número vive em `TeclaPresaRegras.SegundosMinimos`; a tela usa a regra
+  (`MainWindow.xaml.cs` troca `{SEGUNDOS}` pelo valor da regra) e os
+  documentos (LEIA-ME, README, NOVIDADES, MERCADO) citam o mesmo número em
+  prosa. Se a regra mudar, os documentos mudam junto — o número não pode
+  ter duas fontes.
 - **São três condições ao mesmo tempo, e nenhuma é dispensável:** a
   tecla caída há 30 s, o teclado em silêncio há 30 s e a repetição
   automática do Windows ligada. Sem o gancho (não se sabe se o silêncio
@@ -639,7 +645,18 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   teclado é falso — e o app soltaria a tecla que o dono está segurando, que é
   o pior dano possível. A prova é uma sonda: o app injeta o "soltar" de **F24**
   (tecla que ninguém usa) e confere se o gancho viu o evento. Não viu, o app
-  **repara** o gancho e **não solta nada**.
+  **repara** o gancho e **não solta nada**. A sonda injeta até três vezes
+  dentro da janela (com a máquina muito carregada a primeira injeção pode
+  demorar a chegar) e uma falha vale só 15 s — uma sonda que falhou por
+  causa da carga não pode calar o app.
+- **O dono pode vetar a correção no meio da ronda.** A preferência é conferida
+  **na hora de soltar** (`MonitorTeclaPresa` recebe um `podeAgir`), e não só
+  no começo do ciclo: o dono pode desligar enquanto a vigia espera a prova
+  do gancho, e o app obedece.
+- **O reparo do gancho reza as regras da casa:** no máximo uma vez por minuto,
+  o cartão da tela é reescrito (pela fila da interface — o reparo acontece na
+  thread da vigia) e a falha vai para o diário. A tela não pode dizer "vigia
+  ativa" com o gancho fora.
 - **O tempo do aviso é um piso, e o número sai de um lugar só.** O app começa a
   vigiar depois que a tecla ficou presa: o tempo que ele viu é o mínimo
   ("pressionada há pelo menos N s"). O mesmo número arredondado sai no aviso e

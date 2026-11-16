@@ -31,6 +31,9 @@ public partial class MainWindow
     private System.Threading.Timer? _timerTeclaPresa;
     private int _vigiandoTecla;
 
+    /// <summary>Quando o gancho de teclado foi reparado pela última vez.</summary>
+    private long _ultimaReparacao;
+
     /// <summary>Liga a vigia (chamada na abertura da janela).</summary>
     private void IniciarVigia()
     {
@@ -143,13 +146,16 @@ public partial class MainWindow
             // corrigida, e o salto faria o app soltar a tecla que o dono
             // está segurando.
             () => Environment.TickCount64,
-            () => vigia.Silencio,
+            () => SilencioDoTeclado(vigia),
             () => TeclasWindows.RepeticaoDoTecladoLigada(),
             TeclasWindows.SoltarTodas,
             relogio: null,
             // O gancho pode ter morrido (o Windows o remove em silêncio
             // quando o PC trava): sem prova de vida, o app não solta nada.
-            ganchoEstaVivo: () => GanchoEstaVivo());
+            ganchoEstaVivo: () => GanchoEstaVivo(),
+            // O dono pode desligar a correção no meio da ronda: o app
+            // confere isso na hora de soltar.
+            podeAgir: () => _settings.CorrigirTeclaPresa == true);
         // InvokeAsync (e não Invoke): o aviso vai para a fila da
         // interface sem prender a thread da vigia — e sem que a
         // interface travada trave a vigia.
@@ -190,7 +196,26 @@ public partial class MainWindow
 
         ChkTeclaPresaEstado.Text = _vigiaTeclado is { Instalado: true }
             ? "Vigia ativa: o app acompanha o teclado e solta a tecla que ficar presa."
-            : "O Windows recusou o gancho de teclado: a correção automática está desligada.";
+            : "Vigia parada: o gancho do teclado não está instalado (o Windows recusou ou "
+              + "derrubou), e sem ele o app não consegue ver o silêncio do teclado. "
+              + "A correção automática está desligada.";
+    }
+
+    /// <summary>
+    /// Há quanto tempo o teclado não manda evento? E, se o gancho morreu, o
+    /// app tenta consertá-lo (sem soltar nada).
+    /// </summary>
+    /// <remarks>
+    /// O Windows remove um gancho de baixo nível em silêncio quando o PC
+    /// trava. Sem gancho não há silêncio, e sem silêncio a vigia se cala —
+    /// mas o gancho pode ser reinstalado, e aí a vigia volta a funcionar.
+    /// </remarks>
+    private TimeSpan? SilencioDoTeclado(VigiaTeclado vigia)
+    {
+        if (vigia.Instalado) return vigia.Silencio;
+
+        ReparaOGancho(vigia);
+        return null;
     }
 
     /// <summary>
@@ -205,22 +230,65 @@ public partial class MainWindow
     /// </remarks>
     private bool GanchoEstaVivo()
     {
-        if (_vigiaTeclado is null) return false;
+        var vigia = _vigiaTeclado;
+        if (vigia is null) return false;
 
-        if (_vigiaTeclado.EstaVivo()) return true;
+        // O dono desligou a correção no meio da ronda: o app não repara
+        // nada e não solta nada.
+        if (_settings.CorrigirTeclaPresa != true) return false;
+
+        bool vivo = false;
+        try { vivo = vigia.EstaVivo(); }
+        catch
+        {
+            // Gancho que não responde é o mesmo que gancho morto.
+        }
+
+        if (vivo) return true;
 
         // O gancho morreu: o app o repara (e o silêncio recomeça do zero, de
         // modo que a tecla só pode ser solta depois da janela de novo).
+        ReparaOGancho(vigia);
+        return false;
+    }
+
+    /// <summary>
+    /// Reinstala o gancho de teclado (no máximo uma vez por minuto).
+    /// </summary>
+    /// <remarks>
+    /// O reparo acontece na thread da vigia, então o texto do cartão vai
+    /// pela fila da interface — escrever nele direto daqui daria erro de
+    /// thread.
+    /// </remarks>
+    private void ReparaOGancho(VigiaTeclado vigia)
+    {
+        long agora = Environment.TickCount64;
+        long ultima = Interlocked.Read(ref _ultimaReparacao);
+        if (ultima != 0 && agora - ultima < 60_000) return;
+        Interlocked.Exchange(ref _ultimaReparacao, agora);
+
+        bool voltou = false;
         try
         {
-            _vigiaTeclado.Remover();
-            _vigiaTeclado.Instalar();
+            vigia.Remover();
+            voltou = vigia.Instalar();
         }
         catch
         {
             // Gancho que não volta é o mesmo que gancho morto: o app se cala.
         }
-        return false;
+
+        // A tela não pode dizer "vigia ativa" com o gancho fora.
+        Dispatcher.InvokeAsync(() => AtualizarEstadoDaVigia());
+
+        if (!voltou)
+        {
+            try { RegistroDiario.Registrar("Vigia de tecla presa: o gancho do teclado não voltou.", "VIGIA"); }
+            catch
+            {
+                // Diário é acessório: falhar nele não pode derrubar o app.
+            }
+        }
     }
 
     /// <summary>Para a vigia (chamada no fechamento da janela).</summary>

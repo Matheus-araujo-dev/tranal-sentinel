@@ -227,6 +227,9 @@ public class TeclaPresaTestes
         /// <summary>O gancho de teclado está vivo?</summary>
         public bool GanchoVivo = true;
 
+        /// <summary>O dono ainda quer a correção automática?</summary>
+        public bool PodeAgir = true;
+
         public Ambiente()
         {
             Monitor = new MonitorTeclaPresa(
@@ -241,7 +244,8 @@ public class TeclaPresaTestes
                     if (SoltarLimpaEstado) Estado = Array.Empty<Modificadora>();
                 },
                 () => Relogio,
-                () => GanchoVivo);
+                () => GanchoVivo,
+                () => PodeAgir);
             Monitor.Corrigida += tecla => Corrigidas.Add(tecla);
             Monitor.NaoConseguiu += tecla => SemSucesso.Add(tecla);
         }
@@ -377,16 +381,51 @@ public class TeclaPresaTestes
     }
 
     [Fact]
-    public void Vigia_FalhaAoSoltarNaoAvisa()
+    public void Vigia_FalhaAoSoltarAvisaEEspera()
     {
+        // O "soltar" lançou exceção: o app não diz que soltou, avisa que
+        // não conseguiu e espera como nas outras tentativas — senão ele
+        // tentaria a cada 5 segundos, para sempre, sem ninguém ver.
         var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarFalha = true };
 
         ambiente.Ciclo(5);
         ambiente.Ciclo(31);
 
         Assert.Empty(ambiente.Corrigidas);
-        Assert.Empty(ambiente.SemSucesso);
+        Assert.Single(ambiente.SemSucesso);
         Assert.Empty(ambiente.Soltadas);
+
+        // A espera de 5 minutos vale para as tentativas que falharam também.
+        ambiente.Ciclo(31);
+        Assert.Single(ambiente.SemSucesso);
+    }
+
+    [Fact]
+    public void Vigia_NaoSoltaQuandoODonoDesligou()
+    {
+        // O dono desliga a correção enquanto a vigia espera a prova do
+        // gancho: na hora de soltar, o app pergunta de novo e obedece.
+        var ambiente = new Ambiente { Estado = new[] { Shift() } };
+
+        ambiente.Ciclo(5);
+        ambiente.PodeAgir = false;
+        ambiente.Ciclo(31);
+
+        Assert.Empty(ambiente.Soltadas);
+        Assert.Empty(ambiente.Corrigidas);
+        Assert.Empty(ambiente.SemSucesso);
+    }
+
+    [Fact]
+    public void OTextoDoAvisoConcordaComODNumeroDeTeclas()
+    {
+        string uma = TeclaPresaRegras.TextoDoAviso(new[] { "Shift direito" }, TimeSpan.FromSeconds(31));
+        Assert.Contains("a tecla Shift direito pressionada", uma);
+        Assert.Contains("soltou a tecla", uma);
+
+        string duas = TeclaPresaRegras.TextoDoAviso(new[] { "Shift direito", "Ctrl" }, TimeSpan.FromSeconds(31));
+        Assert.Contains("as teclas Shift direito e Ctrl pressionadas", duas);
+        Assert.Contains("soltou as teclas", duas);
     }
 
     [Fact]
@@ -531,7 +570,10 @@ public class TeclaPresaTestes
         var vigia = new VigiaTeclado();
         try
         {
-            if (!vigia.Instalar()) return;      // o Windows recusou: não há o que medir
+            // O Windows pode recusar o gancho (num ambiente sem sessão de
+            // desktop, por exemplo). Aí não há o que medir — e o caminho
+            // real da sonda é provado pelo harness de ponta a ponta.
+            if (!vigia.Instalar()) return;
 
             Assert.True(vigia.EstaVivo());
 

@@ -87,6 +87,12 @@ VIGIA DE TECLA PRESA
   continua mandando repetição; a tecla presa não manda evento nenhum. Só
   corrige com as três condições ao mesmo tempo (tecla caída há 30 segundos,
   teclado quieto há 30 segundos e repetição automática do Windows ligada).
+- Por isso a repetição automática importa: ela é o Windows Configurações >
+  Teclado > "Atraso da repetição" e "Velocidade da repetição". Se a
+  repetição estiver desligada, o app não age - quem segura uma tecla de
+  verdade também não geraria evento nenhum, e sem essa distinção ele não
+  teria como soltar a tecla presa sem soltar a tecla que você está
+  segurando.
 - O app não guarda o que foi digitado: o gancho de teclado só anota a hora do
   último evento.
 - Antes de soltar, o app prova que o gancho de teclado ainda está vivo (o

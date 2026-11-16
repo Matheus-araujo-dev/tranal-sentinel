@@ -35,6 +35,7 @@ public sealed class MonitorTeclaPresa
     private readonly Action<IReadOnlyList<int>> _soltar;
     private readonly Func<DateTime> _relogio;
     private readonly Func<bool> _ganchoEstaVivo;
+    private readonly Func<bool> _podeAgir;
 
     /// <summary>
     /// Desde quando cada tecla está caída (em milissegundos do relógio
@@ -80,6 +81,11 @@ public sealed class MonitorTeclaPresa
     /// baixo nível em silêncio quando o PC trava, e aí o "silêncio" do
     /// teclado é falso. Sem essa prova, o app não solta nada.
     /// </param>
+    /// <param name="podeAgir">
+    /// O dono ainda quer a correção automática? A preferência é conferida
+    /// aqui, **na hora de soltar**: o dono pode desligar enquanto a vigia
+    /// espera a prova do gancho, e o app tem que obedecer.
+    /// </param>
     public MonitorTeclaPresa(
         Func<IReadOnlyList<Modificadora>> lerEstado,
         Func<long>? agora = null,
@@ -87,7 +93,8 @@ public sealed class MonitorTeclaPresa
         Func<bool>? repeticaoLigada = null,
         Action<IReadOnlyList<int>>? soltar = null,
         Func<DateTime>? relogio = null,
-        Func<bool>? ganchoEstaVivo = null)
+        Func<bool>? ganchoEstaVivo = null,
+        Func<bool>? podeAgir = null)
     {
         _lerEstado = lerEstado;
         _agora = agora ?? (() => Environment.TickCount64);
@@ -98,6 +105,7 @@ public sealed class MonitorTeclaPresa
         // Sem a prova, o app não solta: soltar a tecla que o dono está
         // segurando é pior do que a tecla presa.
         _ganchoEstaVivo = ganchoEstaVivo ?? (() => false);
+        _podeAgir = podeAgir ?? (() => true);
     }
 
     /// <summary>
@@ -193,14 +201,27 @@ public sealed class MonitorTeclaPresa
         // Sem prova de que o gancho está vivo, o app se cala.
         if (!_ganchoEstaVivo()) return;
 
+        // O dono pode ter desligado a correção enquanto a vigia esperava a
+        // prova do gancho: agora é a hora de soltar, e agora ele não quer.
+        if (!_podeAgir()) return;
+
         try
         {
             _soltar(vks);
         }
         catch
         {
-            // Soltar é a ação; se ela falhar, a vigia apenas não corrige
-            // agora (o diário registra e a próxima rodada tenta de novo).
+            // Soltar é a ação; se ela falhar, a vigia registra a falha (o
+            // dono é avisado) e espera como nas outras tentativas — senão
+            // ela tentaria a cada 5 segundos, para sempre, sem ninguém ver.
+            lock (_tranco)
+            {
+                foreach (var familia in familias) _ultimaCorrecao[familia] = agora;
+                _correcoes++;
+            }
+
+            var tentativa = new TeclaPresa(nomes, familias, _relogio(), haQuanto);
+            if (PodeAvisarFalha(familias)) NaoConseguiu?.Invoke(tentativa);
             return;
         }
 

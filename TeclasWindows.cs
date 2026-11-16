@@ -451,16 +451,29 @@ public sealed class VigiaTeclado : IDisposable
 
         long agora = Environment.TickCount64;
         long ultima = Interlocked.Read(ref _ultimaSonda);
-        if (ultima != 0 && agora - ultima < 60_000) return _vivaNaUltimaSonda;
+
+        // Uma sonda que deu "vivo" vale por um minuto; uma que deu "morto"
+        // vale por pouco: ela pode ter falhado por causa da máquina
+        // carregada, e o app não pode ficar calado por causa disso.
+        long espera = _vivaNaUltimaSonda ? 60_000 : 15_000;
+        if (ultima != 0 && agora - ultima < espera) return _vivaNaUltimaSonda;
 
         long antes = Interlocked.Read(ref _eventos);
-        TeclasWindows.InjetarSonda();
 
+        // A sonda não desiste de uma vez: ela injeta a tecla de teste até
+        // três vezes dentro da janela. Medido em 16/11/2026: com a máquina
+        // muito carregada (três compilações ao mesmo tempo), a primeira
+        // injeção pode demorar a chegar no gancho — e uma sonda que falha
+        // por causa disso calaria o app sem soltar a tecla.
         bool viu = false;
-        for (int i = 0; i < 30 && !viu; i++)
+        for (int i = 0; i < 3 && !viu; i++)
         {
-            Thread.Sleep(50);
-            viu = Interlocked.Read(ref _eventos) != antes;
+            TeclasWindows.InjetarSonda();
+            for (int j = 0; j < 10 && !viu; j++)
+            {
+                Thread.Sleep(50);
+                viu = Interlocked.Read(ref _eventos) != antes;
+            }
         }
 
         Interlocked.Exchange(ref _ultimaSonda, agora);

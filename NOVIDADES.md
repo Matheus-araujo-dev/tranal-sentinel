@@ -25,7 +25,12 @@ não foi pedido.
   piso: "pressionada há pelo menos N s", porque o app só começa a vigiar
   depois que a tecla ficou presa.
 - O dono pode **desligar** a correção automática no cartão "Vigia de tecla
-  presa", na página do TRANAL SAÚDE.
+  presa", na página do TRANAL SAÚDE. Desligada, o app **não fica nem com o
+  gancho de teclado instalado** — ele deixa de olhar o teclado.
+- O app só age com a **repetição automática do teclado ligada** (Configurações
+  do Windows). É ela que separa "preso" de "segurando": sem repetição, quem
+  segura uma tecla também não gera evento, e o app não teria como soltar a
+  tecla presa sem soltar a tecla que o dono está segurando.
 - O app não guarda o que foi digitado: o gancho de teclado só anota o
   instante do último evento.
 
