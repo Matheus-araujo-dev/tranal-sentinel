@@ -34,6 +34,9 @@ public partial class MainWindow
     /// <summary>Quando o gancho de teclado foi reparado pela última vez.</summary>
     private long _ultimaReparacao;
 
+    /// <summary>Quantas sondas seguidas o gancho não respondeu.</summary>
+    private int _sondasSemResposta;
+
     /// <summary>Liga a vigia (chamada na abertura da janela).</summary>
     private void IniciarVigia()
     {
@@ -244,11 +247,18 @@ public partial class MainWindow
             // Gancho que não responde é o mesmo que gancho morto.
         }
 
-        if (vivo) return true;
+        if (vivo)
+        {
+            Interlocked.Exchange(ref _sondasSemResposta, 0);
+            return true;
+        }
 
-        // O gancho morreu: o app o repara (e o silêncio recomeça do zero, de
-        // modo que a tecla só pode ser solta depois da janela de novo).
-        ReparaOGancho(vigia);
+        // Uma sonda que falha pode ser só a máquina carregada (medido em
+        // 16/11/2026: com três compilações ao mesmo tempo, a injeção
+        // demora a chegar no gancho). Consertar o gancho nesse caso zera o
+        // silêncio e atrasa a correção em 30 s — por isso o conserto só
+        // acontece depois de duas falhas seguidas.
+        if (Interlocked.Increment(ref _sondasSemResposta) >= 2) ReparaOGancho(vigia);
         return false;
     }
 

@@ -182,7 +182,10 @@ public sealed class MonitorTeclaPresa
         if (presas.Count == 0) return;
 
         var familias = TeclaPresaRegras.ListaDeFamilias(presas.Select(p => p.Modificadora));
-        var nomes = presas.Select(p => p.Modificadora.Nome).Distinct().ToList();
+        // Os nomes que o dono reconhece: a genérica (Shift) fica de fora
+        // quando há lateral (Shift direito) — o Windows marca as duas, mas
+        // "Shift e Shift direito" no aviso soa errado.
+        var nomes = TeclaPresaRegras.NomesObservados(presas.Select(p => p.Modificadora));
 
         // O "soltar" precisa chegar em todas as teclas da família (a genérica
         // e as duas laterais): o Windows marca a genérica junto com a lateral.
@@ -234,6 +237,12 @@ public sealed class MonitorTeclaPresa
             if (!aindaPresa)
             {
                 foreach (var vk in vks) _caidaEm.Remove(vk);
+
+                // A família voltou ao normal: o teto de avisos também
+                // volta. Sem isso, uma tecla que ficou presa de novo mais
+                // tarde (e da mesma família) não geraria mais nenhum aviso
+                // nesta sessão — e o dono ficaria sem saber.
+                foreach (var familia in familias) _falhas.Remove(familia);
             }
             foreach (var familia in familias) _ultimaCorrecao[familia] = agora;
             _correcoes++;

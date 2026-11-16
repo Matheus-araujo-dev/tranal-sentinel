@@ -222,11 +222,17 @@ public static class TeclaPresaRegras
     }
 
     /// <summary>
-    /// Os segundos do aviso, arredondados — o mesmo número no aviso e no
-    /// diário (o mesmo evento não pode sair com dois números).
+    /// Os segundos do aviso — o mesmo número no aviso e no diário (o mesmo
+    /// evento não pode sair com dois números).
     /// </summary>
+    /// <remarks>
+    /// É o **piso** do tempo, e por isso arredonda para baixo: o texto diz
+    /// "pelo menos N s", e "pelo menos 31 s" seria falso para uma tecla
+    /// caída há 30,6 s. Com 30,6 s o número é 30 — e "pelo menos 30 s" é
+    /// verdade.
+    /// </remarks>
     public static long SegundosDoAviso(TimeSpan haQuanto) =>
-        (long)Math.Round(haQuanto.TotalSeconds);
+        (long)Math.Floor(haQuanto.TotalSeconds);
 
     /// <summary>
     /// A frase do aviso que o dono lê: o que o Windows achava, há quanto
@@ -248,6 +254,44 @@ public static class TeclaPresaRegras
         return $"O Windows continuava com {quem} {estado} há pelo menos "
              + $"{NumeroTexto.Inteiro(segundos)} s, sem ninguém no teclado. "
              + $"O TRANAL SENTINEL {acao}.";
+    }
+
+    /// <summary>
+    /// A tecla é a genérica da família (Shift, Ctrl, Alt)?
+    /// </summary>
+    /// <remarks>
+    /// O Windows marca a genérica junto com a lateral: injetar o Shift
+    /// direito deixa os dois (0x10 e 0xA1) marcados. É por isso que o
+    /// "soltar" precisa chegar nas duas.
+    /// </remarks>
+    public static bool EhGenerica(int vk) => vk == 0x10 || vk == 0x11 || vk == 0x12;
+
+    /// <summary>
+    /// Os nomes das teclas que o dono reconhece, sem a genérica repetida.
+    /// </summary>
+    /// <remarks>
+    /// Com o Shift direito marcado, o Windows marca também o Shift
+    /// genérico. Nomear as dois faria o aviso dizer "as teclas Shift e
+    /// Shift direito" — e "Shift direito" sozinho já diz tudo.
+    /// </remarks>
+    public static IReadOnlyList<string> NomesObservados(IEnumerable<Modificadora> modificadoras)
+    {
+        var lista = modificadoras.ToList();
+        var nomes = new List<string>();
+
+        foreach (var modificadora in lista)
+        {
+            // A genérica só entra quando não há lateral da mesma família.
+            if (EhGenerica(modificadora.Vk)
+                && lista.Any(outro => outro.Familia == modificadora.Familia && !EhGenerica(outro.Vk)))
+            {
+                continue;
+            }
+
+            if (!nomes.Contains(modificadora.Nome)) nomes.Add(modificadora.Nome);
+        }
+
+        return nomes;
     }
 
     /// <summary>

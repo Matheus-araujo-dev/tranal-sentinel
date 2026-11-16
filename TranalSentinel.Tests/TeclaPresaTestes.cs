@@ -500,13 +500,15 @@ public class TeclaPresaTestes
     [Fact]
     public void OAvisoEDiarioUsamOMesmoNumero()
     {
-        // O mesmo evento não pode sair com dois números (o aviso arredonda e
-        // o diário trunca). O número vem de um lugar só.
-        Assert.Equal(31, TeclaPresaRegras.SegundosDoAviso(TimeSpan.FromSeconds(30.6)));
+        // O mesmo evento não pode sair com dois números. O número vem de um
+        // lugar só — e é o PISO do tempo, porque o texto diz "pelo menos":
+        // "pelo menos 31 s" seria falso para uma tecla caída há 30,6 s.
+        Assert.Equal(30, TeclaPresaRegras.SegundosDoAviso(TimeSpan.FromSeconds(30.6)));
         Assert.Equal(30, TeclaPresaRegras.SegundosDoAviso(TimeSpan.FromSeconds(30.4)));
 
         string texto = TeclaPresaRegras.TextoDoAviso(new[] { "Shift direito" }, TimeSpan.FromSeconds(30.6));
-        Assert.Contains("31 s", texto);
+        Assert.Contains("30 s", texto);
+        Assert.DoesNotContain("31 s", texto);
     }
 
     [Fact]
@@ -630,6 +632,23 @@ public class TeclaPresaTestes
         Assert.Empty(ambiente.Soltadas);
         Assert.Empty(ambiente.Corrigidas);
         Assert.Empty(ambiente.SemSucesso);
+    }
+
+    [Fact]
+    public void ONomeDaTeclaNaoRepeteAGenerica()
+    {
+        // O Windows marca o Shift genérico junto com o direito: o aviso
+        // tem que dizer "Shift direito", e não "Shift e Shift direito".
+        var ambiente = new Ambiente
+        {
+            Estado = new[] { new Modificadora(0x10, "Shift", "Shift"), Shift() }
+        };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+
+        Assert.Single(ambiente.Corrigidas);
+        Assert.Equal(new[] { "Shift direito" }, ambiente.Corrigidas[0].Teclas);
     }
 
     [Fact]
