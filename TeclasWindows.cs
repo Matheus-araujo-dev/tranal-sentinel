@@ -331,6 +331,17 @@ public sealed class VigiaTeclado : IDisposable
     /// </remarks>
     private readonly ManualResetEventSlim _cancelar = new(false);
 
+    /// <summary>
+    /// Quantos eventos o gancho já viu.
+    /// </summary>
+    /// <remarks>
+    /// A sonda de vida compara **contadores**, não carimbos de tempo: o
+    /// relógio do Windows tem granularidade de ~15 ms, e um evento visto
+    /// dentro do mesmo tique daria "o mesmo valor" — a sonda diria que o
+    /// gancho está morto e o app calaria sem soltar a tecla.
+    /// </remarks>
+    private long _eventos;
+
     /// <summary>Quando a sonda de vida foi feita (relógio monotônico).</summary>
     private long _ultimaSonda;
 
@@ -442,14 +453,14 @@ public sealed class VigiaTeclado : IDisposable
         long ultima = Interlocked.Read(ref _ultimaSonda);
         if (ultima != 0 && agora - ultima < 60_000) return _vivaNaUltimaSonda;
 
-        long antes = Interlocked.Read(ref _ultimaAtividade);
+        long antes = Interlocked.Read(ref _eventos);
         TeclasWindows.InjetarSonda();
 
         bool viu = false;
-        for (int i = 0; i < 20 && !viu; i++)
+        for (int i = 0; i < 30 && !viu; i++)
         {
             Thread.Sleep(50);
-            viu = Interlocked.Read(ref _ultimaAtividade) != antes;
+            viu = Interlocked.Read(ref _eventos) != antes;
         }
 
         Interlocked.Exchange(ref _ultimaSonda, agora);
@@ -542,6 +553,7 @@ public sealed class VigiaTeclado : IDisposable
     {
         if (codigo >= 0)
         {
+            Interlocked.Increment(ref _eventos);
             Interlocked.Exchange(ref _ultimaAtividade, Environment.TickCount64);
         }
         return CallNextHookEx(_gancho, codigo, wParam, lParam);
