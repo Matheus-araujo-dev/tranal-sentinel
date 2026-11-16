@@ -521,6 +521,57 @@ public class TeclaPresaTestes
         Assert.Null(vigia.Silencio);
     }
 
+    [Fact]
+    public void ASondaDeVidaDescobreQueOGanchoEstaVivo()
+    {
+        // A sonda injeta o "soltar" de F24 (tecla que ninguém usa) e confere
+        // se o gancho viu o evento. Se o Windows matou o gancho, a sonda não
+        // é vista — e o app repara o gancho em vez de soltar a tecla que o
+        // dono está segurando.
+        var vigia = new VigiaTeclado();
+        try
+        {
+            if (!vigia.Instalar()) return;      // o Windows recusou: não há o que medir
+
+            Assert.True(vigia.EstaVivo());
+
+            // A segunda chamada usa o resultado guardado (a sonda não é
+            // repetida a cada 5 segundos).
+            Assert.True(vigia.EstaVivo());
+        }
+        finally
+        {
+            vigia.Remover();
+        }
+
+        // Sem gancho, a sonda não tem como dizer que ele está vivo.
+        Assert.False(vigia.EstaVivo());
+    }
+
+    [Fact]
+    public void OReparoDoGanchoInstalaUmGanchoNovo()
+    {
+        // O caminho do gancho morto: o app desinstala e instala de novo, no
+        // mesmo objeto. O gancho novo precisa estar vivo (é ele que vai
+        // medir o silêncio de novo).
+        var vigia = new VigiaTeclado();
+        try
+        {
+            if (!vigia.Instalar()) return;
+
+            vigia.Remover();
+            Assert.False(vigia.Instalado);
+
+            Assert.True(vigia.Instalar());
+            Assert.True(vigia.Instalado);
+            Assert.True(vigia.EstaVivo());
+        }
+        finally
+        {
+            vigia.Remover();
+        }
+    }
+
     // ------------------------------------------------------- a vigia
 
     [Fact]
