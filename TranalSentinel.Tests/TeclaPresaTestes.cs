@@ -157,6 +157,26 @@ public class TeclaPresaTestes
         }
     }
 
+    [Fact]
+    public void RepeticaoDoTeclado_SemValorNoRegistro_ValhaOPadraoDoWindows()
+    {
+        // O Windows nem sempre grava o valor (no PC do dono ele só estava no
+        // perfil padrão). Sem valor, vale o padrão: a repetição ligada.
+        Assert.True(TeclaPresaRegras.RepeticaoDoTecladoLigada(null));
+    }
+
+    [Fact]
+    public void RepeticaoDoTeclado_DesligadaNoRegistro_NaoAge()
+    {
+        Assert.False(TeclaPresaRegras.RepeticaoDoTecladoLigada(0));
+    }
+
+    [Fact]
+    public void RepeticaoDoTeclado_LigadaNoRegistro_Age()
+    {
+        Assert.True(TeclaPresaRegras.RepeticaoDoTecladoLigada(31));
+    }
+
     // ---------------------------------------------------------------- vigia
 
     private sealed class Ambiente

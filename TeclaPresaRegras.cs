@@ -93,6 +93,25 @@ public static class TeclaPresaRegras
     };
 
     /// <summary>
+    /// A repetição automática do teclado está ligada?
+    /// </summary>
+    /// <param name="velocidade">
+    /// A velocidade da repetição que o Windows guardou (0 = desligada).
+    /// Null = o Windows não guardou o valor, e vale o padrão dele, que é a
+    /// repetição ligada.
+    /// </param>
+    /// <remarks>
+    /// A decisão mora aqui (e não no Windows) porque é ela que decide se o
+    /// app pode agir. Medido no PC do dono em 16/11/2026: o valor da
+    /// repetição não existe no perfil do usuário — ele está no perfil
+    /// padrão do Windows, e o padrao é a repetição ligada. Quem tratasse
+    /// "sem valor" como "desligada" desligaria a vigia inteira sem o dono
+    /// pedir.
+    /// </remarks>
+    public static bool RepeticaoDoTecladoLigada(int? velocidade) =>
+        !velocidade.HasValue || velocidade.Value != 0;
+
+    /// <summary>
     /// A regra: esta tecla está presa?
     /// </summary>
     /// <param name="pressionada">O Windows diz que a tecla está pressionada?</param>

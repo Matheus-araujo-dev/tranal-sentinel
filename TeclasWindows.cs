@@ -76,6 +76,60 @@ public static class TeclasWindows
     }
 
     /// <summary>
+    /// A velocidade da repetição que o Windows guardou (0 = desligada).
+    /// Null = não há valor guardado (vale o padrão do Windows).
+    /// </summary>
+    /// <remarks>
+    /// O valor vive em <c>Control Panel\Keyboard</c> ("Keyboard Speed", que
+    /// é a velocidade da repetição; 0 = desligada). Ele pode estar no
+    /// perfil do usuário ou no perfil padrão do Windows — e, quando não está em
+    /// nenhum dos dois, vale o padrão, que é a repetição ligada.
+    /// </remarks>
+    private static int? VelocidadeDaRepeticao()
+    {
+        // O perfil do usuário primeiro; quando ele não tem o valor, o perfil
+        // padrão do Windows é quem manda (medido no PC do dono em
+        // 16/11/2026: o valor estava só lá no perfil padrão).
+        RegistryKey? usuario = null;
+        try { usuario = Registry.CurrentUser.OpenSubKey(@"Control Panel\Keyboard"); }
+        catch { }
+        int? velocidade = VelocidadeNaChave(usuario);
+        usuario?.Dispose();
+        if (velocidade.HasValue) return velocidade;
+
+        RegistryKey? padrao = null;
+        try { padrao = Registry.Users.OpenSubKey(@".DEFAULT\Control Panel\Keyboard"); }
+        catch { }
+        velocidade = VelocidadeNaChave(padrao);
+        padrao?.Dispose();
+        return velocidade;
+    }
+
+    /// <summary>
+    /// O valor da velocidade da repetição dentro de uma chave (null quando
+    /// a chave não tem o valor).
+    /// </summary>
+    private static int? VelocidadeNaChave(RegistryKey? chave)
+    {
+        if (chave is null) return null;
+        try
+        {
+            foreach (string nome in new[] { "Keyboard Speed", "KeyboardSpeed" })
+            {
+                object? bruto = chave.GetValue(nome);
+                if (bruto is int numero) return numero;
+                if (bruto is string texto && int.TryParse(texto, out int convertido)) return convertido;
+            }
+        }
+        catch
+        {
+            // Chave sem permissão ou valor de outro tipo: sem valor, e vale o
+            // padrão do Windows.
+        }
+        return null;
+    }
+
+    /// <summary>
     /// A repetição automática do teclado está ligada?
     ///
     /// <para>
@@ -94,21 +148,8 @@ public static class TeclasWindows
     /// vira zero.
     /// </para>
     /// </summary>
-    public static bool RepeticaoDoTecladoLigada()
-    {
-        try
-        {
-            using var chave = Registry.CurrentUser.OpenSubKey(@"Control Panel\Keyboard");
-            if (chave?.GetValue("Keyboard Speed") is int valor) return valor != 0;
-            return false;
-        }
-        catch
-        {
-            // Sem conseguir ler a configuração, o app não age: quem não sabe
-            // não afirma.
-            return false;
-        }
-    }
+    public static bool RepeticaoDoTecladoLigada() =>
+        TeclaPresaRegras.RepeticaoDoTecladoLigada(VelocidadeDaRepeticao());
 }
 
 /// <summary>
