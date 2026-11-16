@@ -594,6 +594,13 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   é real) e sem a repetição (siléncio não distingue "preso" de
   "segurando"), o app **se cala**: soltar a tecla que o dono está segurando
   é pior do que a tecla presa.
+- **A repetição automática mora no perfil do Windows, não só no do usuário.**
+  O valor da velocidade da repetição pode não estar em
+  `HKCU\Control Panel\Keyboard` — no PC do dono ele estava só no perfil
+  padrão (`HKU\.DEFAULT`). Tratar "sem valor" como "desligada" desligaria a vigia
+  inteira sem o dono pedir: **sem valor, vale o padrão do Windows, que é a
+  repetição ligada** (a decisão é pura e testada, em
+  `TeclaPresaRegras.RepeticaoDoTecladoLigada`).
 - **O gancho é de baixo nível (`WH_KEYBOARD_LL`) e guarda só o instante** do
   último evento — nunca o que foi digitado. Ele precisa de uma thread que
   bombeia mensagens (a da interface do WPF sempre bombeia) e é desinstalado
