@@ -577,6 +577,36 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   monitor, o painel volta para o canto em vez de ficar fora da tela — e o
   botão "VOLTAR PARA O CANTO" dá a mesma posição.
 
+### v0.32 — a vigia de tecla presa
+
+- **A regra da tecla presa é pura** (`TeclaPresaRegras`): ela recebe o
+  estado da tecla, há quanto tempo ela está caída e há quanto tempo o
+  teclado não manda evento, e devolve a resposta. Quem mede é
+  `TeclasWindows` e a vigia (`MonitorTeclaPresa`); quem decide é a regra.
+- **A tecla presa se reconhece pelo siléncio do teclado.** Quem segura uma
+  tecla de verdade continua mandando repetição (o auto-repeat do
+  próprio Windows); a tecla presa não manda evento nenhum. Medido no PC
+  do dono em 16/11/2026: uma tecla injetada e nunca solta **não gerou
+  nenhum evento em 10 s de gancho**, e o key-up injetado limpou o estado.
+- **São três condições ao mesmo tempo, e nenhuma é dispensável:** a
+  tecla caída há 30 s, o teclado em siléncio há 30 s e a repetição
+  automática do Windows ligada. Sem o gancho (não se sabe se o siléncio
+  é real) e sem a repetição (siléncio não distingue "preso" de
+  "segurando"), o app **se cala**: soltar a tecla que o dono está segurando
+  é pior do que a tecla presa.
+- **O gancho é de baixo nível (`WH_KEYBOARD_LL`) e guarda só o instante** do
+  último evento — nunca o que foi digitado. Ele precisa de uma thread que
+  bombeia mensagens (a da interface do WPF sempre bombeia) e é desinstalado
+  quando o app fecha.
+- **A correção é a mesma que o Windows faz**: injetar o key-up da tecla.
+  O que o app fez fica no diário (categoria "TECLA") e num aviso — e o dono
+  pode desligar a correção na página do TRANAL SAÚDE.
+- **As datas dos testes que gravam no banco são relativas a hoje.** O banco
+  poda o histórico velho (15 dias para as amostras, 30 para o uso) assim que
+  grava: um teste com data fixa quebra sozinho no dia em que ela passa do
+  prazo. (Corrigido em 16/11/2026: o teste
+  `ApagarAntigos_ApagaOQueEAntigoEmAmbasAsTabelas` falhava exatamente por isso.)
+
 ## Publicar
 
 ```powershell
@@ -612,6 +642,7 @@ auto-update procura.
 | `TrafegoRegras.cs` / `ColetorTrafego.cs` | O tráfego de internet por programa: a regra pura (ranking, bytes, textos do cartão) e o coletor que mede pela ETW do kernel. |
 | `Banco.cs` | O banco de dados do histórico: esquema, migração do CSV antigo, consulta por período, contagem, poda e a rotina de reparo (que guarda a cópia do banco estragado). |
 | `VentoinhaRegras.cs` | A regra pura do desgaste da ventoinha: o recorde, o veredito, as três travas e todos os textos da tela. |
+| `TeclaPresaRegras.cs` / `MonitorTeclaPresa.cs` / `TeclasWindows.cs` | A vigia da tecla presa: a regra pura, a vigia e a conversa com o Windows (o gancho de teclado e o "soltar"). |
 | `MonitorVentoinhas.cs` | A coleta das ventoinhas: a leitura de cada uma, o recorde em memória, o agregado do dia e a gravação no banco. |
 | `NumeroTexto.cs` | A formatação de todo número e data da tela (um lugar só, independente da cultura do Windows). |
 | `SensorTexto.cs` | O texto das unidades dos sensores (um lugar só): temperatura, porcentagem, MHz, GHz, W, V, RPM, GB, MB, MB/s, A, L/h, Hz, mWh e ms. |

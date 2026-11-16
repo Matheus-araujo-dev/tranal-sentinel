@@ -56,6 +56,13 @@ pergunta que o Windows faz quando mostra o "Não responder") e o menu do ícone
 ganha a opção de **encerrar**; avisa também de **temperatura alta** da CPU
 (85 °C), do disco (60 °C) e de **bateria acabando** (20 % fora da tomada).
 
+**Vigia de tecla presa** — quando o Windows continua achando que Shift, Ctrl, Alt ou
+Win está pressionado depois que você solta (e o clique passa a valer como
+clique com a tecla), o app **solta a tecla**, avisa e registra no diário. O
+reconhecimento é pelo siléncio do teclado: quem segura uma tecla de verdade
+continua mandando repetição, a tecla presa não manda evento nenhum. A
+correção automática pode ser desligada na página do TRANAL SAÚDE.
+
 **TRANAL USO** — o app passa a lembrar **qual programa ficou em frente na tela**
 e a responder as duas perguntas que sempre sobraram: *"quanto tempo eu passei
 neste programa?"* e *"por que esse aviso disparou?"*.

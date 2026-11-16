@@ -51,8 +51,18 @@ public class BancoTestes : IDisposable
         }
     }
 
+    /// <summary>
+    /// Um instante dos testes do banco.
+    ///
+    /// <para>
+    /// As datas são <b>relativas a hoje</b> de propósito: o banco poda o
+    /// histórico velho (15 dias para as amostras, 30 para o uso) assim que
+    /// grava, e um teste com data fixa quebra sozinho no dia em que ela
+    /// passa do prazo — sem ninguém ter mudado nada no código.
+    /// </para>
+    /// </summary>
     private static DateTime Momento(int dia, int hora, int minuto, int segundo = 0) =>
-        new(2026, 11, dia, hora, minuto, segundo, DateTimeKind.Local);
+        DateTime.Today.AddDays(dia - 11).AddHours(hora).AddMinutes(minuto).AddSeconds(segundo);
 
     private static AmostraSensor Amostra(DateTime momento, float? temp = 78.5f) => new(
         momento,

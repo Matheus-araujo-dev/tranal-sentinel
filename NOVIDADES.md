@@ -1,3 +1,31 @@
+## Novidades da v0.32 — a vigia de tecla presa
+
+O TRANAL SENTINEL ganhou uma vigia que pega a **tecla que fica presa**:
+aqueles casos em que o Windows continua achando que Shift, Ctrl, Alt ou Win
+está pressionado depois que o dono solta — e o clique começa a valer como
+clique com a tecla, o arrastar copia em vez de mover, o navegador faz o que
+não foi pedido.
+
+**Novo · vigia de tecla presa**
+- Quando a situação aparece, o app **solta a tecla** (injeta o "soltar" que
+  o Windows faria quando o dedo levanta), **avisa** o dono e **registra no
+  diário** o que aconteceu.
+- O reconhecimento é pelo **siléncio do teclado**: quem segura uma tecla de
+  verdade continua mandando repetição; a tecla presa não manda evento
+  nenhum. Só corrige com as três condições ao mesmo tempo — tecla caída
+  há 30 segundos, teclado em siléncio há 30 segundos e repetição
+  automática do Windows ligada. Sem essa última, ninguém está segurando e
+  ninguém está com a tecla está presa dá na mesma situação: o app se cala.
+- O dono pode **desligar** a correção automática no cartão "Vigia de tecla
+  presa", na página do TRANAL SAÚDE.
+- O app não guarda o que foi digitado: o gancho de teclado só anota o
+  instante do último evento.
+
+**Correção (os testes que gravam no banco)**
+- As datas dos testes do banco passaram a ser **relativas a hoje**. O banco poda
+  o histórico velho assim que grava, e um teste com data fixa quebrava sozinho
+  no dia em que a data passava do prazo — sem ninguém ter tocado no código.
+
 ## Novidades da v0.31 — o painel flutuante deixa os números do PC sempre à vista
 
 O TRANAL SENTINEL ganhou um **painel flutuante**: uma janelinha que fica no

@@ -50,6 +50,13 @@ public class SensorHistoricoTestes : IDisposable
         }
     }
 
+    /// <summary>
+    /// Um instante relativo a hoje: o banco poda o histórico que passa
+    /// do prazo (15 dias) assim que grava, e data fixa quebra sozinha.
+    /// </summary>
+    private static DateTime Quando(int diasAtras, int hora = 10, int minuto = 0) =>
+        DateTime.Today.AddDays(-diasAtras).AddHours(hora).AddMinutes(minuto);
+
     private static AmostraSensor Amostra(DateTime momento) => new(
         momento,
         78.5f, 43f, 92.4f, 3200f,
@@ -61,7 +68,7 @@ public class SensorHistoricoTestes : IDisposable
     {
         UsarPastaTemporaria();
 
-        var amostra = Amostra(new DateTime(2026, 11, 5, 14, 31, 22, 500, DateTimeKind.Local));
+        var amostra = Amostra(Quando(9, 14, 31).AddSeconds(22).AddMilliseconds(500));
         SensorHistorico.Gravar(amostra);
 
         var lidas = SensorHistorico.Ler(DateTime.MinValue).Linhas;
@@ -77,8 +84,8 @@ public class SensorHistoricoTestes : IDisposable
     {
         UsarPastaTemporaria();
 
-        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 14, 31, 0, DateTimeKind.Local)));
-        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 14, 31, 5, DateTimeKind.Local)));
+        SensorHistorico.Gravar(Amostra(Quando(9, 14, 31)));
+        SensorHistorico.Gravar(Amostra(Quando(9, 14, 31).AddSeconds(5)));
 
         var lidas = SensorHistorico.Ler(DateTime.MinValue).Linhas;
 
@@ -93,13 +100,13 @@ public class SensorHistoricoTestes : IDisposable
     {
         UsarPastaTemporaria();
 
-        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 1, 10, 0, 0, DateTimeKind.Local)));
-        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local)));
+        SensorHistorico.Gravar(Amostra(Quando(13, 10)));
+        SensorHistorico.Gravar(Amostra(Quando(9, 10)));
 
-        var lidas = SensorHistorico.Ler(new DateTime(2026, 11, 3, 0, 0, 0, DateTimeKind.Local)).Linhas;
+        var lidas = SensorHistorico.Ler(Quando(11, 0)).Linhas;
 
         var lida = Assert.Single(lidas);
-        Assert.Equal(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local), lida.Momento);
+        Assert.Equal(Quando(9, 10), lida.Momento);
     }
 
     [Fact]
@@ -109,18 +116,18 @@ public class SensorHistoricoTestes : IDisposable
         // histórico inteiro (que chega a dezenas de megabytes).
         UsarPastaTemporaria();
 
-        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 1, 10, 0, 0, DateTimeKind.Local)));
-        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local)));
-        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 12, 0, 0, DateTimeKind.Local)));
-        SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 6, 10, 0, 0, DateTimeKind.Local)));
+        SensorHistorico.Gravar(Amostra(Quando(13, 10)));
+        SensorHistorico.Gravar(Amostra(Quando(9, 10)));
+        SensorHistorico.Gravar(Amostra(Quando(9, 12)));
+        SensorHistorico.Gravar(Amostra(Quando(8, 10)));
 
         var lidas = SensorHistorico.Ler(
-            new DateTime(2026, 11, 5, 0, 0, 0, DateTimeKind.Local),
-            new DateTime(2026, 11, 5, 23, 59, 59, DateTimeKind.Local)).Linhas;
+            Quando(9, 0),
+            Quando(9, 23).AddMinutes(59).AddSeconds(59)).Linhas;
 
         Assert.Equal(2, lidas.Count);
-        Assert.Equal(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local), lidas[0].Momento);
-        Assert.Equal(new DateTime(2026, 11, 5, 12, 0, 0, DateTimeKind.Local), lidas[1].Momento);
+        Assert.Equal(Quando(9, 10), lidas[0].Momento);
+        Assert.Equal(Quando(9, 12), lidas[1].Momento);
     }
 
     [Fact]
@@ -140,7 +147,7 @@ public class SensorHistoricoTestes : IDisposable
         try
         {
             // O log é um extra: falhar nele não pode derrubar o app.
-            SensorHistorico.Gravar(Amostra(new DateTime(2026, 11, 5, 10, 0, 0, DateTimeKind.Local)));
+            SensorHistorico.Gravar(Amostra(Quando(9, 10)));
             Assert.Empty(SensorHistorico.Ler(DateTime.MinValue).Linhas);
         }
         finally

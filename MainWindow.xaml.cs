@@ -233,6 +233,9 @@ public partial class MainWindow : Window
         // O painel flutuante: o dono liga e desliga pela página "Painel".
         // Se ele o deixou ligado da outra vez, ele volta.
         if (_settings.PainelVisivel) ChkPainel.IsChecked = true;
+
+        // Vigia da tecla presa: a preferência do dono vem gravada.
+        ChkTeclaPresa.IsChecked = _settings.CorrigirTeclaPresa;
     }
 
     /// <summary>Coletas lentas da abertura, em paralelo e fora da thread da janela; cada parte preenche a tela quando fica pronta.</summary>

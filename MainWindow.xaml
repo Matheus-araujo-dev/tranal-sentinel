@@ -1107,6 +1107,18 @@
 
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
+                                <TextBlock Text="VIGIA DE TECLA PRESA" Style="{StaticResource Label}"/>
+                                <CheckBox x:Name="ChkTeclaPresa" Content="Corrigir automaticamente uma tecla modificadora presa"
+                                          FontSize="15" Margin="0,8,0,0"
+                                          Checked="ChkTeclaPresa_Changed" Unchecked="ChkTeclaPresa_Changed"/>
+                                <TextBlock Foreground="{DynamicResource Muted}" Margin="26,6,0,0" TextWrapping="Wrap">
+                                    À s vezes o Windows continua achando que Shift, Ctrl, Alt ou Win está pressionado depois que você solta — e o clique passa a valer como clique com a tecla. Quando isso acontece, o TRANAL SENTINEL solta a tecla e avisa. Só acontece com o teclado em silêncio por 30 segundos, e o que o app fez fica no diário.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
                                 <TextBlock Text="BANCO DE DADOS DO HISTÓRICO" Style="{StaticResource Label}"/>
                                 <TextBlock x:Name="SaudeBancoEstado" Text="Verificando o banco de dados…" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                 <Border x:Name="SaudeBancoAvisoCaixa" BorderBrush="{DynamicResource LineStrong}" BorderThickness="2,0,0,0" Padding="10,2,0,2" Margin="0,10,0,0" Visibility="Collapsed">

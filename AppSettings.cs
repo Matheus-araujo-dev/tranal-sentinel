@@ -118,6 +118,11 @@ public sealed class AppSettings
     /// </summary>
     public List<RegraAlerta>? Alertas { get; set; }
 
+    // Vigia da tecla presa: quando o Windows continua achando que Shift, Ctrl,
+    // Alt ou Win está pressionado e ninguém está no teclado, o app solta a
+    // tecla. O dono pode desligar isto na página do TRANAL SAÚDE.
+    public bool CorrigirTeclaPresa { get; set; } = true;
+
     // Sensores: a GPU do LibreHardwareMonitor é lida por código nativo do driver da AMD.
     // Se esse caminho derrubar o app, o SensorGuard desliga a GPU sozinho; aqui o usuário
     // pode deixar desligado de vez.
