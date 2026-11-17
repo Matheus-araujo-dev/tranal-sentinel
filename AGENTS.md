@@ -736,7 +736,9 @@ para a tentativa que deu certo, e não só para a que falhou.
   diário registra cada soltura (é o histórico do dia).
 - **O teto é por evento, e uma família já calada pode reaparecer no aviso de
   outra.** O `Avisar` é decidido por evento (basta uma família ter orçamento para o
-  toast aparecer) e as famílias sem orçamento não saem do texto do aviso.
+  toast aparecer). O texto do aviso cita todas as teclas que **continuaram presas**,
+  inclusive as de família sem orçamento: o orçamento decide se o toast
+  aparece, não o que ele diz.
 - **Numa rodada com duas famílias, a que foi solta não gera aviso nem linha de
   diário.** O aviso é sobre o que CONTINUOU preso — é o que o dono precisa saber.
 - **O evento sempre sai; o aviso é que pode calar.** A vigia entrega o

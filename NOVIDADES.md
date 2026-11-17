@@ -18,7 +18,7 @@ sem tratamento nenhum.
   que a v0.33 veio para tirar. Agora é 1 minuto.
 - **Quando a tecla é solta de verdade, a família fica sem pendência**: um novo
   travamento é tratado no tempo normal (30 s de tecla caída), e o dono é
-  avisado (com o teto de avisos da família: 3 por tecla em 15 minutos).
+  avisado (com o teto de avisos da família: 3 por família em 15 minutos).
 - **A espera acaba com o episódio**: se a tecla sobe (o travamento acabou) e
   ela trava de novo, o app trata sem esperar o minuto de espera.
 - **O aviso na tela tem teto (3 por família) e o diário não**: o app continua
@@ -36,7 +36,7 @@ não foi pedido.
 **Novo · vigia de tecla presa**
 - Quando a situação aparece, o app **solta a tecla** (injeta o "soltar" que
   o Windows faria quando o dedo levanta), **avisa** o dono e **registra no
-  diário** o que aconteceu. O aviso na tela tem teto (3 por tecla, para não virar spam); o diário registra sempre.
+  diário** o que aconteceu. O aviso na tela tem teto (3 por família, para não virar spam); o diário registra toda tentativa, sem teto.
 - O reconhecimento é pelo **silêncio do teclado**: quem segura uma tecla de
   verdade continua mandando repetição; a tecla presa não manda evento
   nenhum. Só corrige com as três condições ao mesmo tempo — tecla caída

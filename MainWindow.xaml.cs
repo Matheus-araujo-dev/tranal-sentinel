@@ -239,7 +239,8 @@ public partial class MainWindow : Window
         // O tempo do texto vem da regra (um lugar só): nada de "30
         // segundos" escrito à mão na tela.
         ChkTeclaPresaTexto.Text = ChkTeclaPresaTexto.Text
-            .Replace("{SEGUNDOS}", NumeroTexto.Inteiro(TeclaPresaRegras.SegundosMinimos));
+            .Replace("{SEGUNDOS}", NumeroTexto.Inteiro(TeclaPresaRegras.SegundosMinimos))
+            .Replace("{MINUTOS}", NumeroTexto.Inteiro((long)TeclaPresaRegras.EsperaDepoisDaTentativa.TotalMinutes));
     }
 
     /// <summary>Coletas lentas da abertura, em paralelo e fora da thread da janela; cada parte preenche a tela quando fica pronta.</summary>

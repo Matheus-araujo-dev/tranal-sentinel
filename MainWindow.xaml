@@ -1112,7 +1112,7 @@
                                           FontSize="15" Margin="0,8,0,0"
                                           Checked="ChkTeclaPresa_Changed" Unchecked="ChkTeclaPresa_Changed"/>
                                 <TextBlock x:Name="ChkTeclaPresaTexto" Foreground="{DynamicResource Muted}" Margin="26,6,0,0" TextWrapping="Wrap">
-                                    Às vezes o Windows continua achando que Shift, Ctrl, Alt ou Win está pressionado depois que você solta — e o clique passa a valer como clique com a tecla. Quando isso acontece, o TRANAL SENTINEL solta a tecla e avisa — o aviso na tela tem teto de 3 por tecla, mas o que o app fez fica sempre no diário. Só acontece com a tecla caída e o teclado em silêncio por {}{SEGUNDOS} segundos.
+                                    Às vezes o Windows continua achando que Shift, Ctrl, Alt ou Win está pressionado depois que você solta — e o clique passa a valer como clique com a tecla. Quando isso acontece, o TRANAL SENTINEL solta a tecla e avisa — o aviso na tela tem teto de 3 por família (Shift, Ctrl, Alt e Win contam como uma), mas o diário registra toda tentativa, sem teto. Se a primeira tentativa não soltar, o app espera {}{MINUTOS} min antes de tentar de novo. Só acontece com a tecla caída e o teclado em silêncio por {}{SEGUNDOS} segundos.
                                 </TextBlock>
                                 <TextBlock x:Name="ChkTeclaPresaEstado" Foreground="{DynamicResource Muted}" Margin="26,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>

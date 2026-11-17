@@ -58,7 +58,7 @@ ganha a opção de **encerrar**; avisa também de **temperatura alta** da CPU
 
 **Vigia de tecla presa** — quando o Windows continua achando que Shift, Ctrl, Alt ou
 Win está pressionado depois que você solta (e o clique passa a valer como
-clique com a tecla), o app **solta a tecla**, avisa e registra no diário (o aviso na tela tem teto de 3 por tecla; o diário registra sempre). O
+clique com a tecla), o app **solta a tecla**, avisa e registra no diário (o aviso na tela tem teto de 3 por família — Shift, Ctrl, Alt e Win contam como uma; o diário registra toda tentativa, sem teto). O
 reconhecimento é pelo silêncio do teclado: quem segura uma tecla de verdade
 continua mandando repetição, a tecla presa não manda evento nenhum. Por
 isso a repetição automática do teclado (Configurações do Windows) precisa
@@ -548,6 +548,7 @@ um `.exe` em uso.
 - ✔ TRANAL VENTOINHAS: o RPM de cada ventoinha comparado com o próprio recorde, para dizer se ela está gasta (v0.30)
 - ✔ PAINEL: a janela flutuante com CPU, GPU, RAM e ventoinha sempre à vista (v0.31)
 - ✔ VIGIA DE TECLA PRESA: quando o Windows deixa Shift, Ctrl, Alt ou Win marcado como pressionado, o app solta a tecla e avisa (v0.32)
+- ✔ VIGIA DE TECLA PRESA: a espera depois de uma tentativa que falhou caiu para 1 min e vale só para a tentativa que falhou; o aviso na tela tem teto de 3 por família (v0.33)
 
 ## Próximas ideias
 - Assistente de IA local (Ollama/LM Studio) respondendo o relatório do TRANAL SAÚDE, sem sair da máquina

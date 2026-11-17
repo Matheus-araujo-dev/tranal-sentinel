@@ -307,8 +307,8 @@ public sealed class MonitorTeclaPresa
                 if (familiasAindaPresas.Contains(familia))
                 {
                     // A tecla continua presa: a família espera antes de
-                    // tentar de novo (é o que segura o aviso, para não
-                    // virar spam).
+                    // tentar de novo (é o que impede o app de martelar a
+                    // tecla a cada 5 segundos).
                     _familiasQueFalharam.Add(familia);
                     continue;
                 }
@@ -323,9 +323,10 @@ public sealed class MonitorTeclaPresa
 
         if (familiasAindaPresas.Count > 0)
         {
-            // Tecla que não solta: o aviso não pode virar spam (a cada
-            // 5 minutos, para sempre). Depois de algumas tentativas, o
-            // app para de avisar e continua tentando soltar em silêncio.
+            // Tecla que não solta: o aviso não pode virar spam (o teto
+            // segura o aviso, não a correção). Depois de algumas
+            // tentativas, o app para de avisar e continua tentando soltar
+            // em silêncio.
             //
             // O aviso é sobre as teclas que CONTINUARAM presas: o "soltar"
             // pode ter limpo uma família e deixado a outra.

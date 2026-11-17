@@ -70,7 +70,7 @@ TRANAL SAÚDE
   reparo pela linha de comando precisa da confirmação e precisa do
   TRANAL SENTINEL fechado: com o programa aberto, o Windows segura o
   arquivo do banco e a troca não dá certo).
-- Se a importação do histórico antigo (os arquivos CSV) ficar pela meio -
+- Se a importação do histórico antigo (os arquivos CSV) ficar pela metade -
   o antivírus com o arquivo aberto, o disco cheio -, o cartão do banco
   avisa que parte do histórico pode não ter entrado, e o app tenta de novo
   na abertura seguinte. O histórico que não entrou não é dado como
@@ -82,7 +82,7 @@ VIGIA DE TECLA PRESA
 - De vez em quando o Windows continua achando que Shift, Ctrl, Alt ou Win está
   pressionado depois que você solta: o clique passa a valer como clique com a
   tecla, o arrastar copia em vez de mover, o navegador faz o que não foi pedido.
-  Quando isso acontece, o app solta a tecla, avisa e registra no diário (o aviso na tela tem teto de 3 por tecla; o diário registra sempre).
+  Quando isso acontece, o app solta a tecla, avisa e registra no diário (o aviso na tela tem teto de 3 por família — Shift, Ctrl, Alt e Win contam como uma; o diário registra toda tentativa, sem teto).
 - O app reconhece pela quietude do teclado: quem segura uma tecla de verdade
   continua mandando repetição; a tecla presa não manda evento nenhum. Só
   corrige com as três condições ao mesmo tempo (tecla caída há 30 segundos,
