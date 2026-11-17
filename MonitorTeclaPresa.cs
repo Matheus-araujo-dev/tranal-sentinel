@@ -44,11 +44,45 @@ public sealed class MonitorTeclaPresa
     /// </summary>
     private readonly Dictionary<int, long> _caidaEm = new();
 
-    /// <summary>Quando cada família foi corrigida pela última vez (espera de 5 min).</summary>
-    private readonly Dictionary<string, long> _ultimaCorrecao = new();
+    /// <summary>
+    /// Quando cada família tentou soltar a tecla pela última vez (relógio
+    /// monotônico, em milissegundos).
+    /// </summary>
+    /// <remarks>
+    /// O nome é "tentativa", e não "correção", porque a espera de 1 min vale
+    /// para a tentativa que <b>falhou</b>: uma correção que deu certo não
+    /// trava a próxima (medido no PC do dono em 16/11/2026: a segunda
+    /// travada, logo depois da primeira, ficava 5 minutos sem tratamento
+    /// nenhum).
+    /// </remarks>
+    private readonly Dictionary<string, long> _ultimaTentativa = new();
 
-    /// <summary>Quantas vezes o "soltar" não resolveu, por família.</summary>
-    private readonly Dictionary<string, int> _falhas = new();
+    /// <summary>
+    /// As famílias cuja última tentativa não deu certo: só elas esperam
+    /// antes de tentar de novo.
+    /// </summary>
+    private readonly HashSet<string> _familiasQueFalharam = new();
+
+    /// <summary>
+    /// Os avisos de SUCESSO dados a cada família: quantos e quando foi o
+    /// último.
+    /// </summary>
+    /// <remarks>
+    /// O teto segura o aviso na tela, não a correção: o app continua
+    /// soltando a tecla, porque um aviso a cada 35 segundos não ajuda
+    /// ninguém.
+    /// </remarks>
+    private readonly Dictionary<string, (int Quantos, long Quando)> _avisosDeSucesso = new();
+
+    /// <summary>
+    /// Os avisos de FALHA dados a cada família: quantos e quando foi o último.
+    /// </summary>
+    /// <remarks>
+    /// O orçamento é separado do sucesso de propósito: a falha é o aviso que
+    /// o dono mais precisa ver (a tecla continua presa), e ela não pode ser
+    /// calada por três correções que deram certo.
+    /// </remarks>
+    private readonly Dictionary<string, (int Quantos, long Quando)> _avisosDeFalha = new();
 
     /// <summary>Quantas correções a vigia tentou nesta sessão.</summary>
     private int _correcoes;
@@ -145,7 +179,18 @@ public sealed class MonitorTeclaPresa
             // A tecla que subiu não está mais caída: some do histórico.
             foreach (var vk in _caidaEm.Keys.ToList())
             {
-                if (!ids.Contains(vk)) _caidaEm.Remove(vk);
+                if (ids.Contains(vk)) continue;
+                _caidaEm.Remove(vk);
+
+                // O episódio acabou (a tecla subiu). Se a última tentativa
+                // desta família tinha falhado, a espera acaba com ele: um
+                // travamento novo é tratado no tempo normal. Sem isso, a
+                // segunda travada ficava 5 minutos sem tratamento (medido
+                // no PC do dono em 16/11/2026).
+                string familia = FamiliaDoVk(vk);
+                if (familia.Length == 0) continue;
+                if (_caidaEm.Keys.Any(k => FamiliaDoVk(k) == familia)) continue;
+                _familiasQueFalharam.Remove(familia);
             }
         }
 
@@ -217,52 +262,102 @@ public sealed class MonitorTeclaPresa
             // Soltar é a ação; se ela falhar, a vigia registra a falha (o
             // dono é avisado) e espera como nas outras tentativas — senão
             // ela tentaria a cada 5 segundos, para sempre, sem ninguém ver.
+            // O aviso é decidido antes de marcar a tentativa: a janela de
+            // avisos olha a tentativa ANTERIOR (a de agora ainda não conta).
+            bool avisarFalha = PodeAvisar(familias, agora, sucesso: false);
+
             lock (_tranco)
             {
-                foreach (var familia in familias) _ultimaCorrecao[familia] = agora;
+                foreach (var familia in familias)
+                {
+                    _ultimaTentativa[familia] = agora;
+                    _familiasQueFalharam.Add(familia);
+                }
                 _correcoes++;
             }
 
-            var tentativa = new TeclaPresa(nomes, familias, _relogio(), haQuanto);
-            if (PodeAvisarFalha(familias)) NaoConseguiu?.Invoke(tentativa);
+            NaoConseguiu?.Invoke(
+                new TeclaPresa(nomes, familias, _relogio(), haQuanto) { Avisar = avisarFalha });
             return;
         }
 
         // Confere: a tecla saiu mesmo? Sem esta conferência, o app diria
         // que soltou a tecla mesmo quando o "soltar" não limpou o estado.
-        bool aindaPresa = ContinuaPresa(familias);
+        //
+        // A conferência é POR FAMÍLIA: o "soltar" pode limpar o Shift e não
+        // limpar o Ctrl (o Windows re-marca a tecla). Julgar o aviso inteiro
+        // faria o app dizer que o Shift "continuou preso" quando ele já foi
+        // solto — e faria a família do Shift esperar 5 minutos à toa.
+        var familiasAindaPresas = FamiliasQueContinuamPresas(familias);
+
+        // O aviso é decidido antes de marcar a tentativa: a janela de avisos
+        // olha a tentativa ANTERIOR (a de agora ainda não conta).
+        bool algumaAindaPresa = familiasAindaPresas.Count > 0;
+        bool avisar = PodeAvisar(
+            algumaAindaPresa ? familiasAindaPresas : familias,
+            agora,
+            sucesso: !algumaAindaPresa);
 
         lock (_tranco)
         {
-            if (!aindaPresa)
+            foreach (var familia in familias)
             {
-                foreach (var vk in vks) _caidaEm.Remove(vk);
+                _ultimaTentativa[familia] = agora;
 
-                // A família voltou ao normal: o teto de avisos também
-                // volta. Sem isso, uma tecla que ficou presa de novo mais
-                // tarde (e da mesma família) não geraria mais nenhum aviso
-                // nesta sessão — e o dono ficaria sem saber.
-                foreach (var familia in familias) _falhas.Remove(familia);
+                if (familiasAindaPresas.Contains(familia))
+                {
+                    // A tecla continua presa: a família espera antes de
+                    // tentar de novo (é o que segura o aviso, para não
+                    // virar spam).
+                    _familiasQueFalharam.Add(familia);
+                    continue;
+                }
+
+                // A família foi solta de verdade: ela fica sem pendência
+                // (um novo travamento é tratado no tempo normal).
+                _familiasQueFalharam.Remove(familia);
+                foreach (int vk in TeclaPresaRegras.VksDaFamilia(familia)) _caidaEm.Remove(vk);
             }
-            foreach (var familia in familias) _ultimaCorrecao[familia] = agora;
             _correcoes++;
         }
 
-        var registro = new TeclaPresa(nomes, familias, _relogio(), haQuanto);
-        if (aindaPresa)
+        if (familiasAindaPresas.Count > 0)
         {
             // Tecla que não solta: o aviso não pode virar spam (a cada
             // 5 minutos, para sempre). Depois de algumas tentativas, o
-            // app para de avisar e continua tentando em silencio.
-            if (PodeAvisarFalha(familias)) NaoConseguiu?.Invoke(registro);
+            // app para de avisar e continua tentando soltar em silêncio.
+            //
+            // O aviso é sobre as teclas que CONTINUARAM presas: o "soltar"
+            // pode ter limpo uma família e deixado a outra.
+            var presasQueFicaram = presas
+                .Where(p => familiasAindaPresas.Contains(p.Modificadora.Familia))
+                .ToList();
+
+            var nomesQueFicaram = TeclaPresaRegras.NomesObservados(
+                presasQueFicaram.Select(p => p.Modificadora));
+
+            var tempoQueFicou = TimeSpan.FromMilliseconds(
+                agora - presasQueFicaram.Max(p => p.Desde));
+
+            NaoConseguiu?.Invoke(new TeclaPresa(
+                nomesQueFicaram, familiasAindaPresas, _relogio(), tempoQueFicou) { Avisar = avisar });
         }
-        else Corrigida?.Invoke(registro);
+        else
+        {
+            Corrigida?.Invoke(
+                new TeclaPresa(nomes, familias, _relogio(), haQuanto) { Avisar = avisar });
+        }
     }
 
     /// <summary>
-    /// A tecla continua presa depois do "soltar"?
+    /// Quais famílias continuam presas depois do "soltar"?
     /// </summary>
-    private bool ContinuaPresa(IReadOnlyList<string> familias)
+    /// <remarks>
+    /// A resposta é por família: o "soltar" pode limpar o Shift e não limpar
+    /// o Ctrl (o Windows re-marca a tecla). Julgar o aviso inteiro faria o
+    /// app dizer que o Shift "continuou preso" quando ele já foi solto.
+    /// </remarks>
+    private IReadOnlyList<string> FamiliasQueContinuamPresas(IReadOnlyList<string> familias)
     {
         IReadOnlyList<Modificadora> estado;
         try
@@ -273,32 +368,48 @@ public sealed class MonitorTeclaPresa
         {
             // Sem conseguir reler, o app não pode afirmar que soltou: fica
             // quieto sobre o resultado (e a próxima rodada confere de novo).
-            return true;
+            return familias;
         }
 
+        var lista = new List<string>();
         foreach (var familia in familias)
         {
-            foreach (var vk in TeclaPresaRegras.VksDaFamilia(familia))
+            foreach (int vk in TeclaPresaRegras.VksDaFamilia(familia))
             {
-                foreach (var modificadora in estado)
-                {
-                    if (modificadora.Vk == vk) return true;
-                }
+                if (!estado.Any(m => m.Vk == vk)) continue;
+                lista.Add(familia);
+                break;
             }
         }
-        return false;
+        return lista;
+    }
+
+    /// <summary>A que família pertence este código de tecla ("" se não for).</summary>
+    private static string FamiliaDoVk(int vk)
+    {
+        foreach (var modificadora in TeclaPresaRegras.Modificadoras)
+        {
+            if (modificadora.Vk == vk) return modificadora.Familia;
+        }
+        return "";
     }
 
     /// <summary>
-    /// A família pode ser corrigida agora? (A espera evita que o aviso vire
-    /// spam quando o "soltar" não resolve de primeira.)
+    /// A família pode ser corrigida agora?
     /// </summary>
+    /// <remarks>
+    /// Só a família cuja última tentativa <b>falhou</b> espera: é a espera
+    /// que segura o aviso quando o "soltar" não resolve de primeira. Uma
+    /// tentativa que deu certo não trava a próxima — e uma tentativa que
+    /// falhou deixa de valer quando o episódio acaba (a tecla sobe).
+    /// </remarks>
     private bool PodeCorrigir(string familia, long agora)
     {
         lock (_tranco)
         {
-            if (!_ultimaCorrecao.TryGetValue(familia, out long ultima)) return true;
-            return TimeSpan.FromMilliseconds(agora - ultima) >= TeclaPresaRegras.EsperaDepoisDaCorrecao;
+            if (!_familiasQueFalharam.Contains(familia)) return true;
+            if (!_ultimaTentativa.TryGetValue(familia, out long ultima)) return true;
+            return TimeSpan.FromMilliseconds(agora - ultima) >= TeclaPresaRegras.EsperaDepoisDaTentativa;
         }
     }
 
@@ -306,48 +417,69 @@ public sealed class MonitorTeclaPresa
     /// Esquece o que a vigia estava acompanhando.
     /// </summary>
     /// <remarks>
-    /// Usado quando o dono desliga a correção: sem isso, o silencio
+    /// Usado quando o dono desliga a correção: sem isso, o silêncio
     /// continuaria crescendo e, ao religar, a vigia soltaria uma tecla que
-    /// não estava presa (o silencio antigo valeria como prova).
+    /// não estava presa (o silêncio antigo valeria como prova).
     /// </remarks>
     public void Esquecer()
     {
         lock (_tranco)
         {
             _caidaEm.Clear();
-            _ultimaCorrecao.Clear();
-            _falhas.Clear();
+            _ultimaTentativa.Clear();
+            _familiasQueFalharam.Clear();
+            _avisosDeSucesso.Clear();
+            _avisosDeFalha.Clear();
         }
     }
 
     /// <summary>
-    /// O app ainda avisa que não conseguiu soltar a tecla?
+    /// O dono tem que ser avisado (o aviso na tela) desta correção?
     /// </summary>
     /// <remarks>
-    /// A resposta é sim até <see cref="MaximoDeAvisosDeFalha"/> vezes por
-    /// família: depois disso o app continua tentando soltar (em silêncio),
-    /// porque um aviso a cada 5 minutos não ajuda o dono — ele só ocupa a tela.
+    /// O teto é por família e por janela: depois de
+    /// <see cref="TeclaPresaRegras.MaximoDeAvisos"/> avisos, a família fica
+    /// em silêncio até a janela passar (ela recomeça
+    /// <see cref="TeclaPresaRegras.JanelaDeAvisos"/> depois do último aviso,
+    /// não da última tentativa).
+    ///
+    /// <para>
+    /// O que cala é o aviso na tela, não a correção: o app continua soltando
+    /// a tecla (e o diário continua registrando). Um aviso a cada 35 segundos
+    /// não ajuda o dono — ele só ocupa a tela.
+    /// </para>
     /// </remarks>
-    private bool PodeAvisarFalha(IReadOnlyList<string> familias)
+    private bool PodeAvisar(IReadOnlyList<string> familias, long agora, bool sucesso)
     {
         lock (_tranco)
         {
+            Dictionary<string, (int Quantos, long Quando)> contadores =
+                sucesso ? _avisosDeSucesso : _avisosDeFalha;
+
+            bool avisar = false;
             foreach (var familia in familias)
             {
-                int falhas = _falhas.TryGetValue(familia, out int n) ? n : 0;
-                if (falhas >= MaximoDeAvisosDeFalha) return false;
-            }
+                contadores.TryGetValue(familia, out (int Quantos, long Quando) registro);
+                int avisos = registro.Quantos;
 
-            foreach (var familia in familias) _falhas[familia] = (_falhas.TryGetValue(familia, out int n) ? n : 0) + 1;
-            return true;
+                // A janela passou desde o ÚLTIMO AVISO: a família volta a ser
+                // avisada. A janela conta do aviso (e não da última
+                // tentativa): se contasse da tentativa, um travamento que se
+                // repete renova a janela a cada rodada e o dono nunca mais
+                // ouve falar do problema.
+                if (TimeSpan.FromMilliseconds(agora - registro.Quando) >= TeclaPresaRegras.JanelaDeAvisos)
+                {
+                    avisos = 0;
+                }
+
+                if (avisos >= TeclaPresaRegras.MaximoDeAvisos) continue;
+
+                contadores[familia] = (avisos + 1, agora);
+                avisar = true;
+            }
+            return avisar;
         }
     }
-
-    /// <summary>
-    /// Quantas vezes o app avisa que não conseguiu soltar a mesma tecla
-    /// (depois disso, ele tenta em silêncio).
-    /// </summary>
-    public const int MaximoDeAvisosDeFalha = 3;
 
     /// <summary>
     /// Quantas vezes a vigia tentou corrigir uma tecla presa nesta sessão.

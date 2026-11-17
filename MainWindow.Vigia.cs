@@ -609,7 +609,12 @@ public partial class MainWindow
     /// </summary>
     private void AoTeclaPresaCorrigida(TeclaPresa tecla)
     {
-        Toast("Tecla presa corrigida", TeclaPresaRegras.TextoDoAviso(tecla.Teclas, tecla.HaQuanto), "✓");
+        // O aviso na tela tem teto por família; o diário não (aqui fica o
+        // histórico). O que cala é o aviso, não a correção.
+        if (tecla.Avisar)
+        {
+            Toast("Tecla presa corrigida", TeclaPresaRegras.TextoDoAviso(tecla.Teclas, tecla.HaQuanto), "✓");
+        }
         try
         {
             // O mesmo número do aviso (arredondado), e não o do diário:
@@ -632,7 +637,11 @@ public partial class MainWindow
     /// </summary>
     private void AoTeclaPresaNaoSoltou(TeclaPresa tecla)
     {
-        Toast("Tecla presa", TeclaPresaRegras.TextoDoAvisoSemSucesso(tecla.Teclas), "⚠");
+        // Mesmo teto do sucesso: a tela cala, o diário guarda o histórico.
+        if (tecla.Avisar)
+        {
+            Toast("Tecla presa", TeclaPresaRegras.TextoDoAvisoSemSucesso(tecla.Teclas), "⚠");
+        }
         try
         {
             RegistroDiario.Registrar(TeclaPresaRegras.TextoDaTentativa(tecla.Teclas), "TECLA");

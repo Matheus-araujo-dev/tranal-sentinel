@@ -219,6 +219,12 @@ public class TeclaPresaTestes
         /// <summary>Simula o "soltar" que não limpa o estado (tecla continua presa).</summary>
         public bool SoltarLimpaEstado = true;
 
+        /// <summary>
+        /// Regras de "soltar" por tecla: a que devolver true é solta, a outra
+        /// continua presa (o "soltar" pode limpar uma família e não a outra).
+        /// </summary>
+        public Func<int, bool>? SoltarLimpaPorVk;
+
         public List<int> Soltadas = new();
         public List<TeclaPresa> Corrigidas = new();
         public List<TeclaPresa> SemSucesso = new();
@@ -241,6 +247,11 @@ public class TeclaPresaTestes
                 {
                     if (SoltarFalha) throw new InvalidOperationException("falhou ao soltar");
                     Soltadas.AddRange(vks);
+                    if (SoltarLimpaPorVk is not null)
+                    {
+                        Estado = Estado.Where(m => !SoltarLimpaPorVk(m.Vk)).ToList();
+                        return;
+                    }
                     if (SoltarLimpaEstado) Estado = Array.Empty<Modificadora>();
                 },
                 () => Relogio,
@@ -337,7 +348,7 @@ public class TeclaPresaTestes
     public void Vigia_NaoRepeteACorrecaoLogoEmSeguida()
     {
         // O "soltar" não resolve de primeira: a tecla continua presa. É
-        // justamente aí que a espera de 5 min entra (com a tecla sempre caída,
+        // justamente aí que a espera de 1 min entra (com a tecla sempre caída,
         // a condição dos 30 s continua valendo). O app avisa que tentou
         // e não conseguiu — não que soltou.
         var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
@@ -349,8 +360,12 @@ public class TeclaPresaTestes
         ambiente.Ciclo(31);
         Assert.Single(ambiente.SemSucesso);
 
-        // Passados os 5 minutos, a vigia tenta de novo.
-        ambiente.Ciclo(5 * 60);
+        // Passados 51 s da tentativa, a espera de 1 min ainda segura.
+        ambiente.Ciclo(20);
+        Assert.Single(ambiente.SemSucesso);
+
+        // Passado o minuto, a vigia tenta de novo.
+        ambiente.Ciclo(20);
         Assert.Equal(2, ambiente.SemSucesso.Count);
     }
 
@@ -395,7 +410,7 @@ public class TeclaPresaTestes
         Assert.Single(ambiente.SemSucesso);
         Assert.Empty(ambiente.Soltadas);
 
-        // A espera de 5 minutos vale para as tentativas que falharam também.
+        // A espera de 1 minuto vale para as tentativas que falharam também.
         ambiente.Ciclo(31);
         Assert.Single(ambiente.SemSucesso);
     }
@@ -440,7 +455,30 @@ public class TeclaPresaTestes
     }
 
     [Fact]
-    public void Vigia_AEsperaDe5MinutosMORREComAFamiliaCerta()
+    public void Vigia_DepoisDeSoltarComSucessoUmNovoTravamentoNaoEspera5Minutos()
+    {
+        // Medido no PC do dono em 16/11/2026: a segunda travada, logo depois
+        // da primeira, ficava 5 minutos sem tratamento nenhum — a família
+        // ficava esperando e o mouse continuava com o Shift grudado. A
+        // espera de 1 min vale para as tentativas que FALHARAM.
+        var ambiente = new Ambiente { Estado = new[] { Shift() } };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+        Assert.Single(ambiente.Corrigidas);
+
+        // A tecla trava de novo: o app tem que soltar de novo no tempo
+        // normal (30 s de tecla caída), sem esperar o minuto de espera.
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(31);
+        Assert.Single(ambiente.Corrigidas);   // ainda dentro dos 30 s
+
+        ambiente.Ciclo(31);
+        Assert.Equal(2, ambiente.Corrigidas.Count);
+    }
+
+    [Fact]
+    public void Vigia_AEsperaDe1MinutoMORREComAFamiliaCerta()
     {
         // Corrigir o Shift não pode prender o Ctrl: a espera é por família.
         var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
@@ -686,26 +724,240 @@ public class TeclaPresaTestes
     [Fact]
     public void Vigia_AvisaNoMaximoTresVezes()
     {
-        // Tecla que não solta: o aviso não pode virar spam (a cada 5 minutos,
+        // Tecla que não solta: o aviso não pode virar spam (a cada minuto,
         // para sempre). Depois de três avisos o app cala — e continua
-        // tentando soltar.
+        // tentando soltar. O que cala é o aviso na tela: o diário continua
+        // registrando (o histórico é dele).
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+        Assert.Single(ambiente.SemSucesso);
+        Assert.True(ambiente.SemSucesso[0].Avisar);
+
+        ambiente.Ciclo(60);
+        Assert.Equal(2, ambiente.SemSucesso.Count);
+        Assert.True(ambiente.SemSucesso[1].Avisar);
+
+        ambiente.Ciclo(60);
+        Assert.Equal(3, ambiente.SemSucesso.Count);
+        Assert.True(ambiente.SemSucesso[2].Avisar);
+
+        ambiente.Ciclo(60);
+        Assert.Equal(4, ambiente.SemSucesso.Count);          // o evento sai sempre
+        Assert.False(ambiente.SemSucesso[3].Avisar);         // mas o aviso para
+
+        // ... mas o app continua tentando soltar (a família inteira: 3 teclas).
+        Assert.Equal(12, ambiente.Soltadas.Count);
+        Assert.Equal(4, ambiente.Monitor.CorrecoesFeitas);
+    }
+
+    [Fact]
+    public void Vigia_NaoDespejaAvisoQuandoATeclaVoltaATravarSozinho()
+    {
+        // Caso patológico (medido pelo red team em 16/11/2026): o Windows
+        // re-marca a tecla logo depois de o app soltar. O app continua
+        // soltando (a tecla presa precisa ser solta), mas o aviso na tela
+        // tem teto — senão era um aviso a cada 35 segundos, durante a
+        // sessão inteira.
+        var ambiente = new Ambiente { Estado = new[] { Shift() } };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+        Assert.True(ambiente.Corrigidas[0].Avisar);
+
+        // A tecla volta a travar logo depois, cinco vezes.
+        for (int i = 0; i < 5; i++)
+        {
+            ambiente.Estado = new[] { Shift() };
+            ambiente.Ciclo(31);      // o app vê a tecla de novo
+            ambiente.Ciclo(31);      // 31 s depois: solta de novo
+        }
+
+        Assert.Equal(6, ambiente.Corrigidas.Count);                // o app continua soltando
+        Assert.Equal(3, ambiente.Corrigidas.Count(t => t.Avisar));  // mas o aviso para
+    }
+
+    [Fact]
+    public void Vigia_DepoisDeUmaFalhaEUmSucessoATeclaQueVoltaNaoEspera()
+    {
+        // A tentativa falhou (a família ficou esperando). Passado o minuto
+        // de espera, a tentativa seguinte deu certo — e a tecla voltou a
+        // travar antes da rodada seguinte (o app nunca a viu subir). O
+        // travamento novo tem que ser tratado no tempo normal: a falha
+        // antiga não pode continuar esperando.
         var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
 
         ambiente.Ciclo(5);
         ambiente.Ciclo(31);
         Assert.Single(ambiente.SemSucesso);
 
-        ambiente.Ciclo(5 * 60);
-        Assert.Equal(2, ambiente.SemSucesso.Count);
+        // Passado o minuto de espera, a vigia tenta de novo e agora solta.
+        ambiente.SoltarLimpaEstado = true;
+        ambiente.Ciclo(61);
+        Assert.Single(ambiente.Corrigidas);
 
-        ambiente.Ciclo(5 * 60);
-        Assert.Equal(3, ambiente.SemSucesso.Count);
+        // A tecla volta a travar antes da rodada seguinte.
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(31);      // o app vê a tecla de novo (nunca a viu subir)
+        ambiente.Ciclo(31);      // 31 s depois: tem que soltar de novo
+        Assert.Equal(2, ambiente.Corrigidas.Count);
+    }
 
-        ambiente.Ciclo(5 * 60);
-        Assert.Equal(3, ambiente.SemSucesso.Count);      // o aviso para
+    [Fact]
+    public void Vigia_OAvisoVoltaDepoisDaJanela()
+    {
+        // O teto de avisos é por janela: depois de um tempo sem tentativa
+        // (o travamento acabou de verdade), a janela recomeça e o dono
+        // volta a ser avisado.
+        var ambiente = new Ambiente { Estado = new[] { Shift() } };
 
-        // ... mas o app continua tentando soltar (a família inteira: 3 teclas).
-        Assert.Equal(12, ambiente.Soltadas.Count);
-        Assert.Equal(4, ambiente.Monitor.CorrecoesFeitas);
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+        Assert.True(ambiente.Corrigidas[0].Avisar);
+
+        // Dois travamentos logo em seguida: ainda avisa (o teto é 3).
+        for (int i = 0; i < 2; i++)
+        {
+            ambiente.Estado = new[] { Shift() };
+            ambiente.Ciclo(31);
+            ambiente.Ciclo(31);
+        }
+        Assert.Equal(3, ambiente.Corrigidas.Count);
+        Assert.Equal(3, ambiente.Corrigidas.Count(t => t.Avisar));
+
+        // O quarto, sem pausa: o aviso cala (o app continua soltando).
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(31);
+        ambiente.Ciclo(31);
+        Assert.Equal(4, ambiente.Corrigidas.Count);
+        Assert.Equal(3, ambiente.Corrigidas.Count(t => t.Avisar));
+
+        // Depois da janela (15 min depois do último aviso), o aviso volta.
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(15 * 60);
+        ambiente.Ciclo(31);
+        Assert.Equal(5, ambiente.Corrigidas.Count);
+        Assert.Equal(4, ambiente.Corrigidas.Count(t => t.Avisar));
+    }
+
+    [Fact]
+    public void Vigia_AJanelaDoAvisoContaDoUltimoAviso()
+    {
+        // O teto de 3 avisos não pode calar o dono para sempre. A janela
+        // conta do Último AVISO, e não da última tentativa: se contasse da
+        // tentativa, um travamento que se repete renovaria a janela a cada
+        // rodada e o dono nunca mais ouviria falar do problema.
+        //
+        // O relégio da vigia é o do ambiente de teste (ms), então a conta
+        // abaixo é exata:
+        //   t=36 s    aviso 1 (correção 1)
+        //   t=67 s    aviso 2 (correção 2)
+        //   t=160 s   aviso 3 (correção 3)
+        //   t=191 s   sem aviso (teto de 3) — a correção continua
+        //   t=1074 s  aviso 4 (correção 5): 15 min e 14 s depois do aviso 3
+        //            e ainda dentro dos 15 min contados da última tentativa
+        //            (t=191 s) — é o caso que a contagem pela tentativa
+        //            deixaria calado.
+        var ambiente = new Ambiente { Estado = new[] { Shift() } };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+        Assert.True(ambiente.Corrigidas[0].Avisar);
+
+        // Segundo travamento: ainda avisa.
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(31);
+        ambiente.Ciclo(31);
+        Assert.Equal(2, ambiente.Corrigidas.Count);
+        Assert.True(ambiente.Corrigidas[1].Avisar);
+
+        // Terceiro travamento: ainda avisa (o teto é 3).
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(31);
+        ambiente.Ciclo(31);
+        Assert.Equal(3, ambiente.Corrigidas.Count);
+        Assert.True(ambiente.Corrigidas[2].Avisar);
+
+        // Quarto travamento: o aviso cala, a correção continua.
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(31);
+        ambiente.Ciclo(31);
+        Assert.Equal(4, ambiente.Corrigidas.Count);
+        Assert.False(ambiente.Corrigidas[3].Avisar);
+        Assert.Equal(3, ambiente.Corrigidas.Count(t => t.Avisar));
+
+        // A tecla sobe de verdade: a vigia vê que o episódio acabou.
+        ambiente.Ciclo(31);
+
+        // 15 min depois do último aviso (e antes dos 15 min contados da
+        // última tentativa): o aviso tem que voltar.
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(13 * 60 + 10);
+        ambiente.Ciclo(31);
+        Assert.Equal(5, ambiente.Corrigidas.Count);
+        Assert.True(ambiente.Corrigidas[4].Avisar);
+        Assert.Equal(4, ambiente.Corrigidas.Count(t => t.Avisar));
+    }
+
+    [Fact]
+    public void Vigia_ComDuasFamiliasJulgaCadaUmaPeloSeuEstado()
+    {
+        // O "soltar" pode limpar o Shift e não limpar o Ctrl (o Windows
+        // re-marca a tecla). O aviso tem que falar só do Ctrl — e o Shift,
+        // que foi solto, não pode ficar esperando o minuto de espera à toa.
+        var ambiente = new Ambiente
+        {
+            Estado = new[] { new Modificadora(0x10, "Shift", "Shift"), new Modificadora(0x11, "Ctrl", "Ctrl") },
+            SoltarLimpaPorVk = vk => vk != 0x11,
+        };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+
+        Assert.Empty(ambiente.Corrigidas);
+        Assert.Single(ambiente.SemSucesso);
+        Assert.Equal(new[] { "Ctrl" }, ambiente.SemSucesso[0].Familias);
+        Assert.Equal(new[] { "Ctrl" }, ambiente.SemSucesso[0].Teclas);
+
+        // O Shift foi solto de verdade: um novo travamento dele é tratado no
+        // tempo normal (sem esperar o minuto de espera da família que
+        // falhou). O passo de 1 s no começo é o que garante isto: o Shift
+        // fica pronto antes de a espera do Ctrl vencer.
+        ambiente.Estado = new[] { new Modificadora(0x10, "Shift", "Shift"), new Modificadora(0x11, "Ctrl", "Ctrl") };
+        ambiente.Ciclo(1);       // o app vê o Shift de novo (o Ctrl continua esperando)
+        ambiente.Ciclo(31);      // 31 s depois: o Shift é solto
+
+        Assert.Single(ambiente.Corrigidas);
+        Assert.Equal(new[] { "Shift" }, ambiente.Corrigidas[0].Familias);
+        Assert.DoesNotContain(ambiente.Estado, m => m.Vk == 0x10);
+        Assert.Single(ambiente.SemSucesso);      // o Ctrl continua preso e esperando
+    }
+
+    [Fact]
+    public void Vigia_DepoisDeUmaTentativaQueFalhouUmTravamentoNovoEhTratado()
+    {
+        // A tentativa falhou (a tecla não solta) e a espera de 5 min começou.
+        // Quando o episódio acaba (a tecla sobe) e ela trava de novo, o app
+        // trata no tempo normal: senão a segunda travada ficava 5 minutos
+        // sem tratamento nenhum (medido no PC do dono em 16/11/2026).
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);
+        Assert.Single(ambiente.SemSucesso);
+
+        // O episódio acabou: a tecla subiu.
+        ambiente.Estado = Array.Empty<Modificadora>();
+        ambiente.Ciclo(31);
+
+        // A tecla trava de novo: agora o "soltar" funciona.
+        ambiente.Estado = new[] { Shift() };
+        ambiente.SoltarLimpaEstado = true;
+        ambiente.Ciclo(31);      // o app vê a tecla pela primeira vez
+        ambiente.Ciclo(31);      // 31 s depois: a correção
+
+        Assert.Single(ambiente.Corrigidas);
+        Assert.Equal(new[] { "Shift" }, ambiente.Corrigidas[0].Familias);
     }
 }

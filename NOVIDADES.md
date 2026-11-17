@@ -1,3 +1,30 @@
+## Novidades da v0.33 — a vigia de tecla presa não deixa o dono sem mouse
+
+Corrigido no TRANAL SENTINEL: depois de **soltar** uma tecla presa, a vigia
+esperava **5 minutos** antes de tratar um novo travamento da mesma família
+(Shift, Ctrl, Alt, Win) — e esse silêncio era **sem aviso nenhum**: o mouse
+continuava com o Shift grudado e o app não dizia nada.
+
+Medido no PC do dono em 16/11/2026, com a v0.32.0 instalada: a primeira
+travada foi solta em 30 s; a segunda travada, logo depois, ficou 5 minutos
+sem tratamento nenhum.
+
+- **A espera de 1 min vale só para as tentativas que não deram certo** (quando
+  o "soltar" não limpa o estado ou dá erro): é o que impede o app de injetar
+  "soltar" a cada 5 segundos enquanto a tecla continua presa.
+- **A espera não segura mais 5 minutos**: ela existia para não martelar a
+  tecla (o teto de 3 avisos já segura o spam do aviso). Deixada em 5 min,
+  uma tentativa que falhou prendia o mouse do dono por 5 min — a mesma coisa
+  que a v0.33 veio para tirar. Agora é 1 minuto.
+- **Quando a tecla é solta de verdade, a família fica sem pendência**: um novo
+  travamento é tratado no tempo normal (30 s de tecla caída), e o dono é
+  avisado (com o teto de avisos da família: 3 por tecla em 15 minutos).
+- **A espera acaba com o episódio**: se a tecla sobe (o travamento acabou) e
+  ela trava de novo, o app trata sem esperar o minuto de espera.
+- **O aviso na tela tem teto (3 por família) e o diário não**: o app continua
+  soltando a tecla e continua registrando o que aconteceu — o que cala é o
+  aviso, para não virar um aviso a cada 35 segundos.
+
 ## Novidades da v0.32 — a vigia de tecla presa
 
 O TRANAL SENTINEL ganhou uma vigia que pega a **tecla que fica presa**:
@@ -9,7 +36,7 @@ não foi pedido.
 **Novo · vigia de tecla presa**
 - Quando a situação aparece, o app **solta a tecla** (injeta o "soltar" que
   o Windows faria quando o dedo levanta), **avisa** o dono e **registra no
-  diário** o que aconteceu.
+  diário** o que aconteceu. O aviso na tela tem teto (3 por tecla, para não virar spam); o diário registra sempre.
 - O reconhecimento é pelo **silêncio do teclado**: quem segura uma tecla de
   verdade continua mandando repetição; a tecla presa não manda evento
   nenhum. Só corrige com as três condições ao mesmo tempo — tecla caída

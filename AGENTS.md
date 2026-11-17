@@ -662,9 +662,11 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   ("pressionada há pelo menos N s"). O mesmo número arredondado sai no aviso e
   no diário — o mesmo evento não pode sair com dois números. Com mais de uma
   tecla no mesmo aviso, vale o tempo da mais recente (o mais conservador).
-- **O aviso de falha tem teto.** Tecla que não solta não pode virar spam (um
-  aviso a cada 5 minutos, para sempre): depois de três avisos por família, o
-  app cala o aviso e continua tentando soltar em silêncio.
+- **O aviso tem teto.** Nem tecla que não solta nem tecla que volta a travar
+  podem virar spam: depois de três avisos por família, o app cala o aviso na
+  tela e continua soltando em silêncio. Quem cala é o aviso, não a correção —
+  e o diário continua registrando (o histórico é dele). (O teto valia só
+  para a falha até a v0.33; veja a seção da v0.33.)
 - **A preferência do dono é levada a sério.** Desligada, a vigia não fica nem
   com o gancho de teclado instalado (o app não olha o teclado) e o que ela
   estava acompanhando é esquecido — o silêncio antigo não vale como "prova"
@@ -678,13 +680,68 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   "segurando" com "presa" — e por isso o app se cala quando a repetição
   automática está desligada.
 - **A correção é a mesma que o Windows faz**: injetar o key-up da tecla.
-  O que o app fez fica no diário (categoria "TECLA") e num aviso — e o dono
+  O que o app fez fica no diário (categoria "TECLA") e num aviso (o aviso na tela tem teto; o diário não — veja a v0.33) — e o dono
   pode desligar a correção na página do TRANAL SAÚDE.
 - **As datas dos testes que gravam no banco são relativas a hoje.** O banco
   poda o histórico velho (15 dias para as amostras, 30 para o uso) assim que
   grava: um teste com data fixa quebra sozinho no dia em que ela passa do
   prazo. (Corrigido em 16/11/2026: o teste
   `ApagarAntigos_ApagaOQueEAntigoEmAmbasAsTabelas` falhava exatamente por isso.)
+
+### v0.33 — a vigia de tecla presa não deixa o dono sem mouse
+
+Medido no PC do dono em 16/11/2026, com a v0.32.0 instalada: a primeira
+tecla presa (Shift direito) foi solta em 30 s, mas a segunda travada, logo
+depois, **ficou 5 min sem tratamento nenhum** — e sem aviso nenhum (o mouse
+continuava com o Shift grudado). A causa era a espera de 5 min: ela valia
+para a tentativa que deu certo, e não só para a que falhou.
+
+- **A espera vale só para a tentativa que FALHOU, e ela é de 1 min.** O número vive em
+  `TeclaPresaRegras.EsperaDepoisDaTentativa`, e os documentos que citam esse prazo em
+  prosa (LEIA-ME, README, NOVIDADES) o dizem do mesmo jeito — o número não pode ter
+  duas fontes. Quando o "soltar" limpa o estado, a família fica sem pendência e um
+  novo travamento é tratado no tempo normal (30 s de tecla caída).
+- **A espera existe para não martelar a tecla, não para segurar o aviso.** O teto
+  de avisos (`TeclaPresaRegras.MaximoDeAvisos`) já segura o spam; a espera é o
+  tempo entre uma tentativa e outra. Por isso ela é curta: com 5 min (o valor até
+  a v0.33), uma tentativa que falhou deixava o dono até 5 min com o mouse preso na
+  tecla — a mesma classe do defeito que a v0.33 veio para tirar. Achado na
+  revisão adversária da v0.33 (A-4 e A-5).
+- **A espera acaba com o episódio.** Se a tentativa falhou e a tecla sobe (o
+  episódio acabou), a espera acaba com ele: a tecla que travar de novo é
+  tratada no tempo normal, sem esperar o minuto de espera.
+- **A conferência é por família, não pelo aviso inteiro.** O "soltar" pode
+  limpar o Shift e não limpar o Ctrl (o Windows re-marca a tecla): o aviso
+  fala só das teclas que **continuaram** presas, e a família que foi solta
+  não espera à toa.
+- **O teto de avisos vale para o sucesso e para a falha.** O número vive em
+  `TeclaPresaRegras.MaximoDeAvisos` (3), e a janela em
+  `TeclaPresaRegras.JanelaDeAvisos` (15 min). O que cala é o aviso na tela: o app
+  continua soltando a tecla (a tecla presa precisa ser solta) e o diário
+  continua registrando. Sem esse teto, um Windows que re-marca a tecla logo
+  depois de o app soltar dava um aviso a cada 35 s, a sessão inteira
+  (medido pelo red team em 16/11/2026: 51 correções em 30 min).
+- **O orçamento do aviso de FALHA é separado do de sucesso.** A falha é o aviso que o
+  dono mais precisa ver (a tecla continua presa): ela não pode ser calada por três
+  correções que deram certo.
+- **A janela do aviso conta do último aviso, não da última tentativa.** Se contasse
+  da tentativa, um travamento que se repete renovaria a janela a cada rodada e o
+  dono nunca mais ouviria falar do problema: com o teto de 3 avisos, a família volta
+  a ser avisada 15 min depois do último aviso que ela recebeu.
+- **O laço de correção é a própria correção, e ele é intencional.** No caso
+  patológico em que o Windows re-marca a tecla sozinha (sem dedo no teclado), o app
+  solta a cada ~35 s, sem parar (medido em 16/11/2026: 51 correções em 30 min e 205
+  em 2 h). O que impede o dono de ser incomodado é o teto do aviso — a correção
+  continua, porque a tecla presa é justamente o que o app existe para consertar. O
+  diário registra cada soltura (é o histórico do dia).
+- **O teto é por evento, e uma família já calada pode reaparecer no aviso de
+  outra.** O `Avisar` é decidido por evento (basta uma família ter orçamento para o
+  toast aparecer) e as famílias sem orçamento não saem do texto do aviso.
+- **Numa rodada com duas famílias, a que foi solta não gera aviso nem linha de
+  diário.** O aviso é sobre o que CONTINUOU preso — é o que o dono precisa saber.
+- **O evento sempre sai; o aviso é que pode calar.** A vigia entrega o
+  registro com `Avisar` (true/false) e quem decide é a tela: o diário
+  escreve sempre, o toast só quando `Avisar` é true.
 
 ## Publicar
 

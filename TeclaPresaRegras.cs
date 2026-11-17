@@ -22,7 +22,17 @@ public sealed record TeclaPresa(
     IReadOnlyList<string> Teclas,
     IReadOnlyList<string> Familias,
     DateTime DetectadaEm,
-    TimeSpan HaQuanto);
+    TimeSpan HaQuanto)
+{
+    /// <summary>
+    /// O dono tem que ser avisado na tela? (o teto de avisos por família).
+    /// </summary>
+    /// <remarks>
+    /// O evento sai sempre — o diário registra o que aconteceu, mesmo
+    /// quando o aviso cala. Quem decide se aparece na tela é o teto.
+    /// </remarks>
+    public bool Avisar { get; init; } = true;
+}
 
 /// <summary>
 /// A regra da tecla presa: quando uma tecla modificadora conta como "presa".
@@ -68,11 +78,49 @@ public static class TeclaPresaRegras
     public const int SegundosMinimos = 30;
 
     /// <summary>
-    /// Depois de corrigir uma tecla, o app espera este tempo antes de
-    /// corrigir a mesma família de novo — para o aviso não virar spam quando
-    /// o "soltar" não resolve de primeira.
+    /// Quantos avisos o app dá para a mesma família antes de calar o aviso
+    /// na tela.
     /// </summary>
-    public static readonly TimeSpan EsperaDepoisDaCorrecao = TimeSpan.FromMinutes(5);
+    /// <remarks>
+    /// O teto vale para o sucesso e para a falha: o que cala é o aviso, não
+    /// a correção. O app continua soltando a tecla (e o diário continua
+    /// registrando) — um aviso a cada 35 segundos não ajuda ninguém.
+    /// </remarks>
+    public const int MaximoDeAvisos = 3;
+
+    /// <summary>
+    /// Depois de quanto tempo sem aviso a janela de avisos recomeça.
+    /// </summary>
+    /// <remarks>
+    /// A janela é o tempo em que a família pode ficar sem aviso. Ela
+    /// recomeça quando a família fica este tempo sem <b>aviso</b> — e não sem
+    /// tentativa: um travamento que se repete renovaria a janela a cada
+    /// rodada e o dono nunca mais ouviria falar do problema.
+    /// </remarks>
+    public static readonly TimeSpan JanelaDeAvisos = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// Depois de uma tentativa que <b>não</b> deu certo, o app espera este
+    /// tempo antes de corrigir a mesma família de novo — para não ficar
+    /// injetando "soltar" a cada 5 segundos enquanto a tecla continua presa.
+    /// </summary>
+    /// <remarks>
+    /// A espera existe para não martelar a tecla, não para segurar o aviso:
+    /// o teto de avisos (<see cref="MaximoDeAvisos"/>) já segura o spam. Por
+    /// isso ela é curta: <b>1 minuto</b>. Com 5 minutos (o valor até a v0.33),
+    /// uma tentativa que falhou deixava o dono até 5 min com o mouse preso na
+    /// tecla — a mesma classe do defeito que a v0.33 veio para tirar (medido no
+    /// PC do dono em 16/11/2026; apontado na revisão adversária da v0.33,
+    /// achados A-4 e A-5).
+    ///
+    /// <para>
+    /// Quando a tecla é solta de verdade, a espera não entra: um novo
+    /// travamento da mesma família é tratado no tempo normal (30 s de tecla
+    /// caída). Medido no PC do dono em 16/11/2026: com a espera valendo
+    /// também para o sucesso, a segunda travada logo depois da primeira
+    /// ficava 5 minutos sem tratamento nenhum.
+    /// </remarks>
+    public static readonly TimeSpan EsperaDepoisDaTentativa = TimeSpan.FromMinutes(1);
 
     /// <summary>
     /// As modificadoras que o Windows pode deixar presas.

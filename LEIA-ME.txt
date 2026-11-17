@@ -82,7 +82,7 @@ VIGIA DE TECLA PRESA
 - De vez em quando o Windows continua achando que Shift, Ctrl, Alt ou Win está
   pressionado depois que você solta: o clique passa a valer como clique com a
   tecla, o arrastar copia em vez de mover, o navegador faz o que não foi pedido.
-  Quando isso acontece, o app solta a tecla, avisa e registra no diário.
+  Quando isso acontece, o app solta a tecla, avisa e registra no diário (o aviso na tela tem teto de 3 por tecla; o diário registra sempre).
 - O app reconhece pela quietude do teclado: quem segura uma tecla de verdade
   continua mandando repetição; a tecla presa não manda evento nenhum. Só
   corrige com as três condições ao mesmo tempo (tecla caída há 30 segundos,
@@ -102,6 +102,9 @@ VIGIA DE TECLA PRESA
 - O aviso diz QUAL tecla ficou presa ("Shift direito") e o tempo é um piso
   ("pressionada há pelo menos N s"), porque o app só começa a vigiar depois
   que a tecla ficou presa.
+- Se a tecla travar de novo logo depois, o app solta de novo: a espera de 1
+  minuto vale só para as tentativas que não deram certo (quando a tecla
+  continua presa depois de o app tentar).
 - Se a tecla presa voltar a acontecer, a causa costuma ser o receptor USB do
   mouse ou do teclado: tire o receptor da tomada, recoloque e reinstale o driver
   nas Configurações de dispositivos.
