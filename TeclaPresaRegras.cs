@@ -15,13 +15,11 @@ public sealed record Modificadora(int Vk, string Nome, string Familia);
 /// </summary>
 /// <param name="Teclas">O nome das teclas corrigidas ("Shift direito", "Ctrl").</param>
 /// <param name="Familias">As famílias das teclas corrigidas (Shift, Ctrl, Alt, Win).</param>
-/// <param name="DetectadaEm">Quando o app agiu (serve para o diário).</param>
 /// <param name="HaQuanto">Há quanto tempo o app viu a tecla caída (um piso: a tecla
 /// pode estar presa desde antes do app começar a vigiar).</param>
 public sealed record TeclaPresa(
     IReadOnlyList<string> Teclas,
     IReadOnlyList<string> Familias,
-    DateTime DetectadaEm,
     TimeSpan HaQuanto)
 {
     /// <summary>

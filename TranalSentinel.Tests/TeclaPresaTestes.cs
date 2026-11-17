@@ -14,8 +14,6 @@ namespace TranalSentinel.Tests;
 /// </summary>
 public class TeclaPresaTestes
 {
-    private static readonly DateTime Inicio = new(2026, 11, 16, 12, 0, 0, DateTimeKind.Utc);
-
     private static Modificadora Shift() => new(0xA1, "Shift direito", "Shift");
 
     private static Modificadora Ctrl() => new(0x11, "Ctrl", "Ctrl");
@@ -207,9 +205,6 @@ public class TeclaPresaTestes
         /// <summary>Relógio monotônico da vigia, em milissegundos.</summary>
         public long Agora;
 
-        /// <summary>Relógio de parede (só para carimbar o diário).</summary>
-        public DateTime Relogio = Inicio;
-
         public IReadOnlyList<Modificadora> Estado = Array.Empty<Modificadora>();
         public TimeSpan? Silencio = TimeSpan.FromMinutes(10);
         public bool Repeticao = true;
@@ -254,7 +249,6 @@ public class TeclaPresaTestes
                     }
                     if (SoltarLimpaEstado) Estado = Array.Empty<Modificadora>();
                 },
-                () => Relogio,
                 () => GanchoVivo,
                 () => PodeAgir);
             Monitor.Corrigida += tecla => Corrigidas.Add(tecla);
@@ -265,7 +259,6 @@ public class TeclaPresaTestes
         public void Ciclo(int segundos)
         {
             Agora += segundos * 1000L;
-            Relogio = Relogio.AddSeconds(segundos);
             Monitor.Verificar();
         }
     }
@@ -455,7 +448,7 @@ public class TeclaPresaTestes
     }
 
     [Fact]
-    public void Vigia_DepoisDeSoltarComSucessoUmNovoTravamentoNaoEspera5Minutos()
+    public void Vigia_DepoisDeSoltarComSucessoUmNovoTravamentoNaoEsperaOMinuto()
     {
         // Medido no PC do dono em 16/11/2026: a segunda travada, logo depois
         // da primeira, ficava 5 minutos sem tratamento nenhum — a família
@@ -501,14 +494,11 @@ public class TeclaPresaTestes
     {
         // O relógio de parede (que salta quando a hora é corrigida) não entra
         // na conta do tempo: a vigia mede pelo relógio que só anda para frente.
-        var ambiente = new Ambiente { Estado = new[] { Shift() } };
-
-        ambiente.Ciclo(5);
-        ambiente.Relogio = ambiente.Relogio.AddHours(-3);   // o relógio de parede volta
-        ambiente.Ciclo(31);
-
-        Assert.Single(ambiente.Corrigidas);
-        Assert.Equal(TimeSpan.FromSeconds(31), ambiente.Corrigidas[0].HaQuanto);
+        // Por isso o registro do evento não carrega nenhum instante de parede:
+        // se um dia ele voltar, a volta da hora voltaria junto.
+        Assert.DoesNotContain(
+            typeof(TeclaPresa).GetProperties(),
+            p => p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?));
     }
 
     // ------------------------------------------------------- o que o dono lê
@@ -901,6 +891,68 @@ public class TeclaPresaTestes
     }
 
     [Fact]
+    public void Vigia_AEsperaMorreComOFimDoEpisodio()
+    {
+        // A espera da tentativa que falhou não pode sobreviver ao fim do
+        // episódio: se a tecla sobe (o travamento acabou) e volta a cair, o app
+        // trata no tempo normal. É o defeito medido no PC do dono em
+        // 16/11/2026: a segunda travada ficava 5 minutos sem tratamento.
+        var ambiente = new Ambiente { Estado = new[] { Shift() }, SoltarLimpaEstado = false };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);                       // t=36 s: a tentativa falha
+        Assert.Single(ambiente.SemSucesso);
+
+        ambiente.Estado = Array.Empty<Modificadora>();
+        ambiente.Ciclo(1);                        // t=37 s: o episódio acabou (a tecla subiu)
+
+        ambiente.Estado = new[] { Shift() };
+        ambiente.SoltarLimpaEstado = true;
+        ambiente.Ciclo(1);                        // t=38 s: a vigia vê a tecla cair de novo
+        ambiente.Ciclo(30);                       // t=68 s: 30 s de tecla caída -> corrige
+        Assert.Single(ambiente.Corrigidas);       // 32 s depois da tentativa: sem esperar o minuto
+    }
+
+    [Fact]
+    public void Vigia_OsOrcamentosDeSucessoEFalhaSaoSeparados()
+    {
+        // Três correções que deram certo não podem calar o aviso de FALHA: a
+        // falha é o aviso que o dono mais precisa ver (a tecla continua
+        // presa). O orçamento de sucesso e o de falha são contadores
+        // separados.
+        var falhar = false;
+        var ambiente = new Ambiente
+        {
+            Estado = new[] { Shift() },
+            SoltarLimpaPorVk = vk => !falhar,
+        };
+
+        ambiente.Ciclo(5);
+        ambiente.Ciclo(31);                      // t=36 s: a primeira correção (dá certo)
+        Assert.Single(ambiente.Corrigidas);
+        Assert.True(ambiente.Corrigidas[0].Avisar);
+
+        // Duas correções que deram certo: o aviso de sucesso chega a 3.
+        for (int i = 0; i < 2; i++)
+        {
+            ambiente.Estado = new[] { Shift() };
+            ambiente.Ciclo(31);                  // a vigia vê a tecla cair de novo
+            ambiente.Ciclo(31);                  // 31 s depois: corrige de novo
+        }
+        Assert.Equal(3, ambiente.Corrigidas.Count);
+        Assert.Equal(3, ambiente.Corrigidas.Count(t => t.Avisar));
+
+        // Agora a tentativa falha: o aviso de FALHA tem que sair mesmo depois
+        // das três correções que deram certo.
+        falhar = true;
+        ambiente.Estado = new[] { Shift() };
+        ambiente.Ciclo(31);
+        ambiente.Ciclo(31);
+        Assert.Single(ambiente.SemSucesso);
+        Assert.True(ambiente.SemSucesso[0].Avisar);
+    }
+
+    [Fact]
     public void Vigia_ComDuasFamiliasJulgaCadaUmaPeloSeuEstado()
     {
         // O "soltar" pode limpar o Shift e não limpar o Ctrl (o Windows
@@ -937,7 +989,7 @@ public class TeclaPresaTestes
     [Fact]
     public void Vigia_DepoisDeUmaTentativaQueFalhouUmTravamentoNovoEhTratado()
     {
-        // A tentativa falhou (a tecla não solta) e a espera de 5 min começou.
+        // A tentativa falhou (a tecla não solta) e a espera de 1 min começou.
         // Quando o episódio acaba (a tecla sobe) e ela trava de novo, o app
         // trata no tempo normal: senão a segunda travada ficava 5 minutos
         // sem tratamento nenhum (medido no PC do dono em 16/11/2026).

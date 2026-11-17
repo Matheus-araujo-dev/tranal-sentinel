@@ -33,7 +33,6 @@ public sealed class MonitorTeclaPresa
     private readonly Func<TimeSpan?> _silencioDoTeclado;
     private readonly Func<bool> _repeticaoLigada;
     private readonly Action<IReadOnlyList<int>> _soltar;
-    private readonly Func<DateTime> _relogio;
     private readonly Func<bool> _ganchoEstaVivo;
     private readonly Func<bool> _podeAgir;
 
@@ -109,7 +108,6 @@ public sealed class MonitorTeclaPresa
     /// </param>
     /// <param name="repeticaoLigada">A repetição automática do teclado está ligada?</param>
     /// <param name="soltar">Recebe as teclas a soltar.</param>
-    /// <param name="relogio">Relógio de parede, só para carimbar o diário.</param>
     /// <param name="ganchoEstaVivo">
     /// O gancho de teclado está funcionando? O Windows remove um gancho de
     /// baixo nível em silêncio quando o PC trava, e aí o "silêncio" do
@@ -126,7 +124,6 @@ public sealed class MonitorTeclaPresa
         Func<TimeSpan?>? silencioDoTeclado = null,
         Func<bool>? repeticaoLigada = null,
         Action<IReadOnlyList<int>>? soltar = null,
-        Func<DateTime>? relogio = null,
         Func<bool>? ganchoEstaVivo = null,
         Func<bool>? podeAgir = null)
     {
@@ -135,7 +132,6 @@ public sealed class MonitorTeclaPresa
         _silencioDoTeclado = silencioDoTeclado ?? (() => null);
         _repeticaoLigada = repeticaoLigada ?? (() => false);
         _soltar = soltar ?? (_ => { });
-        _relogio = relogio ?? (() => DateTime.UtcNow);
         // Sem a prova, o app não solta: soltar a tecla que o dono está
         // segurando é pior do que a tecla presa.
         _ganchoEstaVivo = ganchoEstaVivo ?? (() => false);
@@ -263,7 +259,8 @@ public sealed class MonitorTeclaPresa
             // dono é avisado) e espera como nas outras tentativas — senão
             // ela tentaria a cada 5 segundos, para sempre, sem ninguém ver.
             // O aviso é decidido antes de marcar a tentativa: a janela de
-            // avisos olha a tentativa ANTERIOR (a de agora ainda não conta).
+            // avisos olha o Último AVISO dado a essa família (o de agora
+            // ainda não conta).
             bool avisarFalha = PodeAvisar(familias, agora, sucesso: false);
 
             lock (_tranco)
@@ -277,7 +274,7 @@ public sealed class MonitorTeclaPresa
             }
 
             NaoConseguiu?.Invoke(
-                new TeclaPresa(nomes, familias, _relogio(), haQuanto) { Avisar = avisarFalha });
+                new TeclaPresa(nomes, familias, haQuanto) { Avisar = avisarFalha });
             return;
         }
 
@@ -287,11 +284,12 @@ public sealed class MonitorTeclaPresa
         // A conferência é POR FAMÍLIA: o "soltar" pode limpar o Shift e não
         // limpar o Ctrl (o Windows re-marca a tecla). Julgar o aviso inteiro
         // faria o app dizer que o Shift "continuou preso" quando ele já foi
-        // solto — e faria a família do Shift esperar 5 minutos à toa.
+        // solto — e faria a família do Shift esperar à toa.
         var familiasAindaPresas = FamiliasQueContinuamPresas(familias);
 
         // O aviso é decidido antes de marcar a tentativa: a janela de avisos
-        // olha a tentativa ANTERIOR (a de agora ainda não conta).
+        // olha o Último AVISO dado a essa família (o de agora ainda não
+        // conta).
         bool algumaAindaPresa = familiasAindaPresas.Count > 0;
         bool avisar = PodeAvisar(
             algumaAindaPresa ? familiasAindaPresas : familias,
@@ -341,12 +339,12 @@ public sealed class MonitorTeclaPresa
                 agora - presasQueFicaram.Max(p => p.Desde));
 
             NaoConseguiu?.Invoke(new TeclaPresa(
-                nomesQueFicaram, familiasAindaPresas, _relogio(), tempoQueFicou) { Avisar = avisar });
+                nomesQueFicaram, familiasAindaPresas, tempoQueFicou) { Avisar = avisar });
         }
         else
         {
             Corrigida?.Invoke(
-                new TeclaPresa(nomes, familias, _relogio(), haQuanto) { Avisar = avisar });
+                new TeclaPresa(nomes, familias, haQuanto) { Avisar = avisar });
         }
     }
 

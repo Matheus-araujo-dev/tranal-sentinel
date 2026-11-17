@@ -53,7 +53,10 @@ public partial class MainWindow
         {
             _monitorTravados = null;
             try { RegistroDiario.Registrar("Vigia de programa travado indisponível: " + ex.Message, "VIGIA"); }
-            catch { }
+            catch
+            {
+                // Diário é acessório: falhar nele não pode derrubar o app.
+            }
         }
 
         try
@@ -152,7 +155,6 @@ public partial class MainWindow
             () => SilencioDoTeclado(vigia),
             () => TeclasWindows.RepeticaoDoTecladoLigada(),
             TeclasWindows.SoltarTodas,
-            relogio: null,
             // O gancho pode ter morrido (o Windows o remove em silêncio
             // quando o PC trava): sem prova de vida, o app não solta nada.
             ganchoEstaVivo: () => GanchoEstaVivo(),
@@ -304,12 +306,17 @@ public partial class MainWindow
     /// <summary>Para a vigia (chamada no fechamento da janela).</summary>
     private void PararVigia()
     {
+        // Descartar os timers é limpeza: falhar aqui não pode derrubar o app.
         try { _timerTravados?.Dispose(); } catch { }
         try { _timerAlertas?.Dispose(); } catch { }
         try { _timerTeclaPresa?.Dispose(); } catch { }
         // O gancho de teclado também some: ele não pode ficar instalado
         // depois do app fechar.
-        try { _vigiaTeclado?.Dispose(); } catch { }
+        try { _vigiaTeclado?.Dispose(); }
+        catch
+        {
+            // O gancho pode já ter sido descartado: falhar aqui não pode derrubar o app.
+        }
         _timerTravados = null;
         _timerAlertas = null;
         _timerTeclaPresa = null;
@@ -342,7 +349,10 @@ public partial class MainWindow
         _bandeja?.DefinirTravado(true, $"Encerrar {app.Processo}");
         Toast("Programa travado", $"{app.Resumo}. Para encerrar, use o menu do ícone do TRANAL SENTINEL.", "⚠");
         try { RegistroDiario.Registrar($"Travado: {app.Processo} (pid {app.Pid}) há {app.Segundos}s", "VIGIA"); }
-        catch { }
+        catch
+        {
+            // Diário é acessório: falhar nele não pode derrubar o app.
+        }
     }
 
     /// <summary>
@@ -397,7 +407,10 @@ public partial class MainWindow
             p.Kill();
             Toast("Programa encerrado", $"{app.Processo} foi encerrado.", "✓");
             try { RegistroDiario.Registrar($"Encerrado (travado): {app.Processo} (pid {app.Pid})", "VIGIA"); }
-            catch { }
+            catch
+            {
+                // Diário é acessório: falhar nele não pode derrubar o app.
+            }
             AtualizarBandejaTravados();
         }
         catch (Exception ex)
@@ -560,7 +573,10 @@ public partial class MainWindow
     {
         Toast(alerta.Titulo, alerta.Texto, "⚠");
         try { RegistroDiario.Registrar($"Alerta: {alerta.Titulo} — {alerta.Texto}", "ALERTA"); }
-        catch { }
+        catch
+        {
+            // Diário é acessório: falhar nele não pode derrubar o app.
+        }
     }
 
     // ------------------------------------------------------- tecla presa
