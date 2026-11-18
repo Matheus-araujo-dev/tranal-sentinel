@@ -25,8 +25,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Testes
+      - name: Testes do app
         run: dotnet test TranalSentinel.Tests/TranalSentinel.Tests.csproj -c Release -nologo
+
+      - name: Testes do instalador
+        run: dotnet test Tranal.Setup.Tests/Tranal.Setup.Tests.csproj -c Release -nologo
 
       - name: Publicar (arquivo único, com o .NET embutido)
         run: dotnet publish TranalSentinel.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist -nologo

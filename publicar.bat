@@ -4,11 +4,20 @@ rem Saida: ..\TranalSentinel-dist\TranalSentinel.exe + LEIA-ME.txt + TranalSetup
 rem Sempre recompila do zero a partir do codigo atual desta pasta.
 cd /d "%~dp0"
 
-echo Rodando os testes ...
+echo Rodando os testes do app ...
 dotnet test TranalSentinel.Tests\TranalSentinel.Tests.csproj -c Release -nologo -v q
 if errorlevel 1 (
     echo.
-    echo FALHOU nos testes. Nada foi gerado.
+    echo FALHOU nos testes do app. Nada foi gerado.
+    pause
+    exit /b 1
+)
+
+echo Rodando os testes do instalador ...
+dotnet test Tranal.Setup.Tests\Tranal.Setup.Tests.csproj -c Release -nologo -v q
+if errorlevel 1 (
+    echo.
+    echo FALHOU nos testes do instalador. Nada foi gerado.
     pause
     exit /b 1
 )
