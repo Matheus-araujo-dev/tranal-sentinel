@@ -1,3 +1,67 @@
+## Novidades da v0.34 — a rolagem do navegador e o Alt+Tab voltaram
+
+Duas queixas do dono, diagnosticadas **por medição** no PC dele em 17/11/2026: a
+roda do mouse não rolava a página no Opera e no Claude, e o Alt+Tab trocava de
+janela sem desenhar o switcher. As duas causas eram do **Windows**, não do
+TRANAL SENTINEL — e agora os dois ajustes estão dentro do app, com o valor
+original guardado para desfazer.
+
+**Novo · TRANAL OTIMIZA · Rolagem do navegador**
+O Windows guarda quantas linhas a roda do mouse rola por entalhe. Quando esse
+valor está em **0**, o navegador (Chrome, Edge, Opera) multiplica o
+movimento da roda por zero — e a página **não rola**. Os aplicativos do Windows
+usam o padrão próprio e continuam rolando: foi esse contraste que isolou a
+causa. O TRANAL SENTINEL mede esse valor, avisa se estiver quebrado e conserta
+(3 linhas e 3 caracteres por entalhe).
+
+**Novo · TRANAL OTIMIZA · Alt+Tab do Windows 11**
+Nas versões 25H2 e mais novas, a Microsoft removeu a tela clássica do Alt+Tab.
+Com a opção antiga ligada, o Windows troca de janela **sem desenhar nada**. O
+app confere a opção, avisa e liga o switcher moderno. Ele **não reinicia o
+Explorer sozinho** — reiniciar fecha as pastas que o dono tem aberta —: grava
+o valor e diz o que fazer.
+
+**Novo · Hover em toda a tela**
+Passe o mouse sobre qualquer botão, item de menu, aba, campo, tabela ou
+cabeçalho de coluna: o app explica **o que aquele item analisa, o que faz e o
+que você ganha com ele**. São **266 ToolTips** (antes eram 12), escritos a
+partir do código que realmente roda atrás de cada elemento.
+
+**Novo · Tutorial do app**
+`TUTORIAL.md` na raiz do repositório: o que cada aba faz, por que existe e o
+que muda para quem usa.
+
+**Corrigido · O CI passou a rodar os testes do instalador**
+O workflow rodava só a suíte do app: os **84 testes do instalador** nunca eram
+executados, e um instalador quebrado passava e chegava na release. Agora as
+duas suítes rodam.
+
+**Corrigido · Todo `catch` vazio agora diz por que é seguro**
+A regra do repo já proibia `catch` vazio sem comentário — e havia **167**
+deles. Todos receberam um comentário específico daquele ponto. A mudança é só
+comentário: o fluxo de código é idêntico ao anterior.
+
+**Medido · O custo do app**
+Medido no PC do dono em 17/11/2026, com o app e o coletor de sensores rodando:
+**414 MB de RAM** (306 MB do app + 108 MB do coletor) e **2,8% de um núcleo**
+com a janela aberta — **0,26% da máquina** (16 núcleos). Com a janela
+minimizada, o custo cai para 1,4%.
+
+A **Visão geral** (a página inicial) foi medida por dentro do app: 3,5 ms a
+5,5 ms por atualização, a **0,5 atualização por segundo** (o PC roda no perfil
+Equilibrado, que lê os sensores a cada 2 s). O desenho do gráfico agora faz
+**uma varredura só**, sem o array por amostra que o LINQ alocava: de
+**5,48 ms para 4,18 ms** (−24%) e de **4,41 ms para 3,25 ms** (−26%), medido
+com o mesmo instrumento nas duas condições.
+
+A medição mostrou com clareza que **o gráfico não era o gargalo**: metade do
+custo do app é a janela sendo desenhada, e o resto é a leitura do hardware. A
+alavanca para isso o dono já tem — o **perfil de recursos** (Completo 1 s,
+Equilibrado 2 s, Economia 5 s) muda o relógio da leitura.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+
 ## Novidades da v0.33 — a vigia de tecla presa não deixa o dono sem mouse
 
 Corrigido no TRANAL SENTINEL: depois de **soltar** uma tecla presa, a vigia

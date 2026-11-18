@@ -45,8 +45,18 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
 
 - **Português (pt-BR)** em comentários, XML docs, textos de interface e mensagens.
 - **Nenhum PackageReference novo** no app. O que é do framework, é do framework.
-  (`System.Management` e `LibreHardwareMonitorLib` são as exceções já existentes.)
-- **`using System.IO` explícito** no WPF — não é implícito.
+  Hoje o app tem **7** pacotes, e cada um tem um motivo: `System.Management`
+  (WMI do S.M.A.R.T. e do hardware), `LibreHardwareMonitorLib` (sensores),
+  `Microsoft.Diagnostics.Tracing.TraceEvent` (tráfego de rede por ETW) e
+  `Vortice.D3DCompiler`, `Vortice.Direct3D11`, `Vortice.Direct3D12`,
+  `Vortice.Dxc` (benchmark de GPU). Antes de adicionar outro, prove que o
+  framework não dá conta.
+- **`using System.IO` explícito** — o `ImplicitUsings` deste projeto traz
+  só `System`, `System.Collections.Generic`, `System.Linq`,
+  `System.Threading` e `System.Threading.Tasks`; `System.IO` **não** vem
+  implícito. Onde o arquivo também usa `System.Windows.Shapes` (que tem um
+  `Path`), o caminho é escrito por extenso (`System.IO.Path`) para não ficar
+  ambíguo.
 - **XML doc `/// <summary>`** em toda classe e método público, explicando o *porquê*.
 - **Uma só interpretação**: regra fica em um lugar só e o resto consome. Se a lógica
   precisa aparecer em dois lugares, extraia para um núcleo compartilhado
@@ -745,6 +755,19 @@ para a tentativa que deu certo, e não só para a que falhou.
   registro com `Avisar` (true/false) e quem decide é a tela: o diário
   escreve sempre, o toast só quando `Avisar` é true.
 
+### v0.34 — a rolagem do navegador e o Alt+Tab voltaram
+
+Medido no PC do dono em 17/11/2026: a rolagem da roda **não funcionava** no Opera e no Claude (que são Chromium), e o **Alt+Tab** trocava de janela **sem desenhar o switcher**. As duas queixas foram diagnosticadas por **medição**, não por suposição — e o TRANAL SENTINEL foi inocentado nas duas.
+
+- **A rolagem morta não era o app: era o Windows.** `SPI_GETWHEELSCROLLLINES` devolvia **0** (linhas por entalhe). O Chromium multiplica o delta da roda por esse valor (`scroll_delta *= scroll_lines * kScrollbarPixelsPerLine`), e 0 x delta = 0: a página não rola. Os aplicativos do Windows usam o padrão próprio e continuavam rolando — foi esse contraste que isolou a causa.
+- **O Alt+Tab sem switcher era o Windows 25H2.** `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\AltTabSettings = 1` (switcher clássico) no build 26200.9974, onde a Microsoft removeu a UI clássica. O Explorer rodava desde 15/11, **antes** da instalação do app (16/11 23:22) — o app foi excluído por data, não por argumento.
+- **O conserto entrou pelo TRANAL OTIMIZA**, como todo ajuste do app: o valor original fica guardado em `AppSettings.TweakBackup` e a tela mostra **Restaurar originais**. O TRANAL SAÚDE continua **somente leitura**.
+- **A regra mora no núcleo puro** (`WindowsTweakRegras.cs`) e o executor no Windows mora em `WindowsTweaks.cs` — o mesmo desenho do resto do app (a regra só descreve; quem executa é o executor).
+- **O app não reinicia o Explorer sozinho.** Reiniciar o Explorer fecha as pastas que o dono tem abertas; o app grava o valor do Alt+Tab e **diz o que fazer** (`RestartHint`).
+- **O SPI da roda lê o valor em `uiParam`**, não em `pvParam` — medir isso foi necessário, porque passar o ponteiro grava 0 e faz o sintoma parecer "não foi corrigido".
+- **O gancho de teclado do app nunca engole evento**: o callback chama `CallNextHookEx` sempre. O app não tem gancho de mouse — as duas queixas não tinham o app como causa.
+
+
 ## Publicar
 
 ```powershell
@@ -752,8 +775,8 @@ git push origin main                      # CI monta a release "latest"
 git tag -a v0.17 -m "..." && git push origin v0.17   # CI monta a release da versão
 ```
 
-O `.github/workflows/publicar.yml` roda os testes, publica o app e o instalador e
-sobe as releases. O asset **precisa** se chamar `TranalSentinel.exe`: é o que o
+O `.github/workflows/publicar.yml` roda os testes **do app e do instalador**,
+publica o app e o instalador e sobe as releases. O asset **precisa** se chamar `TranalSentinel.exe`: é o que o
 auto-update procura.
 
 ## Onde as coisas estão
@@ -800,4 +823,6 @@ auto-update procura.
 | `AutoUpdate.cs` / `Atualizador.cs` | Checagem de versão nova, download e troca do executável. |
 | `Tranal.Setup\` | O instalador (admin, atalhos, tarefa agendada, desinstalação). |
 | `Tranal.Setup\Dominio\DestinoInstalacao.cs` | Onde o app é instalado. Regra única do destino (pasta escolhida pelo usuário). |
+| `WindowsTweakRegras.cs` / `WindowsTweaks.cs` | Os ajustes do TRANAL OTIMIZA: a regra pura (núcleo testável) e o executor no Windows (SPI da rolagem e o Alt+Tab do Windows 11), com o valor original guardado para desfazer. |
+| `TUTORIAL.md` | O tutorial do app: o que cada aba faz, por que existe e o que o dono ganha com ela. |
 | `MERCADO.md` | Pesquisa de concorrentes e o que foi adotado aqui. |
