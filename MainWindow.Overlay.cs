@@ -10,6 +10,45 @@ public partial class MainWindow
     private HashSet<string>? _ovShow;
     private HashSet<string> OvShow => _ovShow ??= _settings.OverlayItems is { } l ? l.ToHashSet() : OverlayMetrics.Defaults();
 
+    /// <summary>
+    /// O que cada item do seletor "O que mostrar" coloca no overlay.
+    ///
+    /// <para>
+    /// A chave é a mesma de <see cref="OverlayMetric.Key"/>: o catálogo do
+    /// overlay e a dica moram lado a lado, para não existirem duas listas
+    /// de itens que podem sair de sincronia.
+    /// </para>
+    /// </summary>
+    private static readonly Dictionary<string, string> DicasOverlay = new()
+    {
+        ["fps"] = "Quadros por segundo que o jogo está desenhando. É o número que diz se a jogada está fluida.",
+        ["frametime"] = "Tempo gasto em cada quadro, em milissegundos. Passou de 16,7 ms, o jogo já não segura 60 FPS.",
+        ["low1"] = "Média do 1 % pior dos quadros da sessão. Mostra os engasgos que o FPS médio esconde.",
+        ["graph"] = "Desenho do tempo de quadro ao longo da sessão. Serve para ver em que momento o jogo engasgou.",
+        ["gpu_load"] = "Porcentagem da placa em uso. Em 100 % o gargalo é a GPU, e não a CPU.",
+        ["gpu_temp"] = "Temperatura do núcleo da placa. Perto de 85 °C ela já começa a baixar o clock sozinha.",
+        ["gpu_hotspot"] = "Temperatura do ponto mais quente da placa. É ela que segura o clock antes do sensor do núcleo.",
+        ["gpu_clock"] = "Frequência de trabalho do núcleo da placa, em MHz. Clock caindo com carga alta é throttling.",
+        ["gpu_memclock"] = "Frequência de trabalho da memória da placa, em MHz. Mede a velocidade da VRAM.",
+        ["gpu_power"] = "Watts que a placa está gastando. Serve para conferir se o limite de energia que você pôs está valendo.",
+        ["gpu_volt"] = "Volts entregues ao núcleo da placa. Ajuda a ver o efeito do undervolt na prática.",
+        ["gpu_fan"] = "Rotação da ventoinha da placa, em RPM. Quando a placa não expõe RPM, aparece o quanto ela está comandada.",
+        ["gpu_perfcap"] = "Motivo que está limitando a placa agora: energia, temperatura ou voltagem. Só existe em placa NVIDIA e diz o que está segurando o desempenho.",
+        ["vram_used"] = "Memória de vídeo ocupada, em GB. Quando ela acaba, o jogo passa a usar a memória do sistema e engasga.",
+        ["vram_pct"] = "Porcentagem da VRAM em uso. Vale mais que o número em GB em placa com muita memória.",
+        ["vram_temp"] = "Temperatura dos chips de memória da placa. Memória quente faz a placa perder clock na memória.",
+        ["cpu_load"] = "Ocupação de todos os núcleos do processador, em porcentagem. Em 100 % o gargalo é a CPU.",
+        ["cpu_maxcore"] = "O núcleo mais ocupado da CPU. Diz se o gargalo é de um núcleo só ou de todos.",
+        ["cpu_temp"] = "Temperatura do processador. Acima de 90 °C ele reduz o clock para se proteger.",
+        ["cpu_clock"] = "Frequência média dos núcleos, em GHz. Comparada com o pico, mostra quanto a CPU está baixando.",
+        ["cpu_clockmax"] = "Maior frequência que algum núcleo alcançou, em GHz. É o clock que o boost consegue chegar.",
+        ["cpu_power"] = "Watts que o processador está gastando. Só aparece quando o app roda como administrador.",
+        ["ram_used"] = "Memória do sistema ocupada, em GB. Perto do total, o Windows passa a trocar por disco.",
+        ["ram_pct"] = "Porcentagem da memória em uso. É o número que diz se falta memória para o que você está fazendo.",
+        ["game"] = "Nome do jogo que está em primeiro plano. Serve para saber qual janela o app está medindo.",
+        ["clock"] = "Hora do relógio no rodapé do overlay. Ajuda a marcar o começo da sessão.",
+    };
+
     /// <summary>Cria as caixas de seleção da aba Overlay, agrupadas por componente.</summary>
     private void BuildOverlayPicker()
     {
@@ -24,6 +63,12 @@ public partial class MainWindow
             foreach (var m in group)
             {
                 var cb = new CheckBox { Content = m.Label, Tag = m.Key, IsChecked = OvShow.Contains(m.Key), Margin = new Thickness(0, 0, 18, 6) };
+                // A dica entra junto com a caixa: o seletor é reconstruído a
+                // cada preset, então o ToolTip vai na criação da caixa para
+                // não sumir na primeira reconstrução.
+                ToolTipService.SetToolTip(cb, DicasOverlay.TryGetValue(m.Key, out var dica)
+                    ? dica
+                    : $"Coloca a linha {m.Label} no overlay, junto das outras escolhidas.");
                 cb.Click += (_, _) =>
                 {
                     if (cb.IsChecked == true) OvShow.Add(m.Key); else OvShow.Remove(m.Key);

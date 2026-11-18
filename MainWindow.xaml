@@ -129,9 +129,9 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
                         WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button x:Name="BtnTheme" Style="{StaticResource CaptionButton}" Content="&#xE706;" Click="Theme_Click" ToolTip="Modo claro"/>
-                <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="Min_Click" ToolTip="Minimizar"/>
-                <Button x:Name="BtnMax" Style="{StaticResource CaptionButton}" Content="&#xE922;" Click="Max_Click" ToolTip="Maximizar"/>
-                <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" Click="Close_Click" ToolTip="Fechar"/>
+                <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="Min_Click" ToolTip="Minimiza a janela do TRANAL SENTINEL."/>
+                <Button x:Name="BtnMax" Style="{StaticResource CaptionButton}" Content="&#xE922;" Click="Max_Click" ToolTip="Maximiza a janela ou devolve ao tamanho normal."/>
+                <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" Click="Close_Click" ToolTip="Fecha a janela e deixa o TRANAL SENTINEL rodando na bandeja, no canto da tela."/>
             </StackPanel>
 
             <!-- ===== Menu lateral por categorias (painel arredondado, sempre visível) ===== -->
@@ -162,9 +162,9 @@
                                 </Grid>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <Button x:Name="BtnAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="10,5" FontSize="11"
-                                            Click="BtnAtualizar_Click"/>
+                                            Click="BtnAtualizar_Click" ToolTip="Baixa a versão nova do TRANAL SENTINEL e troca o executável quando o app fechar. O download mostra o progresso aqui."/>
                                     <Button Style="{StaticResource OutlineButton}" Content="DEPOIS" Padding="10,5" FontSize="11" Margin="8,0,0,0"
-                                            Click="BtnAtualizarDepois_Click"/>
+                                            Click="BtnAtualizarDepois_Click" ToolTip="Esconde o aviso de atualização por enquanto. Nada é baixado e o app continua na versão atual."/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -174,7 +174,7 @@
                                 <TextBlock Text="Sem temperatura e consumo da CPU" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap"/>
                                 <TextBlock x:Name="CpuSensorWarnText" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,8"/>
                                 <Button Style="{StaticResource PrimaryButton}" Content="CORRIGIR" Padding="10,5" FontSize="11"
-                                        Click="BtnFixCpuSensors_Click"/>
+                                        Click="BtnFixCpuSensors_Click" ToolTip="Diagnostica por que a temperatura e o consumo da CPU não chegam e mostra o caminho para corrigir."/>
                             </StackPanel>
                         </Border>
                         <Border x:Name="SensorWarn" Visibility="Collapsed" BorderBrush="{DynamicResource Fg}" BorderThickness="1"
@@ -184,7 +184,7 @@
                                 <TextBlock x:Name="SensorWarnText" Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,8"/>
                                 <Button x:Name="BtnReabilitarSensores" Style="{StaticResource PrimaryButton}" Content="REABILITAR SENSORES DA GPU"
                                         Padding="10,5" FontSize="11" Visibility="Collapsed"
-                                        Click="BtnReabilitarSensores_Click"/>
+                                        Click="BtnReabilitarSensores_Click" ToolTip="Reativa a leitura dos sensores da placa e zera a contagem de falhas. Use depois de trocar o driver."/>
                             </StackPanel>
                         </Border>
                         <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="14" Padding="14,10">
@@ -215,204 +215,204 @@
                     <!-- Navegação por categorias -->
                     <ScrollViewer x:Name="NavScroll" VerticalScrollBarVisibility="Auto" Margin="0,2,0,0">
                         <StackPanel Margin="0,0,0,10">
-                            <RadioButton x:Name="NavDash" Style="{StaticResource NavItem}" Tag="PageDash" Checked="Nav_Checked" IsChecked="True">
+                            <RadioButton x:Name="NavDash" Style="{StaticResource NavItem}" Tag="PageDash" Checked="Nav_Checked" IsChecked="True" ToolTip="Resumo do PC: gráfico de temperatura e carga, nota de desempenho, anéis de memória e disco, e a lista de saúde.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE80F;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Visão geral" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <ToggleButton x:Name="GrpExplode" Style="{StaticResource NavGroup}" Content="TRANAL SENTINEL"/>
+                            <ToggleButton x:Name="GrpExplode" Style="{StaticResource NavGroup}" Content="TRANAL SENTINEL" ToolTip="Abre as abas de hardware: sistema, sensores, ventoinhas, placa de vídeo, discos, energia e rede."/>
                             <StackPanel x:Name="GrpExplodeItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpExplode, Converter={StaticResource BoolVis}}">
-                            <RadioButton x:Name="NavSystem" Style="{StaticResource NavItem}" Tag="PageSystem" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavSystem" Style="{StaticResource NavItem}" Tag="PageSystem" Checked="Nav_Checked" ToolTip="Tudo o que o Windows enxerga na sua máquina: processador, placa-mãe, placas de rede, som e sistema.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE7F8;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Sistema" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavSensors" Style="{StaticResource NavItem}" Tag="PageSensors" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavSensors" Style="{StaticResource NavItem}" Tag="PageSensors" Checked="Nav_Checked" ToolTip="Todos os sensores que o PC expõe, com o menor e o maior valor de cada um desde que o app abriu.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE9D9;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Sensores" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavVentoinhas" Style="{StaticResource NavItem}" Tag="PageVentoinhas" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavVentoinhas" Style="{StaticResource NavItem}" Tag="PageVentoinhas" Checked="Nav_Checked" ToolTip="Compara o RPM de cada ventoinha com o recorde dela mesma, para dizer se ela está gasta.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE71D;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Ventoinhas" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavGpu" Style="{StaticResource NavItem}" Tag="PageGpu" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavGpu" Style="{StaticResource NavItem}" Tag="PageGpu" Checked="Nav_Checked" ToolTip="Especificações da placa de vídeo e os sensores dela ao vivo: temperatura, consumo, clock e VRAM.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Placa de vídeo" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavDisks" Style="{StaticResource NavItem}" Tag="PageDisks" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavDisks" Style="{StaticResource NavItem}" Tag="PageDisks" Checked="Nav_Checked" ToolTip="Saúde, desgaste e temperatura de cada disco, com o veredito e o motivo de cada nota.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xEDA2;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Discos" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavEnergy" Style="{StaticResource NavItem}" Tag="PageEnergy" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavEnergy" Style="{StaticResource NavItem}" Tag="PageEnergy" Checked="Nav_Checked" ToolTip="Bateria, fonte de energia e consumo do PC, com ciclos de carga e capacidade de projeto.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE7E8;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Energia" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavNet" Style="{StaticResource NavItem}" Tag="PageNet" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavNet" Style="{StaticResource NavItem}" Tag="PageNet" Checked="Nav_Checked" ToolTip="Diagnóstico de lag: ping ao roteador e aos DNS públicos, download e envio de dados, e tráfego por programa.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE839;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Rede" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpSaude" Style="{StaticResource NavGroup}" Content="TRANAL SAÚDE"/>
+                            <ToggleButton x:Name="GrpSaude" Style="{StaticResource NavGroup}" Content="TRANAL SAÚDE" ToolTip="Abre as abas de diagnóstico: saúde do PC, alertas de sensor e a tabela S.M.A.R.T."/>
                             <StackPanel x:Name="GrpSaudeItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpSaude, Converter={StaticResource BoolVis}}">
-                            <RadioButton x:Name="NavSaude" Style="{StaticResource NavItem}" Tag="PageSaude" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavSaude" Style="{StaticResource NavItem}" Tag="PageSaude" Checked="Nav_Checked" ToolTip="Diagnóstico de travamentos e lentidão: varre o histórico do Windows e sugere o que corrigir.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE7BA;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Diagnóstico" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavAlertas" Style="{StaticResource NavItem}" Tag="PageAlertas" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavAlertas" Style="{StaticResource NavItem}" Tag="PageAlertas" Checked="Nav_Checked" ToolTip="Regras de aviso em segundo plano: escolhe o sensor, o limite e há quanto tempo a condição precisa valer.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE946;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Alertas" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavSmart" Style="{StaticResource NavItem}" Tag="PageSmart" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavSmart" Style="{StaticResource NavItem}" Tag="PageSmart" Checked="Nav_Checked" ToolTip="A tabela de atributos S.M.A.R.T. de cada disco, com valor atual, pior valor e limiar.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xEDA2;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="S.M.A.R.T." VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpMemoria" Style="{StaticResource NavGroup}" Content="TRANAL MEMÓRIA"/>
+                            <ToggleButton x:Name="GrpMemoria" Style="{StaticResource NavGroup}" Content="TRANAL MEMÓRIA" ToolTip="Abre a aba que lê o que está gravado dentro dos módulos de memória."/>
                             <StackPanel x:Name="GrpMemoriaItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpMemoria, Converter={StaticResource BoolVis}}">
-                            <RadioButton x:Name="NavMemoria" Style="{StaticResource NavItem}" Tag="PageMemoria" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavMemoria" Style="{StaticResource NavItem}" Tag="PageMemoria" Checked="Nav_Checked" ToolTip="O que tem dentro de cada módulo de memória: capacidades, tempos do perfil e perfis de overclock.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Módulos" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpAssistente" Style="{StaticResource NavGroup}" Content="TRANAL ASSISTENTE"/>
+                            <ToggleButton x:Name="GrpAssistente" Style="{StaticResource NavGroup}" Content="TRANAL ASSISTENTE" ToolTip="Abre as abas do assistente: linha do tempo, uso da tela e painel flutuante."/>
                             <StackPanel x:Name="GrpAssistenteItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpAssistente, Converter={StaticResource BoolVis}}">
-                            <RadioButton x:Name="NavTimeline" Style="{StaticResource NavItem}" Tag="PageTimeline" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavTimeline" Style="{StaticResource NavItem}" Tag="PageTimeline" Checked="Nav_Checked" ToolTip="O que mudou no PC desde o último retrato, com o diário do que o app fez hoje.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE823;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Linha do tempo" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavUso" Style="{StaticResource NavItem}" Tag="PageUso" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavUso" Style="{StaticResource NavItem}" Tag="PageUso" Checked="Nav_Checked" ToolTip="Qual programa ficou em frente, quanto tempo, e quem estava na frente quando a máquina esquentou.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE823;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Uso" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavPainel" Style="{StaticResource NavItem}" Tag="PagePainel" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavPainel" Style="{StaticResource NavItem}" Tag="PagePainel" Checked="Nav_Checked" ToolTip="Janela flutuante com os números do PC sempre à vista, que você arrasta para onde quiser.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE80F;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Painel" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpGames" Style="{StaticResource NavGroup}" Content="TRANAL JOGOS"/>
+                            <ToggleButton x:Name="GrpGames" Style="{StaticResource NavGroup}" Content="TRANAL JOGOS" ToolTip="Abre as abas de jogos: biblioteca, FPS estimado, gargalo e overlay."/>
                             <StackPanel x:Name="GrpGamesItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpGames, Converter={StaticResource BoolVis}}">
-                            <RadioButton x:Name="NavLauncher" Style="{StaticResource NavItem}" Tag="PageLauncher" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavLauncher" Style="{StaticResource NavItem}" Tag="PageLauncher" Checked="Nav_Checked" ToolTip="Sua biblioteca de jogos, com o perfil de desempenho que o app aplica ao abrir cada um.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8F1;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Biblioteca" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavGames" Style="{StaticResource NavItem}" Tag="PageGames" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavGames" Style="{StaticResource NavItem}" Tag="PageGames" Checked="Nav_Checked" ToolTip="Estima o FPS de cada jogo no seu PC, já com resolução, qualidade gráfica e upscaling escolhidos.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xEC49;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="FPS estimado" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavBottleneck" Style="{StaticResource NavItem}" Tag="PageBottleneck" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavBottleneck" Style="{StaticResource NavItem}" Tag="PageBottleneck" Checked="Nav_Checked" ToolTip="Descobre o que está limitando seu FPS: GPU, CPU, memória ou temperatura, medindo durante a sessão.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE9D2;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Gargalo" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavOverlay" Style="{StaticResource NavItem}" Tag="PageOverlay" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavOverlay" Style="{StaticResource NavItem}" Tag="PageOverlay" Checked="Nav_Checked" ToolTip="FPS, frametime e sensores por cima do jogo, medidos pelo rastreamento de eventos do Windows.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE81E;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Overlay" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpPerf" Style="{StaticResource NavGroup}" Content="TRANAL DESEMPENHO"/>
+                            <ToggleButton x:Name="GrpPerf" Style="{StaticResource NavGroup}" Content="TRANAL DESEMPENHO" ToolTip="Abre as abas de desempenho: benchmark, stress test, overclock e comparação."/>
                             <StackPanel x:Name="GrpPerfItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpPerf, Converter={StaticResource BoolVis}}">
-                            <RadioButton x:Name="NavBench" Style="{StaticResource NavItem}" Tag="PageBench" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavBench" Style="{StaticResource NavItem}" Tag="PageBench" Checked="Nav_Checked" ToolTip="Benchmark de CPU, GPU, ray tracing, memória e disco, com resultado em pontos comparáveis.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8B9;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Benchmark" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavStress" Style="{StaticResource NavItem}" Tag="PageStress" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavStress" Style="{StaticResource NavItem}" Tag="PageStress" Checked="Nav_Checked" ToolTip="Carga máxima em CPU, RAM e GPU, com corte automático quando a temperatura passa do limite.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE945;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Stress test" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavOc" Style="{StaticResource NavItem}" Tag="PageOc" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavOc" Style="{StaticResource NavItem}" Tag="PageOc" Checked="Nav_Checked" ToolTip="Limite de energia e teto de clock da GPU, verificador de estabilidade e o guia de overclock na BIOS.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xEC4A;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Overclock" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavComparar" Style="{StaticResource NavItem}" Tag="PageComparar" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavComparar" Style="{StaticResource NavItem}" Tag="PageComparar" Checked="Nav_Checked" ToolTip="Leva os resultados de benchmark de um PC para o outro e mostra a diferença teste a teste.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8AB;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Comparar" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpTools" Style="{StaticResource NavGroup}" Content="TRANAL FERRAMENTAS"/>
+                            <ToggleButton x:Name="GrpTools" Style="{StaticResource NavGroup}" Content="TRANAL FERRAMENTAS" ToolTip="Abre as abas de ferramentas: otimização, inicialização, instalar apps, drivers e integração."/>
                             <StackPanel x:Name="GrpToolsItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpTools, Converter={StaticResource BoolVis}}">
-                            <RadioButton x:Name="NavOptimize" Style="{StaticResource NavItem}" Tag="PageOptimize" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavOptimize" Style="{StaticResource NavItem}" Tag="PageOptimize" Checked="Nav_Checked" ToolTip="Libera memória, fecha os programas que atrapalham e aplica os ajustes do Windows para jogos.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE9F3;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Otimização" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavStartup" Style="{StaticResource NavItem}" Tag="PageStartup" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavStartup" Style="{StaticResource NavItem}" Tag="PageStartup" Checked="Nav_Checked" ToolTip="Programas que abrem junto com o Windows: desative, ative ou remova o que não precisa.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE823;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Inicialização" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavApps" Style="{StaticResource NavItem}" Tag="PageApps" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavApps" Style="{StaticResource NavItem}" Tag="PageApps" Checked="Nav_Checked" ToolTip="Os apps essenciais depois de formatar, instalados pelo winget direto do site oficial.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE719;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Instalar apps" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavDriver" Style="{StaticResource NavItem}" Tag="PageDriver" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavDriver" Style="{StaticResource NavItem}" Tag="PageDriver" Checked="Nav_Checked" ToolTip="Verifica, baixa e instala drivers de placa de vídeo, placa-mãe e Windows Update.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE896;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Drivers" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavInteg" Style="{StaticResource NavItem}" Tag="PageInteg" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavInteg" Style="{StaticResource NavItem}" Tag="PageInteg" Checked="Nav_Checked" ToolTip="Iluminação e efeitos: Corsair iCUE, OpenRGB, Razer Chroma e o visor do cooler Kalkan.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE790;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Integração" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
-                            <ToggleButton x:Name="GrpMaker" Style="{StaticResource NavGroup}" Content="TRANAL MAKER"/>
+                            <ToggleButton x:Name="GrpMaker" Style="{StaticResource NavGroup}" Content="TRANAL MAKER" ToolTip="Abre as abas do TRANAL MAKER: portas COM e drivers seriais."/>
                             <StackPanel x:Name="GrpMakerItems" Margin="10,0,0,4" Visibility="{Binding IsChecked, ElementName=GrpMaker, Converter={StaticResource BoolVis}}">
-                            <RadioButton x:Name="NavMakerPorts" Style="{StaticResource NavItem}" Tag="PageMakerPorts" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavMakerPorts" Style="{StaticResource NavItem}" Tag="PageMakerPorts" Checked="Nav_Checked" ToolTip="Portas COM e dispositivos USB fantasma que empurram a sua placa para COM20 ou mais.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE88E;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Portas COM" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavMakerDrv" Style="{StaticResource NavItem}" Tag="PageMakerDrv" Checked="Nav_Checked">
+                            <RadioButton x:Name="NavMakerDrv" Style="{StaticResource NavItem}" Tag="PageMakerDrv" Checked="Nav_Checked" ToolTip="Diagnóstico, reinstalação e troca de versão dos drivers CH340, CP210x, FTDI, Prolific e Arduino.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE950;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Drivers seriais" VerticalAlignment="Center"/>
@@ -455,14 +455,14 @@
                                     </Grid>
                                     <Grid Margin="0,16,0,8">
                                         <StackPanel x:Name="DashRangePanel" Orientation="Horizontal">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashRange" Content="1 MIN" Tag="60" Checked="DashOption_Checked"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashRange" Content="5 MIN" Tag="300" IsChecked="True" Checked="DashOption_Checked"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashRange" Content="15 MIN" Tag="900" Checked="DashOption_Checked"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashRange" Content="1 MIN" Tag="60" Checked="DashOption_Checked" ToolTip="Mostra só o último minuto de temperatura e carga: dá para ver a subida na hora."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashRange" Content="5 MIN" Tag="300" IsChecked="True" Checked="DashOption_Checked" ToolTip="Mostra os últimos 5 minutos. É o padrão, um bom equilíbrio entre detalhe e histórico."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashRange" Content="15 MIN" Tag="900" Checked="DashOption_Checked" ToolTip="Mostra os últimos 15 minutos, para ver quanto a temperatura subiu ao longo de um trabalho pesado."/>
                                         </StackPanel>
                                         <StackPanel x:Name="DashMetricPanel" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashMetric" Content="Temperatura" Tag="temp" IsChecked="True" Checked="DashOption_Checked"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashMetric" Content="Carga" Tag="load" Checked="DashOption_Checked"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashMetric" Content="Consumo" Tag="power" Checked="DashOption_Checked"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashMetric" Content="Temperatura" Tag="temp" IsChecked="True" Checked="DashOption_Checked" ToolTip="Gráfico da temperatura da CPU e da GPU, a leitura que mostra estrangulamento e ventilação."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashMetric" Content="Carga" Tag="load" Checked="DashOption_Checked" ToolTip="Gráfico da carga da CPU e da GPU, ou seja, quanto cada processador está trabalhando agora."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DashMetric" Content="Consumo" Tag="power" Checked="DashOption_Checked" ToolTip="Gráfico do consumo em watts da CPU e da GPU, o que mais pesa na conta de luz e no calor."/>
                                         </StackPanel>
                                     </Grid>
                                     <Canvas x:Name="DashChart" Height="210" ClipToBounds="True" SizeChanged="DashChart_SizeChanged"/>
@@ -479,7 +479,7 @@
                             <Border Grid.Column="2" Style="{StaticResource CardBorder}" Padding="22,20">
                                 <DockPanel>
                                     <Button DockPanel.Dock="Bottom" Style="{StaticResource PrimaryButton}" Content="RODAR BENCHMARK" Margin="0,14,0,0"
-                                            Padding="20,13" Click="DashBench_Click"/>
+                                            Padding="20,13" Click="DashBench_Click" ToolTip="Abre o TRANAL BENCH para medir a nota do seu processador e comparar com outros PCs."/>
                                     <StackPanel>
                                         <TextBlock Text="DESEMPENHO · TRANAL BENCH" Style="{StaticResource Label}" Margin="0,0,0,4"/>
                                         <Grid>
@@ -522,12 +522,12 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="56"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="COMPONENTE" Style="{StaticResource Label}" Margin="0"/>
-                                    <TextBlock Grid.Column="1" Text="TEMPERATURA" Style="{StaticResource Label}" Margin="0"/>
-                                    <TextBlock Grid.Column="2" Text="CARGA" Style="{StaticResource Label}" Margin="0"/>
-                                    <TextBlock Grid.Column="3" Text="CLOCK" Style="{StaticResource Label}" Margin="0"/>
-                                    <TextBlock Grid.Column="4" Text="CONSUMO / USO" Style="{StaticResource Label}" Margin="0"/>
-                                    <TextBlock Grid.Column="5" Text="VER" Style="{StaticResource Label}" Margin="0" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="COMPONENTE" Style="{StaticResource Label}" Margin="0" ToolTip="Nome do componente e o modelo exato que o Windows detectou."/>
+                                    <TextBlock Grid.Column="1" Text="TEMPERATURA" Style="{StaticResource Label}" Margin="0" ToolTip="Temperatura agora, em graus Celsius."/>
+                                    <TextBlock Grid.Column="2" Text="CARGA" Style="{StaticResource Label}" Margin="0" ToolTip="Percentual de uso da CPU ou da GPU neste momento."/>
+                                    <TextBlock Grid.Column="3" Text="CLOCK" Style="{StaticResource Label}" Margin="0" ToolTip="Frequência atual do processador ou da placa de vídeo."/>
+                                    <TextBlock Grid.Column="4" Text="CONSUMO / USO" Style="{StaticResource Label}" Margin="0" ToolTip="Watts que a peça está gastando, ou o uso do disco quando for o caso."/>
+                                    <TextBlock Grid.Column="5" Text="VER" Style="{StaticResource Label}" Margin="0" HorizontalAlignment="Right" ToolTip="Abre a tela com os detalhes desse componente."/>
                                 </Grid>
                                 <ItemsControl x:Name="DashComponents">
                                     <ItemsControl.ItemTemplate>
@@ -557,7 +557,7 @@
                                                     <TextBlock Grid.Column="3" Text="{Binding Clock}" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="4" Text="{Binding Power}" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
                                                     <Button Grid.Column="5" Style="{StaticResource CaptionButton}" Width="30" Height="30" Content="&#xE72A;"
-                                                            HorizontalAlignment="Right" Tag="{Binding Target}" Click="DashGo_Click" ToolTip="Abrir detalhes"/>
+                                                            HorizontalAlignment="Right" Tag="{Binding Target}" Click="DashGo_Click" ToolTip="Abre a tela do componente: sensores, disco ou sistema, conforme a linha."/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -766,7 +766,7 @@
                                 <TextBlock x:Name="DiskHealthStatus" Text="Saúde, desgaste e temperatura de cada disco" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnDiskRefresh" Style="{StaticResource OutlineButton}" Content="ATUALIZAR" Padding="18,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnDiskRefresh_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnDiskRefresh_Click" ToolTip="Rere a saúde de todos os discos agora: S.M.A.R.T., desgaste e temperatura pelo Windows."/>
                         </Grid>
 
                         <ItemsControl x:Name="DiskCards">
@@ -844,7 +844,7 @@
                                 <TextBlock x:Name="EnergyStatus" Text="Bateria, fonte de energia e consumo" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnEnergyRefresh" Style="{StaticResource OutlineButton}" Content="ATUALIZAR" Padding="18,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnEnergyRefresh_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnEnergyRefresh_Click" ToolTip="Relê a bateria e a fonte de energia: carga, ciclos, capacidade de projeto e consumo atual."/>
                         </Grid>
                         <ItemsControl x:Name="EnergyCards" ItemTemplate="{StaticResource CardTemplate}"/>
                         <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
@@ -863,7 +863,7 @@
                                 <TextBlock Text="Descubra se o lag vem do seu PC, do Wi-Fi ou do provedor" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnNetTest" Style="{StaticResource PrimaryButton}" Content="TESTAR" Padding="22,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnNetTest_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnNetTest_Click" ToolTip="Roda o teste de rede completo: ping ao roteador e aos DNS públicos, mais download e envio de dados."/>
                         </Grid>
                         <Grid Height="3" Margin="0,0,0,8" Background="{DynamicResource Line}">
                             <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
@@ -887,9 +887,9 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                                 <StackPanel Margin="0,0,10,0">
                                     <TextBlock Text="DIA" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
-                                    <ComboBox x:Name="TrafegoDia" Style="{StaticResource DarkCombo}" Width="170" DisplayMemberPath="Rotulo" SelectionChanged="TrafegoDia_SelectionChanged"/>
+                                    <ComboBox x:Name="TrafegoDia" Style="{StaticResource DarkCombo}" Width="170" DisplayMemberPath="Rotulo" SelectionChanged="TrafegoDia_SelectionChanged" ToolTip="Escolhe o dia do histórico de tráfego. O dia de hoje mostra a medição ao vivo, sem o app rodando antes."/>
                                 </StackPanel>
-                                <Button x:Name="BtnTrafegoAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="18,9" VerticalAlignment="Bottom" Click="BtnTrafegoAtualizar_Click"/>
+                                <Button x:Name="BtnTrafegoAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="18,9" VerticalAlignment="Bottom" Click="BtnTrafegoAtualizar_Click" ToolTip="Relê o log de eventos do kernel e monta o ranking de quem usou a internet no dia escolhido."/>
                             </StackPanel>
                         </Grid>
 
@@ -904,9 +904,27 @@
                         <DataGrid x:Name="TrafegoRanking" AutoGenerateColumns="False" IsReadOnly="True"
                                   CanUserResizeColumns="False" FontSize="11" Margin="0,14,0,0" Visibility="Collapsed">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="PROGRAMA" Binding="{Binding Processo}" Width="*"/>
-                                <DataGridTextColumn Header="TOTAL" Binding="{Binding Total}" Width="110" ElementStyle="{StaticResource MonoCell}"/>
-                                <DataGridTextColumn Header="DETALHE" Binding="{Binding Detalhe}" Width="270" ElementStyle="{StaticResource MutedMonoCell}"/>
+                                <DataGridTextColumn Binding="{Binding Processo}" Width="*">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="PROGRAMA" ToolTip="Nome do programa que mais usou a internet no dia."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Total}" Width="110" ElementStyle="{StaticResource MonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="TOTAL" ToolTip="Total de dados que o programa trafegou, contando envio e download."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Detalhe}" Width="270" ElementStyle="{StaticResource MutedMonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="DETALHE" ToolTip="Separa o download do envio, para saber se o programa só baixava ou também mandava dados."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -928,7 +946,7 @@
                                            Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnVentoinhasAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="18,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnVentoinhasAtualizar_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnVentoinhasAtualizar_Click" ToolTip="Relê o RPM das ventoinhas agora e compara com o recorde de cada uma."/>
                         </Grid>
 
                         <ItemsControl x:Name="VentoinhasCards" ItemTemplate="{StaticResource CardTemplate}"/>
@@ -947,11 +965,41 @@
                         <DataGrid x:Name="VentoinhasHistorico" AutoGenerateColumns="False" IsReadOnly="True"
                                   CanUserResizeColumns="False" FontSize="11" MaxHeight="340">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="DIA" Binding="{Binding Dia}" Width="110" ElementStyle="{StaticResource MonoCell}"/>
-                                <DataGridTextColumn Header="VENTOINHA" Binding="{Binding Nome}" Width="*"/>
-                                <DataGridTextColumn Header="MÁX. RPM" Binding="{Binding RpmMaximo}" Width="110" ElementStyle="{StaticResource MonoCell}"/>
-                                <DataGridTextColumn Header="TEMP. NO MÁX." Binding="{Binding Temperatura}" Width="130" ElementStyle="{StaticResource MutedMonoCell}"/>
-                                <DataGridTextColumn Header="MEDIÇÕES" Binding="{Binding Amostras}" Width="100" ElementStyle="{StaticResource MutedMonoCell}"/>
+                                <DataGridTextColumn Binding="{Binding Dia}" Width="110" ElementStyle="{StaticResource MonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="DIA" ToolTip="Dia em que a medição foi feita."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Nome}" Width="*">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="VENTOINHA" ToolTip="Nome da ventoinha, como o hardware a identifica."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding RpmMaximo}" Width="110" ElementStyle="{StaticResource MonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="MÁX. RPM" ToolTip="Maior RPM que essa ventoinha deu nesse dia."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Temperatura}" Width="130" ElementStyle="{StaticResource MutedMonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="TEMP. NO MÁX." ToolTip="Temperatura de referência no mesmo instante do RPM máximo, para comparar com o dia mais fraco."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Amostras}" Width="100" ElementStyle="{StaticResource MutedMonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="MEDIÇÕES" ToolTip="Quantas amostras o app conseguiu ler nesse dia: mais amostras, leitura mais confiável."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -975,7 +1023,7 @@
                                 <TextBlock Text="Verifique, baixe e instale drivers · NVIDIA e AMD automáticos, fabricantes pela página oficial" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnDrvScan" Style="{StaticResource PrimaryButton}" Content="VERIFICAR TUDO" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnDrvScan_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnDrvScan_Click" ToolTip="Procura em todas as placas, na placa-mãe e no Windows Update por drivers mais novos que os instalados."/>
                         </Grid>
                         <Grid Height="3" Margin="0,0,0,8" Background="{DynamicResource Line}">
                             <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
@@ -1001,10 +1049,10 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <CheckBox x:Name="DrvStudio" Content="Driver Studio (criação) em vez de Game Ready" Margin="0,14,0,0"/>
+                                <CheckBox x:Name="DrvStudio" Content="Driver Studio (criação) em vez de Game Ready" Margin="0,14,0,0" ToolTip="Troca a série do driver da NVIDIA para Studio, pensado para quem cria conteúdo, no lugar do Game Ready."/>
                                 <WrapPanel Margin="0,14,0,0">
-                                    <Button x:Name="BtnDrvInstall" Style="{StaticResource PrimaryButton}" Content="BAIXAR E INSTALAR" Padding="18,8" Margin="0,0,10,8" Click="BtnDrvInstall_Click" IsEnabled="False"/>
-                                    <Button x:Name="BtnDrvGpuPage" Style="{StaticResource OutlineButton}" Content="ABRIR PÁGINA OFICIAL" Padding="18,8" Margin="0,0,10,8" Click="BtnDrvGpuPage_Click"/>
+                                    <Button x:Name="BtnDrvInstall" Style="{StaticResource PrimaryButton}" Content="BAIXAR E INSTALAR" Padding="18,8" Margin="0,0,10,8" Click="BtnDrvInstall_Click" IsEnabled="False" ToolTip="Baixa o instalador oficial, confere a assinatura digital, cria um ponto de restauração e instala."/>
+                                    <Button x:Name="BtnDrvGpuPage" Style="{StaticResource OutlineButton}" Content="ABRIR PÁGINA OFICIAL" Padding="18,8" Margin="0,0,10,8" Click="BtnDrvGpuPage_Click" ToolTip="Abre a página oficial do fabricante do seu modelo, para você baixar o driver na mão."/>
                                 </WrapPanel>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
                                     NVIDIA: o instalador é baixado do servidor oficial, a assinatura digital é conferida e um ponto de restauração é criado antes de abrir.
@@ -1018,7 +1066,7 @@
                                 <TextBlock Text="PLACA-MÃE / FABRICANTE" Style="{StaticResource Label}"/>
                                 <TextBlock x:Name="DrvBoard" Margin="0,10,0,0" TextWrapping="Wrap"/>
                                 <Button x:Name="BtnDrvBoardPage" Style="{StaticResource OutlineButton}" Content="ABRIR SUPORTE DO FABRICANTE" Padding="18,8" Margin="0,14,0,8"
-                                        HorizontalAlignment="Left" Click="BtnDrvBoardPage_Click" IsEnabled="False"/>
+                                        HorizontalAlignment="Left" Click="BtnDrvBoardPage_Click" IsEnabled="False" ToolTip="Abre o suporte do fabricante da sua placa-mãe, com os links de driver, BIOS e chipset."/>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
                                     ASUS, MSI, Gigabyte e outros não têm API pública de versões. Abrimos o suporte oficial do fabricante detectado
                                     (chipset, áudio, rede, BIOS). Se a página não abrir no seu modelo, digite o modelo mostrado acima na busca do site.
@@ -1031,8 +1079,8 @@
                                 <TextBlock Text="WINDOWS UPDATE (DRIVERS CERTIFICADOS)" Style="{StaticResource Label}"/>
                                 <TextBlock x:Name="DrvWuList" Margin="0,10,0,0" TextWrapping="Wrap" Text="Ainda não pesquisado."/>
                                 <WrapPanel Margin="0,14,0,0">
-                                    <Button x:Name="BtnDrvWuSearch" Style="{StaticResource OutlineButton}" Content="PROCURAR" Padding="18,8" Margin="0,0,10,8" Click="BtnDrvWuSearch_Click"/>
-                                    <Button x:Name="BtnDrvWuInstall" Style="{StaticResource PrimaryButton}" Content="INSTALAR TODOS" Padding="18,8" Margin="0,0,10,8" Click="BtnDrvWuInstall_Click" IsEnabled="False"/>
+                                    <Button x:Name="BtnDrvWuSearch" Style="{StaticResource OutlineButton}" Content="PROCURAR" Padding="18,8" Margin="0,0,10,8" Click="BtnDrvWuSearch_Click" ToolTip="Pergunta ao Windows Update quais drivers certificados ele tem para o seu hardware."/>
+                                    <Button x:Name="BtnDrvWuInstall" Style="{StaticResource PrimaryButton}" Content="INSTALAR TODOS" Padding="18,8" Margin="0,0,10,8" Click="BtnDrvWuInstall_Click" IsEnabled="False" ToolTip="Instala todos os drivers certificados que o Windows Update encontrou. Precisa de administrador."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1043,7 +1091,7 @@
                                 <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Muted}"
                                            Text="Exporta todos os drivers de terceiros para Documentos\TranalSentinel-Drivers. Útil antes de formatar ou de trocar um driver."/>
                                 <Button x:Name="BtnDrvBackup" Style="{StaticResource OutlineButton}" Content="FAZER BACKUP" Padding="18,8" Margin="0,14,0,0"
-                                        HorizontalAlignment="Left" Click="BtnDrvBackup_Click"/>
+                                        HorizontalAlignment="Left" Click="BtnDrvBackup_Click" ToolTip="Exporta todos os drivers de terceiros para Documentos, para ter de onde voltar antes de formatar ou trocar um driver."/>
                             </StackPanel>
                         </Border>
 
@@ -1085,7 +1133,7 @@
                                 <TextBlock Text="Por que o PC trava e o que está deixando o sistema lento. Leitura do histórico do Windows. As ações sugeridas só acontecem depois de você confirmar." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnSaudeScan" Style="{StaticResource PrimaryButton}" Content="ANALISAR" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnSaudeScan_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnSaudeScan_Click" ToolTip="Varre o log de eventos do Windows, o WMI e o registro para achar o motivo do travamento ou da lentidão. Nada é alterado."/>
                         </Grid>
                         <Grid Height="3" Margin="0,0,0,8" Background="{DynamicResource Line}">
                             <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
@@ -1110,7 +1158,7 @@
                                 <TextBlock Text="VIGIA DE TECLA PRESA" Style="{StaticResource Label}"/>
                                 <CheckBox x:Name="ChkTeclaPresa" Content="Corrigir automaticamente uma tecla modificadora presa"
                                           FontSize="15" Margin="0,8,0,0"
-                                          Checked="ChkTeclaPresa_Changed" Unchecked="ChkTeclaPresa_Changed"/>
+                                          Checked="ChkTeclaPresa_Changed" Unchecked="ChkTeclaPresa_Changed" ToolTip="Quando o Windows ficar achando que Shift, Ctrl, Alt ou Win está pressionado, o app solta a tecla sozinha e avisa."/>
                                 <TextBlock x:Name="ChkTeclaPresaTexto" Foreground="{DynamicResource Muted}" Margin="26,6,0,0" TextWrapping="Wrap">
                                     Às vezes o Windows continua achando que Shift, Ctrl, Alt ou Win está pressionado depois que você solta — e o clique passa a valer como clique com a tecla. Quando isso acontece, o TRANAL SENTINEL solta a tecla e avisa — o aviso na tela tem teto de 3 por família (Shift, Ctrl, Alt e Win contam como uma), mas o diário registra toda tentativa, sem teto. Se a primeira tentativa não soltar, o app espera {}{MINUTOS} min antes de tentar de novo. Só acontece com a tecla caída e o teclado em silêncio por {}{SEGUNDOS} segundos.
                                 </TextBlock>
@@ -1135,9 +1183,9 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                    <Button x:Name="BtnSaudeBancoVerificar" Style="{StaticResource OutlineButton}" Content="VERIFICAR" Padding="14,7" Click="BtnSaudeBancoVerificar_Click"/>
-                                    <Button x:Name="BtnSaudeBancoReparar" Style="{StaticResource OutlineButton}" Content="REPARAR" Padding="14,7" Click="BtnSaudeBancoReparar_Click" Margin="8,0,0,0"/>
-                                    <Button x:Name="BtnSaudeBancoRestaurar" Style="{StaticResource OutlineButton}" Content="RESTAURAR CÓPIA" Padding="14,7" Click="BtnSaudeBancoRestaurar_Click" Margin="8,0,0,0" Visibility="Collapsed"/>
+                                    <Button x:Name="BtnSaudeBancoVerificar" Style="{StaticResource OutlineButton}" Content="VERIFICAR" Padding="14,7" Click="BtnSaudeBancoVerificar_Click" ToolTip="Confere se o banco do histórico está íntegro, sem mexer em nada."/>
+                                    <Button x:Name="BtnSaudeBancoReparar" Style="{StaticResource OutlineButton}" Content="REPARAR" Padding="14,7" Click="BtnSaudeBancoReparar_Click" Margin="8,0,0,0" ToolTip="Reconstrói o banco do histórico com o que der para ler. O banco velho fica guardado como cópia datada."/>
+                                    <Button x:Name="BtnSaudeBancoRestaurar" Style="{StaticResource OutlineButton}" Content="RESTAURAR CÓPIA" Padding="14,7" Click="BtnSaudeBancoRestaurar_Click" Margin="8,0,0,0" Visibility="Collapsed" ToolTip="Desfaz o reparo e devolve a cópia avariada mais recente. O banco volta com o mesmo problema de antes."/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -1147,8 +1195,8 @@
                                 <TextBlock Text="RESUMO DO SISTEMA" Style="{StaticResource Label}"/>
                                 <StackPanel x:Name="SaudeAcoesPendentes" Orientation="Horizontal" Margin="0,10,0,0" Visibility="Collapsed">
                                     <TextBlock x:Name="SaudePendentesTexto" Text="O TRANAL SENTINEL alterou alguma coisa neste PC." Foreground="{DynamicResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/>
-                                    <Button x:Name="BtnSaudeRestaurarAspm" Style="{StaticResource OutlineButton}" Content="RESTAURAR ASPM" Padding="14,7" Click="BtnSaudeRestaurarAspm_Click" Visibility="Collapsed"/>
-                                    <Button x:Name="BtnSaudeRestaurarServicos" Style="{StaticResource OutlineButton}" Content="RESTAURAR SERVIÇOS" Padding="14,7" Click="BtnSaudeRestaurarServicos_Click" Visibility="Collapsed" Margin="8,0,0,0"/>
+                                    <Button x:Name="BtnSaudeRestaurarAspm" Style="{StaticResource OutlineButton}" Content="RESTAURAR ASPM" Padding="14,7" Click="BtnSaudeRestaurarAspm_Click" Visibility="Collapsed" ToolTip="Desfaz o ajuste de ASPM que o app aplicou, devolvendo o Windows ao estado original."/>
+                                    <Button x:Name="BtnSaudeRestaurarServicos" Style="{StaticResource OutlineButton}" Content="RESTAURAR SERVIÇOS" Padding="14,7" Click="BtnSaudeRestaurarServicos_Click" Visibility="Collapsed" Margin="8,0,0,0" ToolTip="Abre a janela com os serviços que o app deixou suspensos, para você religar os que quiser."/>
                                 </StackPanel>
                                 <ItemsControl x:Name="SaudeResumo" Margin="0,10,0,0">
                                     <ItemsControl.ItemTemplate>
@@ -1266,8 +1314,8 @@
                                 <TextBlock Text="As regras que o app vigia em segundo plano: escolha o sensor, o limite e quanto tempo a condição precisa valer antes do aviso." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                                <Button x:Name="BtnNovaRegra" Style="{StaticResource PrimaryButton}" Content="NOVA REGRA" Padding="18,9" Margin="0,0,10,0" Click="BtnNovaRegra_Click"/>
-                                <Button x:Name="BtnPadroes" Style="{StaticResource OutlineButton}" Content="RESTAURAR PADRÕES" Padding="18,9" Click="BtnPadroes_Click"/>
+                                <Button x:Name="BtnNovaRegra" Style="{StaticResource PrimaryButton}" Content="NOVA REGRA" Padding="18,9" Margin="0,0,10,0" Click="BtnNovaRegra_Click" ToolTip="Cria uma regra nova: você escolhe o sensor, o limite e quantos minutos a condição precisa valer antes do aviso."/>
+                                <Button x:Name="BtnPadroes" Style="{StaticResource OutlineButton}" Content="RESTAURAR PADRÕES" Padding="18,9" Click="BtnPadroes_Click" ToolTip="Volta as três regras de fábrica: CPU a 85 °C, disco a 60 °C e bateria em 20 %."/>
                             </StackPanel>
                         </Grid>
 
@@ -1303,7 +1351,7 @@
                                 <TextBlock Text="A tabela de atributos de cada disco: id, nome, flags, valor, pior, limiar e valor cru. É o que mostra quanto da vida útil do disco já foi gasto." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnSmartLer" Style="{StaticResource PrimaryButton}" Content="LER AGORA" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnSmartLer_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnSmartLer_Click" ToolTip="Lê agora a tabela de atributos de cada disco. O comando S.M.A.R.T. só é lido, nunca enviado."/>
                         </Grid>
 
                         <TextBlock x:Name="SmartStatus" Text="Clique em LER AGORA para ler o S.M.A.R.T. de cada disco. A leitura só informa: nada é enviado ao disco." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
@@ -1361,14 +1409,62 @@
                                                 <DataGrid ItemsSource="{Binding Atributos}" AutoGenerateColumns="False" IsReadOnly="True"
                                                           CanUserResizeColumns="False" FontSize="11" MaxHeight="440">
                                                     <DataGrid.Columns>
-                                                        <DataGridTextColumn Header="ID" Binding="{Binding IdTexto}" Width="46" ElementStyle="{StaticResource MonoCell}"/>
-                                                        <DataGridTextColumn Header="ATRIBUTO" Binding="{Binding Nome}" Width="*"/>
-                                                        <DataGridTextColumn Header="FLAGS" Binding="{Binding FlagsTexto}" Width="72" ElementStyle="{StaticResource MutedMonoCell}"/>
-                                                        <DataGridTextColumn Header="VALOR" Binding="{Binding Valor}" Width="52"/>
-                                                        <DataGridTextColumn Header="PIOR" Binding="{Binding Pior}" Width="48" ElementStyle="{StaticResource MutedCell}"/>
-                                                        <DataGridTextColumn Header="LIMIAR" Binding="{Binding LimiarTexto}" Width="58" ElementStyle="{StaticResource MutedCell}"/>
-                                                        <DataGridTextColumn Header="TIPO" Binding="{Binding TipoTexto}" Width="74" ElementStyle="{StaticResource MutedCell}"/>
-                                                        <DataGridTextColumn Header="VALOR CRU" Binding="{Binding CruTexto}" Width="180" ElementStyle="{StaticResource MonoCell}"/>
+                                                        <DataGridTextColumn Binding="{Binding IdTexto}" Width="46" ElementStyle="{StaticResource MonoCell}">
+                                                            <DataGridTextColumn.HeaderTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="ID" ToolTip="Número do atributo em hexadecimal, no padrão do fabricante."/>
+                                                                </DataTemplate>
+                                                            </DataGridTextColumn.HeaderTemplate>
+                                                        </DataGridTextColumn>
+                                                        <DataGridTextColumn Binding="{Binding Nome}" Width="*">
+                                                            <DataGridTextColumn.HeaderTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="ATRIBUTO" ToolTip="Nome do que o atributo mede. Quando o fabricante não publica um nome, o app mostra o nome padrão do id."/>
+                                                                </DataTemplate>
+                                                            </DataGridTextColumn.HeaderTemplate>
+                                                        </DataGridTextColumn>
+                                                        <DataGridTextColumn Binding="{Binding FlagsTexto}" Width="72" ElementStyle="{StaticResource MutedMonoCell}">
+                                                            <DataGridTextColumn.HeaderTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="FLAGS" ToolTip="Marcas do atributo em hexadecimal, do jeito que o fabricante define. É daqui que o app tira a pré-falha."/>
+                                                                </DataTemplate>
+                                                            </DataGridTextColumn.HeaderTemplate>
+                                                        </DataGridTextColumn>
+                                                        <DataGridTextColumn Binding="{Binding Valor}" Width="52">
+                                                            <DataGridTextColumn.HeaderTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="VALOR" ToolTip="Valor normalizado do atributo, de 0 a 100. Quanto mais baixo, mais perto do limiar."/>
+                                                                </DataTemplate>
+                                                            </DataGridTextColumn.HeaderTemplate>
+                                                        </DataGridTextColumn>
+                                                        <DataGridTextColumn Binding="{Binding Pior}" Width="48" ElementStyle="{StaticResource MutedCell}">
+                                                            <DataGridTextColumn.HeaderTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="PIOR" ToolTip="Menor valor que o disco já teve nesse atributo desde o fábrica."/>
+                                                                </DataTemplate>
+                                                            </DataGridTextColumn.HeaderTemplate>
+                                                        </DataGridTextColumn>
+                                                        <DataGridTextColumn Binding="{Binding LimiarTexto}" Width="58" ElementStyle="{StaticResource MutedCell}">
+                                                            <DataGridTextColumn.HeaderTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="LIMIAR" ToolTip="Valor em que o fabricante considera o atributo reprovado. Passar disso é o sinal de alerta."/>
+                                                                </DataTemplate>
+                                                            </DataGridTextColumn.HeaderTemplate>
+                                                        </DataGridTextColumn>
+                                                        <DataGridTextColumn Binding="{Binding TipoTexto}" Width="74" ElementStyle="{StaticResource MutedCell}">
+                                                            <DataGridTextColumn.HeaderTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="TIPO" ToolTip="Pré-falha: o disco avisa antes de falhar. Idade: o valor só piora com o tempo."/>
+                                                                </DataTemplate>
+                                                            </DataGridTextColumn.HeaderTemplate>
+                                                        </DataGridTextColumn>
+                                                        <DataGridTextColumn Binding="{Binding CruTexto}" Width="180" ElementStyle="{StaticResource MonoCell}">
+                                                            <DataGridTextColumn.HeaderTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="VALOR CRU" ToolTip="Valor bruto do sensor, como o disco entregou, antes da normalização."/>
+                                                                </DataTemplate>
+                                                            </DataGridTextColumn.HeaderTemplate>
+                                                        </DataGridTextColumn>
                                                     </DataGrid.Columns>
                                                 </DataGrid>
                                             </StackPanel>
@@ -1419,7 +1515,7 @@
                                 <TextBlock Text="O que cada módulo de memória tem dentro: capacidades, tempos e perfis de overclock. Leitura pelo SMBus — nada do que está gravado na memória é alterado." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnMemoriaScan" Style="{StaticResource PrimaryButton}" Content="LER MÓDULOS" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMemoriaScan_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMemoriaScan_Click" ToolTip="Lê o SPD de cada módulo pelo SMBus: capacidades, tempos do perfil e perfis de overclock. Nada gravado é alterado."/>
                         </Grid>
                         <TextBlock x:Name="MemoriaStatus" Text="Clique em LER MÓDULOS para ler o SPD de cada módulo pelo SMBus. Nada do que está gravado na memória é alterado." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
 
@@ -1522,7 +1618,7 @@
                                 <TextBlock Text="O que mudou no seu PC desde a última vez que olhei, o que o app fez hoje e quanto ele está gastando de máquina." Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnRetrato" Style="{StaticResource PrimaryButton}" Content="TIRAR RETRATO AGORA" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnRetrato_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnRetrato_Click" ToolTip="Tira um retrato do PC agora, sem esperar o horário do perfil, e anota o que mudou desde o último."/>
                         </Grid>
 
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
@@ -1530,9 +1626,9 @@
                                 <TextBlock Text="PERFIL DE RECURSOS" Style="{StaticResource Label}"/>
                                 <TextBlock x:Name="PerfilDescricao" Foreground="{DynamicResource Muted}" FontSize="11.5" TextWrapping="Wrap" Margin="0,6,0,0"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                    <Button x:Name="BtnPerfilCompleto" Style="{StaticResource OutlineButton}" Content="COMPLETO" Padding="16,7" Tag="0" Click="BtnPerfil_Click" Margin="0,0,8,0"/>
-                                    <Button x:Name="BtnPerfilEquilibrado" Style="{StaticResource OutlineButton}" Content="EQUILIBRADO" Padding="16,7" Tag="1" Click="BtnPerfil_Click" Margin="0,0,8,0"/>
-                                    <Button x:Name="BtnPerfilEconomia" Style="{StaticResource OutlineButton}" Content="ECONOMIA" Padding="16,7" Tag="2" Click="BtnPerfil_Click"/>
+                                    <Button x:Name="BtnPerfilCompleto" Style="{StaticResource OutlineButton}" Content="COMPLETO" Padding="16,7" Tag="0" Click="BtnPerfil_Click" Margin="0,0,8,0" ToolTip="Mantém os sensores lidos a cada segundo e roda a análise de saúde sozinha ao abrir. Usa mais máquina."/>
+                                    <Button x:Name="BtnPerfilEquilibrado" Style="{StaticResource OutlineButton}" Content="EQUILIBRADO" Padding="16,7" Tag="1" Click="BtnPerfil_Click" Margin="0,0,8,0" ToolTip="Mantém a leitura de sensores a cada segundo, mas não roda a análise de saúde sozinha ao abrir."/>
+                                    <Button x:Name="BtnPerfilEconomia" Style="{StaticResource OutlineButton}" Content="ECONOMIA" Padding="16,7" Tag="2" Click="BtnPerfil_Click" ToolTip="Lê os sensores a cada 5 segundos e não roda a análise de saúde ao abrir. O PC fica mais leve."/>
                                 </StackPanel>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0">
                                     O perfil muda o intervalo da leitura dos sensores (o que pesa é interrogar a placa, não o Windows) e o que roda sozinho. Em economia os sensores são lidos a cada 5 s em vez de 1 s, e a análise de saúde não roda sozinha ao abrir.
@@ -1589,9 +1685,9 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                                 <StackPanel Margin="0,0,10,0">
                                     <TextBlock Text="DIA" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
-                                    <ComboBox x:Name="UsoDia" Style="{StaticResource DarkCombo}" Width="180" DisplayMemberPath="Rotulo" SelectionChanged="UsoDia_SelectionChanged"/>
+                                    <ComboBox x:Name="UsoDia" Style="{StaticResource DarkCombo}" Width="180" DisplayMemberPath="Rotulo" SelectionChanged="UsoDia_SelectionChanged" ToolTip="Escolhe o dia do histórico de uso da tela. Só há dados dos dias em que o app ficou rodando."/>
                                 </StackPanel>
-                                <Button x:Name="BtnUsoAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="18,9" VerticalAlignment="Bottom" Click="BtnUsoAtualizar_Click"/>
+                                <Button x:Name="BtnUsoAtualizar" Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="18,9" VerticalAlignment="Bottom" Click="BtnUsoAtualizar_Click" ToolTip="Relê o registro de uso do dia escolhido e refaz o ranking de tempo de tela."/>
                             </StackPanel>
                         </Grid>
 
@@ -1623,9 +1719,27 @@
                                 <DataGrid x:Name="UsoRanking" AutoGenerateColumns="False" IsReadOnly="True"
                                           CanUserResizeColumns="False" FontSize="11" Margin="0,16,0,0" Visibility="Collapsed">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="PROGRAMA" Binding="{Binding Processo}" Width="*"/>
-                                        <DataGridTextColumn Header="TEMPO" Binding="{Binding Tempo}" Width="110" ElementStyle="{StaticResource MonoCell}"/>
-                                        <DataGridTextColumn Header="DO TOTAL" Binding="{Binding Percentual}" Width="90" ElementStyle="{StaticResource MutedMonoCell}"/>
+                                        <DataGridTextColumn Binding="{Binding Processo}" Width="*">
+                                            <DataGridTextColumn.HeaderTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="PROGRAMA" ToolTip="Programa que ficou em frente durante mais tempo no dia."/>
+                                                </DataTemplate>
+                                            </DataGridTextColumn.HeaderTemplate>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Binding="{Binding Tempo}" Width="110" ElementStyle="{StaticResource MonoCell}">
+                                            <DataGridTextColumn.HeaderTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="TEMPO" ToolTip="Tempo total em que o programa ficou em frente."/>
+                                                </DataTemplate>
+                                            </DataGridTextColumn.HeaderTemplate>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Binding="{Binding Percentual}" Width="90" ElementStyle="{StaticResource MutedMonoCell}">
+                                            <DataGridTextColumn.HeaderTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="DO TOTAL" ToolTip="Quanto do tempo de tela do dia o programa representa."/>
+                                                </DataTemplate>
+                                            </DataGridTextColumn.HeaderTemplate>
+                                        </DataGridTextColumn>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </StackPanel>
@@ -1686,7 +1800,7 @@
                                 <TextBlock Text="Iluminação, efeitos e o visor do cooler · Corsair iCUE, OpenRGB (MSI, Gigabyte, ASUS...), Razer Chroma (em teste) e Kalkan SmartMonitor" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnLightConnect" Style="{StaticResource OutlineButton}" Content="CONECTAR TUDO" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnLightConnect_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnLightConnect_Click" ToolTip="Procura e conecta em tudo que estiver ligado: Corsair, OpenRGB, Razer e o visor Kalkan."/>
                         </Grid>
 
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
@@ -1696,7 +1810,7 @@
                                 <TextBlock Text="Corsair iCUE / iCUE LINK" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,2"/>
                                 <TextBlock x:Name="LightStatus" Text="Aguardando…" TextWrapping="Wrap" Foreground="{DynamicResource Muted}"/>
                                 <Button x:Name="BtnLightSdk" Style="{StaticResource OutlineButton}" Content="BAIXAR O SDK DA CORSAIR" Visibility="Collapsed"
-                                        HorizontalAlignment="Left" Padding="20,9" Margin="0,10,0,0" Click="BtnLightSdk_Click"/>
+                                        HorizontalAlignment="Left" Padding="20,9" Margin="0,10,0,0" Click="BtnLightSdk_Click" ToolTip="Baixa a DLL do SDK da Corsair, necessária para o app falar com o iCUE. O SDK precisa estar ativado no iCUE."/>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
                                     Requer o iCUE aberto com o SDK ativado nas configurações (manual, dentro do iCUE). A DLL do SDK é baixada pelo botão acima.
                                 </TextBlock>
@@ -1706,7 +1820,7 @@
                                         <TextBlock Text="OpenRGB · MSI Mystic Light, Gigabyte RGB Fusion, ASUS Aura, RAM, Razer, Logitech e outras" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,2"/>
                                         <TextBlock x:Name="OrgbStatus" Text="Aguardando…" TextWrapping="Wrap" Foreground="{DynamicResource Muted}"/>
                                         <Button x:Name="BtnOrgbOpen" Style="{StaticResource OutlineButton}" Content="ABRIR O OPENRGB"
-                                                HorizontalAlignment="Left" Padding="20,9" Margin="0,10,0,0" Click="BtnOrgbOpen_Click"/>
+                                                HorizontalAlignment="Left" Padding="20,9" Margin="0,10,0,0" Click="BtnOrgbOpen_Click" ToolTip="Abre o OpenRGB, que conversa com os controladores da MSI, Gigabyte e ASUS. Ele precisa estar ligado."/>
                                         <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
                                             A MSI, a Gigabyte e a ASUS não oferecem SDK público; o OpenRGB (gratuito, openrgb.org) conversa com os controladores delas.
                                             Ele precisa estar aberto com o servidor SDK ligado, e o MSI Center, o Armoury Crate e o RGB Fusion devem estar fechados.
@@ -1739,17 +1853,17 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="TEMPERATURA DO VISOR" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
-                                        <ComboBox x:Name="KalkanTemp" Style="{StaticResource DarkCombo}" SelectionChanged="KalkanFonteTemp_SelectionChanged"/>
+                                        <ComboBox x:Name="KalkanTemp" Style="{StaticResource DarkCombo}" SelectionChanged="KalkanFonteTemp_SelectionChanged" ToolTip="Escolhe de qual sensor vem a temperatura mostrada no visor do cooler (DEV TEMP)."/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="VENTOINHA DO VISOR" Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,0,0,4"/>
-                                        <ComboBox x:Name="KalkanVent" Style="{StaticResource DarkCombo}" SelectionChanged="KalkanFonteVent_SelectionChanged"/>
+                                        <ComboBox x:Name="KalkanVent" Style="{StaticResource DarkCombo}" SelectionChanged="KalkanFonteVent_SelectionChanged" ToolTip="Escolhe de qual sensor vem a rotação da ventoinha mostrada no visor (FAN SPEED)."/>
                                     </StackPanel>
                                 </Grid>
                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                    <Button x:Name="BtnKalkanConectar" Style="{StaticResource OutlineButton}" Content="CONECTAR" Padding="16,7" Click="BtnKalkanConectar_Click"/>
-                                    <Button x:Name="BtnKalkanEnviar" Style="{StaticResource OutlineButton}" Content="ENVIAR AGORA" Padding="16,7" Margin="8,0,0,0" Click="BtnKalkanEnviar_Click"/>
-                                    <CheckBox x:Name="ChkKalkanAuto" Content="Atualizar o visor todo segundo" Margin="18,0,0,0" VerticalAlignment="Center" Checked="ChkKalkanAuto_Click" Unchecked="ChkKalkanAuto_Click"/>
+                                    <Button x:Name="BtnKalkanConectar" Style="{StaticResource OutlineButton}" Content="CONECTAR" Padding="16,7" Click="BtnKalkanConectar_Click" ToolTip="Abre a porta USB do visor Kalkan e começa a conversar com ele."/>
+                                    <Button x:Name="BtnKalkanEnviar" Style="{StaticResource OutlineButton}" Content="ENVIAR AGORA" Padding="16,7" Margin="8,0,0,0" Click="BtnKalkanEnviar_Click" ToolTip="Manda os valores dos sensores para o visor agora, sem esperar a atualização automática."/>
+                                    <CheckBox x:Name="ChkKalkanAuto" Content="Atualizar o visor todo segundo" Margin="18,0,0,0" VerticalAlignment="Center" Checked="ChkKalkanAuto_Click" Unchecked="ChkKalkanAuto_Click" ToolTip="Mantém o visor do cooler atualizado a cada segundo enquanto o app estiver aberto."/>
                                 </StackPanel>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0">
                                     O visor do cooler Kalkan (linha Alpha Rev.1) mostra dois campos: DEV TEMP (°C) e FAN SPEED (RPM).
@@ -1768,7 +1882,7 @@
                                         <DataTemplate>
                                             <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="0,10">
                                                 <StackPanel Orientation="Horizontal">
-                                                    <CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                                    <CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="0,0,14,0" ToolTip="Marca este dispositivo para receber o efeito e a cor escolhidos."/>
                                                     <StackPanel VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding Name}" FontSize="14"/>
                                                         <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Muted}" FontSize="11"/>
@@ -1785,13 +1899,13 @@
                             <StackPanel>
                                 <TextBlock Text="EFEITO" Style="{StaticResource Label}"/>
                                 <WrapPanel x:Name="LightFxPanel" Margin="0,4,0,12">
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Cor fixa" Tag="static" IsChecked="True" Checked="LightFx_Checked"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Respiração" Tag="breath" Checked="LightFx_Checked"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Arco-íris" Tag="rainbow" Checked="LightFx_Checked"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Temperatura da CPU" Tag="cpu" Checked="LightFx_Checked"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Temperatura da GPU" Tag="gpu" Checked="LightFx_Checked"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Carga da CPU" Tag="load" Checked="LightFx_Checked"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Apagar" Tag="off" Checked="LightFx_Checked"/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Cor fixa" Tag="static" IsChecked="True" Checked="LightFx_Checked" ToolTip="Mantém a cor escolhida aqui embaixo, sem mudar sozinha."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Respiração" Tag="breath" Checked="LightFx_Checked" ToolTip="Faz a cor pulsar devagar, do escuro ao claro, na velocidade ajustada mais embaixo."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Arco-íris" Tag="rainbow" Checked="LightFx_Checked" ToolTip="Faz o arco-íris percorrer os dispositivos, na velocidade ajustada mais embaixo."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Temperatura da CPU" Tag="cpu" Checked="LightFx_Checked" ToolTip="Pinta a luz conforme a temperatura da CPU: azul quando está fria, vermelho quando está quente."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Temperatura da GPU" Tag="gpu" Checked="LightFx_Checked" ToolTip="Pinta a luz conforme a temperatura da placa de vídeo, do azul ao vermelho."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Carga da CPU" Tag="load" Checked="LightFx_Checked" ToolTip="Pinta a luz conforme o uso do processador, para ver de longe quando a máquina está no limite."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LightFx" Content="Apagar" Tag="off" Checked="LightFx_Checked" ToolTip="Desliga as luzes dos dispositivos marcados, sem aplicar cor nem efeito."/>
                                 </WrapPanel>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,16">
                                     Temperatura e carga mudam a cor sozinhas (azul = frio/ocioso, verde, amarelo, vermelho = quente/carga alta).
@@ -1804,28 +1918,28 @@
                                     <WrapPanel x:Name="LightSwatches" Width="360"/>
                                 </StackPanel>
                                 <Grid Margin="0,0,0,2"><TextBlock Text="VERMELHO" Style="{StaticResource Label}"/></Grid>
-                                <Slider x:Name="LightR" Minimum="0" Maximum="255" Value="255" ValueChanged="LightColor_Changed"/>
+                                <Slider x:Name="LightR" Minimum="0" Maximum="255" Value="255" ValueChanged="LightColor_Changed" ToolTip="Canal vermelho da cor. Ajuste junto com o verde e o azul para montar o tom que quiser."/>
                                 <Grid Margin="0,8,0,2"><TextBlock Text="VERDE" Style="{StaticResource Label}"/></Grid>
-                                <Slider x:Name="LightG" Minimum="0" Maximum="255" Value="255" ValueChanged="LightColor_Changed"/>
+                                <Slider x:Name="LightG" Minimum="0" Maximum="255" Value="255" ValueChanged="LightColor_Changed" ToolTip="Canal verde da cor. Ajuste junto com o vermelho e o azul para montar o tom que quiser."/>
                                 <Grid Margin="0,8,0,2"><TextBlock Text="AZUL" Style="{StaticResource Label}"/></Grid>
-                                <Slider x:Name="LightB" Minimum="0" Maximum="255" Value="255" ValueChanged="LightColor_Changed"/>
+                                <Slider x:Name="LightB" Minimum="0" Maximum="255" Value="255" ValueChanged="LightColor_Changed" ToolTip="Canal azul da cor. Ajuste junto com o vermelho e o verde para montar o tom que quiser."/>
 
                                 <Grid Margin="0,16,0,2">
                                     <TextBlock Text="BRILHO" Style="{StaticResource Label}"/>
                                     <TextBlock x:Name="LightBrightText" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right"/>
                                 </Grid>
-                                <Slider x:Name="LightBright" Minimum="0" Maximum="100" Value="100" ValueChanged="LightColor_Changed"/>
+                                <Slider x:Name="LightBright" Minimum="0" Maximum="100" Value="100" ValueChanged="LightColor_Changed" ToolTip="Brilho das luzes, de 0 a 100 %. Vale para os efeitos que usam a cor escolhida."/>
                                 <Grid Margin="0,8,0,2">
                                     <TextBlock Text="VELOCIDADE (RESPIRAÇÃO E ARCO-ÍRIS)" Style="{StaticResource Label}"/>
                                     <TextBlock x:Name="LightSpeedText" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right"/>
                                 </Grid>
-                                <Slider x:Name="LightSpeed" Minimum="1" Maximum="10" Value="5" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="LightColor_Changed"/>
+                                <Slider x:Name="LightSpeed" Minimum="1" Maximum="10" Value="5" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="LightColor_Changed" ToolTip="Velocidade da respiração e do arco-íris, de 1 a 10. Só afeta esses dois efeitos."/>
 
-                                <CheckBox x:Name="LightExclusive" Content="Controle exclusivo (Corsair: se não mudar nada, desmarque e tente de novo)" IsChecked="True" Margin="0,16,0,0"/>
+                                <CheckBox x:Name="LightExclusive" Content="Controle exclusivo (Corsair: se não mudar nada, desmarque e tente de novo)" IsChecked="True" Margin="0,16,0,0" ToolTip="Assume o controle das luzes para não brigar com o iCUE ou o OpenRGB. Se nada mudar, desmarque e tente de novo."/>
 
                                 <WrapPanel Margin="0,14,0,0">
                                     <Button x:Name="BtnLightRun" Style="{StaticResource PrimaryButton}" Content="ATIVAR CONTROLE"
-                                            Padding="24,10" Margin="0,0,14,0" Click="BtnLightRun_Click"/>
+                                            Padding="24,10" Margin="0,0,14,0" Click="BtnLightRun_Click" ToolTip="Aplica o efeito e a cor nos dispositivos marcados. Depois de ligado, o botão vira para parar."/>
                                     <TextBlock x:Name="LightLive" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" FontFamily="{StaticResource Mono}"/>
                                 </WrapPanel>
                                 <TextBlock x:Name="LightRunHint" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0"/>
@@ -1836,7 +1950,7 @@
                             <StackPanel>
                                 <TextBlock Text="DIAGNÓSTICO" Style="{StaticResource Label}"/>
                                 <TextBox x:Name="LightDiag" IsReadOnly="True" FontFamily="{StaticResource Mono}" FontSize="11" TextWrapping="Wrap"
-                                         MinHeight="90" MaxHeight="260" VerticalScrollBarVisibility="Auto" AcceptsReturn="True"/>
+                                         MinHeight="90" MaxHeight="260" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" ToolTip="Registro do que o app tentou fazer com cada dispositivo. Copie este quadro para mandar para o dono do app."/>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0">
                                     Se as luzes não mudarem, copie este quadro e me envie.
                                 </TextBlock>
@@ -1865,10 +1979,10 @@
                             <TextBlock x:Name="LGameCount" Text="Procurando seus jogos…" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Margin="0,0,0,10">
-                            <TextBox x:Name="LGameSearch" Tag="Buscar jogo…" TextChanged="LGameSearch_Changed" Margin="0,0,0,8"/>
+                            <TextBox x:Name="LGameSearch" Tag="Buscar jogo…" TextChanged="LGameSearch_Changed" Margin="0,0,0,8" ToolTip="Filtra a lista de jogos pelo nome enquanto você digita."/>
                             <WrapPanel>
-                                <Button x:Name="BtnScanGames" Style="{StaticResource OutlineButton}" Content="ATUALIZAR LISTA" Padding="14,8" Margin="0,0,8,0" Click="BtnScanGames_Click"/>
-                                <Button Style="{StaticResource OutlineButton}" Content="+ ADICIONAR .EXE" Padding="14,8" Click="BtnAddExe_Click"/>
+                                <Button x:Name="BtnScanGames" Style="{StaticResource OutlineButton}" Content="ATUALIZAR LISTA" Padding="14,8" Margin="0,0,8,0" Click="BtnScanGames_Click" ToolTip="Procura de novo os jogos nas pastas da Steam, Epic, Riot e Ubisoft, e em outros lugares conhecidos."/>
+                                <Button Style="{StaticResource OutlineButton}" Content="+ ADICIONAR .EXE" Padding="14,8" Click="BtnAddExe_Click" ToolTip="Aponta para o .exe de um jogo que o app não encontrou, para ele entrar na biblioteca."/>
                             </WrapPanel>
                         </StackPanel>
                         <ListBox x:Name="LGameList" Grid.Row="2" ItemContainerStyle="{StaticResource ListNavItem}" SelectionChanged="LGameList_Changed">
@@ -1893,7 +2007,7 @@
                                     <TextBlock x:Name="LSub" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <Button x:Name="BtnPlay" Style="{StaticResource PrimaryButton}" Content="JOGAR" Padding="40,14" FontSize="16"
-                                        HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnPlay_Click"/>
+                                        HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnPlay_Click" ToolTip="Abre o jogo com o perfil configurado: prioridade, plano de energia, GPU dedicada e argumentos. Acompanhe para ver os FPS."/>
                             </Grid>
                             <TextBlock x:Name="LStatus" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
 
@@ -1907,13 +2021,13 @@
                                     <RadioButton Style="{StaticResource Chip}" GroupName="LPriority" Content="Acima do normal" Tag="above" Checked="LProfile_Changed"/>
                                     <RadioButton Style="{StaticResource Chip}" GroupName="LPriority" Content="Alta" Tag="high" Checked="LProfile_Changed"/>
                                 </WrapPanel>
-                                    <CheckBox x:Name="LChkPlan" Content="Plano de energia Alto desempenho enquanto joga (volta ao normal depois)" Margin="0,0,0,10" Click="LProfile_Changed"/>
-                                    <CheckBox x:Name="LChkGpu" Content="Forçar a placa de vídeo dedicada (configuração gráfica do Windows)" Margin="0,0,0,10" Click="LProfile_Changed"/>
-                                    <CheckBox x:Name="LChkFso" Content="Desativar otimizações de tela cheia do Windows" Margin="0,0,0,12" Click="LProfile_Changed"/>
+                                    <CheckBox x:Name="LChkPlan" Content="Plano de energia Alto desempenho enquanto joga (volta ao normal depois)" Margin="0,0,0,10" Click="LProfile_Changed" ToolTip="Coloca o Windows em Alto desempenho enquanto o jogo está aberto e volta ao plano normal ao sair."/>
+                                    <CheckBox x:Name="LChkGpu" Content="Forçar a placa de vídeo dedicada (configuração gráfica do Windows)" Margin="0,0,0,10" Click="LProfile_Changed" ToolTip="Faz o Windows usar a placa de vídeo dedicada neste .exe, e não a integrada. Vale quando o jogo abre no lugar errado."/>
+                                    <CheckBox x:Name="LChkFso" Content="Desativar otimizações de tela cheia do Windows" Margin="0,0,0,12" Click="LProfile_Changed" ToolTip="Desliga as otimizações de tela cheia do Windows neste .exe, para o jogo ficar no seu monitor como você espera."/>
                                     <TextBlock x:Name="LExeText" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
                                     <WrapPanel>
-                                        <Button Style="{StaticResource OutlineButton}" Content="ESCOLHER O .EXE" Padding="14,8" Margin="0,0,8,0" Click="BtnPickExe_Click"/>
-                                        <Button Style="{StaticResource OutlineButton}" Content="PERFIL PARA MAIS FPS" Padding="14,8" Click="BtnRecommended_Click"/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="ESCOLHER O .EXE" Padding="14,8" Margin="0,0,8,0" Click="BtnPickExe_Click" ToolTip="Indica qual executável do jogo é o certo, quando o app escolheu o errado."/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="PERFIL PARA MAIS FPS" Padding="14,8" Click="BtnRecommended_Click" ToolTip="Liga de uma vez o perfil de mais FPS: prioridade alta, Alto desempenho, GPU dedicada e sem otimização de tela cheia."/>
                                     </WrapPanel>
                                     <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0">
                                         Prioridade e plano de energia valem só durante o jogo. As opções de GPU e tela cheia são gravadas para o .exe do jogo no Windows
@@ -1952,19 +2066,19 @@
                                 </WrapPanel>
                                     <TextBlock Text="Tipo de argumento (depende do jogo)" Foreground="{DynamicResource Muted}" FontSize="12"/>
                                     <WrapPanel x:Name="LStylePanel" Margin="0,4,0,10">
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LStyle" Content="Source / CS2" Tag="source" IsChecked="True" Checked="LProfile_Changed"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LStyle" Content="Unity" Tag="unity" Checked="LProfile_Changed"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="LStyle" Content="Unreal" Tag="unreal" Checked="LProfile_Changed"/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LStyle" Content="Source / CS2" Tag="source" IsChecked="True" Checked="LProfile_Changed" ToolTip="Argumentos no estilo Source e CS2, como -novid e -high."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LStyle" Content="Unity" Tag="unity" Checked="LProfile_Changed" ToolTip="Argumentos no estilo Unity, com tela cheia em janela e a suavização do mouse."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="LStyle" Content="Unreal" Tag="unreal" Checked="LProfile_Changed" ToolTip="Argumentos no estilo Unreal, com tela cheia e a taxa de quadros no alto."/>
                                 </WrapPanel>
                                     <TextBlock Text="Extras" Foreground="{DynamicResource Muted}" FontSize="12"/>
-                                    <TextBox x:Name="LExtra" Tag="ex.: -novid -high +fps_max 0" Margin="0,4,0,8" TextChanged="LExtra_Changed"/>
+                                    <TextBox x:Name="LExtra" Tag="ex.: -novid -high +fps_max 0" Margin="0,4,0,8" TextChanged="LExtra_Changed" ToolTip="Argumentos extras que entram na linha final, separados por espaço."/>
                                     <WrapPanel x:Name="LExtraPresets" Margin="0,0,0,12"/>
                                     <TextBlock Text="LINHA FINAL" Style="{StaticResource Label}"/>
                                     <TextBlock x:Name="LPreview" FontFamily="{StaticResource Mono}" TextWrapping="Wrap" Margin="0,4,0,10"/>
                                     <StackPanel x:Name="LSteamBox" Visibility="Collapsed">
                                         <TextBlock x:Name="LSteamNow" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"/>
                                         <Button x:Name="BtnSteamApply" Style="{StaticResource PrimaryButton}" Content="APLICAR NAS OPÇÕES DA STEAM"
-                                                HorizontalAlignment="Left" Padding="20,9" Click="BtnSteamApply_Click"/>
+                                                HorizontalAlignment="Left" Padding="20,9" Click="BtnSteamApply_Click" ToolTip="Grava a linha de argumentos nas opções de inicialização do jogo dentro da Steam."/>
                                     </StackPanel>
                                     <TextBlock x:Name="LGfxNote" Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                 </StackPanel>
@@ -1984,14 +2098,14 @@
                                                 <Grid Margin="0,0,0,6">
                                                     <TextBlock Text="{Binding Display}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,90,0"/>
                                                     <Button Style="{StaticResource OutlineButton}" Content="REMOVER" Padding="10,4" FontSize="11" Tag="{Binding}"
-                                                            HorizontalAlignment="Right" Click="BtnRemoveHelper_Click"/>
+                                                            HorizontalAlignment="Right" Click="BtnRemoveHelper_Click" ToolTip="Tira este programa auxiliar da lista de quem abre junto com o jogo."/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                     <WrapPanel Margin="0,6,0,0">
-                                        <Button Style="{StaticResource OutlineButton}" Content="+ ADICIONAR PROGRAMA" Padding="14,8" Margin="0,0,14,0" Click="BtnAddHelper_Click"/>
-                                        <CheckBox x:Name="LHelperClose" Content="Fechar junto com o jogo" IsChecked="True" VerticalAlignment="Center"/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="+ ADICIONAR PROGRAMA" Padding="14,8" Margin="0,0,14,0" Click="BtnAddHelper_Click" ToolTip="Escolhe um .exe para abrir junto com o jogo, como um monitor serial ou um mixer de áudio."/>
+                                        <CheckBox x:Name="LHelperClose" Content="Fechar junto com o jogo" IsChecked="True" VerticalAlignment="Center" ToolTip="Fecha os programas auxiliares automaticamente quando o jogo termina."/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -2012,7 +2126,7 @@
                             <TextBlock x:Name="StatusText" Text="Lendo sensores…" Style="{StaticResource Sub}"/>
                         </StackPanel>
                         <TextBox x:Name="SensorSearch" Width="260" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                 Tag="Buscar sensor ou hardware…" TextChanged="SensorSearch_Changed"/>
+                                 Tag="Buscar sensor ou hardware…" TextChanged="SensorSearch_Changed" ToolTip="Filtra a tabela por nome do sensor ou pelo hardware a que ele pertence."/>
                     </Grid>
                     <WrapPanel x:Name="CategoryChips" Grid.Row="1" Margin="0,0,0,14"/>
                     <Border Grid.Row="2" Style="{StaticResource CardBorder}" Padding="6,14,6,6">
@@ -2028,11 +2142,41 @@
                                 </GroupStyle>
                             </DataGrid.GroupStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="SENSOR" Binding="{Binding Name}" Width="*"/>
-                                <DataGridTextColumn Header="TIPO" Binding="{Binding Category}" Width="130" ElementStyle="{StaticResource MutedCell}"/>
-                                <DataGridTextColumn Header="VALOR" Binding="{Binding Value}" Width="130" ElementStyle="{StaticResource MonoCell}"/>
-                                <DataGridTextColumn Header="MÍN." Binding="{Binding Min}" Width="120" ElementStyle="{StaticResource MutedMonoCell}"/>
-                                <DataGridTextColumn Header="MÁX." Binding="{Binding Max}" Width="120" ElementStyle="{StaticResource MutedMonoCell}"/>
+                                <DataGridTextColumn Binding="{Binding Name}" Width="*">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="SENSOR" ToolTip="Nome do sensor, como o hardware o chama."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Category}" Width="130" ElementStyle="{StaticResource MutedCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="TIPO" ToolTip="Família do sensor: temperatura, carga, clock, energia ou uso."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Value}" Width="130" ElementStyle="{StaticResource MonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="VALOR" ToolTip="Leitura do sensor neste momento."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Min}" Width="120" ElementStyle="{StaticResource MutedMonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="MÍN." ToolTip="Menor valor visto desde que o app abriu."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Binding="{Binding Max}" Width="120" ElementStyle="{StaticResource MutedMonoCell}">
+                                    <DataGridTextColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="MÁX." ToolTip="Maior valor visto desde que o app abriu."/>
+                                        </DataTemplate>
+                                    </DataGridTextColumn.HeaderTemplate>
+                                </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -2128,7 +2272,7 @@
                             <TextBlock x:Name="GamesSub" Text="FPS esperado no seu PC" Style="{StaticResource Sub}"/>
                         </StackPanel>
                         <TextBox x:Name="GameSearch" Width="260" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                 Tag="Buscar jogo…" TextChanged="GameSearch_Changed"/>
+                                 Tag="Buscar jogo…" TextChanged="GameSearch_Changed" ToolTip="Filtra a lista de jogos pelo nome."/>
                     </Grid>
 
                     <!-- Configuração -->
@@ -2154,9 +2298,9 @@
                             <StackPanel Margin="0,0,32,0">
                                 <TextBlock Text="UPSCALING (DLSS / FSR)" Style="{StaticResource Label}"/>
                                 <StackPanel x:Name="GameUpscalePanel" Orientation="Horizontal">
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="GameUp" Content="Nativo" Tag="Native" Margin="0,0,6,0" IsChecked="True" Checked="GameOption_Changed"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="GameUp" Content="Qualidade" Tag="Quality" Margin="0,0,6,0" Checked="GameOption_Changed"/>
-                                    <RadioButton Style="{StaticResource Chip}" GroupName="GameUp" Content="Desempenho" Tag="Performance" Margin="0" Checked="GameOption_Changed"/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="GameUp" Content="Nativo" Tag="Native" Margin="0,0,6,0" IsChecked="True" Checked="GameOption_Changed" ToolTip="Roda o jogo na resolução nativa, sem upscale. É a referência mais fiel de desempenho."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="GameUp" Content="Qualidade" Tag="Quality" Margin="0,0,6,0" Checked="GameOption_Changed" ToolTip="Usa o DLSS ou o FSR no modo de qualidade: quase a imagem nativa com mais FPS."/>
+                                    <RadioButton Style="{StaticResource Chip}" GroupName="GameUp" Content="Desempenho" Tag="Performance" Margin="0" Checked="GameOption_Changed" ToolTip="Usa o DLSS ou o FSR no modo de desempenho: a imagem perde nitidez, mas o FPS sobe bastante."/>
                                 </StackPanel>
                             </StackPanel>
                         </WrapPanel>
@@ -2175,12 +2319,12 @@
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
                                 <Grid Width="240" Margin="0,0,8,0">
-                                    <PasswordBox x:Name="ApiKeyBox" ToolTip="Chave da API HowManyFPS" PasswordChanged="ApiKeyBox_Changed"/>
+                                    <PasswordBox x:Name="ApiKeyBox" ToolTip="Chave da API HowManyFPS. Sem ela a estimativa sai de um cálculo local; com ela, vem de sessões reais." PasswordChanged="ApiKeyBox_Changed"/>
                                     <TextBlock x:Name="ApiKeyHint" Text="Chave da API HowManyFPS" Foreground="{DynamicResource Faint}"
                                                Margin="11,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
                                 </Grid>
                                 <Button x:Name="BtnApiKey" Style="{StaticResource OutlineButton}" Content="SALVAR CHAVE" Padding="16,8"
-                                        Click="BtnApiKey_Click"/>
+                                        Click="BtnApiKey_Click" ToolTip="Guarda a chave da API HowManyFPS neste PC. Com ela, a estimativa sai de sessões reais em vez do cálculo local."/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -2312,11 +2456,11 @@
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <StackPanel x:Name="BnDurationPanel" Orientation="Horizontal" Margin="0,0,14,0" VerticalAlignment="Center">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="BnDur" Content="1 min" Tag="1" Margin="0,0,6,0" IsChecked="True"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="BnDur" Content="3 min" Tag="3" Margin="0,0,6,0"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="BnDur" Content="5 min" Tag="5" Margin="0"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="BnDur" Content="1 min" Tag="1" Margin="0,0,6,0" IsChecked="True" ToolTip="Sessão curta de 1 minuto, para uma primeira olhada."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="BnDur" Content="3 min" Tag="3" Margin="0,0,6,0" ToolTip="Sessão de 3 minutos, tempo suficiente para o jogo entrar no mesmo ritmo."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="BnDur" Content="5 min" Tag="5" Margin="0" ToolTip="Sessão de 5 minutos, o que dá uma leitura mais firme de onde está o limite."/>
                                         </StackPanel>
-                                        <Button x:Name="BtnBnSession" Style="{StaticResource PrimaryButton}" Content="INICIAR ANÁLISE" Click="BtnBnSession_Click"/>
+                                        <Button x:Name="BtnBnSession" Style="{StaticResource PrimaryButton}" Content="INICIAR ANÁLISE" Click="BtnBnSession_Click" ToolTip="Começa a medir CPU, GPU, memória e temperatura enquanto você joga. Ao final, mostra o que está limitando."/>
                                     </StackPanel>
                                 </Grid>
                                 <TextBlock x:Name="BnSessionStatus" Foreground="{DynamicResource Muted}" Margin="0,14,0,0"/>
@@ -2342,7 +2486,7 @@
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <Grid>
                                 <StackPanel>
-                                    <CheckBox x:Name="ChkOverlay" Content="Mostrar overlay" FontSize="15" Checked="ChkOverlay_Changed" Unchecked="ChkOverlay_Changed"/>
+                                    <CheckBox x:Name="ChkOverlay" Content="Mostrar overlay" FontSize="15" Checked="ChkOverlay_Changed" Unchecked="ChkOverlay_Changed" ToolTip="Liga a tela de FPS, frametime e sensores por cima do jogo. O atalho Ctrl + Shift + O liga e desliga a qualquer momento."/>
                                     <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
                                         Atalho global: <Run Text="Ctrl + Shift + O" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Fg}"/> liga e desliga, inclusive dentro do jogo.
                                     </TextBlock>
@@ -2377,9 +2521,9 @@
                                 <Grid>
                                     <TextBlock Text="O QUE MOSTRAR" Style="{StaticResource Label}"/>
                                     <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Top">
-                                        <Button Style="{StaticResource OutlineButton}" Content="SÓ FPS" Tag="min" Padding="10,4" FontSize="11" Margin="0,0,6,0" Click="OvPreset_Click"/>
-                                        <Button Style="{StaticResource OutlineButton}" Content="PADRÃO" Tag="default" Padding="10,4" FontSize="11" Margin="0,0,6,0" Click="OvPreset_Click"/>
-                                        <Button Style="{StaticResource OutlineButton}" Content="TUDO" Tag="all" Padding="10,4" FontSize="11" Click="OvPreset_Click"/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="SÓ FPS" Tag="min" Padding="10,4" FontSize="11" Margin="0,0,6,0" Click="OvPreset_Click" ToolTip="Mostra só o essencial: FPS, frametime e 1 % low, sem mais nenhuma linha."/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="PADRÃO" Tag="default" Padding="10,4" FontSize="11" Margin="0,0,6,0" Click="OvPreset_Click" ToolTip="Volta para o conjunto padrão de métricas que o app considera útil."/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="TUDO" Tag="all" Padding="10,4" FontSize="11" Click="OvPreset_Click" ToolTip="Marca todas as métricas disponíveis: GPU, VRAM, CPU, RAM e as que a sua placa tiver."/>
                                     </WrapPanel>
                                 </Grid>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
@@ -2416,7 +2560,7 @@
 
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
-                                <CheckBox x:Name="ChkPainel" Content="Mostrar o painel flutuante" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed"/>
+                                <CheckBox x:Name="ChkPainel" Content="Mostrar o painel flutuante" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed" ToolTip="Abre uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser."/>
                                 <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
                                     Uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser; o botão × só esconde o painel, e o TRANAL SENTINEL continua rodando na bandeja.
                                 </TextBlock>
@@ -2425,7 +2569,7 @@
 
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
-                                <CheckBox x:Name="ChkPainelTopo" Content="Sempre no topo" FontSize="15" Checked="ChkPainelOpcao_Changed" Unchecked="ChkPainelOpcao_Changed"/>
+                                <CheckBox x:Name="ChkPainelTopo" Content="Sempre no topo" FontSize="15" Checked="ChkPainelOpcao_Changed" Unchecked="ChkPainelOpcao_Changed" ToolTip="Mantém o painel acima das outras janelas. Desligue quando ele atrapalhar o jogo."/>
                                 <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
                                     Desligue quando o painel atrapalhar o jogo. Deixado ligado, o painel fica acima das outras janelas.
                                 </TextBlock>
@@ -2435,7 +2579,7 @@
                         <Border Style="{StaticResource CardBorder}">
                             <StackPanel>
                                 <TextBlock Text="POSIÇÃO" Style="{StaticResource Label}"/>
-                                <Button Style="{StaticResource OutlineButton}" Content="VOLTAR PARA O CANTO" Padding="10,4" Click="PainelCanto_Click"/>
+                                <Button Style="{StaticResource OutlineButton}" Content="VOLTAR PARA O CANTO" Padding="10,4" Click="PainelCanto_Click" ToolTip="Tira o painel de onde você arrastou e devolve ele para o canto da tela."/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -2455,12 +2599,12 @@
 
                     <!-- Seletor de teste -->
                     <WrapPanel x:Name="BenchTestPanel" Grid.Row="1" Margin="0,0,0,16">
-                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Render (CPU)" Tag="render" IsChecked="True" Checked="BenchTest_Checked"/>
-                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Cena de jogo (GPU)" Tag="gpu" Checked="BenchTest_Checked"/>
-                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Ray tracing (GPU)" Tag="rt" Checked="BenchTest_Checked"/>
-                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Simulação de jogo (CPU)" Tag="sim" Checked="BenchTest_Checked"/>
-                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Memória e carregamento" Tag="mem" Checked="BenchTest_Checked"/>
-                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Disco" Tag="disk" Checked="BenchTest_Checked"/>
+                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Render (CPU)" Tag="render" IsChecked="True" Checked="BenchTest_Checked" ToolTip="Renderiza a cena 3D por ray tracing e mede os pontos por núcleo. É o teste mais parecido com o Cinebench."/>
+                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Cena de jogo (GPU)" Tag="gpu" Checked="BenchTest_Checked" ToolTip="Abre a cena de vale com sombras, água e neblina e mede o FPS da sua placa."/>
+                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Ray tracing (GPU)" Tag="rt" Checked="BenchTest_Checked" ToolTip="Cena de objetos com ray tracing por hardware, para medir o desempenho real dos núcleos de ray tracing."/>
+                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Simulação de jogo (CPU)" Tag="sim" Checked="BenchTest_Checked" ToolTip="Simula o trabalho de CPU de um jogo: lógica, física, colisão e IA de 30 mil unidades."/>
+                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Memória e carregamento" Tag="mem" Checked="BenchTest_Checked" ToolTip="Mede a latência e a banda da RAM e simula o carregamento de um mapa, com 512 MB e 32 mil arquivos."/>
+                        <RadioButton Style="{StaticResource Chip}" GroupName="BenchTest" Content="Disco" Tag="disk" Checked="BenchTest_Checked" ToolTip="Mede leitura e escrita sequenciais e acessos aleatórios de 4 KB direto na unidade escolhida."/>
                     </WrapPanel>
 
                     <Grid x:Name="BenchPanelRender" Grid.Row="2">
@@ -2504,16 +2648,16 @@
                                     <StackPanel>
                                         <TextBlock Text="TESTE" Style="{StaticResource Label}"/>
                                         <WrapPanel x:Name="BenchModePanel">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchMode" Content="Multi-core" Tag="mt"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchMode" Content="Single-core" Tag="st"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchMode" Content="Ambos" Tag="both" IsChecked="True"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchMode" Content="Multi-core" Tag="mt" ToolTip="Roda o teste usando todos os núcleos ao mesmo tempo."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchMode" Content="Single-core" Tag="st" ToolTip="Roda o teste em um núcleo só, que é o que mais pesa em jogos que dependem de um único fluxo."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchMode" Content="Ambos" Tag="both" IsChecked="True" ToolTip="Roda os dois e mostra as notas separadas. É o que dá a comparação mais completa."/>
                                         </WrapPanel>
                                         <TextBlock Text="DURAÇÃO" Style="{StaticResource Label}" Margin="0,10,0,8"/>
                                         <WrapPanel x:Name="BenchDurationPanel">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchDur" Content="1 passada" Tag="0" IsChecked="True"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchDur" Content="Mínimo 10 min" Tag="10"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchDur" Content="1 passada" Tag="0" IsChecked="True" ToolTip="Faz uma passada só, para uma ideia rápida do desempenho."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="BenchDur" Content="Mínimo 10 min" Tag="10" ToolTip="Repete o teste por pelo menos 10 minutos, para a temperatura estabilizar e a nota ser confiável."/>
                                         </WrapPanel>
-                                        <Button x:Name="BtnBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Margin="0,12,0,0" Click="BtnBench_Click"/>
+                                        <Button x:Name="BtnBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Margin="0,12,0,0" Click="BtnBench_Click" ToolTip="Começa o benchmark de renderização. A cena é sempre a mesma, em qualquer PC, para comparar com calma."/>
                                         <TextBlock x:Name="BenchHint" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                     </StackPanel>
                                 </Border>
@@ -2612,10 +2756,10 @@
                                         </WrapPanel>
                                         <TextBlock Text="DURAÇÃO" Style="{StaticResource Label}" Margin="0,10,0,8"/>
                                         <WrapPanel x:Name="GbDurPanel">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="GbDur" Content="30 s" Tag="30"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="GbDur" Content="60 s" Tag="60" IsChecked="True"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="GbDur" Content="30 s" Tag="30" ToolTip="Duração curta: dá uma leitura rápida, mas a placa ainda pode estar aquecendo, o que derruba o resultado."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="GbDur" Content="60 s" Tag="60" IsChecked="True" ToolTip="Duração padrão: a placa já aqueceu e o clock estabilizou, o que dá um número mais fiel."/>
                                         </WrapPanel>
-                                        <Button x:Name="BtnGpuBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Margin="0,12,0,0" Click="BtnGpuBench_Click"/>
+                                        <Button x:Name="BtnGpuBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Margin="0,12,0,0" Click="BtnGpuBench_Click" ToolTip="Abre a cena de jogo em uma janela própria e mede o FPS da sua placa. ESC cancela."/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
@@ -2700,9 +2844,9 @@
                                         </WrapPanel>
                                         <TextBlock Text="PRESET" Style="{StaticResource Label}" Margin="0,10,0,8"/>
                                         <WrapPanel x:Name="RtPresetPanel">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="RtPreset" Content="Normal" Tag="normal"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="RtPreset" Content="Alta" Tag="alta" IsChecked="True"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="RtPreset" Content="Extrema" Tag="extrema"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="RtPreset" Content="Normal" Tag="normal" ToolTip="Preset leve: 2 amostras e 2 rebatidas por pixel. Dura menos e serve para uma ideia rápida."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="RtPreset" Content="Alta" Tag="alta" IsChecked="True" ToolTip="Preset equilibrado: 4 amostras e 3 rebatidas por pixel. É o padrão, e o mesmo da referência medida."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="RtPreset" Content="Extrema" Tag="extrema" ToolTip="Preset pesado: 8 amostras e 4 rebatidas por pixel. Dá o número mais fiel, mas leva bem mais tempo."/>
                                         </WrapPanel>
                                         <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
                                             Normal: 2 amostras e 2 rebatidas por pixel · Alta: 4 e 3 · Extrema: 8 e 4.
@@ -2714,7 +2858,7 @@
                                             <RadioButton Style="{StaticResource Chip}" GroupName="RtMode" Content="Rápido" Tag="quick"
                                                          ToolTip="Aquece 5 s e mede 3 passadas de 10 s (~35 s). Só para uma ideia rápida."/>
                                         </WrapPanel>
-                                        <Button x:Name="BtnRtBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Margin="0,12,0,0" Click="BtnRtBench_Click"/>
+                                        <Button x:Name="BtnRtBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Margin="0,12,0,0" Click="BtnRtBench_Click" ToolTip="Começa o teste de ray tracing. Aquece a placa e roda três passadas iguais; o resultado usa a mediana."/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
@@ -2772,10 +2916,10 @@
                                         </TextBlock>
                                         <TextBlock Text="DURAÇÃO" Style="{StaticResource Label}"/>
                                         <WrapPanel x:Name="SimDurPanel">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="SimDur" Content="20 s" Tag="20" IsChecked="True"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="SimDur" Content="60 s" Tag="60"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="SimDur" Content="20 s" Tag="20" IsChecked="True" ToolTip="Duração curta, para uma leitura rápida do desempenho da CPU nessa carga."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="SimDur" Content="60 s" Tag="60" ToolTip="Duração mais longa, que dá um número mais estável do que a CPU aguenta nessa carga."/>
                                         </WrapPanel>
-                                        <Button x:Name="BtnSimBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Margin="0,12,0,0" Click="BtnSimBench_Click"/>
+                                        <Button x:Name="BtnSimBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Margin="0,12,0,0" Click="BtnSimBench_Click" ToolTip="Começa a simulação de jogo. A nota é o número de frames por segundo que a CPU aguenta nessa carga."/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
@@ -2836,7 +2980,7 @@
                                             mil arquivos de 64 KB, lidos do disco sem o cache do Windows. Os arquivos de teste ficam na
                                             pasta temporária e são apagados no final.
                                         </TextBlock>
-                                        <Button x:Name="BtnMemBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Click="BtnMemBench_Click"/>
+                                        <Button x:Name="BtnMemBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Click="BtnMemBench_Click" ToolTip="Mede a latência e a banda da RAM e simula o carregamento de um mapa. Os arquivos de teste são apagados no final."/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource CardBorder}">
@@ -2890,15 +3034,15 @@
                                         <WrapPanel x:Name="DiskDrivePanel"/>
                                         <TextBlock Text="TAMANHO DO TESTE" Style="{StaticResource Label}" Margin="0,10,0,8"/>
                                         <WrapPanel x:Name="DiskSizePanel">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskSize" Content="512 MB" Tag="512"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskSize" Content="1 GB" Tag="1024" IsChecked="True"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskSize" Content="4 GB" Tag="4096"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskSize" Content="512 MB" Tag="512" ToolTip="Arquivo de teste pequeno: o teste termina rápido, mas o resultado é mais frágil."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskSize" Content="1 GB" Tag="1024" IsChecked="True" ToolTip="Tamanho padrão: equilibra o tempo de teste e a consistência do resultado."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="DiskSize" Content="4 GB" Tag="4096" ToolTip="Arquivo de teste grande: o disco mostra bem a velocidade real, mas o teste leva mais tempo."/>
                                         </WrapPanel>
                                         <TextBlock Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,12,0,12">
                                             Mede leitura e escrita sequenciais e acessos aleatórios de 4 KB, direto no disco (sem o cache do Windows).
                                             Grava um arquivo temporário na unidade escolhida e o apaga no final. Feche outros programas pesados antes.
                                         </TextBlock>
-                                        <Button x:Name="BtnDiskBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Click="BtnDiskBench_Click"/>
+                                        <Button x:Name="BtnDiskBench" Style="{StaticResource PrimaryButton}" Content="INICIAR" Click="BtnDiskBench_Click" ToolTip="Começa o teste de disco na unidade escolhida. Grava um arquivo temporário e o apaga no final."/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource CardBorder}">
@@ -2946,7 +3090,7 @@
                                     <TextBlock x:Name="OptResult" TextWrapping="Wrap" Margin="0,10,0,0"/>
                                 </StackPanel>
                                 <Button x:Name="BtnOptimize" Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="TRANAL OTIMIZA"
-                                        FontSize="16" Padding="34,16" VerticalAlignment="Center" Click="BtnOptimize_Click"/>
+                                        FontSize="16" Padding="34,16" VerticalAlignment="Center" Click="BtnOptimize_Click" ToolTip="Faz a limpeza de uma vez: libera a memória em espera e fecha os programas marcados na lista ao lado."/>
                             </Grid>
                         </Border>
 
@@ -2963,7 +3107,7 @@
                                     <Grid Margin="0,0,0,6">
                                         <TextBlock Text="PROGRAMAS PARA FECHAR" Style="{StaticResource Label}"/>
                                         <Button Style="{StaticResource OutlineButton}" Content="ATUALIZAR" Padding="10,4" FontSize="11"
-                                                HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnRefreshApps_Click"/>
+                                                HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnRefreshApps_Click" ToolTip="Relê a lista de programas que podem ser fechados durante o jogo e a memória que cada um usa."/>
                                     </Grid>
                                     <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
                                         Marcados = seguros de fechar durante o jogo. Programas com janela recebem o pedido de
@@ -2979,7 +3123,7 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                        <CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Marca este programa para ser fechado quando você usar TRANAL OTIMIZA."/>
                                                         <StackPanel Grid.Column="1">
                                                             <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
                                                             <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Faint}" FontSize="11" TextTrimming="CharacterEllipsis"/>
@@ -3000,7 +3144,7 @@
                                     <Grid Margin="0,0,0,6">
                                         <TextBlock Text="AJUSTES DO WINDOWS PARA JOGOS" Style="{StaticResource Label}"/>
                                         <Button Style="{StaticResource OutlineButton}" Content="RESTAURAR ORIGINAIS" Padding="10,4" FontSize="11"
-                                                HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnRestoreTweaks_Click"/>
+                                                HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnRestoreTweaks_Click" ToolTip="Devolve os ajustes do Windows ao valor de fábrica e apaga o guarda dos valores originais."/>
                                     </Grid>
                                     <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
                                         O interruptor mostra o estado atual e aplica na hora. O valor original é guardado na primeira
@@ -3016,7 +3160,7 @@
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
                                                         <CheckBox IsChecked="{Binding IsOn, Mode=OneWay}" Tag="{Binding}" Click="Tweak_Click"
-                                                                  VerticalAlignment="Top" Margin="0,1,12,0"/>
+                                                                  VerticalAlignment="Top" Margin="0,1,12,0" ToolTip="Liga ou desliga este ajuste do Windows na hora. O valor original fica guardado para desfazer."/>
                                                         <StackPanel Grid.Column="1">
                                                             <Grid>
                                                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,110,0"/>
@@ -3047,7 +3191,7 @@
                                 <TextBlock Text="Programas que abrem junto com o Windows · desative ou remova o que não precisa" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button Style="{StaticResource PrimaryButton}" Content="ATUALIZAR" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnStartupScan_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnStartupScan_Click" ToolTip="Relê a lista de programas que abrem junto com o Windows e o estado de cada um."/>
                         </Grid>
 
                         <Border Style="{StaticResource CardBorder}">
@@ -3055,7 +3199,7 @@
                                 <Grid Margin="0,0,0,6">
                                     <TextBlock x:Name="StartupSummary" Text="PROGRAMAS DE INICIALIZAÇÃO" Style="{StaticResource Label}"/>
                                     <Button x:Name="BtnStartupRestore" Style="{StaticResource OutlineButton}" Content="RESTAURAR REMOVIDOS" Padding="10,4" FontSize="11"
-                                            HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnStartupRestore_Click"/>
+                                            HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnStartupRestore_Click" ToolTip="Traz de volta os programas que você removeu da inicialização, do jeito que estavam antes."/>
                                 </Grid>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
                                     O interruptor ativa ou desativa na hora, do mesmo jeito que o Gerenciador de Tarefas (a entrada continua
@@ -3073,7 +3217,7 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <CheckBox IsChecked="{Binding Enabled, Mode=OneWay}" Tag="{Binding}" Click="StartupToggle_Click"
-                                                              VerticalAlignment="Top" Margin="0,1,12,0" ToolTip="Ativar / desativar na inicialização"/>
+                                                              VerticalAlignment="Top" Margin="0,1,12,0" ToolTip="Ativa ou desativa este programa na inicialização, como no Gerenciador de Tarefas. A entrada continua lá."/>
                                                     <StackPanel Grid.Column="1">
                                                         <Grid>
                                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,0,150,0"/>
@@ -3086,7 +3230,7 @@
                                                         <TextBlock Text="{Binding Source}" Foreground="{DynamicResource Faint}" FontSize="10.5" Margin="0,1,0,0"/>
                                                     </StackPanel>
                                                     <Button Grid.Column="2" Style="{StaticResource OutlineButton}" Content="REMOVER" Padding="12,5" FontSize="11"
-                                                            Tag="{Binding}" Click="StartupRemove_Click" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                                                            Tag="{Binding}" Click="StartupRemove_Click" VerticalAlignment="Center" Margin="14,0,0,0" ToolTip="Apaga a entrada de inicialização deste programa. Ele continua instalado e dá para desfazer em RESTAURAR REMOVIDOS."/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -3107,7 +3251,7 @@
                                 <TextBlock Text="Os essenciais depois de formatar o PC · versão oficial mais recente, instalação silenciosa" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnAppsInstall" Style="{StaticResource PrimaryButton}" Content="INSTALAR SELECIONADOS" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnAppsInstall_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnAppsInstall_Click" ToolTip="Baixa e instala os apps marcados pelo winget, um de cada vez e sem janelas."/>
                         </Grid>
                         <Grid Height="3" Margin="0,0,0,8" Background="{DynamicResource Line}">
                             <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
@@ -3121,8 +3265,8 @@
                                 <Grid Margin="0,0,0,6">
                                     <TextBlock Text="APPS" Style="{StaticResource Label}"/>
                                     <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Top">
-                                        <Button Style="{StaticResource OutlineButton}" Content="MARCAR TODOS" Padding="10,4" FontSize="11" Margin="0,0,8,0" Click="BtnAppsAll_Click"/>
-                                        <Button Style="{StaticResource OutlineButton}" Content="DESMARCAR" Padding="10,4" FontSize="11" Click="BtnAppsNone_Click"/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="MARCAR TODOS" Padding="10,4" FontSize="11" Margin="0,0,8,0" Click="BtnAppsAll_Click" ToolTip="Marca todos os apps da lista, menos os que já estão instalados."/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="DESMARCAR" Padding="10,4" FontSize="11" Click="BtnAppsNone_Click" ToolTip="Desmarca tudo, para instalar só o que você escolher."/>
                                     </WrapPanel>
                                 </Grid>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
@@ -3140,7 +3284,7 @@
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <CheckBox IsChecked="{Binding Selected}" IsEnabled="{Binding CanSelect}" VerticalAlignment="Top" Margin="0,1,12,0"/>
+                                                    <CheckBox IsChecked="{Binding Selected}" IsEnabled="{Binding CanSelect}" VerticalAlignment="Top" Margin="0,1,12,0" ToolTip="Marca este app para instalar. Os que já estão no PC não podem ser marcados."/>
                                                     <StackPanel Grid.Column="1">
                                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
                                                         <TextBlock Text="{Binding Description}" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
@@ -3165,7 +3309,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <Button x:Name="BtnAppsStore" Style="{StaticResource OutlineButton}" Content="ATUALIZAR O INSTALADOR DE APLICATIVO (MICROSOFT STORE)"
-                                        Padding="14,7" Margin="0,12,0,0" HorizontalAlignment="Left" Visibility="Collapsed" Click="BtnAppsStore_Click"/>
+                                        Padding="14,7" Margin="0,12,0,0" HorizontalAlignment="Left" Visibility="Collapsed" Click="BtnAppsStore_Click" ToolTip="Atualiza o instalador de aplicativos da Microsoft Store, que às vezes trava e impede as instalações."/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -3183,7 +3327,7 @@
                                 <Grid Margin="0,0,0,6">
                                     <TextBlock Text="USB E PORTAS COM (ARDUINO, ESP32, CONVERSORES SERIAIS)" Style="{StaticResource Label}"/>
                                     <Button Style="{StaticResource OutlineButton}" Content="PROCURAR" Padding="10,4" FontSize="11"
-                                            HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnUsbScan_Click"/>
+                                            HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnUsbScan_Click" ToolTip="Relê os dispositivos USB e as portas COM do Windows, separando os que estão conectados dos fantasmas."/>
                                 </Grid>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12">
                                     Cada placa plugada numa porta USB diferente vira um registro novo e prende um número COM. Os registros
@@ -3215,7 +3359,7 @@
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                    <CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Marca este registro para remoção. Só os que não estão conectados podem ser removidos."/>
                                                     <StackPanel Grid.Column="1">
                                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding InstanceId}" Foreground="{DynamicResource Faint}" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
@@ -3229,13 +3373,13 @@
                                 </ItemsControl>
                                 <WrapPanel Margin="0,12,0,0">
                                     <Button x:Name="BtnUsbRemove" Style="{StaticResource PrimaryButton}" Content="REMOVER SELECIONADOS"
-                                            Padding="18,9" Margin="0,0,10,8" Click="BtnUsbRemove_Click"/>
+                                            Padding="18,9" Margin="0,0,10,8" Click="BtnUsbRemove_Click" ToolTip="Apaga os registros dos dispositivos marcados que não estão plugados. Ao plugar de novo, o Windows reinstala."/>
                                     <Button Style="{StaticResource OutlineButton}" Content="LIBERAR NÚMEROS COM PRESOS"
-                                            Padding="18,9" Margin="0,0,10,8" Click="BtnComDb_Click"/>
+                                            Padding="18,9" Margin="0,0,10,8" Click="BtnComDb_Click" ToolTip="Libera os números COM presos por dispositivos ausentes, para a sua placa voltar a pegar um número baixo."/>
                                     <Button x:Name="BtnComDbRestore" Style="{StaticResource OutlineButton}" Content="DESFAZER LIBERAÇÃO"
-                                            Padding="18,9" Margin="0,0,10,8" Click="BtnComDbRestore_Click"/>
+                                            Padding="18,9" Margin="0,0,10,8" Click="BtnComDbRestore_Click" ToolTip="Devolve as reservas de números COM ao estado anterior, se você não gostar do resultado."/>
                                     <CheckBox x:Name="UsbShowAll" Content="Mostrar todos os ausentes (não só portas COM e placas)"
-                                              VerticalAlignment="Center" Margin="6,0,0,8" Checked="UsbShowAll_Changed" Unchecked="UsbShowAll_Changed"/>
+                                              VerticalAlignment="Center" Margin="6,0,0,8" Checked="UsbShowAll_Changed" Unchecked="UsbShowAll_Changed" ToolTip="Mostra também os dispositivos ausentes que não são porta COM nem placa, para uma visão completa."/>
                                 </WrapPanel>
                                 <TextBlock x:Name="UsbResult" TextWrapping="Wrap"/>
                             </StackPanel>
@@ -3252,7 +3396,7 @@
                                 <TextBlock Text="CH340 · CP2102/CP210x · FTDI · Prolific · Arduino — diagnóstico, reinstalação e troca de versão do driver" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button x:Name="BtnMakerScan" Style="{StaticResource PrimaryButton}" Content="VERIFICAR" Padding="20,9"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMakerScan_Click"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMakerScan_Click" ToolTip="Procura as placas e conversores seriais conectados e mostra o driver de cada um e o veredito."/>
                         </Grid>
                         <TextBlock x:Name="MakerStatus" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,16"/>
 
@@ -3286,9 +3430,9 @@
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Top">
                                                         <Button Style="{StaticResource OutlineButton}" Content="REINSTALAR" Padding="12,5" FontSize="11" Margin="0,0,0,6"
-                                                                Tag="{Binding}" Click="MakerReinstall_Click"/>
+                                                                Tag="{Binding}" Click="MakerReinstall_Click" ToolTip="Remove o dispositivo e pede ao Windows para detectar de novo, com o melhor driver disponível."/>
                                                         <Button Style="{StaticResource OutlineButton}" Content="PÁGINA OFICIAL" Padding="12,5" FontSize="11"
-                                                                Tag="{Binding Chip}" Click="MakerOfficial_Click"/>
+                                                                Tag="{Binding Chip}" Click="MakerOfficial_Click" ToolTip="Abre a página do fabricante do chip, para baixar o driver na mão."/>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -3308,7 +3452,7 @@
                                 <Grid Margin="0,0,0,6">
                                     <TextBlock Text="DRIVERS INCLUÍDOS" Style="{StaticResource Label}"/>
                                     <Button x:Name="BtnMakerBundleAll" Style="{StaticResource OutlineButton}" Content="INSTALAR TODOS" Padding="10,4" FontSize="11"
-                                            HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMakerBundleAll_Click"/>
+                                            HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMakerBundleAll_Click" ToolTip="Instala todos os drivers que já vêm dentro do app, sem precisar de internet. Pode instalar com a placa desconectada."/>
                                 </Grid>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
                                     Drivers oficiais de cada fabricante que já vêm dentro do TRANAL SENTINEL: instalam sem internet, ideal logo depois
@@ -3333,7 +3477,7 @@
                                                         <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Faint}" FontSize="11"/>
                                                     </StackPanel>
                                                     <Button Grid.Column="1" Style="{StaticResource OutlineButton}" Content="INSTALAR" Padding="12,5" FontSize="11"
-                                                            Tag="{Binding}" Click="MakerInstallBundled_Click" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                                                            Tag="{Binding}" Click="MakerInstallBundled_Click" VerticalAlignment="Center" Margin="14,0,0,0" ToolTip="Instala este driver oficial que já vem dentro do app. Não precisa de internet."/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -3348,7 +3492,7 @@
                                 <Grid Margin="0,0,0,6">
                                     <TextBlock Text="DRIVERS INSTALADOS NO WINDOWS" Style="{StaticResource Label}"/>
                                     <Button x:Name="BtnMakerRestore" Style="{StaticResource OutlineButton}" Content="RESTAURAR REMOVIDOS" Padding="10,4" FontSize="11"
-                                            HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMakerRestore_Click"/>
+                                            HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnMakerRestore_Click" ToolTip="Traz de volta as versões de driver que você removeu do Windows."/>
                                 </Grid>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10">
                                     Versões guardadas no Windows para cada chip, da mais nova para a mais antiga. Quando a versão nova não funciona
@@ -3371,7 +3515,7 @@
                                                         <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Faint}" FontSize="11"/>
                                                     </StackPanel>
                                                     <Button Grid.Column="1" Style="{StaticResource OutlineButton}" Content="REMOVER" Padding="12,5" FontSize="11"
-                                                            Tag="{Binding}" Click="MakerRemovePackage_Click" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                                                            Tag="{Binding}" Click="MakerRemovePackage_Click" VerticalAlignment="Center" Margin="14,0,0,0" ToolTip="Desinstala esta versão do driver do Windows. Cada remoção faz backup antes."/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -3388,11 +3532,11 @@
                                 <TextBlock x:Name="MakerHolders" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                 <WrapPanel>
                                     <Button x:Name="BtnMakerIde" Style="{StaticResource OutlineButton}" Content="INSTALAR / ATUALIZAR A IDE"
-                                            Padding="18,9" Margin="0,0,10,8" Click="BtnMakerIde_Click"/>
+                                            Padding="18,9" Margin="0,0,10,8" Click="BtnMakerIde_Click" ToolTip="Baixa e instala a Arduino IDE, ou atualiza para a versão mais nova. Os drivers das placas Arduino vêm junto."/>
                                     <Button Style="{StaticResource OutlineButton}" Content="FECHAR PROGRAMAS QUE PRENDEM A PORTA"
-                                            Padding="18,9" Margin="0,0,10,8" Click="BtnMakerHolders_Click"/>
+                                            Padding="18,9" Margin="0,0,10,8" Click="BtnMakerHolders_Click" ToolTip="Fecha monitor serial, PuTTY e afins que estão com a porta COM aberta, para o upload funcionar."/>
                                     <Button Style="{StaticResource OutlineButton}" Content="LIMPAR CACHE DA IDE"
-                                            Padding="18,9" Margin="0,0,10,8" Click="BtnMakerCache_Click"/>
+                                            Padding="18,9" Margin="0,0,10,8" Click="BtnMakerCache_Click" ToolTip="Apaga o cache de índices da Arduino IDE, que resolve o travamento em Downloading index. As placas e bibliotecas ficam."/>
                                 </WrapPanel>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap">
                                     "Porta ocupada" / "Access denied" no upload: outro programa está com a porta aberta (monitor serial,
@@ -3424,7 +3568,7 @@
                                     <TextBlock x:Name="OcPowerValue" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right"/>
                                 </Grid>
                                 <Slider x:Name="OcPower" Minimum="175" Maximum="300" Value="250" TickFrequency="5"
-                                        IsSnapToTickEnabled="True" ValueChanged="OcPower_Changed"/>
+                                        IsSnapToTickEnabled="True" ValueChanged="OcPower_Changed" ToolTip="Teto de energia da placa, de 175 a 300 W. Mais energia segura clocks mais altos e esquenta mais; menos energia deixa o PC mais frio e silencioso."/>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,16">
                                     Mais energia = clocks mais altos sustentados (e mais calor). Menos energia = PC mais frio e silencioso.
                                 </TextBlock>
@@ -3438,9 +3582,9 @@
 
                                 <WrapPanel>
                                     <Button x:Name="BtnOcApply" Style="{StaticResource PrimaryButton}" Content="APLICAR"
-                                            Padding="20,9" Margin="0,0,10,8" Click="BtnOcApply_Click"/>
+                                            Padding="20,9" Margin="0,0,10,8" Click="BtnOcApply_Click" ToolTip="Aplica o limite de energia e o teto de clock na placa agora. Precisa de administrador."/>
                                     <Button Style="{StaticResource OutlineButton}" Content="RESTAURAR PADRÃO"
-                                            Padding="20,9" Margin="0,0,10,8" Click="BtnOcReset_Click"/>
+                                            Padding="20,9" Margin="0,0,10,8" Click="BtnOcReset_Click" ToolTip="Devolve a placa ao limite de energia de fábrica."/>
                                 </WrapPanel>
                                 <TextBlock x:Name="OcGpuResult" TextWrapping="Wrap"/>
                                 <TextBlock Foreground="{DynamicResource Faint}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0">
@@ -3460,29 +3604,29 @@
                                 </TextBlock>
 
                                 <TextBlock Text="CONFIGURAÇÃO TESTADA" Style="{StaticResource Label}"/>
-                                <TextBox x:Name="OcLabel" Tag="ex.: PBO + Curve Optimizer -15, GPU 220 W" Margin="0,0,0,12"/>
+                                <TextBox x:Name="OcLabel" Tag="ex.: PBO + Curve Optimizer -15, GPU 220 W" Margin="0,0,0,12" ToolTip="Nome da configuração testada, para você lembrar depois o que mudou. Exemplo: PBO + Curve Optimizer -15."/>
 
                                 <WrapPanel>
                                     <StackPanel Margin="0,0,36,0">
                                         <TextBlock Text="TESTAR" Style="{StaticResource Label}"/>
                                         <StackPanel x:Name="OcTargetPanel" Orientation="Horizontal">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="CPU + RAM" Tag="cpu" Margin="0,0,6,0" IsChecked="True"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="GPU" Tag="gpu" Margin="0,0,6,0"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="Ambos" Tag="both" Margin="0"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="CPU + RAM" Tag="cpu" Margin="0,0,6,0" IsChecked="True" ToolTip="Estressa o processador e a memória, que é o que costuma quebrar quando se mexe na BIOS."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="GPU" Tag="gpu" Margin="0,0,6,0" ToolTip="Estressa a placa de vídeo, para conferir se o novo clock dela é estável."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcTarget" Content="Ambos" Tag="both" Margin="0" ToolTip="Estressa CPU, memória e GPU ao mesmo tempo. O teste mais completo e o mais demorado."/>
                                         </StackPanel>
                                     </StackPanel>
                                     <StackPanel>
                                         <TextBlock Text="DURAÇÃO" Style="{StaticResource Label}"/>
                                         <StackPanel x:Name="OcDurPanel" Orientation="Horizontal">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcDur" Content="5 min" Tag="5" Margin="0,0,6,0"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcDur" Content="15 min" Tag="15" Margin="0,0,6,0" IsChecked="True"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcDur" Content="30 min" Tag="30" Margin="0"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcDur" Content="5 min" Tag="5" Margin="0,0,6,0" ToolTip="Verificação curta de 5 minutos, para uma primeira olhada depois de um ajuste."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcDur" Content="15 min" Tag="15" Margin="0,0,6,0" IsChecked="True" ToolTip="Verificação de 15 minutos, o tempo mínimo para o calor se estabilizar e o erro aparecer."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="OcDur" Content="30 min" Tag="30" Margin="0" ToolTip="Verificação de 30 minutos, para overclock pesado ou quando a dúvida é de estabilidade."/>
                                         </StackPanel>
                                     </StackPanel>
                                 </WrapPanel>
 
                                 <Button x:Name="BtnOcCheck" Style="{StaticResource PrimaryButton}" Content="INICIAR VERIFICAÇÃO"
-                                        HorizontalAlignment="Left" Padding="24,10" Margin="0,14,0,0" Click="BtnOcCheck_Click"/>
+                                        HorizontalAlignment="Left" Padding="24,10" Margin="0,14,0,0" Click="BtnOcCheck_Click" ToolTip="Roda o teste de estabilidade: mede a nota, stressa o que você escolher, vigia a temperatura e procura erro de hardware (WHEA)."/>
 
                                 <Grid Height="4" Margin="0,12,0,8" Background="{DynamicResource Line}">
                                     <Border Background="{DynamicResource Fg}" RenderTransformOrigin="0,0.5">
@@ -3572,9 +3716,9 @@
                                            Text="No PC de origem, clique em EXPORTAR e guarde o arquivo. Depois, no outro PC, clique em IMPORTAR e escolha esse arquivo. A tabela mostra os testes que existem nos dois PCs e avisa quando as máquinas são diferentes demais para a comparação valer."/>
                                 <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                                     <Button x:Name="BtnCompararExportar" Style="{StaticResource PrimaryButton}" Content="EXPORTAR MEUS RESULTADOS" Padding="12,6" FontSize="11"
-                                            Click="BtnCompararExportar_Click"/>
+                                            Click="BtnCompararExportar_Click" ToolTip="Salva um arquivo com os resultados de benchmark deste PC, para levar e comparar depois."/>
                                     <Button x:Name="BtnCompararImportar" Style="{StaticResource OutlineButton}" Content="IMPORTAR DE OUTRO PC" Padding="12,6" FontSize="11" Margin="10,0,0,0"
-                                            Click="BtnCompararImportar_Click"/>
+                                            Click="BtnCompararImportar_Click" ToolTip="Carrega o arquivo exportado de outro PC e monta a comparação lado a lado."/>
                                 </StackPanel>
                                 <TextBlock x:Name="CompararStatus" TextWrapping="Wrap" Margin="0,12,0,0"/>
                             </StackPanel>
@@ -3611,10 +3755,10 @@
                                         <ColumnDefinition Width="120"/>
                                         <ColumnDefinition Width="130"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Teste" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="0"/>
-                                    <TextBlock Text="Este PC" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="1"/>
-                                    <TextBlock Text="Outro PC" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="2"/>
-                                    <TextBlock Text="Diferença" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="3"/>
+                                    <TextBlock Text="Teste" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="0" ToolTip="Teste de benchmark que existe nos dois PCs."/>
+                                    <TextBlock Text="Este PC" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="1" ToolTip="Nota que este PC mediu nesse teste."/>
+                                    <TextBlock Text="Outro PC" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="2" ToolTip="Nota que o PC importado mediu nesse mesmo teste."/>
+                                    <TextBlock Text="Diferença" Foreground="{DynamicResource Muted}" FontWeight="SemiBold" Grid.Column="3" ToolTip="Quanto este PC ganhou ou perdeu em relação ao importado."/>
                                 </Grid>
                                 <ItemsControl x:Name="CompararTabela" Margin="0,8,0,0">
                                     <ItemsControl.ItemTemplate>
@@ -3675,30 +3819,30 @@
                                 <StackPanel Margin="0,0,36,0">
                                     <TextBlock Text="COMPONENTES" Style="{StaticResource Label}"/>
                                     <StackPanel Orientation="Horizontal" Height="30">
-                                        <CheckBox x:Name="ChkCpu" Content="CPU" IsChecked="True" Margin="0,0,20,0"/>
-                                        <CheckBox x:Name="ChkRam" Content="RAM" Checked="ChkRam_Click" Unchecked="ChkRam_Click" Margin="0,0,20,0"/>
-                                        <CheckBox x:Name="ChkGpu" Content="GPU" Checked="ChkGpu_Click" Unchecked="ChkGpu_Click"/>
+                                        <CheckBox x:Name="ChkCpu" Content="CPU" IsChecked="True" Margin="0,0,20,0" ToolTip="Estressa todos os núcleos do processador ao mesmo tempo."/>
+                                        <CheckBox x:Name="ChkRam" Content="RAM" Checked="ChkRam_Click" Unchecked="ChkRam_Click" Margin="0,0,20,0" ToolTip="Estressa a memória RAM, gravando e relendo blocos de padrão."/>
+                                        <CheckBox x:Name="ChkGpu" Content="GPU" Checked="ChkGpu_Click" Unchecked="ChkGpu_Click" ToolTip="Estressa a placa de vídeo com uma cena que acompanha o mouse, no estilo do FurMark."/>
                                     </StackPanel>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,36,0">
                                     <TextBlock Text="USO DA RAM LIVRE" Style="{StaticResource Label}"/>
                                     <StackPanel x:Name="RamFractionPanel" Orientation="Horizontal" IsEnabled="False">
-                                        <RadioButton Style="{StaticResource Chip}" GroupName="Ram" Content="40%" Tag="0.4" Margin="0,0,6,0"/>
-                                        <RadioButton Style="{StaticResource Chip}" GroupName="Ram" Content="60%" Tag="0.6" Margin="0,0,6,0" IsChecked="True"/>
-                                        <RadioButton Style="{StaticResource Chip}" GroupName="Ram" Content="80%" Tag="0.8" Margin="0"/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="Ram" Content="40%" Tag="0.4" Margin="0,0,6,0" ToolTip="O teste de RAM usa 40 % da memória livre. Menos memória, teste mais leve."/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="Ram" Content="60%" Tag="0.6" Margin="0,0,6,0" IsChecked="True" ToolTip="O teste de RAM usa 60 % da memória livre. É o meio-termo, e não deixa o PC travar."/>
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="Ram" Content="80%" Tag="0.8" Margin="0" ToolTip="O teste de RAM usa 80 % da memória livre. Serve para estressar a memória de verdade."/>
                                     </StackPanel>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,20,0">
                                     <TextBlock Text="LIMITE CPU °C" Style="{StaticResource Label}"/>
-                                    <TextBox x:Name="TempLimit" Text="90" Width="80"/>
+                                    <TextBox x:Name="TempLimit" Text="90" Width="80" ToolTip="Temperatura da CPU que corta o teste automaticamente. Acima dela o app para, para não forçar nada."/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,20,0">
                                     <TextBlock Text="LIMITE GPU °C" Style="{StaticResource Label}"/>
-                                    <TextBox x:Name="GpuTempLimit" Text="85" Width="80" IsEnabled="False"/>
+                                    <TextBox x:Name="GpuTempLimit" Text="85" Width="80" IsEnabled="False" ToolTip="Temperatura da GPU que corta o teste. Só fica editável quando a GPU está marcada no teste."/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,20,0">
                                     <TextBlock Text="DURAÇÃO (MIN)" Style="{StaticResource Label}"/>
-                                    <TextBox x:Name="TxtDuration" Text="10" Width="80" Tag="0 = ∞"/>
+                                    <TextBox x:Name="TxtDuration" Text="10" Width="80" Tag="0 = ∞" ToolTip="Duração do teste em minutos. Deixe 0 para o teste rodar até você interromper."/>
                                 </StackPanel>
                             </WrapPanel>
 
@@ -3725,9 +3869,9 @@
                                     <StackPanel Margin="0,0,24,0">
                                         <TextBlock Text="INTENSIDADE" Style="{StaticResource Label}"/>
                                         <StackPanel x:Name="GpuIntensityPanel" Orientation="Horizontal">
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="GpuInt" Content="Normal" Tag="96,32" Margin="0,0,6,0"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="GpuInt" Content="Alta" Tag="128,48" Margin="0,0,6,0" IsChecked="True"/>
-                                            <RadioButton Style="{StaticResource Chip}" GroupName="GpuInt" Content="Extrema" Tag="160,64" Margin="0"/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="GpuInt" Content="Normal" Tag="96,32" Margin="0,0,6,0" ToolTip="Carga mais leve na placa: menos camadas e menos repetições por pixel. Serve para testar sem esquentar tanto."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="GpuInt" Content="Alta" Tag="128,48" Margin="0,0,6,0" IsChecked="True" ToolTip="Carga alta, o padrão: mais camadas e mais repetições por pixel, o que esquenta a placa de verdade."/>
+                                            <RadioButton Style="{StaticResource Chip}" GroupName="GpuInt" Content="Extrema" Tag="160,64" Margin="0" ToolTip="Carga máxima, a mais pesada de todas. Use para ver o limite térmico da sua placa."/>
                                         </StackPanel>
                                     </StackPanel>
                                 </WrapPanel>
@@ -3735,7 +3879,7 @@
 
                             <StackPanel Grid.Column="1" Grid.RowSpan="2" VerticalAlignment="Center" Margin="20,0,0,0">
                                 <Button x:Name="BtnStress" Style="{StaticResource PrimaryButton}" Content="INICIAR"
-                                        MinWidth="150" Click="BtnStress_Click"/>
+                                        MinWidth="150" Click="BtnStress_Click" ToolTip="Começa o stress test com os componentes marcados. O teste para sozinho se a temperatura passar do limite."/>
                                 <TextBlock x:Name="StressHint" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" FontSize="12"
                                            MaxWidth="220" Margin="0,10,0,0" TextAlignment="Center"/>
                             </StackPanel>

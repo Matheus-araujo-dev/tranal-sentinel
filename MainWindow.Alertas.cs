@@ -163,6 +163,16 @@ public partial class MainWindow
         };
         sensor.SelectionChanged += (_, _) => TrocarSensor(regra, sensor);
 
+        // A dica do combo diz o que aquele sensor está medindo e o que o dono
+        // pode fazer a respeito: o catálogo já sabe disso para cada sensor.
+        var sensorEscolhido = opcoes.FirstOrDefault(o => o.Chave == regra.Sensor);
+        string dicaSensor = sensorEscolhido == null
+            ? "O sensor que a regra vigia. Trocar o sensor traz de volta o limite e a severidade que combinam com ele."
+            : sensorEscolhido.Dica.Length > 0
+                ? $"O que a regra vigia. {sensorEscolhido.Rotulo}: {sensorEscolhido.Dica}"
+                : $"O que a regra vigia. {sensorEscolhido.Rotulo}. Trocar o sensor traz de volta o limite e a severidade que combinam com ele.";
+        ToolTipService.SetToolTip(sensor, dicaSensor);
+
         var operacao = new ComboBox
         {
             Style = (Style)FindResource("DarkCombo"),
@@ -170,6 +180,7 @@ public partial class MainWindow
             SelectedItem = regra.Operacao,
             Width = 66,
         };
+        ToolTipService.SetToolTip(operacao, "O lado do limite: >= avisa quando o valor passa do número, <= avisa quando ele fica abaixo dele.");
         operacao.SelectionChanged += (_, _) =>
         {
             if (operacao.SelectedItem is not string op) return;
@@ -183,6 +194,7 @@ public partial class MainWindow
             Text = regra.Limite.ToString("0.##", CultureInfo.CurrentCulture),
             Width = 80,
         };
+        ToolTipService.SetToolTip(limite, "O valor que dispara o aviso, na unidade do sensor escolhido: graus, porcentagem, MB/s.");
         limite.LostFocus += (_, _) => AlterarLimite(regra, limite, descricao);
 
         var segundos = new TextBox
@@ -190,6 +202,7 @@ public partial class MainWindow
             Text = regra.SegundosMinimos.ToString(CultureInfo.CurrentCulture),
             Width = 80,
         };
+        ToolTipService.SetToolTip(segundos, "Por quantos segundos a condição precisa valer antes do aviso. Evita que um pico de um instante já vire alarme.");
         segundos.LostFocus += (_, _) => AlterarSegundos(regra, segundos, descricao);
 
         var severidade = new ComboBox
@@ -200,6 +213,7 @@ public partial class MainWindow
             SelectedItem = Severidades.FirstOrDefault(s => s.Valor == regra.Severidade),
             Width = 120,
         };
+        ToolTipService.SetToolTip(severidade, "A gravidade do aviso: ela entra no texto que explica a regra e no registro do aviso. Ajuda a separar o que é urgente do que é só histórico.");
         severidade.SelectionChanged += (_, _) =>
         {
             if (severidade.SelectedItem is not SeveridadeOpcao op) return;
@@ -209,6 +223,7 @@ public partial class MainWindow
         };
 
         var ativa = new CheckBox { IsChecked = regra.Ativa, VerticalAlignment = VerticalAlignment.Center };
+        ToolTipService.SetToolTip(ativa, "Liga ou desliga a regra sem apagá-la. Desligada, ela continua guardada no PC, mas o app não avisa.");
         ativa.Click += (_, _) =>
         {
             regra.Ativa = ativa.IsChecked == true;
@@ -223,6 +238,7 @@ public partial class MainWindow
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        ToolTipService.SetToolTip(remover, "Apaga a regra do PC. Se quiser vigiar de novo, é só criar outra.");
         remover.Click += (_, _) => RemoverRegra(regra);
 
         var grade = new Grid();

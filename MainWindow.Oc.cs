@@ -54,16 +54,20 @@ public partial class MainWindow
                 OcPower.Value = (double)valueOrDefault2 / 1000.0;
             }
             uint valueOrDefault3 = Nvml.MaxClock(ocGpu, 0).GetValueOrDefault(3000u);
-            Chip("Sem teto", null, on: true);
-            Chip($"Leve · {valueOrDefault3 - 300} MHz", valueOrDefault3 - 300, on: false);
-            Chip($"Equilibrado · {valueOrDefault3 - 500} MHz", valueOrDefault3 - 500, on: false);
-            Chip($"Econômico · {valueOrDefault3 - 800} MHz", valueOrDefault3 - 800, on: false);
+            Chip("Sem teto", null, on: true,
+                 "Deixa a placa trabalhar no clock máximo dela, sem limite nenhum. É o comportamento normal.");
+            Chip($"Leve · {valueOrDefault3 - 300} MHz", valueOrDefault3 - 300, on: false,
+                 "Tira um pouco do clock máximo. A placa quase não sente a diferença e já gasta menos energia e esquenta menos.");
+            Chip($"Equilibrado · {valueOrDefault3 - 500} MHz", valueOrDefault3 - 500, on: false,
+                 "Corta mais do clock: perde um pouco de FPS, mas a placa passa a esfriar melhor. Vale para sessão longa de jogo.");
+            Chip($"Econômico · {valueOrDefault3 - 800} MHz", valueOrDefault3 - 800, on: false,
+                 "O teto mais baixo: a placa roda bem mais fresca e barata, e entrega menos desempenho. Bom quando calor ou energia pesam mais que fluidez.");
             UpdateOcGpuState();
         }
         BuildOcGuide();
         UpdateOcHistory();
         UpdateRecentErrors();
-        void Chip(string label, uint? cap, bool on)
+        void Chip(string label, uint? cap, bool on, string dica)
         {
             RadioButton radioButton = new RadioButton
             {
@@ -72,6 +76,9 @@ public partial class MainWindow
                 Style = (Style)FindResource("Chip"),
                 IsChecked = on
             };
+            // O chip é criado aqui, então a dica entra na criação: os chips são
+            // refeitos quando o limite de clock é aplicado ou restaurado.
+            ToolTipService.SetToolTip(radioButton, dica);
             radioButton.Checked += delegate
             {
                 _ocPendingCap = cap;
@@ -422,6 +429,7 @@ public partial class MainWindow
         }
         catch (OperationCanceledException)
         {
+            // O usuário cancelou o teste de overclock: o finally já para o stress e o burn, então não há mais nada a fazer.
         }
         finally
         {

@@ -246,7 +246,10 @@ public partial class MainWindow
                 if (File.Exists(exe)) return exe;
             }
         }
-        catch { }
+        catch
+        {
+            // Procurar o OpenRGB é só facilitação: sem ele, o app abre o site e explica como instalar.
+        }
         return null;
     }
 
@@ -255,7 +258,10 @@ public partial class MainWindow
         string? exe = FindOpenRgb();
         if (exe == null)
         {
-            try { Process.Start(new ProcessStartInfo("https://openrgb.org/") { UseShellExecute = true }); } catch { }
+            try { Process.Start(new ProcessStartInfo("https://openrgb.org/") { UseShellExecute = true }); } catch
+            {
+                // Sem navegador para abrir o site: o texto abaixo já diz o que fazer.
+            }
             OrgbStatus.Text = "OpenRGB: abri o site openrgb.org no navegador. Baixe, descompacte (pode ser em Downloads ou Documentos), e volte aqui.";
             return;
         }
@@ -340,18 +346,36 @@ public partial class MainWindow
         var backends = new HashSet<ILightBackend>();
         foreach (var v in _lightVms.Where(v => v.Selected))
         {
-            try { v.Device.Backend.Release(v.Device); backends.Add(v.Device.Backend); } catch { }
+            try { v.Device.Backend.Release(v.Device); backends.Add(v.Device.Backend); } catch
+            {
+                // Dispositivo que já desapareceu não tem modo anterior para devolver: as outras luzes voltam ao normal.
+            }
         }
-        foreach (var b in backends) { try { b.EndSession(); } catch { } }
+        foreach (var b in backends) { try { b.EndSession(); } catch
+        {
+            // Encerrar a sessão de cada backend: se um deles não responder, os outros também são liberados.
+        } }
         LightRunHint.Text = "Controle devolvido: o iCUE, o OpenRGB e o Synapse reassumem as luzes.";
     }
 
     private void ShutdownInteg()
     {
-        try { StopLighting(true); } catch { }
-        try { _cue?.Dispose(); } catch { }
-        try { _orgb?.Shutdown(); } catch { }
-        try { _razer?.Shutdown(); } catch { }
+        try { StopLighting(true); } catch
+        {
+            // Devolver as luzes é limpeza do encerramento: se falhar, o app fecha do mesmo jeito.
+        }
+        try { _cue?.Dispose(); } catch
+        {
+            // A sessão do iCUE já pode estar fechada: o descarte é só limpeza.
+        }
+        try { _orgb?.Shutdown(); } catch
+        {
+            // O OpenRGB já pode estar desligado: o descarte é só limpeza.
+        }
+        try { _razer?.Shutdown(); } catch
+        {
+            // O Synapse já pode ter encerrado a sessão: o descarte é só limpeza.
+        }
     }
 
     private void LightFx_Checked(object sender, RoutedEventArgs e)

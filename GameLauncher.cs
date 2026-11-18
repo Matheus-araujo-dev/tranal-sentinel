@@ -124,7 +124,10 @@ public static class GameLauncher
                     ((exe != null && path.Equals(exe, StringComparison.OrdinalIgnoreCase)) || path.StartsWith(dir.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)))
                 { found = pr; keep = true; }
             }
-            catch { }
+            catch
+            {
+                // Processo sem permissão de leitura (ou já morto): ele não pode ser identificado como o jogo, e a busca segue.
+            }
             if (!keep) pr.Dispose();
         }
         return found;
@@ -156,8 +159,14 @@ public static class GameLauncher
             string? exe = p.ExePath ?? g.ExePath ?? FindMainExe(g.InstallDir, g.Name);
             if (exe != null && File.Exists(exe))
             {
-                try { SetGpuPreference(exe, p.GpuHigh); } catch { }
-                try { SetDisableFso(exe, p.DisableFso); } catch { }
+                try { SetGpuPreference(exe, p.GpuHigh); } catch
+                {
+                    // A preferência de GPU por aplicativo é opcional: se o registro recusar, o jogo abre do mesmo jeito.
+                }
+                try { SetDisableFso(exe, p.DisableFso); } catch
+                {
+                    // O FSO só existe em builds recentes do Windows: se a chave não existir, esse ajuste é simplesmente pulado.
+                }
             }
 
             foreach (var h in p.Helpers.Where(h => File.Exists(h.Path)))
@@ -168,7 +177,10 @@ public static class GameLauncher
                     var proc = Process.Start(new ProcessStartInfo(h.Path, h.Args) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(h.Path) ?? "" });
                     if (proc != null) helpers.Add((proc, h.CloseWithGame));
                 }
-                catch { }
+                catch
+                {
+                    // Ajudante (anticheat, launcher) que não abre: o jogo abre normalmente, só sem aquele helper.
+                }
             }
             if (helpers.Count > 0) await Task.Delay(1500, ct);
 
@@ -200,9 +212,15 @@ public static class GameLauncher
                     if (real != null) { learnedExe(real); }
                     game.PriorityClass = p.Priority switch { "high" => ProcessPriorityClass.High, "above" => ProcessPriorityClass.AboveNormal, _ => ProcessPriorityClass.Normal };
                 }
-                catch { }
+                catch
+                {
+                    // Jogo protegido ou já encerrado: a prioridade não é ajustada, e o acompanhamento do jogo continua.
+                }
                 status($"{g.Name} em execução" + (p.Priority != "normal" ? $" · prioridade {(p.Priority == "high" ? "alta" : "acima do normal")}" : "") + ".");
-                try { await game.WaitForExitAsync(ct); } catch (OperationCanceledException) { throw; } catch { }
+                try { await game.WaitForExitAsync(ct); } catch (OperationCanceledException) { throw; } catch
+                {
+                    // Falha ao esperar o processo terminar: o laço de acompanhamento continua e os ajustes temporários são desfeitos no fim.
+                }
                 game.Dispose();
                 game = null;
                 // alguns jogos fecham um launcher e abrem o jogo de verdade: espera mais um pouco
@@ -218,11 +236,17 @@ public static class GameLauncher
         catch (Exception ex) { status("Falhou: " + ex.Message); }
         finally
         {
-            if (oldPlan != null) { try { PowerCfg($"/setactive {oldPlan}"); } catch { } }
+            if (oldPlan != null) { try { PowerCfg($"/setactive {oldPlan}"); } catch
+            {
+                // Voltar ao plano de energia anterior é a última coisa do acompanhamento: se o Windows recusar, o resto já foi desfeito.
+            } }
             foreach (var (proc, close) in helpers)
             {
                 if (!close) continue;
-                try { if (!proc.HasExited) { proc.CloseMainWindow(); if (!proc.WaitForExit(1500)) proc.Kill(); } } catch { }
+                try { if (!proc.HasExited) { proc.CloseMainWindow(); if (!proc.WaitForExit(1500)) proc.Kill(); } } catch
+                {
+                    // Ajudante que já morreu entre a checagem e o fechamento: não há o que fechar, e o app segue.
+                }
             }
         }
     }

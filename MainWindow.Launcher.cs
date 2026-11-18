@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using Microsoft.Win32;
 
 namespace TranalSentinel;
@@ -28,6 +30,7 @@ public partial class MainWindow
     {
         if (_launcherInited) return;
         _launcherInited = true;
+        AplicarDicasJogos();
         foreach (var (label, token, hint) in ExtraPresets)
         {
             var b = new Button
@@ -48,6 +51,46 @@ public partial class MainWindow
     }
 
     // ---------------- Lista ----------------
+
+    /// <summary>
+    /// Põe a dica de cada jogo da biblioteca no item da lista.
+    ///
+    /// <para>
+    /// O item da lista nasce do <c>ItemTemplate</c> do XAML, então a dica
+    /// entra pelo <c>ItemContainerStyle</c>: o <c>BasedOn</c> mantém o
+    /// visual do <c>ListNavItem</c> e a dica vem de um binding sobre o
+    /// jogo. Como a dica é calculada a partir do item, ela acompanha o
+    /// jogo certo quando a lista é filtrada ou refeita.
+    /// </para>
+    /// </summary>
+    private void AplicarDicasJogos()
+    {
+        var estilo = new Style(typeof(ListBoxItem)) { BasedOn = (Style)FindResource("ListNavItem") };
+        estilo.Setters.Add(new Setter(ToolTipService.ToolTipProperty, new Binding { Converter = new DicaJogoConverter() }));
+        LGameList.ItemContainerStyle = estilo;
+    }
+
+    /// <summary>
+    /// A dica de um jogo da biblioteca: o que o dono ganha ao escolher
+    /// aquele jogo na lista.
+    /// </summary>
+    private sealed class DicaJogoConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is not LibGame g) return DependencyProperty.UnsetValue;
+
+            const string perfil = "escolher este jogo abre o perfil dele: prioridade do processo, plano de energia, placa de vídeo dedicada e argumentos de inicialização. O ajuste vale só para este jogo.";
+            if (g.IsSteam)
+                return $"{g.Name}, da Steam: {perfil} Na Steam, os argumentos só passam a valer depois de APLICAR NAS OPÇÕES DA STEAM.";
+            if (g.LaunchUri != null)
+                return $"{g.Name}, da {g.Store}: {perfil} Esta loja abre o jogo por um atalho que não aceita argumentos, então ajuste os argumentos nas opções da própria loja.";
+            return $"{g.Name}, da {g.Store}: {perfil} Os argumentos vão direto para o .exe quando você aperta JOGAR.";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
 
     private async Task ScanGamesAsync()
     {
