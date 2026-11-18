@@ -187,29 +187,52 @@ public partial class MainWindow
         Func<DashSample, float?> gpu = metric switch { "load" => s => s.GpuL, "power" => s => s.GpuW, _ => s => s.GpuT };
         string unit = metric switch { "load" => " %", "power" => " W", _ => " °C" };
         string name = metric switch { "load" => "CARGA", "power" => "CONSUMO", _ => "TEMPERATURA" };
-        var data = _dash.Skip(Math.Max(0, _dash.Count - range)).ToList();
+        // A janela do grafico e sempre o fim da lista. Em vez de copiar a fatia
+        // (LINQ) e percorrer a copia varias vezes, o desenho le direto dela:
+        // zero copia e zero array por amostra.
+        int primeiro = Math.Max(0, _dash.Count - range);
+        int n = _dash.Count - primeiro;
 
         // Cabeçalho: valor atual grande + variação no período (como o par e a cotação da referência).
-        float? cNow = data.Count > 0 ? cpu(data[^1]) : null, gNow = data.Count > 0 ? gpu(data[^1]) : null;
+        float? cNow = n > 0 ? cpu(_dash[^1]) : null, gNow = n > 0 ? gpu(_dash[^1]) : null;
         DashChartLabel.Text = $"CPU · {name}";
         DashChartValue.Text = cNow is float cv ? $"{cv:0.#}{unit}" : "—";
         DashChartValue2.Text = gNow is float gv ? $"{gv:0.#}{unit}" : "—";
-        var firstC = data.Select(cpu).FirstOrDefault(v => v != null);
+        // Uma passada so guarda o primeiro valor da CPU e o maior valor de tudo.
+        // Antes eram tres LINQ, e um deles alocava um array por amostra.
+        float? firstC = null;
+        double maior = 0;
+        bool temValor = false;
+        for (int i = primeiro; i < _dash.Count; i++)
+        {
+            var amostra = _dash[i];
+            if (cpu(amostra) is float vc)
+            {
+                if (!temValor) firstC = vc;
+                if (vc > maior) maior = vc;
+                temValor = true;
+            }
+            if (gpu(amostra) is float vg)
+            {
+                if (vg > maior) maior = vg;
+                temValor = true;
+            }
+        }
         DashChartDelta.Text = cNow is float a && firstC is float b
             ? $"{(a - b >= 0 ? "+" : "")}{a - b:0.#}{unit} em {(range >= 60 ? $"{range / 60} min" : $"{range} s")}"
             : cNow == null && metric != "load" ? "sem leitura da CPU (veja o aviso no menu)" : "coletando…";
 
-        var all = data.SelectMany(s => new[] { cpu(s), gpu(s) }).Where(v => v != null).Select(v => (double)v!.Value).ToList();
+        // (o maior valor ja foi medido na passada acima: a lista "all" nao existe mais)
         double yMin = metric == "temp" ? 20 : 0;
         double yMax = metric switch
         {
             "load" => 100,
-            "power" => Math.Max(50, all.Count > 0 ? all.Max() * 1.2 : 50),
-            _ => Math.Max(90, all.Count > 0 ? all.Max() + 5 : 90)
+            "power" => Math.Max(50, temValor ? maior * 1.2 : 50),
+            _ => Math.Max(90, temValor ? maior + 5 : 90)
         };
         const double left = 48, bottom = 22, top = 8;
         double plotW = w - left, plotH = h - top - bottom;
-        double X(int i) => left + plotW * i / Math.Max(1, range - 1) + plotW * (range - data.Count) / Math.Max(1, range - 1);
+        double X(int i) => left + plotW * i / Math.Max(1, range - 1) + plotW * (range - n) / Math.Max(1, range - 1);
         double Y(double v) => top + plotH * (1 - (Math.Clamp(v, yMin, yMax) - yMin) / (yMax - yMin));
 
         var fg = (SolidColorBrush)FindResource("Fg");
@@ -236,16 +259,24 @@ public partial class MainWindow
             DashChart.Children.Add(t);
         }
 
-        if (data.Count < 2) return;
+        if (n < 2) return;
+
+        // Uma varredura gera os dois conjuntos de pontos: o da GPU e o da CPU.
+        var pts = new List<Point>(n);
+        var gPts = new List<Point>(n);
+        for (int i = 0; i < n; i++)
+        {
+            var amostra = _dash[primeiro + i];
+            if (gpu(amostra) is float vgpu) gPts.Add(new Point(X(i), Y(vgpu)));
+            if (cpu(amostra) is float vcpu) pts.Add(new Point(X(i), Y(vcpu)));
+        }
 
         // GPU: linha tracejada discreta
         var gLine = new Polyline { Stroke = (Brush)FindResource("Muted"), StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 3, 2 }, StrokeLineJoin = PenLineJoin.Round };
-        for (int i = 0; i < data.Count; i++) if (gpu(data[i]) is float g) gLine.Points.Add(new Point(X(i), Y(g)));
+        foreach (var ponto in gPts) gLine.Points.Add(ponto);
         DashChart.Children.Add(gLine);
 
         // CPU: área com degradê monocromático + linha
-        var pts = new List<Point>();
-        for (int i = 0; i < data.Count; i++) if (cpu(data[i]) is float c) pts.Add(new Point(X(i), Y(c)));
         if (pts.Count < 2) return;
         var col = fg.Color;
         var area = new Polygon
@@ -354,7 +385,10 @@ public partial class MainWindow
 
         var gm = _tweaks.FirstOrDefault(t => t.Id == "gamemode");
         var dvr = _tweaks.FirstOrDefault(t => t.Id == "gamedvr");
-        try { gm?.Refresh(); dvr?.Refresh(); } catch { }
+        try { gm?.Refresh(); dvr?.Refresh(); } catch
+        {
+            // Modo de Jogo e Game DVR lidos do registro: se a leitura falhar, esses dois itens do painel ficam com o valor da última leitura.
+        }
         if (gm != null) list.Add(Item(gm.IsOn, "Modo de Jogo ligado", "O Windows prioriza o jogo.", "Desligado: ligue em TRANAL OTIMIZA."));
         if (dvr != null) list.Add(Item(dvr.IsOn, "Gravação em segundo plano desligada", "O Game Bar não grava o tempo todo.",
                                        "O Game DVR está gravando: custa FPS."));
@@ -366,7 +400,10 @@ public partial class MainWindow
             list.Add(Item(stuck == 0, "Portas COM livres", "Nenhum número COM preso.",
                           $"{stuck} números presos por dispositivos antigos."));
         }
-        catch { }
+        catch
+        {
+            // A contagem de portas COM presas é um extra do painel: sem ela, o item simplesmente não aparece.
+        }
 
         _health = list;
         DashHealth.ItemsSource = _health;
