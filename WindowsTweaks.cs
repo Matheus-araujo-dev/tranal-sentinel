@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
@@ -17,6 +18,12 @@ public sealed class Tweak : INotifyPropertyChanged
     public string Description { get; init; } = "";
     public string Effect { get; init; } = "";
     public bool NeedsRestart { get; init; }
+    /// <summary>
+    /// O que o dono precisa fazer para o ajuste valer. O padrão é reiniciar o
+    /// PC; alguns ajustes só precisam de uma coisa menos forte (reiniciar o
+    /// Explorer, por exemplo).
+    /// </summary>
+    public string RestartHint { get; init; } = "Reinicie o PC para valer.";
     internal Func<bool?> Read { get; init; } = () => null;
     internal Action<bool, AppSettings> Write { get; init; } = (_, _) => { };
     internal Action<AppSettings> Restore { get; init; } = _ => { };
@@ -131,13 +138,73 @@ public static class WindowsTweaks
                     .Select(n => s.TweakBackup.GetValueOrDefault($"mouse.{n}") ?? "0").ToArray());
             },
         },
+        new Tweak
+        {
+            Id = "roda", Title = "Rolagem do mouse nos navegadores",
+            Description = "Diz ao Windows quantas linhas a roda rola por entalhe.",
+            Effect = "Com zero linhas, Opera, Chrome e os aplicativos Electron não rolam a página: a roda gira e nada acontece.",
+            Read = () => !WindowsTweakRegras.RolagemDoNavegadorQuebrada(LinhasPorEntalhe()),
+            Write = (on, s) =>
+            {
+                GuardarRoda(s);
+                if (on)
+                {
+                    GravarLinhasPorEntalhe(WindowsTweakRegras.LinhasPorEntalhePadrao);
+                    GravarCaracteresPorEntalhe(WindowsTweakRegras.CaracteresPorEntalhePadrao);
+                }
+                else
+                {
+                    // Desligar devolve o valor que estava antes: o app não
+                    // inventa um valor novo para "desfazer".
+                    if (s.TweakBackup.TryGetValue("roda.linhas", out var l) &&
+                        uint.TryParse(l, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lv))
+                        GravarLinhasPorEntalhe(lv);
+                    if (s.TweakBackup.TryGetValue("roda.chars", out var c) &&
+                        uint.TryParse(c, NumberStyles.Integer, CultureInfo.InvariantCulture, out var cv))
+                        GravarCaracteresPorEntalhe(cv);
+                }
+            },
+            Restore = s =>
+            {
+                if (s.TweakBackup.TryGetValue("roda.linhas", out var l) &&
+                    uint.TryParse(l, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lv))
+                    GravarLinhasPorEntalhe(lv);
+                if (s.TweakBackup.TryGetValue("roda.chars", out var c) &&
+                    uint.TryParse(c, NumberStyles.Integer, CultureInfo.InvariantCulture, out var cv))
+                    GravarCaracteresPorEntalhe(cv);
+            },
+        },
+        new Tweak
+        {
+            Id = "alttab", Title = "Alt+Tab: quadro de miniaturas do Windows 11",
+            Description = "Tira o Alt+Tab do modo clássico, que o Windows 11 24H2 em diante já não desenha.",
+            Effect = "No modo clássico o Alt+Tab troca de janela e não mostra nada: parece que o PC trocou de janela sozinho.",
+            NeedsRestart = WindowsTweakRegras.AltTabPrecisaReiniciarOExplorer,
+            RestartHint = "Reinicie o Explorer (ou saia e entre na conta) para o quadro de miniaturas aparecer.",
+            Read = () => !WindowsTweakRegras.AltTabLegadoQuebrado(AltTabSettings()),
+            Write = (on, s) =>
+            {
+                if (!s.TweakBackup.ContainsKey("alttab"))
+                    s.TweakBackup["alttab"] = AltTabSettings()?.ToString(CultureInfo.InvariantCulture) ?? "<ausente>";
+                if (on) GravarAltTabSettings(WindowsTweakRegras.AltTabModerno);
+                else if (s.TweakBackup.TryGetValue("alttab", out var v) &&
+                         int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var antigo))
+                    GravarAltTabSettings(antigo);
+            },
+            Restore = s =>
+            {
+                if (s.TweakBackup.TryGetValue("alttab", out var v) &&
+                    int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var antigo))
+                    GravarAltTabSettings(antigo);
+            },
+        },
     };
 
     /// <summary>Desfaz tudo que foi alterado pelo app (valores guardados antes da primeira alteração).</summary>
     public static void RestoreAll(IEnumerable<Tweak> tweaks, AppSettings s)
     {
         foreach (var t in tweaks)
-            try { t.Restore(s); } catch { }
+            try { t.Restore(s); } catch { /* Um ajuste que não voltou é motivo para o app seguir: os outros também precisam ser desfeitos. */ }
         s.TweakBackup.Clear();
         s.Save();
     }
@@ -209,6 +276,95 @@ public static class WindowsTweaks
         SystemParametersInfo(0x0004 /* SPI_SETMOUSE */, 0, p, 0x01 | 0x02);
     }
 
+    // ------------------------------------------------------------------ rolagem da roda
+
+    private const uint SpiGetWheelScrollLines = 0x0068;
+    private const uint SpiSetWheelScrollLines = 0x0069;
+    private const uint SpiGetWheelScrollChars = 0x006A;
+    private const uint SpiSetWheelScrollChars = 0x006B;
+    private const uint SpiUpdate = 0x0001;
+
+    /// <summary>
+    /// Quantas linhas a roda rola por entalhe, segundo o Windows.
+    /// </summary>
+    /// <remarks>
+    /// <c>null</c> quando não deu para ler: um número adivinhado seria pior
+    /// que número ausente, e o app não pode afirmar que a rolagem está
+    /// quebrada sem saber.
+    /// </remarks>
+    private static uint? LinhasPorEntalhe() => LerValorDoWindows(SpiGetWheelScrollLines);
+
+    /// <summary>Quantos caracteres a roda rola por entalhe na horizontal.</summary>
+    private static uint? CaracteresPorEntalhe() => LerValorDoWindows(SpiGetWheelScrollChars);
+
+    private static uint? LerValorDoWindows(uint acao)
+    {
+        var ptr = Marshal.AllocHGlobal(sizeof(uint));
+        try
+        {
+            for (int i = 0; i < sizeof(uint); i++) Marshal.WriteByte(ptr, i, 0);
+            return SystemParametersInfo(acao, 0, ptr, 0)
+                ? unchecked((uint)Marshal.ReadInt32(ptr))
+                : (uint?)null;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
+    }
+
+    /// <summary>
+    /// Grava quantas linhas a roda rola por entalhe.
+    /// </summary>
+    /// <remarks>
+    /// Medido no PC do dono em 17/11/2026: o Windows pega o valor em
+    /// <c>uiParam</c>. Passar o ponteiro em <c>pvParam</c> grava zero e não
+    /// muda nada — foi o que aconteceu na primeira tentativa.
+    /// </remarks>
+    private static bool GravarLinhasPorEntalhe(uint valor) =>
+        SystemParametersInfo(SpiSetWheelScrollLines, valor, IntPtr.Zero, SpiUpdate);
+
+    /// <summary>Grava quantos caracteres a roda rola por entalhe na horizontal.</summary>
+    private static bool GravarCaracteresPorEntalhe(uint valor) =>
+        SystemParametersInfo(SpiSetWheelScrollChars, valor, IntPtr.Zero, SpiUpdate);
+
+    /// <summary>Guarda os valores da roda antes da primeira alteração.</summary>
+    private static void GuardarRoda(AppSettings s)
+    {
+        if (!s.TweakBackup.ContainsKey("roda.linhas"))
+            s.TweakBackup["roda.linhas"] = LinhasPorEntalhe()?.ToString(CultureInfo.InvariantCulture) ?? "<ausente>";
+        if (!s.TweakBackup.ContainsKey("roda.chars"))
+            s.TweakBackup["roda.chars"] = CaracteresPorEntalhe()?.ToString(CultureInfo.InvariantCulture) ?? "<ausente>";
+    }
+
+    // ------------------------------------------------------------------ Alt+Tab
+
+    private const string ChaveDoExplorer = @"Software\Microsoft\Windows\CurrentVersion\Explorer";
+
+    /// <summary>
+    /// O valor do Alt+Tab no registro do Windows, ou <c>null</c> quando a
+    /// chave não tem o valor (ou não deu para ler).
+    /// </summary>
+    private static int? AltTabSettings()
+    {
+        try
+        {
+            using var k = Registry.CurrentUser.OpenSubKey(ChaveDoExplorer);
+            return k?.GetValue("AltTabSettings") is int v ? v : null;
+        }
+        catch
+        {
+            // Sem o valor, o app não pode afirmar que o Alt+Tab está quebrado.
+            return null;
+        }
+    }
+
+    private static void GravarAltTabSettings(int valor)
+    {
+        using var k = Registry.CurrentUser.CreateSubKey(ChaveDoExplorer, writable: true);
+        k?.SetValue("AltTabSettings", valor, RegistryValueKind.DWord);
+    }
+
     // ------------------------------------------------------------------ plano de energia
 
     private static string? ActiveScheme()
@@ -230,4 +386,6 @@ public static class WindowsTweaks
     }
 
     [DllImport("user32.dll")] private static extern bool SystemParametersInfo(uint action, uint param, int[] data, uint winIni);
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SystemParametersInfo(uint action, uint param, IntPtr data, uint winIni);
 }

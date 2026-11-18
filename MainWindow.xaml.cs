@@ -85,6 +85,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AplicarDicasCategoriasSistema();
         ThemeManager.Apply(_settings.LightTheme);
         UpdateThemeButton();
         ShowPage("PageDash");
@@ -421,6 +422,46 @@ public partial class MainWindow : Window
 
     // ---------------- Sistema ----------------
 
+    /// <summary>
+    /// O que cada categoria do painel Sistema mostra. As chaves são os
+    /// cabeçalhos que o <see cref="SystemInfoCollector"/> devolve.
+    /// </summary>
+    private static readonly (string Cabecalho, string Dica)[] DicasCategoriasSistema =
+    {
+        ("Sistema operacional", "Windows, versão, build e arquitetura da máquina. O retrato do sistema em que o app está rodando."),
+        ("Placa-mãe e BIOS", "Fabricante, modelo, número de série e versão do BIOS. Serve para conferir se a placa é a esperada e se o BIOS está atualizado."),
+        ("Processador", "Modelo, fabricante, número de núcleos e threads e o clock base. O retrato do processador instalado."),
+        ("Memória RAM", "Módulos instalados, capacidade e frequência da memória. Mostra o que o Windows enxerga da RAM."),
+        ("Placa de vídeo", "Placas de vídeo da máquina, com a memória e a resolução de saída. Ajuda a conferir se o app está lendo a placa certa."),
+        ("Armazenamento", "Discos com modelo, tamanho e partições. Aqui o app mostra também o espaço livre de cada unidade."),
+    };
+
+    /// <summary>
+    /// Põe a dica de cada categoria do painel Sistema no item da lista.
+    ///
+    /// <para>
+    /// O item da lista nasce do <c>ItemTemplate</c> do XAML, então a dica
+    /// entra pelo <c>ItemContainerStyle</c>: o <c>BasedOn</c> mantém o
+    /// visual do <c>ListNavItem</c> e o gatilho escolhe a dica pelo
+    /// cabeçalho do nó. Como a dica vem de um binding, ela acompanha o
+    /// item quando a lista é recriada.
+    /// </para>
+    /// </summary>
+    private void AplicarDicasCategoriasSistema()
+    {
+        var estilo = new Style(typeof(ListBoxItem)) { BasedOn = (Style)FindResource("ListNavItem") };
+        foreach (var (cabecalho, dica) in DicasCategoriasSistema)
+        {
+            estilo.Triggers.Add(new DataTrigger
+            {
+                Binding = new Binding(nameof(InfoNode.Header)),
+                Value = cabecalho,
+                Setters = { new Setter(ToolTipService.ToolTipProperty, dica) }
+            });
+        }
+        InfoCategories.ItemContainerStyle = estilo;
+    }
+
     private void InfoCategories_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (InfoCategories.SelectedItem is not InfoNode node) return;
@@ -461,7 +502,11 @@ public partial class MainWindow : Window
             var list = await Task.Run(UsbCleaner.List);
             _usbPresent = list.Where(d => d.Present).GroupBy(d => d.InstanceId).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         }
-        catch { }
+        catch
+        {
+            // A listagem dos dispositivos USB falhou: a lista continua com a última leitura boa, e a
+            // tela mostra o que o app sabia antes em vez de inventar o que está conectado.
+        }
     }
 
     /// <summary>WM_DEVICECHANGE: unidades (pendrive, HD externo) e qualquer dispositivo USB.</summary>
@@ -589,7 +634,11 @@ public partial class MainWindow : Window
             using var s = new System.Management.ManagementObjectSearcher("SELECT Name FROM Win32_Processor");
             foreach (System.Management.ManagementObject mo in s.Get()) { _cpuName = mo["Name"]?.ToString()?.Trim() ?? ""; break; }
         }
-        catch { }
+        catch
+        {
+            // O WMI não devolveu o nome da CPU: o nome fica vazio e a estimativa de FPS usa o índice
+            // padrão, que é o que o app faz com qualquer máquina que ele não reconhece.
+        }
         _gpuName = _gpus.Count > 0 ? _gpus[0].Name : "";
         _gpuIdx = GameCatalog.GpuPerf(_gpuName) ?? 50;
         _cpuIdx = GameCatalog.CpuPerf(_cpuName) ?? 80;
@@ -864,7 +913,10 @@ public partial class MainWindow : Window
                 if (!ct.IsCancellationRequested) { st = r.Score; BenchSt.Text = $"{r.Score:N0}"; }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            // O próprio dono cancelou o benchmark: não é erro, e por isso o resultado não é gravado.
+        }
 
         _benchTimer.Stop();
         UpdateBenchView();
@@ -1026,7 +1078,7 @@ public partial class MainWindow : Window
             _settings.Save();
             t.Refresh();
             t.Status = t.IsOn == turnOn
-                ? (turnOn ? "Aplicado." : "Desligado.") + (t.NeedsRestart ? " Reinicie o PC para valer." : "")
+                ? (turnOn ? "Aplicado." : "Desligado.") + (t.NeedsRestart ? " " + t.RestartHint : "")
                 : "O Windows não aceitou a mudança (pode exigir administrador).";
         }
         catch (Exception ex)
@@ -1482,6 +1534,37 @@ public partial class MainWindow : Window
 
     // ---------------- Sensores ----------------
 
+    /// <summary>
+    /// O que cada chip de filtro da tabela de sensores explica.
+    ///
+    /// <para>
+    /// As chaves são os tipos de leitura que o hardware desta máquina
+    /// expõe (o nome vem de <see cref="SensorRow.CategoryName"/>), e não
+    /// peças: um chip de "Temperatura" mostra a temperatura de tudo que a
+    /// máquina mede.
+    /// </para>
+    /// </summary>
+    private static readonly Dictionary<string, string> DicasCategoriaSensor = new()
+    {
+        ["Todos"] = "Mostra todos os sensores ao mesmo tempo, sem filtro de tipo. É o ponto de partida para ver o estado inteiro do PC.",
+        ["Temperatura"] = "Filtra a tabela pelos sensores de temperatura, em graus. É o número que diz se alguma peça está perto do limite.",
+        ["Carga"] = "Filtra a tabela pelos sensores de carga, em porcentagem de uso. Mostra quanto de cada recurso o PC está usando agora.",
+        ["Clock"] = "Filtra a tabela pelos sensores de clock, em MHz. Clock travado com carga alta é a assinatura do gargalo.",
+        ["Consumo"] = "Filtra a tabela pelos sensores de consumo, em watts. Ajuda a saber quanto cada peça gasta e qual delas esquenta mais.",
+        ["Tensão"] = "Filtra a tabela pelos sensores de tensão, em volts. Serve para ver overclock e undervolt em ação.",
+        ["Corrente"] = "Filtra a tabela pelos sensores de corrente, em ampères. Mostra quanto corrente passa por cada linha da placa.",
+        ["Ventoinhas"] = "Filtra a tabela pelos sensores de ventoinha, em RPM. RPM parado ou muito abaixo do normal é o primeiro sinal de problema.",
+        ["Controle"] = "Filtra a tabela pelos sensores de controle: os valores que a placa aceita, como a curva de ventoinha e o boost.",
+        ["Nível"] = "Filtra a tabela pelos sensores de nível, em porcentagem. Mostra quanto de um recurso está ocupado, como a memória.",
+        ["Dados"] = "Filtra a tabela pelos sensores de dados: espaço usado e livre em discos e memórias.",
+        ["Taxa"] = "Filtra a tabela pelos sensores de taxa, em MB/s. É a velocidade de leitura e escrita do disco.",
+        ["Frequência"] = "Filtra a tabela pelos sensores de frequência, em Hz. Serve para os clocks que o Windows mede, como a taxa de atualização.",
+        ["Energia"] = "Filtra a tabela pelos sensores de energia, em mWh. Mostra o consumo acumulado de um período.",
+        ["Fluxo"] = "Filtra a tabela pelos sensores de fluxo, em litros por hora. Aponta quanto líquido circula na refrigeração líquida.",
+        ["Umidade"] = "Filtra a tabela pelos sensores de umidade. Serve para o ar dentro do PC, quando o hardware mede isso.",
+        ["Fator"] = "Filtra a tabela pelos sensores de fator, os multiplicadores como o boost do processador.",
+    };
+
     private void AddChip(string label, string? category, bool isChecked = false)
     {
         var chip = new RadioButton
@@ -1491,6 +1574,11 @@ public partial class MainWindow : Window
             Style = (Style)FindResource("Chip"),
             IsChecked = isChecked
         };
+        // A dica entra na criação do chip: ela diz o que aquele tipo de
+        // leitura mede, e não repete o nome que já está no botão.
+        ToolTipService.SetToolTip(chip, DicasCategoriaSensor.TryGetValue(label, out var dica)
+            ? dica
+            : $"Filtra a tabela deixando só os sensores de {label}. Serve para ver esse tipo de leitura sem o resto da lista atrapalhando.");
         chip.Checked += (_, _) => { _category = category; ApplySensorFilter(); };
         CategoryChips.Children.Add(chip);
     }
