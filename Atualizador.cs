@@ -62,7 +62,10 @@ public static class Atualizador
                 return 1;
             }
 
-            try { File.Delete(caminhoNovo); } catch { }
+            try { File.Delete(caminhoNovo); } catch
+            {
+                // O executável novo já foi copiado para o lugar: sobrar uma cópia temporária não impede a atualização.
+            }
 
             if (reabrir)
             {
@@ -70,7 +73,10 @@ public static class Atualizador
                 {
                     Process.Start(new ProcessStartInfo(alvo) { UseShellExecute = false });
                 }
-                catch { }
+                catch
+                {
+                    // Reabrir o app depois da atualização é só conveniência: se o Windows recusar, a troca do executável já aconteceu.
+                }
             }
             return 0;
         }
@@ -110,7 +116,10 @@ public static class Atualizador
             try
             {
                 File.Copy(origem, alvo, true);
-                if (tinhaBackup) { try { File.Delete(backup); } catch { } }
+                if (tinhaBackup) { try { File.Delete(backup); } catch
+                {
+                    // O executável novo já entrou no lugar: a cópia de segurança que sobrou é só lixo na pasta.
+                } }
                 return true;
             }
             catch (IOException)
@@ -126,8 +135,14 @@ public static class Atualizador
 
         if (tinhaBackup)
         {
-            try { File.Copy(backup, alvo, true); } catch { }
-            try { File.Delete(backup); } catch { }
+            try { File.Copy(backup, alvo, true); } catch
+            {
+                // Restaurar o executável velho é a última tentativa: se ela também falhar, o relato já diz que a troca não deu certo.
+            }
+            try { File.Delete(backup); } catch
+            {
+                // A cópia de backup já foi devolvida para o lugar: o arquivo que sobrou não atrapalha a próxima atualização.
+            }
         }
         return false;
     }
@@ -155,7 +170,10 @@ public static class Atualizador
                 if (int.TryParse(digitos, out int pid) && pid > 0) return pid;
             }
         }
-        catch { }
+        catch
+        {
+            // Log da atualização ilegível ou apagado: sem o PID do app antigo, o atualizador segue sem esperar por ele.
+        }
         return 0;
     }
 

@@ -55,11 +55,17 @@ internal static class SaudeEventos
                     total++;
                     if (total > LimiteEventos) break;
                     try { aoEncontrar(registro); }
-                    catch { }
+                    catch
+                    {
+                        // Um evento malformado não derruba a leitura do log inteiro: ele é pulado e a contagem continua.
+                    }
                 }
             }
         }
-        catch { }
+        catch
+        {
+            // O log de eventos pode estar bloqueado ou apagado: a leitura devolve o que deu para ver.
+        }
         return total;
     }
 
@@ -72,7 +78,10 @@ internal static class SaudeEventos
             foreach (var propriedade in registro.Properties)
                 dados.Add(propriedade.Value?.ToString() ?? "");
         }
-        catch { }
+        catch
+        {
+            // Propriedades do evento ilegíveis: o evento entra sem os detalhes, e a contagem de eventos continua.
+        }
 
         return new EventoWindows
         {

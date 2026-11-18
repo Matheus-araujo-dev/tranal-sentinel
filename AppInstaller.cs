@@ -79,7 +79,10 @@ public static class AppInstaller
                     if (k?.GetValue("DisplayName") is string n && !string.IsNullOrWhiteSpace(n)) names.Add(n.Trim());
                 }
             }
-            catch { }
+            catch
+            {
+                // Chave do registro de programas instalados sem permissão ou inexistente: a lista fica só com o que deu para ler, e a instalação em si não depende dela.
+            }
         }
         return names;
     }
@@ -108,7 +111,10 @@ public static class AppInstaller
         var outTask = p.StandardOutput.ReadToEndAsync(ct);
         var errTask = p.StandardError.ReadToEndAsync(ct);
         try { await p.WaitForExitAsync(ct); }
-        catch (OperationCanceledException) { try { p.Kill(true); } catch { } throw; }
+        catch (OperationCanceledException) { try { p.Kill(true); } catch
+        {
+            // O winget já pode ter morrido junto com o cancelamento: seguir sem matar é seguro, porque o cancelamento continua valendo.
+        } throw; }
         string output = await outTask + await errTask;
 
         return p.ExitCode switch

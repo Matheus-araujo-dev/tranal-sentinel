@@ -293,7 +293,10 @@ public static class HistoricoMudancas
             Directory.CreateDirectory(Path.GetDirectoryName(Arquivo)!);
             File.WriteAllText(Arquivo, JsonSerializer.Serialize(lista, new JsonSerializerOptions { WriteIndented = true }));
         }
-        catch { }
+        catch
+        {
+            // Retrato do PC é um extra: se não der para gravar, a linha do tempo segue só com o que já estava.
+        }
     }
 }
 
@@ -354,7 +357,10 @@ public static class ColetaInstantaneo
                 return string.IsNullOrEmpty(data) ? versao : $"{versao} ({data})";
             }
         }
-        catch { }
+        catch
+        {
+            // A consulta da BIOS no WMI falhou: a versão do BIOS fica vazia na linha do tempo.
+        }
         return "";
     }
 
@@ -383,7 +389,10 @@ public static class ColetaInstantaneo
                 return string.IsNullOrEmpty(versao) ? nome : $"{nome} · {versao}";
             }
         }
-        catch { }
+        catch
+        {
+            // O WMI de drivers não respondeu: o driver some da linha do tempo, e o resto dela continua.
+        }
         return "";
     }
 
@@ -475,7 +484,10 @@ public static class ColetaInstantaneo
                 }
             }
         }
-        catch { }
+        catch
+        {
+            // Valor do registro inacessível: a linha mostra um traço no lugar, sem inventar valor.
+        }
         return valor.Length == 0 ? $"{rotulo}: —" : $"{rotulo}: {valor}";
     }
 
@@ -504,7 +516,10 @@ public static class ColetaInstantaneo
                     if (vistas.Add(texto)) lista.Add(texto);
                 }
             }
-            catch { }
+            catch
+            {
+                // Acesso ao registro bloqueado: os programas instalados aparecem só da outra fonte.
+            }
         }
         try
         {
@@ -523,7 +538,10 @@ public static class ColetaInstantaneo
                 }
             }
         }
-        catch { }
+        catch
+        {
+            // Acesso ao registro bloqueado: os programas do usuário não entram na lista, e a do sistema continua.
+        }
         lista.Sort(StringComparer.OrdinalIgnoreCase);
         return lista;
     }
@@ -539,7 +557,10 @@ public static class ColetaInstantaneo
                 if (!lista.Contains(texto, StringComparer.OrdinalIgnoreCase)) lista.Add(texto);
             }
         }
-        catch { }
+        catch
+        {
+            // A lista de inicialização vem do registro e das pastas: se falhar, a linha do tempo mostra essa seção vazia.
+        }
         lista.Sort(StringComparer.OrdinalIgnoreCase);
         return lista;
     }

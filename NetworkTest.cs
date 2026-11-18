@@ -46,8 +46,14 @@ public static class NetworkTest
                 var r = await p.SendPingAsync(ip, 1500);
                 if (r.Status == IPStatus.Success) rtts.Add(Math.Max(1, r.RoundtripTime));
             }
-            catch (PingException) { }
-            catch (InvalidOperationException) { }
+            catch (PingException)
+            {
+                // Um ping perdido é normal na rede: ele só não entra na média.
+            }
+            catch (InvalidOperationException)
+            {
+                // O ping foi cancelado no meio: a contagem de enviados continua, e a média sai só com o que chegou.
+            }
             int wait = intervalMs - (int)sw.ElapsedMilliseconds;
             if (wait > 0) { try { await Task.Delay(wait, ct); } catch (OperationCanceledException) { break; } }
         }
@@ -74,8 +80,14 @@ public static class NetworkTest
                     while ((n = await st.ReadAsync(buf, cts.Token)) > 0) Interlocked.Add(ref total, n);
                 }
             }
-            catch (OperationCanceledException) { }
-            catch (HttpRequestException) { }
+            catch (OperationCanceledException)
+            {
+                // Fim do tempo do teste de download: a thread para, e o total medido é o que veio até aí.
+            }
+            catch (HttpRequestException)
+            {
+                // O servidor de velocidade recusou ou derrubou a conexão: o total fica menor, e a tela diz que não deu para medir.
+            }
         })).ToArray();
         await Task.WhenAll(tasks);
         ct.ThrowIfCancellationRequested();
@@ -102,8 +114,14 @@ public static class NetworkTest
                     Interlocked.Add(ref total, payload.Length);
                 }
             }
-            catch (OperationCanceledException) { }
-            catch (HttpRequestException) { }
+            catch (OperationCanceledException)
+            {
+                // Fim do tempo do teste de upload: a thread para, e o total medido é o que veio até aqui.
+            }
+            catch (HttpRequestException)
+            {
+                // O servidor recusou o envio: o total medido é menor, e a tela avisa que a medição não valeu.
+            }
         })).ToArray();
         await Task.WhenAll(tasks);
         ct.ThrowIfCancellationRequested();
@@ -131,7 +149,10 @@ public static class NetworkTest
                                                                               && !g.Address.Equals(IPAddress.Any)))
                 .OrderByDescending(n => n.Speed).FirstOrDefault();
         }
-        catch { }
+        catch
+        {
+            // A lista de adaptadores não pôde ser lida: o teste de rede diz que não achou conexão ativa.
+        }
         if (nic == null)
             return new() { new DiskHealthCard
             {
@@ -168,7 +189,10 @@ public static class NetworkTest
             dnsMs = sw.Elapsed.TotalMilliseconds;
         }
         catch (OperationCanceledException) { throw; }
-        catch { }
+        catch
+        {
+            // A resolução de nome falhou (DNS fora do ar ou bloqueio): o teste de DNS fica sem medida, e os outros continuam.
+        }
 
         // 3) Download com ping em paralelo (latência sob carga)
         progress("Medindo a velocidade de download (≈ 8 s)…", 0.36);

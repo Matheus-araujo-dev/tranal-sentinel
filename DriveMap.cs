@@ -113,7 +113,10 @@ public static class DriveMap
                         diskOfPartition.TryGetValue(part, out var disk) && disks.TryGetValue(disk, out var info))
                         map[letter] = info;
         }
-        catch { }
+        catch
+        {
+            // Sem a correspondência letra-disco, o mapa fica vazio: a tela mostra o disco pelo nome, sem a letra.
+        }
         return map;
     }
 

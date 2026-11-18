@@ -39,8 +39,14 @@ public partial class MainWindow
             {
                 Dispatcher.Invoke(() => MostrarBannerAtualizacao(resultado.Release, resultado.VersaoNova));
             }
-            catch (InvalidOperationException) { }   // a janela já está fechando
-            catch (TaskCanceledException) { }
+            catch (InvalidOperationException)
+            {
+                // A janela já está fechando e o Dispatcher não aceita mais a mensagem: o aviso de nova versão é dispensado.
+            }
+            catch (TaskCanceledException)
+            {
+                // A consulta ao GitHub foi cancelada junto com o fechamento: o aviso de nova versão é dispensado.
+            }
         });
     }
 

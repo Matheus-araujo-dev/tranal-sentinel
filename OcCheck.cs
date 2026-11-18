@@ -52,7 +52,10 @@ public static class OcCheck
             foreach (ManagementObject mo in s.Get())
                 return (mo["Manufacturer"]?.ToString()?.Trim() ?? "", mo["Product"]?.ToString()?.Trim() ?? "");
         }
-        catch { }
+        catch
+        {
+            // A placa-mãe não pôde ser lida no WMI: o app mostra a placa como desconhecida.
+        }
         return ("", "");
     }
 }

@@ -202,7 +202,10 @@ public partial class MainWindow
             var aviso = new ToastWindow();
             aviso.Notify("O PC mudou", importante.Resumo, "\uE946");
         }
-        catch { }
+        catch
+        {
+            // O aviso é uma janela extra: se ela não abrir, a linha do tempo continua mostrando as mudanças.
+        }
     }
 
     /// <summary>Agenda o próximo retrato: roda na hora que o perfil manda.</summary>

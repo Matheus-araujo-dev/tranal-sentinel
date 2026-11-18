@@ -246,7 +246,10 @@ public sealed unsafe class CorsairSdk : IDisposable
 
     public void Disconnect()
     {
-        try { _disconnect?.Invoke(); } catch { }
+        try { _disconnect?.Invoke(); } catch
+        {
+            // A DLL do iCUE já pode estar descarregada: falhar ao desconectar não impede o app de seguir.
+        }
         State = 1;
     }
 

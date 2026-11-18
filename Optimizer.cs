@@ -76,7 +76,10 @@ public static class Optimizer
                 if (!groups.TryGetValue(p.ProcessName, out var list)) groups[p.ProcessName] = list = new List<Process>();
                 list.Add(p);
             }
-            catch { }
+            catch
+            {
+                // Processo protegido ou já encerrado: ele não entra na lista de programas em segundo plano.
+            }
         }
 
         var result = new List<BackgroundApp>();
@@ -87,7 +90,10 @@ public static class Optimizer
             if (!hasWindow && !suggested) continue; // processos auxiliares sem janela ficam de fora
 
             string title = name, detail;
-            try { title = procs[0].MainModule?.FileVersionInfo.FileDescription is { Length: > 0 } d ? d : name; } catch { }
+            try { title = procs[0].MainModule?.FileVersionInfo.FileDescription is { Length: > 0 } d ? d : name; } catch
+            {
+                // Descrição do executável indisponível: o programa aparece pelo nome de processo, que já serve.
+            }
             detail = suggested ? SuggestedApps[name] : hasWindow ? "Programa aberto" : "";
             if (procs.Count > 1) detail += $" · {procs.Count} processos";
             long mem = procs.Sum(p => { try { return p.WorkingSet64; } catch { return 0L; } });
@@ -121,7 +127,10 @@ public static class Optimizer
                     if (SafeWindow(p) != IntPtr.Zero) p.CloseMainWindow();
                     else if (app.Suggested) p.Kill();
                 }
-                catch { }
+                catch
+                {
+                    // Programa protegido que recusou o fechamento: ele vai para a lista dos que não fecharam.
+                }
             }
             // Dá até 4 s para fecharem sozinhos.
             var sw = Stopwatch.StartNew();
@@ -149,7 +158,10 @@ public static class Optimizer
                 if (p.Id == self || p.Id <= 4) continue;
                 if (EmptyWorkingSet(p.Handle)) trimmed++;
             }
-            catch { }
+            catch
+            {
+                // Processo sem permissão de trimming: ele simplesmente não entra na conta de memória liberada.
+            }
         }
 
         bool purged = false;

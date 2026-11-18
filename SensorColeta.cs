@@ -182,9 +182,18 @@ internal sealed class SensorColeta : IDisposable
     /// </summary>
     public void Dispose()
     {
-        try { _cts.Cancel(); } catch { }
-        try { _worker?.Join(2000); } catch { }
-        try { _computer.Close(); } catch { }
+        try { _cts.Cancel(); } catch
+        {
+            // Cancelamento da coleta: falhar aqui só significa que o laço termina pelo prazo dele mesmo.
+        }
+        try { _worker?.Join(2000); } catch
+        {
+            // A thread de coleta pode já ter morrido: a espera de 2 s é só para ela encerrar com calma.
+        }
+        try { _computer.Close(); } catch
+        {
+            // Fechar o hardware é limpeza: a coleta já parou, e o processo do app continua.
+        }
         _cts.Dispose();
     }
 }

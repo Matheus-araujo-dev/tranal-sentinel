@@ -264,7 +264,10 @@ public static class MakerDrivers
             await src.CopyToAsync(dst);
         }
         var (code, output) = await RunAsync("pnputil.exe", $"/add-driver \"{Path.Combine(dir, "*.inf")}\" /subdirs /install");
-        try { Directory.Delete(dir, true); } catch { }
+        try { Directory.Delete(dir, true); } catch
+        {
+            // Pasta temporária dos drivers extraídos: se o Windows travar a remoção, ela fica na pasta temporária e some depois.
+        }
         return code switch
         {
             0 => $"Driver do {c.Name} instalado.",
@@ -301,7 +304,10 @@ public static class MakerDrivers
                         return k.GetValue("DisplayVersion") as string ?? n;
                 }
             }
-            catch { }
+            catch
+            {
+                // Chave do registro dos programas instalados sem permissão: a IDE aparece sem número de versão.
+            }
         }
         return null;
     }
@@ -317,13 +323,22 @@ public static class MakerDrivers
         if (!Directory.Exists(Arduino15)) return "Pasta Arduino15 não encontrada (a IDE ainda não foi aberta neste usuário).";
         int n = 0;
         foreach (var f in Directory.GetFiles(Arduino15, "*_index*.json*"))
-            try { File.Delete(f); n++; } catch { }
+            try { File.Delete(f); n++; } catch
+            {
+                // Índice já apagado ou trancado pelo antivírus: ele só não entra na conta de arquivos removidos.
+            }
         string staging = Path.Combine(Arduino15, "staging");
         long freed = 0;
         if (Directory.Exists(staging))
         {
-            try { freed = new DirectoryInfo(staging).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length); } catch { }
-            try { Directory.Delete(staging, true); } catch { }
+            try { freed = new DirectoryInfo(staging).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length); } catch
+            {
+                // Não deu para medir o tamanho da pasta de staging: o relatório mostra 0 MB liberados, em vez de um número inventado.
+            }
+            try { Directory.Delete(staging, true); } catch
+            {
+                // A pasta de staging trancada pelo Windows: ela fica para trás, e a IDE apenas baixa os índices de novo.
+            }
         }
         return $"{n} índices apagados e {freed / 1048576.0:0} MB de downloads temporários liberados. A IDE baixa os índices de novo ao abrir.";
     }

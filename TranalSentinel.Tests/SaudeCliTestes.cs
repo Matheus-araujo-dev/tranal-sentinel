@@ -293,7 +293,10 @@ public class SaudeCliTestes
         }
         finally
         {
-            try { Directory.Delete(pasta, true); } catch { }
+            try { Directory.Delete(pasta, true); } catch
+            {
+                // Limpeza da pasta temporária do teste: se o Windows travar a remoção, o arquivo fica na pasta temporária.
+            }
         }
     }
 
@@ -321,7 +324,10 @@ public class SaudeCliTestes
         }
         finally
         {
-            try { Directory.Delete(pasta, true); } catch { }
+            try { Directory.Delete(pasta, true); } catch
+            {
+                // Limpeza da pasta temporária do teste: se o Windows travar a remoção, o arquivo fica na pasta temporária.
+            }
         }
     }
 

@@ -187,7 +187,10 @@ public sealed class AppSettings
             if (File.Exists(FilePath))
                 return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), OpcoesJson) ?? new AppSettings();
         }
-        catch { }
+        catch
+        {
+            // Arquivo de configurações corrompido ou ilegível: o app abre com as preferências padrão em vez de recusar a partida.
+        }
         return new AppSettings();
     }
 
@@ -218,7 +221,10 @@ public sealed class AppSettings
                     // Antivírus ou gerenciador de arquivos travando o
                     // arquivo: grava direto. É mais arriscado, mas perder a
                     // configuração é pior.
-                    try { File.Delete(temporario); } catch { }
+                    try { File.Delete(temporario); } catch
+                    {
+                        // O arquivo temporário já foi movido ou está trancado pelo antivírus: quem sobrou é lixo que o Windows limpa depois.
+                    }
                     File.WriteAllText(FilePath, json);
                 }
             }

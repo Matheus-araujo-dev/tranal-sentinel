@@ -26,10 +26,22 @@ public static class GameLibrary
     public static List<LibGame> Scan(IEnumerable<CustomGame> custom)
     {
         var all = new List<LibGame>();
-        try { all.AddRange(Steam()); } catch { }
-        try { all.AddRange(Epic()); } catch { }
-        try { all.AddRange(Gog()); } catch { }
-        try { all.AddRange(Ubisoft()); } catch { }
+        try { all.AddRange(Steam()); } catch
+        {
+            // A pasta da Steam não existe ou o arquivo de biblioteca está corrompido: os jogos da Steam simplesmente não aparecem.
+        }
+        try { all.AddRange(Epic()); } catch
+        {
+            // A Epic não está instalada ou o arquivo .item está corrompido: os jogos da Epic não aparecem na biblioteca.
+        }
+        try { all.AddRange(Gog()); } catch
+        {
+            // A GOG não está instalada: essa loja não aparece, e as outras continuam na lista.
+        }
+        try { all.AddRange(Ubisoft()); } catch
+        {
+            // Ubisoft Connect não está instalada: essa loja não aparece, e as outras continuam na lista.
+        }
         foreach (var c in custom)
         {
             if (!File.Exists(c.Exe)) continue;
@@ -68,7 +80,10 @@ public static class GameLibrary
                     if (!Directory.Exists(full)) continue;
                     g = new LibGame { Store = "Steam", Id = id, Name = name, InstallDir = full };
                 }
-                catch { }
+                catch
+                {
+                    // Manifesto da Steam ilegível ou de outro formato: esse jogo é pulado e os outros continuam.
+                }
                 if (g != null) yield return g;
             }
         }
@@ -98,7 +113,10 @@ public static class GameLibrary
                     LaunchUri = ns != null && cat != null ? $"com.epicgames.launcher://apps/{ns}%3A{cat}%3A{app}?action=launch&silent=true" : null,
                 };
             }
-            catch { }
+            catch
+            {
+                // Arquivo .item do Epic corrompido: esse jogo é pulado e os outros continuam.
+            }
             if (g != null) yield return g;
         }
     }
@@ -124,7 +142,10 @@ public static class GameLibrary
                     Args = k?.GetValue("launchParam") as string ?? "",
                 };
             }
-            catch { }
+            catch
+            {
+                // Chave do registro da GOG bloqueada ou ausente: os jogos dela não aparecem, e as outras lojas continuam.
+            }
             if (g != null) yield return g;
         }
     }
@@ -145,7 +166,10 @@ public static class GameLibrary
                 if (dir == null || !Directory.Exists(dir)) continue;
                 g = new LibGame { Store = "Ubisoft Connect", Id = sub, Name = Path.GetFileName(dir), InstallDir = dir, LaunchUri = $"uplay://launch/{sub}/0" };
             }
-            catch { }
+            catch
+            {
+                // Chave do registro da Ubisoft bloqueada ou ausente: os jogos dela não aparecem, e as outras lojas continuam.
+            }
             if (g != null) yield return g;
         }
     }
@@ -163,7 +187,10 @@ public static class SteamInfo
             if (p != null) p = Path.GetFullPath(p.Replace('/', '\\'));
             if (p != null && Directory.Exists(p)) return p;
         }
-        catch { }
+        catch
+        {
+            // Registro da Steam sem permissão: o app cai no caminho padrão de Program Files, se ele existir.
+        }
         string def = @"C:\Program Files (x86)\Steam";
         return Directory.Exists(def) ? def : null;
     }
@@ -185,7 +212,10 @@ public static class SteamInfo
                     }
             }
         }
-        catch { }
+        catch
+        {
+            // Arquivo libraryfolders.vdf ilegível: a biblioteca fica só com a pasta principal da Steam.
+        }
         return list;
     }
 
@@ -248,7 +278,10 @@ public static class SteamInfo
     {
         string? steam = SteamPath();
         if (steam == null) return false;
-        try { Process.Start(new ProcessStartInfo(Path.Combine(steam, "steam.exe"), "-shutdown") { UseShellExecute = true }); } catch { }
+        try { Process.Start(new ProcessStartInfo(Path.Combine(steam, "steam.exe"), "-shutdown") { UseShellExecute = true }); } catch
+        {
+            // A Steam não aceitou o comando de fechar: o app espera os 25 s e devolve o que conseguiu observar.
+        }
         for (int i = 0; i < 50 && IsRunning; i++) await Task.Delay(500);
         return !IsRunning;
     }

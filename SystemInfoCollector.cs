@@ -162,7 +162,10 @@ public static class SystemInfoCollector
                 maxBytes += kb * 1024;
             }
         }
-        catch { }
+        catch
+        {
+            // O número de slots não pôde ser lido: o resumo mostra só os módulos instalados.
+        }
 
         n.Add("Total instalado", Bytes(total));
 
@@ -229,7 +232,10 @@ public static class SystemInfoCollector
                 sum.Add("Memória virtual em uso (RAM + arquivo de paginação)", $"{Bytes((virtTot - virtFree) * 1024)} de {Bytes(virtTot * 1024)}");
             }
         }
-        catch { }
+        catch
+        {
+            // A memória em uso não pôde ser lida do WMI: o resumo mostra só o que o .NET já informa.
+        }
 
         // ---- Módulos ----
         foreach (var m in mods)

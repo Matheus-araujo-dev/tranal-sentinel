@@ -90,6 +90,9 @@ public sealed class HowManyFpsClient
             Directory.CreateDirectory(AppSettings.Folder);
             File.WriteAllText(CachePath, JsonSerializer.Serialize(_cache));
         }
-        catch { }
+        catch
+        {
+            // O cache em disco é só uma economia: sem ele, o app pergunta de novo ao serviço na próxima vez.
+        }
     }
 }

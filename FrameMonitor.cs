@@ -120,7 +120,10 @@ public sealed class FrameMonitor : IDisposable
 
     public void Dispose()
     {
-        try { _session?.Source.StopProcessing(); } catch { }
+        try { _session?.Source.StopProcessing(); } catch
+        {
+            // A sessão do ETW já pode estar encerrada: parar de verdade não é mais necessário, e o descarte continua.
+        }
         _session?.Dispose();
         _session = null;
     }

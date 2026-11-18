@@ -25,7 +25,10 @@ internal static class Dxgi
             }
             Marshal.ReleaseComObject(factory);
         }
-        catch { }
+        catch
+        {
+            // O DXGI não responde (driver de vídeo reiniciando, GPU removida): a lista de adaptadores fica vazia e o benchmark avisa que não achou GPU.
+        }
         return list;
     }
 
@@ -42,7 +45,10 @@ internal static class Dxgi
             foreach (var (level, name) in levels)
                 if (D3D12CreateDevice(adapter, level, ref iid, IntPtr.Zero) >= 0) return name;
         }
-        catch { }
+        catch
+        {
+            // A GPU não suporta D3D12 ou o driver recusou: o nível de recurso fica desconhecido, sem derrubar o app.
+        }
         return null;
     }
 

@@ -134,8 +134,14 @@ public static class AutoUpdate
                 if (release is not null) lista.Add(release);
             }
         }
-        catch (JsonException) { }
-        catch (Exception) { }
+        catch (JsonException)
+        {
+            // Resposta do GitHub que não é o JSON esperado: a lista de releases fica vazia e o app diz que não há versão nova.
+        }
+        catch (Exception)
+        {
+            // Falha de rede no meio da leitura do JSON: o mesmo caminho de antes — sem release, sem aviso de atualização.
+        }
         return lista;
     }
 
@@ -322,7 +328,10 @@ public static class AutoUpdate
             File.AppendAllText(Path.Combine(PastaUpdate, NomeArquivoLog),
                                 $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {mensagem}{Environment.NewLine}");
         }
-        catch { }
+        catch
+        {
+            // O log da atualização é acessório: se a pasta não puder ser escrita, a atualização continua funcionando.
+        }
     }
 
     // ---------------- auxiliares ----------------

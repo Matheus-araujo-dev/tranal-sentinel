@@ -731,8 +731,14 @@ void Main(uint3 id : SV_DispatchThreadID)
         }
         finally
         {
-            try { if (queue != null && fence != null) { queue.Signal(fence, ++fenceValue); WaitGpu(fenceValue); } } catch { }
-            for (int i = keep.Count - 1; i >= 0; i--) try { keep[i].Dispose(); } catch { }
+            try { if (queue != null && fence != null) { queue.Signal(fence, ++fenceValue); WaitGpu(fenceValue); } } catch
+            {
+                // Sinalização da fila de GPU no encerramento: se a GPU já foi desligada, não há o que esperar.
+            }
+            for (int i = keep.Count - 1; i >= 0; i--) try { keep[i].Dispose(); } catch
+            {
+                // Recurso de GPU já liberado: a limpeza do benchmark continua sem ele.
+            }
             fenceEvent.Dispose();
             if (hwnd != IntPtr.Zero) DestroyWindow(hwnd);
             UnregisterClassW(cls, hInst);

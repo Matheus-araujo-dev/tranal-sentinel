@@ -23,7 +23,10 @@ public static class BatteryInfo
                 o.Dispose();
             }
         }
-        catch { }
+        catch
+        {
+            // A consulta ao WMI pode falhar (serviço parado, classe ausente): o cartão de energia fica sem leitura, e o app segue.
+        }
         return list;
     }
 
@@ -32,7 +35,10 @@ public static class BatteryInfo
     private static long? L(Dictionary<string, object?>? d, string k)
     {
         if (d != null && d.TryGetValue(k, out var v) && v != null)
-            try { return Convert.ToInt64(v); } catch { }
+            try { return Convert.ToInt64(v); } catch
+            {
+                // O WMI devolveu um valor que não é número: esse campo da bateria fica sem valor, e os outros continuam valendo.
+            }
         return null;
     }
 

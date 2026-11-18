@@ -37,7 +37,10 @@ public static class DiskBench
                 string label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "" : $" {d.VolumeLabel}";
                 list.Add((d.Name, $"{d.Name.TrimEnd('\\')}{label}"));
             }
-            catch { }
+            catch
+            {
+                // Unidade removível que sumiu no meio da varredura: ela só não entra na lista de unidades testáveis.
+            }
         }
         return list;
     }
@@ -101,8 +104,14 @@ public static class DiskBench
         finally
         {
             NativeMemory.AlignedFree(seqMem);
-            try { File.Delete(path); } catch { }
-            try { Directory.Delete(dir); } catch { }
+            try { File.Delete(path); } catch
+            {
+                // Arquivo de teste ainda trancado pelo Windows: ele fica na pasta temporária e é limpo pelo sistema.
+            }
+            try { Directory.Delete(dir); } catch
+            {
+                // A pasta do benchmark pode estar trancada pelo antivírus: sobrar pasta temporária não afeta a nota.
+            }
         }
     }
 

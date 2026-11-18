@@ -90,7 +90,10 @@ public static class CorsairSdkInstaller
             }
             throw new InvalidOperationException($"Não achei o {DllName} dentro da última release ({tag}). Baixe o SDK manualmente em github.com/{Repo}/releases.");
         }
-        finally { try { Directory.Delete(tmpDir, true); } catch { } }
+        finally { try { Directory.Delete(tmpDir, true); } catch
+        {
+            // Pasta temporária do download: se o Windows travar a remoção, ela fica na pasta temporária e é limpa depois.
+        } }
     }
 
     private static string? ExtractDll(string zipPath, string tmpDir)
@@ -126,7 +129,10 @@ public static class CorsairSdkInstaller
             signer = new X509Certificate2(cert).Subject;
 #pragma warning restore SYSLIB0057
         }
-        catch { }
+        catch
+        {
+            // O certificado não pode ser lido pelo .NET: o nome do signatário fica vazio e a DLL é descartada logo abaixo, com a mensagem dizendo isso.
+        }
         if (!signer.Contains("Corsair", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"A DLL está assinada por outro fabricante ({signer}). O arquivo foi descartado.");
         return "Assinatura digital da Corsair válida.";

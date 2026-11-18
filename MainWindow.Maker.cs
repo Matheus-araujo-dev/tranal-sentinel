@@ -185,7 +185,10 @@ public partial class MainWindow
         if (r != MessageBoxResult.Yes) return;
         int closed = 0;
         foreach (var p in procs)
-            try { p.Kill(entireProcessTree: true); closed++; } catch { }
+            try { p.Kill(entireProcessTree: true); closed++; } catch
+            {
+                // Programa que já saiu entre a listagem e o comando: ele não conta como fechado, e os outros são fechados.
+            }
         MakerIdeResult.Text = $"{closed} programas fechados. Tente o upload de novo.";
         RefreshMakerIde();
     }

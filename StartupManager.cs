@@ -72,7 +72,10 @@ public static class StartupManager
                 });
             }
         }
-        catch { }
+        catch
+        {
+            // Chave Run sem permissão ou ausente: os programas dessa fonte não entram na lista.
+        }
     }
 
     private static void ReadFolder(List<StartupEntry> list, string folder, bool machine, string source)
@@ -95,7 +98,10 @@ public static class StartupManager
                 });
             }
         }
-        catch { }
+        catch
+        {
+            // Pasta de inicialização inacessível: os atalhos dela não entram na lista, e as outras fontes continuam.
+        }
     }
 
     // ----- ativar / desativar (StartupApproved, como o Gerenciador de Tarefas) -----
@@ -150,7 +156,10 @@ public static class StartupManager
             using var ap = (e.Machine ? Registry.LocalMachine : Registry.CurrentUser).OpenSubKey(ApprovedPath + ApprovedKind(e), writable: true);
             ap?.DeleteValue(ApprovedName(e), throwOnMissingValue: false);
         }
-        catch { }
+        catch
+        {
+            // A chave StartupApproved é do Gerenciador de Tarefas: se não der para mexer nela, o item volta ao normal no próximo login.
+        }
         return b;
     }
 

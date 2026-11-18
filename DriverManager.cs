@@ -85,7 +85,10 @@ public static class DriverManager
 
     private static string WmiDate(string? s)
     {
-        try { if (!string.IsNullOrEmpty(s)) return ManagementDateTimeConverter.ToDateTime(s).ToString("dd/MM/yyyy"); } catch { }
+        try { if (!string.IsNullOrEmpty(s)) return ManagementDateTimeConverter.ToDateTime(s).ToString("dd/MM/yyyy"); } catch
+        {
+            // Data do driver em formato que o conversor do WMI não entende: a data vira um traço e o driver continua na lista.
+        }
         return "—";
     }
 
@@ -115,7 +118,10 @@ public static class DriverManager
                 o.Dispose();
             }
         }
-        catch { }
+        catch
+        {
+            // A consulta ao WMI pode falhar (serviço parado): a lista de drivers fica vazia, e a tela avisa que não deu para ler.
+        }
         return list.OrderBy(r => r.Class).ThenBy(r => r.Device).ToList();
     }
 
@@ -165,7 +171,10 @@ public static class DriverManager
                 o.Dispose();
             }
         }
-        catch { }
+        catch
+        {
+            // Falha ao ler os drivers de vídeo do WMI: a lista fica vazia, e o resto da página de drivers continua funcionando.
+        }
         return list;
     }
 
@@ -327,7 +336,10 @@ public static class DriverManager
         int trust = CorsairSdkInstaller.WinVerifyTrustFile(path);
         if (trust != 0)
         {
-            try { File.Delete(path); } catch { }
+            try { File.Delete(path); } catch
+            {
+                // O instalador com assinatura inválida precisa ser apagado: se o Windows travar o arquivo, ele fica lá — e a mensagem de erro sai logo abaixo.
+            }
             throw new InvalidOperationException($"Assinatura digital inválida (0x{trust:X8}). O arquivo foi descartado.");
         }
         string signer = "";
@@ -338,10 +350,16 @@ public static class DriverManager
             signer = new X509Certificate2(cert).Subject;
 #pragma warning restore SYSLIB0057
         }
-        catch { }
+        catch
+        {
+            // Nome do signatário ilegível: o arquivo é considerado de outro fabricante e descartado logo abaixo, com a mensagem dizendo isso.
+        }
         if (!signer.Contains(publisher, StringComparison.OrdinalIgnoreCase))
         {
-            try { File.Delete(path); } catch { }
+            try { File.Delete(path); } catch
+            {
+                // Arquivo de outro fabricante que precisa ser apagado: se o Windows travar, ele fica na pasta de downloads.
+            }
             throw new InvalidOperationException($"O arquivo está assinado por outro fabricante ({signer}). Foi descartado.");
         }
     }
@@ -393,7 +411,10 @@ public static class DriverManager
             if (b.Maker.Length == 0) b.Maker = sys;
             if (b.Model.Length == 0) b.Model = sysModel;
         }
-        catch { }
+        catch
+        {
+            // Placa-mãe lida por WMI ou registro: se a leitura falhar, o app mostra a placa como desconhecida.
+        }
         return b;
     }
 
@@ -417,7 +438,10 @@ public static class DriverManager
     {
         dynamic session = NewCom("Microsoft.Update.Session");
         dynamic coll = NewCom("Microsoft.Update.UpdateColl");
-        foreach (var d in items) { dynamic u = d.Update!; try { u.AcceptEula(); } catch { } coll.Add(u); }
+        foreach (var d in items) { dynamic u = d.Update!; try { u.AcceptEula(); } catch
+        {
+            // A EULA do Windows Update já pode ter sido aceita antes: o erro é ignorado porque o Windows instala assim mesmo.
+        } coll.Add(u); }
         progress("Baixando drivers do Windows Update…");
         dynamic dl = session.CreateUpdateDownloader();
         dl.Updates = coll;

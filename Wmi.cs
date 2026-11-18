@@ -63,12 +63,18 @@ public static class Wmi
                 foreach (var propriedade in objeto.Properties)
                 {
                     try { linha.Definir(propriedade.Name, propriedade.Value?.ToString() ?? ""); }
-                    catch { }
+                    catch
+                    {
+                        // Propriedade do WMI que não cabe no tipo esperado: ela é pulada, e a linha continua com o resto.
+                    }
                 }
                 lista.Add(linha);
             }
         }
-        catch { }
+        catch
+        {
+            // O WMI pode estar parado ou a consulta pode estar errada: a lista volta vazia, em vez de derrubar a coleta.
+        }
         return lista;
     }
 }

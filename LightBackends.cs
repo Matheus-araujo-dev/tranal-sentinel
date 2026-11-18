@@ -255,7 +255,10 @@ public sealed class OpenRgbBackend : ILightBackend
             mode.CopyTo(p, 8);
             Write((uint)idx, UpdateMode, p);
         }
-        catch { }
+        catch
+        {
+            // O dispositivo já sumiu do OpenRGB: não há modo anterior para devolver, e o app segue.
+        }
     }
 
     public void EndSession() { }
@@ -263,8 +266,14 @@ public sealed class OpenRgbBackend : ILightBackend
 
     public void Shutdown()
     {
-        try { _ns?.Dispose(); } catch { }
-        try { _tcp?.Dispose(); } catch { }
+        try { _ns?.Dispose(); } catch
+        {
+            // Socket do OpenRGB já fechado: o descarte é só limpeza.
+        }
+        try { _tcp?.Dispose(); } catch
+        {
+            // Conexão TCP do OpenRGB já fechada: o descarte é só limpeza.
+        }
         _ns = null; _tcp = null;
     }
 }
@@ -349,7 +358,10 @@ public sealed class RazerChromaBackend : ILightBackend
         if (now - _lastBeat > 8000)
         {
             _lastBeat = now;
-            _ = Task.Run(async () => { try { using var r = await Http.PutAsync(uri + "/heartbeat", new StringContent("")); } catch { } });
+            _ = Task.Run(async () => { try { using var r = await Http.PutAsync(uri + "/heartbeat", new StringContent("")); } catch
+            {
+                // O batimento para o Synapse é opcional: se o servidor não responde, o controle das luzes continua.
+            } });
         }
         return 0;
     }
@@ -362,7 +374,10 @@ public sealed class RazerChromaBackend : ILightBackend
         var uri = _uri;
         _uri = null;
         if (uri == null) return;
-        try { Task.Run(async () => { using var r = await Http.DeleteAsync(uri); }).Wait(1500); } catch { }
+        try { Task.Run(async () => { using var r = await Http.DeleteAsync(uri); }).Wait(1500); } catch
+        {
+            // O Synapse não respondeu ao pedido de encerrar a sessão: o controle das luzes é liberado de qualquer jeito.
+        }
     }
 
     public string ErrorText(int e) => e == 0 ? "ok" : "sessão do Razer Chroma indisponível";

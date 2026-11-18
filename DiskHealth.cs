@@ -222,10 +222,16 @@ public static class DiskHealth
                         r.PredictFail = (r.PredictFail ?? false) || fail;
             }
         }
-        catch { }
+        catch
+        {
+            // A consulta de falha prevista no root\wmi nem existe em todo disco: sem esse dado, o S.M.A.R.T. continua valendo.
+        }
 
         // 4) Letras das unidades de cada disco
-        try { FillLetters(raws); } catch { }
+        try { FillLetters(raws); } catch
+        {
+            // A letra da unidade (C:, D:) é um detalhe: se o Windows não souber, o disco aparece sem a letra e o resto do cartão continua.
+        }
 
         // 5) Completa com os sensores do LibreHardwareMonitor
         if (sensors != null)

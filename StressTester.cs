@@ -147,7 +147,10 @@ public sealed class StressTester
             foreach (ManagementObject mo in s.Get())
                 return Convert.ToInt64(mo["FreePhysicalMemory"]) * 1024; // vem em KB
         }
-        catch { }
+        catch
+        {
+            // A memória livre não pôde ser lida: o teste assume 1 GB, para não alocar tudo por engano.
+        }
         return 1L << 30;
     }
 }

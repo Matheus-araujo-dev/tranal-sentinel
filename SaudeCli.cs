@@ -869,6 +869,9 @@ public static class SaudeCli
         {
             Console.OutputEncoding = Encoding.UTF8;
         }
-        catch { }
+        catch
+        {
+            // Console que não aceita UTF-8 (saída redirecionada antiga): o relatório sai com acentos trocados, mas sai.
+        }
     }
 }

@@ -345,7 +345,10 @@ float4 PS(PSIn i) : SV_TARGET
         {
             ReleaseTargets();
             for (int i = disposables.Count - 1; i >= 0; i--)
-                try { disposables[i].Dispose(); } catch { }
+                try { disposables[i].Dispose(); } catch
+                {
+                    // Recurso de GPU já liberado: a limpeza do burn continua sem ele.
+                }
             if (hwnd != IntPtr.Zero) DestroyWindow(hwnd);
             UnregisterClassW(cls, hInst);
             Fps = 0;

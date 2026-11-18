@@ -178,7 +178,10 @@ public partial class MainWindow
             await File.WriteAllTextAsync(path, text, encoding);
 
             SystemSub.Text = $"Relatório salvo em {path}";
-            try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); } catch { }
+            try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); } catch
+            {
+                // O relatório já foi gravado: se o Windows não abrir o arquivo, o caminho continua escrito na tela.
+            }
         }
         catch (Exception ex)
         {

@@ -336,7 +336,10 @@ public static class GpuInfoCollector
                 foreach (var p in props)
                     if (p["KeyName"] is string k) dict[k] = p["Data"];
         }
-        catch { }
+        catch
+        {
+            // As propriedades do dispositivo não puderam ser lidas (o driver não expõe esse método): o PCIe fica sem os detalhes de link.
+        }
         return dict;
     }
 
@@ -352,7 +355,10 @@ public static class GpuInfoCollector
             foreach (var n in key.GetValueNames())
                 if (n.StartsWith("HardwareInformation.") && key.GetValue(n) is object v) dict[n] = v;
         }
-        catch { }
+        catch
+        {
+            // Chave de classe do driver sem permissão: os detalhes do driver ficam vazios, sem derrubar a leitura da GPU.
+        }
         return dict;
     }
 
@@ -380,7 +386,10 @@ public static class GpuInfoCollector
                     ? "WHQL (Microsoft)" : $"Assinado · {signer}";
             }
         }
-        catch { }
+        catch
+        {
+            // Consulta da assinatura do driver falhou: a GPU aparece sem assinatura, em vez de derrubar a tela.
+        }
         return "—";
     }
 

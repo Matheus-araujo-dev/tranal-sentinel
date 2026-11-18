@@ -307,9 +307,18 @@ public partial class MainWindow
     private void PararVigia()
     {
         // Descartar os timers é limpeza: falhar aqui não pode derrubar o app.
-        try { _timerTravados?.Dispose(); } catch { }
-        try { _timerAlertas?.Dispose(); } catch { }
-        try { _timerTeclaPresa?.Dispose(); } catch { }
+        try { _timerTravados?.Dispose(); } catch
+        {
+            // Timer de travamentos: o descarte é limpeza, e falhar aqui não derruba o app.
+        }
+        try { _timerAlertas?.Dispose(); } catch
+        {
+            // Timer de alertas: o descarte é limpeza, e falhar aqui não derruba o app.
+        }
+        try { _timerTeclaPresa?.Dispose(); } catch
+        {
+            // Timer da tecla presa: o descarte é limpeza, e falhar aqui não derruba o app.
+        }
         // O gancho de teclado também some: ele não pode ficar instalado
         // depois do app fechar.
         try { _vigiaTeclado?.Dispose(); }

@@ -85,7 +85,10 @@ public static class RegistroDiario
                     dias.Add(d);
             }
         }
-        catch { }
+        catch
+        {
+            // A pasta do diário não pôde ser lida: a lista de dias fica vazia, e o app segue funcionando.
+        }
         dias.Sort((a, b) => b.CompareTo(a));
         return dias;
     }
@@ -102,9 +105,15 @@ public static class RegistroDiario
                 {
                     if (File.GetLastWriteTime(arquivo) < limite) File.Delete(arquivo);
                 }
-                catch { }
+                catch
+                {
+                    // Log antigo trancado pelo Windows: ele fica, e o resto dos logs antigos é apagado.
+                }
             }
         }
-        catch { }
+        catch
+        {
+            // A limpeza dos logs antigos é automática: falhar nela não pode atrapalhar o app.
+        }
     }
 }

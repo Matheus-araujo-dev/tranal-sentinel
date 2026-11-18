@@ -100,7 +100,10 @@ public static class SmartLeitor
                 catch { /* um disco problemático não derruba os outros */ }
             }
         }
-        catch { }
+        catch
+        {
+            // A leitura do SMART falhou: a lista fica vazia, e os discos aparecem como sem SMART.
+        }
         return lista;
     }
 
@@ -145,7 +148,10 @@ public static class SmartLeitor
                 item.Limiares = Bytes(o["VendorSpecific"]);
             }
         }
-        catch { }
+        catch
+        {
+            // Os limiares do SMART nem sempre existem: sem eles, o disco aparece com os atributos, mas sem os valores de alarme.
+        }
 
         try
         {
@@ -158,7 +164,10 @@ public static class SmartLeitor
                 item.PredictFailure = o["PredictFailure"] is bool b && b;
             }
         }
-        catch { }
+        catch
+        {
+            // A consulta de falha prevista não respondeu: o disco não é marcado como falha prevista — sem dado, sem alarme.
+        }
 
         return mapa;
     }
@@ -360,7 +369,10 @@ public static class SmartLeitor
                     for (int i = 0; i < saida.Length; i++) saida[i] = Convert.ToByte(limpo.Substring(i * 2, 2), 16);
                     return saida;
                 }
-                catch { }
+                catch
+                {
+                    // Valor do SMART que não é hexadecimal válido: o atributo fica vazio, em vez de virar número errado.
+                }
             }
         }
 

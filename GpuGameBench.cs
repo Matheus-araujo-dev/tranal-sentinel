@@ -596,7 +596,10 @@ float4 PostPS(FsOut i) : SV_TARGET
         }
         finally
         {
-            for (int i = keep.Count - 1; i >= 0; i--) try { keep[i].Dispose(); } catch { }
+            for (int i = keep.Count - 1; i >= 0; i--) try { keep[i].Dispose(); } catch
+            {
+                // Recurso de GPU já liberado no encerramento: o resto da limpeza continua.
+            }
             if (hwnd != IntPtr.Zero) DestroyWindow(hwnd);
             UnregisterClassW(cls, hInst);
             Thread.CurrentThread.Priority = oldPriority;

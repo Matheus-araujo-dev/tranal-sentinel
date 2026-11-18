@@ -69,7 +69,10 @@ public static class SaudePnp
                 lista.Add(new DispositivoOrfao { Nome = nome, CodigoErro = CM_PROB_PHANTOM });
             }
         }
-        catch { }
+        catch
+        {
+            // A API de dispositivos não respondeu: a lista de órfãos fica vazia, e o app não inventa órfão.
+        }
         return lista;
     }
 
@@ -91,7 +94,10 @@ public static class SaudePnp
                 return (separador >= 0 ? desc[(separador + 1)..] : desc).Trim();
             }
         }
-        catch { }
+        catch
+        {
+            // Registro do dispositivo sem permissão: o nome fica vazio, e o código do erro ainda é mostrado.
+        }
         return "";
     }
 

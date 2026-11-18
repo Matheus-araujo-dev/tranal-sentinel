@@ -109,7 +109,10 @@ public sealed class SensorMonitor : IDisposable
                 if (value) File.WriteAllText(_arquivoPausa, "1");
                 else if (File.Exists(_arquivoPausa)) File.Delete(_arquivoPausa);
             }
-            catch { }
+            catch
+            {
+                // O arquivo de pausa é avisado ao processo filho: se ele não puder ser gravado, a pausa só não vale para a coleta.
+            }
         }
     }
 
@@ -182,7 +185,10 @@ public sealed class SensorMonitor : IDisposable
             "TranalSentinel", "sensores", Guid.NewGuid().ToString("N"));
         _arquivoLeituras = Path.Combine(_pasta, "leituras.json");
         _arquivoPausa = Path.Combine(_pasta, "pausa.flag");
-        try { Directory.CreateDirectory(_pasta); } catch { }
+        try { Directory.CreateDirectory(_pasta); } catch
+        {
+            // A pasta da coleta não pôde ser criada: o app continua sem sensores, em vez de derrubar.
+        }
     }
 
     /// <summary>
@@ -680,6 +686,9 @@ public sealed class SensorMonitor : IDisposable
     {
         IsOpen = false;
         PararFilho();
-        try { if (Directory.Exists(_pasta)) Directory.Delete(_pasta, true); } catch { }
+        try { if (Directory.Exists(_pasta)) Directory.Delete(_pasta, true); } catch
+        {
+            // Pasta temporária da coleta trancada pelo Windows: ela fica na pasta local e some com a limpeza do sistema.
+        }
     }
 }

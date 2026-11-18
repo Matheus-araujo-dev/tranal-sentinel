@@ -333,7 +333,10 @@ internal static class SaudeColeta
                 ? Directory.GetFiles(@"C:\Windows\Minidump", "*.dmp").Length
                 : 0;
         }
-        catch { }
+        catch
+        {
+            // A pasta de minidumps não pôde ser lida sem permissão: a contagem de travamentos fica em zero.
+        }
     }
 
     // ---------------------------------------------------------------------- PCIe
@@ -346,13 +349,19 @@ internal static class SaudeColeta
             dados.AspmAc = ac;
             dados.AspmDc = dc;
         }
-        catch { }
+        catch
+        {
+            // Os índices de ASPM não existem em toda máquina: o dado de PCIe fica vazio, e o diagnóstico segue sem ele.
+        }
 
         try
         {
             ColetarNvmes(dados);
         }
-        catch { }
+        catch
+        {
+            // A leitura dos NVMe falhou: os discos NVMe não entram no relatório, e os outros continuam.
+        }
     }
 
     /// <summary>
@@ -473,7 +482,10 @@ internal static class SaudeColeta
                     if (p["KeyName"] is string k && k == chave)
                         return p["Data"];
         }
-        catch { }
+        catch
+        {
+            // A propriedade do dispositivo não pôde ser lida: o valor fica desconhecido, e a linha do dispositivo segue.
+        }
         return null;
     }
 
@@ -494,14 +506,20 @@ internal static class SaudeColeta
                 });
             }
         }
-        catch { }
+        catch
+        {
+            // A consulta de discos no WMI falhou: a lista de discos fica vazia, e o resto da coleta continua.
+        }
 
         try
         {
             foreach (var orfao in SaudePnp.OrfaosArmazenamento())
                 dados.Orfaos.Add(orfao);
         }
-        catch { }
+        catch
+        {
+            // A busca de dispositivos órfãos falhou: a lista fica vazia, e o diagnóstico não inventa órfão.
+        }
     }
 
     /// <summary>
@@ -520,18 +538,36 @@ internal static class SaudeColeta
             foreach (var disco in SmartLeitor.LerTodos())
                 dados.DiscosSmart.Add(disco);
         }
-        catch { }
+        catch
+        {
+            // O SMART de algum disco não pôde ser lido: os outros discos continuam na lista.
+        }
     }
 
     // ---------------------------------------------------------------- segurança
 
     private static void ColetarAntivirus(ColetaSaude dados)
     {
-        try { dados.ModoDefender = LerDefenderModo(); } catch { }
-        try { dados.AntivirusRegistrado = LerAntivirusRegistrado(); } catch { }
-        try { LerDriverAntivirus(dados); } catch { }
-        try { dados.AntivirusMemoriaMb = MemoriaAntivirusMb(); } catch { }
-        try { (dados.DefinicoesAntivirusDias, dados.DefinicoesAntivirusData) = IdadeDefinicoes(); } catch { }
+        try { dados.ModoDefender = LerDefenderModo(); } catch
+        {
+            // Cada informação do antivírus é lida por conta própria: a que falhar não impede as outras.
+        }
+        try { dados.AntivirusRegistrado = LerAntivirusRegistrado(); } catch
+        {
+            // Antivírus do Security Center2: se a consulta falhar, o app não diz qual antivírus está registrado — e segue.
+        }
+        try { LerDriverAntivirus(dados); } catch
+        {
+            // Driver de antivírus de terceiros não encontrado ou leitura recusada: o app não inventa driver.
+        }
+        try { dados.AntivirusMemoriaMb = MemoriaAntivirusMb(); } catch
+        {
+            // A memória do antivírus é só um número extra: se não der para medir, o item fica sem valor.
+        }
+        try { (dados.DefinicoesAntivirusDias, dados.DefinicoesAntivirusData) = IdadeDefinicoes(); } catch
+        {
+            // A idade das definições do antivírus é um detalhe: sem ela, o app não diz há quantos dias o Defender foi atualizado.
+        }
     }
 
     /// <summary>Modo do Defender: Active, Passive, Not running, Disabled.</summary>
@@ -552,7 +588,10 @@ internal static class SaudeColeta
                 return ModoDoDefender(v);
             }
         }
-        catch { }
+        catch
+        {
+            // O WMI do Defender pode não existir nesta versão do Windows: o modo fica desconhecido.
+        }
         return null;
     }
 
@@ -598,7 +637,10 @@ internal static class SaudeColeta
                 return nome;
             }
         }
-        catch { }
+        catch
+        {
+            // A consulta ao Security Center2 não respondeu: o nome do antivírus fica vazio.
+        }
         return null;
     }
 
@@ -617,7 +659,10 @@ internal static class SaudeColeta
                 return;
             }
         }
-        catch { }
+        catch
+        {
+            // O WMI de drivers não respondeu: o driver de antivírus de terceiro fica desconhecido.
+        }
     }
 
     /// <summary>Memória ocupada pelos processos do antivírus.</summary>
@@ -675,7 +720,10 @@ internal static class SaudeColeta
             }
             dados.MemoriaCompressaoMb = (int)Math.Round(soma / 1024.0 / 1024.0);
         }
-        catch { }
+        catch
+        {
+            // O processo de compressão de memória não pôde ser medido: o valor fica em zero.
+        }
 
         try
         {
@@ -691,7 +739,10 @@ internal static class SaudeColeta
                 });
             }
         }
-        catch { }
+        catch
+        {
+            // Os módulos de memória não vieram do WMI: a lista de módulos fica vazia, e a parte que vem do SPD continua.
+        }
 
         // O SPD dos módulos (capacidades, timings e perfis XMP/EXPO) vem do
         // barramento SMBus. Sem o driver PawnIO a lista fica vazia e as
@@ -702,7 +753,10 @@ internal static class SaudeColeta
             dados.ModulosSpd.AddRange(memoria.Modulos);
             dados.TimingsAtivosMemoria = memoria.TimingsAtivos;
         }
-        catch { }
+        catch
+        {
+            // Sem o driver PawnIO o SPD não é lido: a lista de módulos fica vazia, e as regras de memória seguem com o que o Windows informa.
+        }
     }
 
     // ------------------------------------------------------------------ lentidão
@@ -715,7 +769,10 @@ internal static class SaudeColeta
             dados.AutostartTotal = inicializacao.Count;
             dados.AutostartAtivos = inicializacao.Count(e => e.Enabled);
         }
-        catch { }
+        catch
+        {
+            // A contagem de programas de inicialização é um número extra: se a leitura falhar, ele fica em zero.
+        }
 
         try
         {
@@ -730,14 +787,20 @@ internal static class SaudeColeta
                 });
             }
         }
-        catch { }
+        catch
+        {
+            // A lista de serviços não pôde ser lida: os serviços automáticos não entram no relatório de lentidão.
+        }
 
         try
         {
             foreach (var linha in Wmi.Consultar("SELECT HypervisorPresent FROM Win32_ComputerSystem"))
                 dados.HypervisorAtivo = linha.ValorBool("HypervisorPresent");
         }
-        catch { }
+        catch
+        {
+            // A consulta do hypervisor falhou: o app não diz se a virtualização está ativa.
+        }
     }
 
     // ---------------------------------------------------------------- infraestrutura

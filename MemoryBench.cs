@@ -157,7 +157,10 @@ public static class MemoryBench
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            try { Directory.Delete(dir, recursive: true); } catch
+            {
+                // Pasta temporária do benchmark: sobrar arquivo lá não afeta a nota.
+            }
         }
     }
 

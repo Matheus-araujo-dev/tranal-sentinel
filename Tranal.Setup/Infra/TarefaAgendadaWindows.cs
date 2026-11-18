@@ -35,7 +35,12 @@ public sealed class TarefaAgendadaWindows : ITarefaAgendada
         }
         finally
         {
-            try { if (File.Exists(arquivo)) File.Delete(arquivo); } catch { }
+            try { if (File.Exists(arquivo)) File.Delete(arquivo); }
+            catch
+            {
+                // O XML temporario nao pode ser apagado (algum antivírus segura o arquivo): ele fica na pasta
+                // temporaria do Windows, que limpa sozinho, e a instalacao continua sem mexer no PC do dono.
+            }
         }
     }
 

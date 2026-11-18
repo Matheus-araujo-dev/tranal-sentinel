@@ -80,6 +80,7 @@ internal static class SensorWorker
                 }
                 catch
                 {
+                    // Nem o snapshot de emergência pôde ser gravado: o processo filho encerra, e o app percebe que a coleta parou.
                 }
             }
             Thread.Sleep(700);

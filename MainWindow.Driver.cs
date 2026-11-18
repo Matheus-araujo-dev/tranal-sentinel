@@ -80,7 +80,10 @@ public partial class MainWindow
 
     private static void OpenUrl(string url)
     {
-        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch
+        {
+            // Abrir a página do fabricante no navegador é conveniência: sem navegador disponível, o app segue.
+        }
     }
 
     private void BtnDrvGpuPage_Click(object sender, RoutedEventArgs e)
