@@ -167,12 +167,12 @@ public sealed class Bandeja : IDisposable
             AppendMenu(menu, MF_STRING, 1001, "Abrir o TRANAL SENTINEL");
             if (_temTravado) AppendMenu(menu, MF_STRING, 1003, _rotuloTravado);
             AppendMenu(menu, MF_STRING, 1002, "Sair");
+
+            GetCursorPos(out var ponto);
+
             // A janela precisa estar em primeiro plano para o menu sumir ao clicar fora.
             SetForegroundWindow(_janela);
-            uint cmd = TrackPopupMenu(menu, TPM_RIGHTBUTTON, 0, 0, 0, _janela, IntPtr.Zero);
-            if (cmd == 1001) AoAbrir?.Invoke();
-            else if (cmd == 1002) AoSair?.Invoke();
-            else if (cmd == 1003) AoEncerrarTravado?.Invoke();
+            TrackPopupMenu(menu, TPM_RIGHTBUTTON, ponto.X, ponto.Y, 0, _janela, IntPtr.Zero);
         }
         finally
         {
@@ -249,4 +249,10 @@ public sealed class Bandeja : IDisposable
 
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr janela);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT ponto);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
 }
