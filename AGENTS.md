@@ -806,13 +806,25 @@ gerenciado tinha só ~11 MB vivos; o que pesava era nativo.
 ## Publicar
 
 ```powershell
-git push origin main                      # CI monta a release "latest"
-git tag -a v0.17 -m "..." && git push origin v0.17   # CI monta a release da versão
+git push origin main      # e só: o CI decide a versão, gera os .exe e publica a release vX.Y.Z
 ```
 
-O `.github/workflows/publicar.yml` roda os testes **do app e do instalador**,
-publica o app e o instalador e sobe as releases. O asset **precisa** se chamar `TranalSentinel.exe`: é o que o
-auto-update procura.
+**Todo push na main é uma versão nova**, sem tag manual. O
+`.github/workflows/publicar.yml` decide o número, roda os testes **do app e do
+instalador**, publica os dois executáveis com esse número gravado, confere a
+versão do `TranalSentinel.exe` e cria a tag `vX.Y.Z` com a release (marcada
+como a "Latest" do GitHub). A release rolante `latest` continua sendo
+atualizada, para quem guardou o link dela.
+
+- **A regra do número:** a versão do `Directory.Build.props` é o **piso**. Se
+  ela é maior que a maior tag publicada, ela é usada como está (é assim que se
+  sobe o minor: 0.36.0). Senão, a release é a maior tag com o último número
+  somado de 1 (v0.36.0 → v0.36.1). Nenhum push publica versão repetida ou
+  menor — o auto-update compara a `AssemblyVersion` com a maior tag, e uma
+  tag repetida faria o app instalado nunca ver a atualização.
+- **O `Directory.Build.props` não é reescrito pelo CI**: o número de cada
+  release vive na tag. Um build local sai com o piso.
+- O asset **precisa** se chamar `TranalSentinel.exe`: é o que o auto-update procura.
 
 ## Onde as coisas estão
 
