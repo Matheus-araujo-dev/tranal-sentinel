@@ -35,9 +35,14 @@ public partial class MainWindow
 
     private float? CpuClockAvg()
     {
-        var c = _monitor.Rows.Where(r => r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Clock &&
-                                         r.Name.StartsWith("Core #") && r.RawValue > 0).Select(r => r.RawValue!.Value).ToList();
-        return c.Count > 0 ? c.Average() : null;
+        float sum = 0; int count = 0;
+        foreach (var r in _monitor.Rows)
+        {
+            if (r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Clock &&
+                r.Name.StartsWith("Core #") && r.RawValue > 0)
+            { sum += r.RawValue!.Value; count++; }
+        }
+        return count > 0 ? sum / count : null;
     }
 
     private void CollectDashSample()

@@ -99,7 +99,6 @@ public partial class MainWindow : Window
         SystemSub.Text = "Lendo informações do sistema…";
         StatusText.Text = "Detectando o hardware…";
 
-        InitBench();
         SnapshotUsb();
         RefreshDrives();
         TitlePage.Text = "Visão geral";
@@ -140,13 +139,17 @@ public partial class MainWindow : Window
                 _monitor.LinhasDaColeta, _monitor.CpuTemperature, _monitor.GpuTemperature,
                 DateTime.Now, _monitor.MomentoDaColeta);
 
+            // Com a janela minimizada, as atualizações de tela são desperdício:
+            // a coleta de sensores e ventoinhas já rodou acima.
+            if (WindowState == WindowState.Minimized) return;
+
             if (_monitor.IsOpen) StatusText.Text = $"{_monitor.Rows.Count} sensores · atualizado {DateTime.Now:HH:mm:ss}";
             UpdateStressPanel();
             UpdateGpuLive();
             UpdateCpuSensorWarning();
             CollectDashSample();
             UpdateBottleneck();
-            if (PageBench.IsVisible) UpdateBenchLive();
+            if (PageBench.IsVisible) { EnsureBenchInit(); UpdateBenchLive(); }
             if (PageOptimize.IsVisible) UpdateRamStatus();
             if (PageAlertas.IsVisible) AtualizarAlertasAtivos();
             if (PageVentoinhas.IsVisible) AtualizarVentoinhas();
@@ -861,8 +864,13 @@ public partial class MainWindow : Window
 
     // ---------------- TRANAL BENCH ----------------
 
-    private void InitBench()
+    private bool _benchIniciado;
+
+    /// <summary>Inicializa o bitmap e o histórico do benchmark só quando necessário (lazy startup).</summary>
+    private void EnsureBenchInit()
     {
+        if (_benchIniciado) return;
+        _benchIniciado = true;
         _benchBitmap = new System.Windows.Media.Imaging.WriteableBitmap(BenchRenderer.Width, BenchRenderer.Height, 96, 96,
                                                                        PixelFormats.Bgra32, null);
         BenchImage.Source = _benchBitmap;
@@ -874,6 +882,7 @@ public partial class MainWindow : Window
 
     private async void BtnBench_Click(object sender, RoutedEventArgs e)
     {
+        EnsureBenchInit();
         if (BenchRunning) { _benchCts!.Cancel(); return; }
         if (TestRunning || _gameBenchRunning) { BenchHint.Text = "Pare o outro teste antes de rodar o benchmark."; return; }
 
@@ -1756,8 +1765,15 @@ public partial class MainWindow : Window
     private float? MainGpuTemp()
     {
         if (_gpus.Count == 0) return null;
-        var temps = _monitor.Rows.Where(r => r.Hardware == _gpus[0].Name && r.Type == SensorType.Temperature).ToList();
-        return (temps.FirstOrDefault(r => r.Name == "GPU Core") ?? temps.FirstOrDefault())?.RawValue;
+        float? core = null, fallback = null;
+        var gpuName = _gpus[0].Name;
+        foreach (var r in _monitor.Rows)
+        {
+            if (r.Hardware != gpuName || r.Type != SensorType.Temperature) continue;
+            if (r.Name == "GPU Core") { core = r.RawValue; break; }
+            fallback ??= r.RawValue;
+        }
+        return core ?? fallback;
     }
 
     /// <summary>Consumo da GPU principal: NVML quando disponível, senão LibreHardwareMonitor.</summary>
