@@ -14,6 +14,7 @@ namespace TranalSentinel;
 public partial class MainWindow : Window
 {
     private readonly SensorMonitor _monitor;
+    private DateTime _monitorAbriuEm;
 
     // Ventoinhas: cada uma é comparada com o seu próprio recorde, para
     // dizer se ela está gasta.
@@ -272,8 +273,8 @@ public partial class MainWindow : Window
 
             try { await _monitor.OpenAsync(); }
             catch (Exception ex) { StatusText.Text = $"Sensores indisponíveis: {ex.Message}"; return; }
+            _monitorAbriuEm = DateTime.UtcNow;
             _monitor.Refresh();
-            UpdateCpuSensorWarning();
             AddChip("Todos", null, isChecked: true);
             foreach (var c in _monitor.Rows.Select(r => r.Category).Distinct().OrderBy(x => x))
                 AddChip(c, c);
@@ -313,10 +314,21 @@ public partial class MainWindow : Window
     /// <summary>Mostra o aviso no menu quando temperatura/consumo da CPU não respondem, com o motivo provável.</summary>
     private void UpdateCpuSensorWarning()
     {
-        if (!_monitor.IsOpen) return; // ainda detectando: não acusar falta de sensor antes da hora
+        if (!_monitor.IsOpen) return;
+
+        // Período de graça: o LibreHardwareMonitor pode demorar algumas coletas para
+        // estabilizar a leitura da CPU (o driver abre, mas o primeiro valor não vem
+        // imediatamente). Sem esse prazo, o aviso pisca toda vez que o app abre.
+        if (_monitorAbriuEm != default && (DateTime.UtcNow - _monitorAbriuEm).TotalSeconds < 15
+            && _monitor.CpuTemperature is null)
+        {
+            CpuSensorWarn.Visibility = Visibility.Collapsed;
+            return;
+        }
+
         string aviso = _monitor.AvisoCpuSensor();
         CpuSensorWarn.Visibility = aviso.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        CpuSensorWarnText.Text = aviso;
+        if (aviso.Length > 0) CpuSensorWarnText.Text = aviso;
     }
 
     private void BtnFixCpuSensors_Click(object sender, RoutedEventArgs e)
