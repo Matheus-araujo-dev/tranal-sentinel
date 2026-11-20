@@ -30,7 +30,8 @@ public partial class App : Application
             string caminhoNovo = indiceAtualizar + 1 < e.Args.Length ? e.Args[indiceAtualizar + 1] : "";
             int pidPai = Argumento(e.Args, "--pid", 0);
             bool reabrir = !Array.Exists(e.Args, a => string.Equals(a, "--sem-reabrir", StringComparison.OrdinalIgnoreCase));
-            Shutdown(Atualizador.Aplicar(caminhoNovo, pidPai, reabrir));
+            string destino = ArgumentoTexto(e.Args, "--destino");
+            Shutdown(Atualizador.Aplicar(caminhoNovo, pidPai, reabrir, destino));
             return;
         }
 
@@ -127,4 +128,7 @@ public partial class App : Application
 
     /// <summary>Lê o valor de um argumento do tipo "--nome valor".</summary>
     private static int Argumento(string[] args, string nome, int padrao) => LinhaDeComando.Inteiro(args, nome, padrao);
+
+    /// <summary>Lê o valor textual de um argumento do tipo "--nome valor".</summary>
+    private static string ArgumentoTexto(string[] args, string nome) => LinhaDeComando.Texto(args, nome);
 }

@@ -303,10 +303,13 @@ public static class AutoUpdate
     {
         if (!File.Exists(caminhoNovoExecutavel)) return false;
 
-        string exe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "";
-        if (exe.Length == 0) return false;
+        string exeAtual = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "";
+        if (exeAtual.Length == 0) return false;
 
-        var psi = new ProcessStartInfo(exe)
+        // O atualizador roda a partir do exe NOVO (o baixado), não do exe atual:
+        // o Windows trava o arquivo de um executável em execução, e se o
+        // atualizador rodasse do exe instalado, ele não conseguiria sobrescrevê-lo.
+        var psi = new ProcessStartInfo(caminhoNovoExecutavel)
         {
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -314,6 +317,10 @@ public static class AutoUpdate
         };
         psi.ArgumentList.Add(ArgumentoAtualizacao);
         psi.ArgumentList.Add(caminhoNovoExecutavel);
+        psi.ArgumentList.Add("--pid");
+        psi.ArgumentList.Add(Environment.ProcessId.ToString());
+        psi.ArgumentList.Add("--destino");
+        psi.ArgumentList.Add(exeAtual);
 
         using var filho = Process.Start(psi);
         return filho is not null;

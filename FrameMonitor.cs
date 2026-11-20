@@ -147,6 +147,16 @@ public sealed class FrameMonitor : IDisposable
         catch { return $"PID {pid}"; }
     }
 
+    /// <summary>Para a sessão ETW sem destruir o objeto — pode ser religado com <see cref="Start"/>.</summary>
+    public void Stop()
+    {
+        if (!Running) return;
+        try { _session?.Source.StopProcessing(); } catch { }
+        _session?.Dispose();
+        _session = null;
+        lock (_lock) { _presents.Clear(); _lastSeen.Clear(); }
+    }
+
     public void Dispose()
     {
         try { _session?.Source.StopProcessing(); } catch

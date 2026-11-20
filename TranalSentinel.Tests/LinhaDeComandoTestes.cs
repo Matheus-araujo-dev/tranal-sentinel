@@ -16,6 +16,14 @@ public class LinhaDeComandoTestes
         Assert.False(LinhaDeComando.Tem(new[] { "--saude" }, "--sem-gpu"));
     }
 
+    [Fact]
+    public void Texto_LeOValorOuDevolveVazio()
+    {
+        Assert.Equal(@"C:\App", LinhaDeComando.Texto(new[] { "--DESTINO", @"C:\App" }, "--destino"));
+        Assert.Equal("", LinhaDeComando.Texto(new[] { "--destino" }, "--destino"));
+        Assert.Equal("", LinhaDeComando.Texto(Array.Empty<string>(), "--destino"));
+    }
+
     [Theory]
     [InlineData(new[] { "--intervalo", "2000" }, 2000)]
     [InlineData(new[] { "--intervalo" }, 1000)]          // sem valor: o padrão

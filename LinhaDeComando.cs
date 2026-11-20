@@ -11,6 +11,13 @@ internal static class LinhaDeComando
     public static bool Tem(string[] args, string nome)
         => Array.Exists(args, a => string.Equals(a, nome, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Lê o texto de um argumento do tipo "--nome valor"; sem ele, texto vazio.</summary>
+    public static string Texto(string[] args, string nome)
+    {
+        int i = Array.FindIndex(args, a => string.Equals(a, nome, StringComparison.OrdinalIgnoreCase));
+        return i >= 0 && i + 1 < args.Length ? args[i + 1] : "";
+    }
+
     /// <summary>Lê o valor de um argumento do tipo "--nome valor"; sem ele (ou inválido), o padrão.</summary>
     public static int Inteiro(string[] args, string nome, int padrao)
     {

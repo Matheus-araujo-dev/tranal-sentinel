@@ -15,21 +15,34 @@ namespace TranalSentinel;
 /// </summary>
 public partial class MainWindow
 {
-    private bool _atualizacaoVerificada;   // uma checagem por sessão (não fica spammando)
     private bool _atualizacaoBaixando;
     private ReleaseGitHub? _releaseNova;
     private Versao? _versaoNova;
+    private System.Windows.Threading.DispatcherTimer? _timerAtualizacao;
 
     /// <summary>
-    /// Dispara a checagem de nova versão em segundo plano.
-    /// Seguro para chamar mesmo sem rede: se falhar, nada aparece na tela.
+    /// Dispara a checagem de nova versão em segundo plano e agenda rechecagens
+    /// a cada hora enquanto o app estiver aberto.
     /// </summary>
     public void IniciarVerificacaoDeAtualizacao()
     {
-        if (_atualizacaoVerificada) return;
-        _atualizacaoVerificada = true;
+        ChecarAtualizacaoAgora();
 
-        // A consulta ao GitHub roda fora da thread da janela: pode demorar ou não responder.
+        if (_timerAtualizacao is null)
+        {
+            _timerAtualizacao = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background)
+            {
+                Interval = TimeSpan.FromHours(1),
+            };
+            _timerAtualizacao.Tick += (_, _) => ChecarAtualizacaoAgora();
+            _timerAtualizacao.Start();
+        }
+    }
+
+    private void ChecarAtualizacaoAgora()
+    {
+        if (_atualizacaoBaixando || _releaseNova is not null) return;
+
         Task.Run(() =>
         {
             ResultadoAtualizacao resultado = AutoUpdate.Checar();
@@ -115,8 +128,13 @@ public partial class MainWindow
             }
 
             if (UpdateProgressText is not null)
-                UpdateProgressText.Text = "Pronto. Feche o TRANAL SENTINEL para concluir a atualização.";
-            if (BtnAtualizar is not null) BtnAtualizar.Content = "ATUALIZAR";
+                UpdateProgressText.Text = "Reiniciando para aplicar a atualização…";
+
+            // O processo filho já está rodando e espera o app fechar para trocar
+            // o executável e reabrir. Fecha o app automaticamente em vez de pedir
+            // que o usuário feche à mão.
+            await Task.Delay(1500);
+            Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
