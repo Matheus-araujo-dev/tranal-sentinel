@@ -274,7 +274,7 @@ public class VentoinhaBancoTestes : IDisposable
     [Fact]
     public void RelatoDaPerda_ComVentoinhasPerdidas_DizQuantasSePerderam()
     {
-        var relato = Banco.RelatoDaPerda(10, 10, 0, 0, null, null, null, null, 5, 3, 2, 1);
+        var relato = Banco.RelatoDaPerda(10, 10, 0, 0, null, null, null, null, 5, 3, 2, 1, null, null);
 
         // A contagem da perda é o dado que o usuário precisa: "se perderam
         // 2 registros de ventoinha" é uma informação; "perderam" solto não
@@ -286,7 +286,7 @@ public class VentoinhaBancoTestes : IDisposable
     [Fact]
     public void RelatoDaPerda_ComAContagemQueNaoDeu_NaoDizQuantasSePerderam()
     {
-        var relato = Banco.RelatoDaPerda(10, 10, 0, 0, null, null, null, null, -1, -1, -1, -1);
+        var relato = Banco.RelatoDaPerda(10, 10, 0, 0, null, null, null, null, -1, -1, -1, -1, null, null);
 
         // "Não deu para contar" e "perdeu e contou" são frases diferentes.
         // A primeira diz que o app não sabe; a segunda diz que o dado
