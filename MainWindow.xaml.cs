@@ -51,8 +51,6 @@ public partial class MainWindow : Window
     private readonly FrameMonitor _frames = new();
     private BottleneckSession? _bnSession;
     private double _balanceRatio = 1;
-    private OverlayWindow? _overlay;
-    private DispatcherTimer? _overlayTimer;
     private bool _overlayReady;
     private const int HotkeyId = 0x5245; // "RE"
 
@@ -165,11 +163,11 @@ public partial class MainWindow : Window
         };
         Closed += (_, _) =>
         {
-            _timer.Stop(); _overlayTimer?.Stop(); _painelTimer?.Stop();
+            _timer.Stop(); _monitorTimer?.Stop();
             _janelaFechada = true;
             _timerTrafego?.Stop();
             _stress.Stop(); _burn.Stop(); _benchCts?.Cancel();
-            _overlay?.Close();
+            _monitor2?.Close();
             _toast?.Close();
             _frames.Dispose();
             // A coleta do tráfego para junto com a janela: a sessão do
@@ -214,15 +212,7 @@ public partial class MainWindow : Window
             // corresse agora acharia a bandeja já fechada.
             PararVigia();
 
-            // A posição do painel fica salva no arquivo: sem isto, o
-            // painel voltaria para o canto na próxima vez que o app
-            // abrisse, mesmo com o dono o tendo arrastado para outro
-            // lugar.
             SalvarPosicaoDoPainel();
-
-            // O painel é uma janela do app: ela morre com ele. Sem isto, uma
-            // janela flutuante sobraria na tela depois do app sair.
-            _painel?.Close();
 
             _bandeja?.Dispose();
             _timerInstantaneo?.Stop();
@@ -413,13 +403,13 @@ public partial class MainWindow : Window
             case "PageUso": InitUso(); break;
             case "PageNet": InitRede(); break;
             case "PageVentoinhas": InitVentoinhas(); break;
-            case "PagePainel": InitPainel(); break;
+            case "PageMonitor": InitMonitor(); break;
         }
     }
 
     private void ShowPage(string name)
     {
-        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageVentoinhas, PageGpu, PageGames, PageBottleneck, PageOverlay, PagePainel, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline, PageUso })
+        foreach (var p in new FrameworkElement[] { PageDash, PageSystem, PageSensors, PageVentoinhas, PageGpu, PageGames, PageBottleneck, PageMonitor, PageBench, PageOptimize, PageOc, PageInteg, PageLauncher, PageDriver, PageStartup, PageApps, PageMakerPorts, PageMakerDrv, PageDisks, PageEnergy, PageNet, PageStress, PageSaude, PageMemoria, PageAlertas, PageSmart, PageComparar, PageTimeline, PageUso })
             p.Visibility = p.Name == name ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -1481,60 +1471,6 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
-    private void ChkOverlay_Changed(object sender, RoutedEventArgs e)
-    {
-        if (ChkOverlay.IsChecked == true)
-        {
-            _overlay ??= new OverlayWindow();
-            ApplyOverlayOptions();
-            _overlay.Show();
-            _overlayTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal,
-                                                  (_, _) => UpdateOverlay(), Dispatcher);
-            _overlayTimer.Start();
-            UpdateOverlay();
-        }
-        else
-        {
-            _overlayTimer?.Stop();
-            _overlay?.Hide();
-        }
-    }
-
-    private void OvOption_Changed(object sender, RoutedEventArgs e)
-    {
-        if (!_overlayReady) return;
-        _settings.OverlayCorner = CheckedTag(OvCornerPanel) ?? "TL";
-        _settings.OverlayScale = double.Parse(CheckedTag(OvScalePanel) ?? "1", CultureInfo.InvariantCulture);
-        _settings.Save();
-        ApplyOverlayOptions();
-    }
-
-    private void ApplyOverlayOptions()
-    {
-        if (_overlay == null) return;
-        _overlay.Corner = _settings.OverlayCorner;
-        _overlay.SetScale(_settings.OverlayScale);
-        _overlay.Reposition();
-    }
-
-    private void UpdateOverlay()
-    {
-        var f = _frames.GetForegroundStats();
-        if (_overlay != null && _overlay.IsVisible)
-        {
-            _overlay.Update(f, BuildOverlayLines(f), OvShow, OvShow.Contains("clock") ? DateTime.Now.ToString("HH:mm") : null);
-            _overlay.KeepOnTop(); // o jogo pode ter passado na frente (janela sem borda "sempre no topo")
-        }
-        UpdateOverlayStatus(f);
-    }
-
-
-    private void UpdateOverlayStatus(FrameStats? f)
-    {
-        if (_frames.Error != null) OvStatus.Text = $"Detecção de FPS indisponível: {_frames.Error}";
-        else if (f != null) OvStatus.Text = $"Ativa · {f.ProcessName}: {f.Fps:0} FPS ({SensorTexto.Milissegundos(f.FrameTimeMs)}) · 1% low {f.Low1Fps:0}";
-        else OvStatus.Text = "Ativa · aguardando um jogo em primeiro plano";
-    }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint vk);

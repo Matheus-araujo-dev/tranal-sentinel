@@ -310,10 +310,10 @@
                                     <TextBlock Text="Uso" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton x:Name="NavPainel" Style="{StaticResource NavItem}" Tag="PagePainel" Checked="Nav_Checked" ToolTip="Janela flutuante com os números do PC sempre à vista, que você arrasta para onde quiser.">
+                            <RadioButton x:Name="NavMonitor" Style="{StaticResource NavItem}" Tag="PageMonitor" Checked="Nav_Checked" ToolTip="Janela flutuante com sensores e overlay de FPS por cima do jogo, tudo numa janela só.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE80F;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Painel" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Monitor" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
@@ -335,12 +335,6 @@
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE9D2;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
                                     <TextBlock Text="Gargalo" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </RadioButton>
-                            <RadioButton x:Name="NavOverlay" Style="{StaticResource NavItem}" Tag="PageOverlay" Checked="Nav_Checked" ToolTip="FPS, frametime e sensores por cima do jogo, medidos pelo rastreamento de eventos do Windows.">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE81E;" FontFamily="{StaticResource Icons}" FontSize="14" Width="28" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Overlay" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                             </StackPanel>
@@ -2476,17 +2470,45 @@
                 </ScrollViewer>
 
                 <!-- ===== OVERLAY ===== -->
-                <ScrollViewer x:Name="PageOverlay" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <!-- ===== MONITOR (painel + overlay unificados) ===== -->
+                <ScrollViewer x:Name="PageMonitor" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="36,30,36,30">
                         <StackPanel Margin="0,0,0,20">
-                            <TextBlock Text="Overlay" Style="{StaticResource H1}"/>
-                            <TextBlock Text="FPS, frametime e sensores por cima do jogo" Style="{StaticResource Sub}"/>
+                            <TextBlock Text="MONITOR" Style="{StaticResource H1}"/>
+                            <TextBlock Text="Painel flutuante no desktop e overlay de FPS por cima do jogo, numa janela só" Style="{StaticResource Sub}"/>
                         </StackPanel>
 
+                        <!-- Painel (modo desktop) -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <CheckBox x:Name="ChkPainel" Content="Mostrar o painel flutuante" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed" ToolTip="Abre uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser."/>
+                                <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
+                                    Uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser; o botão × só esconde o painel, e o TRANAL SENTINEL continua rodando na bandeja.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <CheckBox x:Name="ChkPainelTopo" Content="Sempre no topo" FontSize="15" Checked="ChkPainelOpcao_Changed" Unchecked="ChkPainelOpcao_Changed" ToolTip="Mantém o painel acima das outras janelas. Desligue quando ele atrapalhar o jogo."/>
+                                <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
+                                    Desligue quando o painel atrapalhar o jogo. Deixado ligado, o painel fica acima das outras janelas.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="POSIÇÃO DO PAINEL" Style="{StaticResource Label}"/>
+                                <Button Style="{StaticResource OutlineButton}" Content="VOLTAR PARA O CANTO" Padding="10,4" Click="PainelCanto_Click" ToolTip="Tira o painel de onde você arrastou e devolve ele para o canto da tela."/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Overlay (modo jogo) -->
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <Grid>
                                 <StackPanel>
-                                    <CheckBox x:Name="ChkOverlay" Content="Mostrar overlay" FontSize="15" Checked="ChkOverlay_Changed" Unchecked="ChkOverlay_Changed" ToolTip="Liga a tela de FPS, frametime e sensores por cima do jogo. O atalho Ctrl + Shift + O liga e desliga a qualquer momento."/>
+                                    <CheckBox x:Name="ChkOverlay" Content="Mostrar overlay no jogo" FontSize="15" Checked="ChkOverlay_Changed" Unchecked="ChkOverlay_Changed" ToolTip="Liga a tela de FPS, frametime e sensores por cima do jogo. O atalho Ctrl + Shift + O liga e desliga a qualquer momento."/>
                                     <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
                                         Atalho global: <Run Text="Ctrl + Shift + O" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Fg}"/> liga e desliga, inclusive dentro do jogo.
                                     </TextBlock>
@@ -2497,7 +2519,7 @@
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <WrapPanel>
                                 <StackPanel Margin="0,0,36,0">
-                                    <TextBlock Text="POSIÇÃO" Style="{StaticResource Label}"/>
+                                    <TextBlock Text="POSIÇÃO DO OVERLAY" Style="{StaticResource Label}"/>
                                     <StackPanel x:Name="OvCornerPanel" Orientation="Horizontal">
                                         <RadioButton Style="{StaticResource Chip}" GroupName="OvCorner" Content="Superior esquerdo" Tag="TL" Margin="0,0,6,0" Checked="OvOption_Changed"/>
                                         <RadioButton Style="{StaticResource Chip}" GroupName="OvCorner" Content="Superior direito" Tag="TR" Margin="0,0,6,0" Checked="OvOption_Changed"/>
@@ -2519,7 +2541,7 @@
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
                                 <Grid>
-                                    <TextBlock Text="O QUE MOSTRAR" Style="{StaticResource Label}"/>
+                                    <TextBlock Text="O QUE MOSTRAR NO OVERLAY" Style="{StaticResource Label}"/>
                                     <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Top">
                                         <Button Style="{StaticResource OutlineButton}" Content="SÓ FPS" Tag="min" Padding="10,4" FontSize="11" Margin="0,0,6,0" Click="OvPreset_Click" ToolTip="Mostra só o essencial: FPS, frametime e 1 % low, sem mais nenhuma linha."/>
                                         <Button Style="{StaticResource OutlineButton}" Content="PADRÃO" Tag="default" Padding="10,4" FontSize="11" Margin="0,0,6,0" Click="OvPreset_Click" ToolTip="Volta para o conjunto padrão de métricas que o app considera útil."/>
@@ -2545,41 +2567,6 @@
                                     Vulkan/OpenGL só aparecem se o driver apresentar via DXGI. O overlay aparece em tela cheia
                                     "sem bordas" e na maioria dos jogos DX11/12 em tela cheia, mas não em tela cheia exclusiva antiga.
                                 </TextBlock>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <!-- ===== PAINEL ===== -->
-                <ScrollViewer x:Name="PagePainel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="36,30,36,30">
-                        <StackPanel Margin="0,0,0,20">
-                            <TextBlock Text="PAINEL" Style="{StaticResource H1}"/>
-                            <TextBlock Text="Os números do PC sempre à vista, numa janela que você arrasta" Style="{StaticResource Sub}"/>
-                        </StackPanel>
-
-                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
-                            <StackPanel>
-                                <CheckBox x:Name="ChkPainel" Content="Mostrar o painel flutuante" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed" ToolTip="Abre uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser."/>
-                                <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
-                                    Uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser; o botão × só esconde o painel, e o TRANAL SENTINEL continua rodando na bandeja.
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
-                            <StackPanel>
-                                <CheckBox x:Name="ChkPainelTopo" Content="Sempre no topo" FontSize="15" Checked="ChkPainelOpcao_Changed" Unchecked="ChkPainelOpcao_Changed" ToolTip="Mantém o painel acima das outras janelas. Desligue quando ele atrapalhar o jogo."/>
-                                <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
-                                    Desligue quando o painel atrapalhar o jogo. Deixado ligado, o painel fica acima das outras janelas.
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource CardBorder}">
-                            <StackPanel>
-                                <TextBlock Text="POSIÇÃO" Style="{StaticResource Label}"/>
-                                <Button Style="{StaticResource OutlineButton}" Content="VOLTAR PARA O CANTO" Padding="10,4" Click="PainelCanto_Click" ToolTip="Tira o painel de onde você arrastou e devolve ele para o canto da tela."/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
