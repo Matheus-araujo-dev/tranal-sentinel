@@ -165,7 +165,7 @@ public partial class MainWindow : Window
         {
             _timer.Stop(); _monitorTimer?.Stop();
             _janelaFechada = true;
-            _timerTrafego?.Stop();
+            _timerTrafego?.Stop(); _timerAtualizacao?.Stop();
             _stress.Stop(); _burn.Stop(); _benchCts?.Cancel();
             _monitor2?.Close();
             _toast?.Close();
