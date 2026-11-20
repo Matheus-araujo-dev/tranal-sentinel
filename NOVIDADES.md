@@ -21,6 +21,13 @@ em `E:\Program Files\Tranal Sentinel` passa para
 `E:\Program Files\Tranal Group\Tranal Sentinel` — o disco que você escolheu
 é mantido.
 
+A escolha de abrir junto com o Windows é mantida na atualização: quem tinha
+desligado continua desligado.
+
+**Quem usa o `.exe` portátil:** o botão ATUALIZAR agora instala o app (em
+`Program Files\Tranal Group\Tranal Sentinel`). A cópia portátil fica onde
+estava; apague-a depois, se não quiser duas.
+
 ## Novidades da v0.36.2 — o instalador mora no Tranal Group
 
 **A pasta padrão agora é `Program Files\Tranal Group\Tranal Sentinel`**, a

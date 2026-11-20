@@ -61,9 +61,11 @@
 #define AppExeName "TranalSentinel.exe"
 #define AppHomeUrl "https://github.com/Matheus-araujo-dev/tranal-sentinel"
 #define NomeTarefa "TRANAL SENTINEL"
+; O GUID do AppId (nunca muda). A entrada de desinstalação do Inno é "{GUID}_is1".
+#define AppGuid "6E2B9C41-7D3A-4F18-B05E-93A1C47D2F86"
 
 [Setup]
-AppId={{6E2B9C41-7D3A-4F18-B05E-93A1C47D2F86}
+AppId={{{#AppGuid}}
 AppName={#AppName}
 AppVersion={#MyAppVersion}
 AppVerName={#AppName} {#MyAppVersion}
@@ -159,6 +161,15 @@ var
   PastaLegada: String;
   { A instalação antiga tinha atalho na área de trabalho do usuário. }
   TinhaAtalhoLegado: Boolean;
+  { A chave antiga existe (mesmo sem InstallLocation): ela sempre sai no fim.
+    É a mesma regra do AutoUpdate.InstalacaoAntigaPresente, que só olha a
+    chave - se o setup deixasse a chave, o app ofereceria a mesma versão para
+    sempre. }
+  TemChaveLegada: Boolean;
+  { A tarefa agendada já existia quando o setup começou. }
+  TinhaTarefa: Boolean;
+  { Já havia uma instalação deste instalador (Inno) antes. }
+  TinhaInstalacaoInno: Boolean;
 
 { ------------------------------------------------------------------------- }
 { Instalação antiga                                                          }
@@ -182,8 +193,19 @@ begin
   Result := ExpandConstant('{userdesktop}\') + NomeAtalhoLegado;
 end;
 
+function TarefaExiste: Boolean;
+var
+  Codigo: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\schtasks.exe'), '/Query /TN "{#NomeTarefa}"', '', SW_HIDE,
+                 ewWaitUntilTerminated, Codigo) and (Codigo = 0);
+end;
+
 function InitializeSetup(): Boolean;
 begin
+  TemChaveLegada := RegKeyExists(HKLM64, ChaveLegada) or RegKeyExists(HKLM32, ChaveLegada);
+  TinhaInstalacaoInno := RegKeyExists(HKLM64, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{{#AppGuid}}_is1');
+  TinhaTarefa := TarefaExiste;
   PastaLegada := LerPastaLegada;
   TinhaAtalhoLegado := (PastaLegada <> '') and FileExists(AtalhoLegadoAreaTrabalho);
   if PastaLegada <> '' then
@@ -287,8 +309,22 @@ begin
 
   if AppAberto then
   begin
+    { Na instalação com janela, o dono decide: fechar à força perde os últimos
+      segundos do tráfego do dia (o fechamento normal é que grava). }
+    if not WizardSilent then
+      if MsgBox('O TRANAL SENTINEL está aberto e precisa ser fechado para a instalação continuar.' + #13#10#13#10 +
+                'Fechar agora? (Para fechar você mesmo: ícone na bandeja -> Sair, e depois Tentar de novo.)',
+                mbConfirmation, MB_YESNO) <> IDYES then
+      begin
+        Result := 'Feche o TRANAL SENTINEL (ícone na bandeja -> Sair) e rode o instalador de novo.';
+        Exit;
+      end;
+
     Log('Encerrando o TRANAL SENTINEL que continua aberto.');
-    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM {#AppExeName}', '', SW_HIDE, ewWaitUntilTerminated, Codigo);
+    { Sem /T: na atualização este setup é filho do app, e encerrar a árvore
+      mataria o próprio instalador. O coletor de sensores é o mesmo
+      executável e cai pelo /IM. }
+    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#AppExeName}', '', SW_HIDE, ewWaitUntilTerminated, Codigo);
     Sleep(1500);
   end;
 end;
@@ -437,7 +473,17 @@ var
   MesmaPasta: Boolean;
 begin
   if PastaLegada = '' then
+  begin
+    { Chave sem pasta (mexida à mão, instalação pela metade): não há o que
+      mover, mas a chave sai - senão o app oferece a mesma versão para sempre. }
+    if TemChaveLegada then
+    begin
+      RegDeleteKeyIncludingSubkeys(HKLM64, ChaveLegada);
+      RegDeleteKeyIncludingSubkeys(HKLM32, ChaveLegada);
+      Log('Entrada de desinstalação antiga (sem pasta) removida.');
+    end;
     Exit;
+  end;
 
   Pasta := AddBackslash(PastaLegada);
   MesmaPasta := CompareText(RemoveBackslashUnlessRoot(PastaLegada), RemoveBackslashUnlessRoot(ExpandConstant('{app}'))) = 0;
@@ -486,11 +532,25 @@ begin
   RegDeleteKeyIncludingSubkeys(HKLM32, ChaveLegada);
 end;
 
+{ Abrir junto com o Windows é escolha do dono, e a atualização silenciosa não
+  muda a escolha: com uma instalação anterior (deste instalador ou do antigo),
+  vale o estado real da tarefa no PC - quem desligou continua desligado, e quem
+  tem a tarefa ganha o caminho novo. A caixa da tela vale na instalação com
+  janela e na primeira instalação. (Não dá para usar só a caixa: na migração o
+  Inno não tem escolha anterior para lembrar e a caixa nasce marcada.) }
+function QuerTarefa: Boolean;
+begin
+  if WizardSilent and (TinhaInstalacaoInno or TemChaveLegada) then
+    Result := TinhaTarefa
+  else
+    Result := WizardIsTaskSelected('iniciarcomwindows');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
-    if WizardIsTaskSelected('iniciarcomwindows') then
+    if QuerTarefa then
       GravarTarefa
     else
       RemoverTarefa;

@@ -115,7 +115,11 @@ Baseline de avisos: **16 no app**. Acima disso, é regressão.
   máximo, `--iniciar-como-sistema`, sem prazo e sem parar na bateria), gravado
   pelo `Register-ScheduledTask` e não pelo `schtasks /XML`: o schtasks só aceita
   o arquivo em UTF-16 (medido em 20/11/2026) e o Inno não grava UTF-16. Ela sai
-  no `[UninstallRun]`.
+  no `[UninstallRun]`. Na atualização silenciosa vale o estado real da tarefa no
+  PC (quem desligou continua desligado): a caixa da tela só decide na instalação
+  com janela e na primeira instalação.
+- **O setup nunca encerra a árvore do app** (`taskkill` sem `/T`): na atualização
+  o setup é filho do app, e o `/T` mataria o próprio instalador.
 - **A instalação do instalador antigo em C# é migrada pelo `.iss`.** Ela é
   achada pelo `InstallLocation` da chave `Uninstall\Tranal Sentinel` (qualquer
   pasta, qualquer disco; a raiz escolhida é mantida). Depois que a instalação nova
