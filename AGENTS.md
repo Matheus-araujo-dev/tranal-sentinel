@@ -816,12 +816,14 @@ versão do `TranalSentinel.exe` e cria a tag `vX.Y.Z` com a release (marcada
 como a "Latest" do GitHub). A release rolante `latest` continua sendo
 atualizada, para quem guardou o link dela.
 
-- **A regra do número:** a versão do `Directory.Build.props` é o **piso**. Se
-  ela é maior que a maior tag publicada, ela é usada como está (é assim que se
-  sobe o minor: 0.36.0). Senão, a release é a maior tag com o último número
-  somado de 1 (v0.36.0 → v0.36.1). Nenhum push publica versão repetida ou
-  menor — o auto-update compara a `AssemblyVersion` com a maior tag, e uma
-  tag repetida faria o app instalado nunca ver a atualização.
+- **A regra do número:** a versão nova parte da maior tag publicada. O push
+  sobe o **patch** (v0.36.0 → v0.36.1). O botão **Run workflow** da aba
+  Actions (só na main) deixa escolher `patch`, `minor` (→ v0.37.0) ou `major`
+  (→ v1.0.0) — é assim que se marca um marco, sem editar arquivo. A versão do
+  `Directory.Build.props` é um **piso**: se ela é maior que o resultado, vale
+  ela. Nenhuma release sai com número repetido ou menor — o auto-update
+  compara a `AssemblyVersion` com a maior tag, e uma tag repetida faria o
+  app instalado nunca ver a atualização.
 - **O `Directory.Build.props` não é reescrito pelo CI**: o número de cada
   release vive na tag. Um build local sai com o piso.
 - O asset **precisa** se chamar `TranalSentinel.exe`: é o que o auto-update procura.

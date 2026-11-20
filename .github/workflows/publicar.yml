@@ -7,10 +7,19 @@ name: Publicar
 #   4. cria a tag vX.Y.Z e a release dela, com os executáveis para baixar.
 # O auto-update (AutoUpdate.cs) procura a maior tag de versão entre as
 # releases: sem a tag versionada, o app instalado nunca veria a atualização.
+#
+# O botão "Run workflow" (aba Actions) publica na hora, escolhendo o salto:
+# patch (0.36.1 -> 0.36.2), minor (-> 0.37.0) ou major (-> 1.0.0).
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      tipo:
+        description: 'Que parte da versão sobe'
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
 permissions:
   contents: write
@@ -29,14 +38,23 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # A versão do Directory.Build.props é o PISO. Se ela é maior que a
-      # maior tag já publicada (alguém subiu a versão à mão: 0.36.0), ela é
-      # usada como está. Senão, a release nova é a maior tag com o último
-      # número somado de 1 (v0.36.0 -> v0.36.1). Assim nenhum push publica
-      # uma versão repetida ou menor, e o auto-update sempre enxerga a nova.
+      # Só a main publica: o botão rodado em outra branch soltaria uma
+      # release com código que não foi mesclado.
+      - name: Conferir a branch
+        if: github.ref != 'refs/heads/main'
+        shell: pwsh
+        run: throw "Publicar só roda na main (esta execução é de $env:GITHUB_REF)."
+
+      # A versão nova parte da maior tag já publicada e sobe a parte pedida
+      # (no push, sempre o patch). A versão do Directory.Build.props é um
+      # PISO: se ela é maior que o resultado (alguém subiu à mão: 0.36.0),
+      # vale ela. Assim nenhuma release sai com número repetido ou menor, e o
+      # auto-update sempre enxerga a nova.
       - name: Decidir a versão
         id: versao
         shell: pwsh
+        env:
+          TIPO: ${{ inputs.tipo || 'patch' }}
         run: |
           [xml]$props = Get-Content Directory.Build.props
           $piso = [version]($props.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
@@ -50,12 +68,18 @@ jobs:
             Where-Object { $_ -match '^v\d+\.\d+(\.\d+)?$' } |
             ForEach-Object { Normalizar ([version]$_.Substring(1)) }
           $maior = $tags | Sort-Object -Descending | Select-Object -First 1
+          if (-not $maior) { $maior = [version]::new(0, 0, 0) }
+
+          $candidata = switch ($env:TIPO) {
+            'major' { [version]::new($maior.Major + 1, 0, 0) }
+            'minor' { [version]::new($maior.Major, $maior.Minor + 1, 0) }
+            default { [version]::new($maior.Major, $maior.Minor, $maior.Build + 1) }
+          }
 
           $piso = Normalizar $piso
-          if (-not $maior -or $piso -gt $maior) { $nova = $piso }
-          else { $nova = [version]::new($maior.Major, $maior.Minor, $maior.Build + 1) }
+          $nova = if ($piso -gt $candidata) { $piso } else { $candidata }
 
-          "Piso (Directory.Build.props): $piso | maior tag: $maior | versão nova: $nova"
+          "Tipo: $env:TIPO | maior tag: $maior | piso (Directory.Build.props): $piso | versão nova: $nova"
           "numero=$nova" >> $env:GITHUB_OUTPUT
 
       - name: Testes do app
