@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text.Json;
+using Microsoft.Win32;
 
 namespace TranalSentinel;
 
@@ -55,35 +56,53 @@ public sealed record Versao(int Maior, int Menor, int Correcao) : IComparable<Ve
     }
 }
 
-/// <summary>Release do GitHub com o asset do executável que o app sabe substituir.</summary>
+/// <summary>Release do GitHub com o asset do instalador (<see cref="AutoUpdate.NomeInstaladorPadrao"/>).</summary>
 public sealed record ReleaseGitHub(string Tag, string Titulo, string UrlPagina, string NomeAsset, string UrlAsset, long Tamanho);
 
 /// <summary>Resultado de uma checagem de atualização.</summary>
 public sealed record ResultadoAtualizacao(bool HaVersaoNova, Versao VersaoAtual, Versao? VersaoNova, ReleaseGitHub? Release, string? Erro);
 
-/// <summary>Resultado do download do executável novo.</summary>
+/// <summary>Resultado do download do instalador novo.</summary>
 public sealed record DownloadConcluido(string CaminhoArquivo, long TamanhoEsperado, long TamanhoBaixado);
 
 /// <summary>
-/// Núcleo da atualização automática: lê a última release do GitHub, diz se existe versão
-/// nova e baixa o executável novo para o disco.
+/// Núcleo da atualização automática: lê as releases do GitHub, diz se existe versão
+/// nova, baixa o instalador (<see cref="NomeInstaladorPadrao"/>) e o roda em modo silencioso.
 ///
-/// Não tem interface e não mexe no app principal: a troca do executável é concluída por um
-/// processo separado (a flag <see cref="ArgumentoAtualizacao"/>), quando o app atual fechar.
+/// Segue a DEC-APPS-DISTRIBUICAO-001: quem troca os arquivos é o instalador Inno Setup, o
+/// mesmo que o usuário baixa. O app fecha logo depois de chamar o instalador, e o instalador
+/// o reabre no fim (o <c>[Run]</c> do <c>installer\tranal-sentinel.iss</c>).
 /// </summary>
 public static class AutoUpdate
 {
     /// <summary>Repositório do projeto no GitHub (de onde saem as releases).</summary>
     public const string RepositorioPadrao = "Matheus-araujo-dev/tranal-sentinel";
 
-    /// <summary>Nome do executável do app (é o asset procurado na release).</summary>
-    public const string NomeExecutavelPadrao = "TranalSentinel.exe";
+    /// <summary>
+    /// Nome do instalador na release (é o asset procurado). Só o nome exato vale: rodar em
+    /// modo silencioso um outro .exe da release seria executar algo que não é o instalador.
+    /// </summary>
+    public const string NomeInstaladorPadrao = "TranalSentinel-Setup.exe";
 
-    /// <summary>Flag que o app principal entende: troca o executável quando o app fechar.</summary>
+    /// <summary>
+    /// Argumentos do instalador na atualização (DEC-APPS-DISTRIBUICAO-001): sem janela, sem
+    /// caixa de mensagem, sem reiniciar o Windows e fechando o app que estiver aberto.
+    /// </summary>
+    public const string ArgumentosInstalacaoSilenciosa = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS";
+
+    /// <summary>
+    /// Flag da troca de executável do atualizador antigo (até a v0.36). O app novo não a usa
+    /// mais, mas continua entendendo: o app v0.36 instalado baixa o <c>TranalSentinel.exe</c>
+    /// desta release e o chama com ela — é por esse caminho que ele chega à versão que sabe
+    /// rodar o instalador novo (veja <see cref="Atualizador"/>).
+    /// </summary>
     public const string ArgumentoAtualizacao = "--atualizar";
 
-    /// <summary>Nome do arquivo baixado enquanto a troca não acontece.</summary>
-    public const string NomeArquivoNovo = "TranalSentinel.exe.new";
+    /// <summary>
+    /// Entrada de "Apps e recursos" do instalador antigo em C# (<c>TranalSetup.exe</c>, até a
+    /// v0.36). O Inno grava outra; quando esta existe, a instalação ainda não foi migrada.
+    /// </summary>
+    public const string ChaveDesinstalacaoAntiga = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\Tranal Sentinel";
 
     /// <summary>Nome do log da atualização (na mesma pasta do executável novo).</summary>
     public const string NomeArquivoLog = "atualizacao.log";
@@ -92,12 +111,15 @@ public static class AutoUpdate
     private static readonly TimeSpan TempoLimiteChecagem = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan TempoLimiteDownload = TimeSpan.FromMinutes(15);
 
-    /// <summary>Pasta do executável novo: %LOCALAPPDATA%\Tranal Sentinel\update.</summary>
+    /// <summary>Pasta do instalador baixado: %LOCALAPPDATA%\Tranal Sentinel\update.</summary>
     public static string PastaUpdate => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tranal Sentinel", "update");
 
-    /// <summary>Caminho do executável novo: %LOCALAPPDATA%\Tranal Sentinel\update\TranalSentinel.exe.new.</summary>
-    public static string CaminhoArquivoNovo => Path.Combine(PastaUpdate, NomeArquivoNovo);
+    /// <summary>Caminho do instalador baixado: %LOCALAPPDATA%\Tranal Sentinel\update\TranalSentinel-Setup.exe.</summary>
+    public static string CaminhoInstaladorBaixado => Path.Combine(PastaUpdate, NomeInstaladorPadrao);
+
+    /// <summary>Log do instalador na atualização silenciosa (o Inno grava pelo /LOG).</summary>
+    public static string CaminhoLogInstalador => Path.Combine(PastaUpdate, "instalador.log");
 
     /// <summary>Versão do app em execução (as três primeiras partes da versão do assembly).</summary>
     public static Versao VersaoDoApp { get; } = LerVersaoDoApp();
@@ -106,8 +128,36 @@ public static class AutoUpdate
     public static bool EhMaisNova(Versao nova, Versao atual) => nova.CompareTo(atual) > 0;
 
     /// <summary>
+    /// Diz se o app deve oferecer a release. A regra normal é a versão ser mais nova; com a
+    /// instalação antiga ainda presente, a mesma versão também vale: o app v0.36 se atualiza
+    /// trocando só o executável (na pasta antiga), e sem esta regra a migração para o
+    /// instalador novo esperaria a release seguinte.
+    /// </summary>
+    public static bool PrecisaAtualizar(Versao release, Versao atual, bool instalacaoAntiga)
+        => instalacaoAntiga ? release.CompareTo(atual) >= 0 : EhMaisNova(release, atual);
+
+    /// <summary>
+    /// Diz se a entrada do instalador antigo ainda está no registro (64 bits, onde ele
+    /// gravava). Nunca lança: sem conseguir ler, a resposta é "não".
+    /// </summary>
+    public static bool InstalacaoAntigaPresente()
+    {
+        try
+        {
+            using var maquina = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var chave = maquina.OpenSubKey(ChaveDesinstalacaoAntiga);
+            return chave is not null;
+        }
+        catch (Exception)
+        {
+            // Registro inacessível: o app segue a regra normal (só versão mais nova).
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Lê o JSON de uma LISTA de releases (formato de <c>/releases</c>) e devolve
-    /// as que têm o executável, na ordem em que vieram.
+    /// as que têm o instalador, na ordem em que vieram.
     /// </summary>
     /// <remarks>
     /// O repositório tem duas coisas publicadas: a release com tag de versão
@@ -117,7 +167,7 @@ public static class AutoUpdate
     /// escolhe a maior versão que conseguir ler, ignorando o que não for
     /// versão.
     /// </remarks>
-    public static List<ReleaseGitHub> ExtrairReleases(string json, string nomeExe)
+    public static List<ReleaseGitHub> ExtrairReleases(string json, string nomeAsset)
     {
         var lista = new List<ReleaseGitHub>();
         if (string.IsNullOrWhiteSpace(json)) return lista;
@@ -130,7 +180,7 @@ public static class AutoUpdate
             foreach (var item in doc.RootElement.EnumerateArray())
             {
                 if (item.ValueKind != JsonValueKind.Object) continue;
-                var release = ExtrairRelease(item.GetRawText(), nomeExe);
+                var release = ExtrairRelease(item.GetRawText(), nomeAsset);
                 if (release is not null) lista.Add(release);
             }
         }
@@ -146,10 +196,11 @@ public static class AutoUpdate
     }
 
     /// <summary>
-    /// Lê o JSON da release do GitHub e devolve o asset do executável (sem rede).
-    /// Escolhe o asset com o nome exato; sem ele, o primeiro ".exe"; sem nenhum ".exe", null.
+    /// Lê o JSON da release do GitHub e devolve o asset com o nome pedido (sem rede).
+    /// Só o nome exato vale (sem diferença de maiúsculas): sem ele, null. As releases até a
+    /// v0.36 não têm o instalador e ficam de fora sozinhas.
     /// </summary>
-    public static ReleaseGitHub? ExtrairRelease(string json, string nomeExe)
+    public static ReleaseGitHub? ExtrairRelease(string json, string nomeAsset)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
 
@@ -168,7 +219,6 @@ public static class AutoUpdate
 
             if (!raiz.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array) return null;
 
-            ReleaseGitHub? primeiroExe = null;
             foreach (var asset in assets.EnumerateArray())
             {
                 if (asset.ValueKind != JsonValueKind.Object) continue;
@@ -181,23 +231,19 @@ public static class AutoUpdate
                     ? v
                     : 0;
 
-                // O nome exato do executável sempre ganha.
-                if (string.Equals(nome, nomeExe, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(nome, nomeAsset, StringComparison.OrdinalIgnoreCase))
                     return new ReleaseGitHub(tag, titulo, urlPagina, nome, url, tamanho);
-
-                // Senão, o primeiro .exe da release.
-                if (primeiroExe is null && nome.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                    primeiroExe = new ReleaseGitHub(tag, titulo, urlPagina, nome, url, tamanho);
             }
 
-            return primeiroExe;
+            return null;
         }
         catch (JsonException) { return null; }
         catch (Exception) { return null; }
     }
 
     /// <summary>
-    /// Consulta a última release do GitHub e diz se existe versão nova.
+    /// Consulta as releases do GitHub e diz se existe versão nova (a maior tag vX.Y.Z que tem
+    /// o instalador; tag que não é versão fica de fora).
     /// Nunca derruba o app: qualquer erro de rede volta em <see cref="ResultadoAtualizacao.Erro"/>.
     /// </summary>
     public static ResultadoAtualizacao Checar(string? repositorio = null, HttpClient? cliente = null, CancellationToken ct = default)
@@ -230,7 +276,7 @@ public static class AutoUpdate
             // (tag "latest") não é uma versão e fica de fora sozinha.
             ReleaseGitHub? melhor = null;
             Versao? melhorVersao = null;
-            foreach (ReleaseGitHub release in ExtrairReleases(json, NomeExecutavelPadrao))
+            foreach (ReleaseGitHub release in ExtrairReleases(json, NomeInstaladorPadrao))
             {
                 var versao = Versao.Tentar(release.Tag);
                 if (versao is null) continue;
@@ -244,7 +290,7 @@ public static class AutoUpdate
             if (melhor is null || melhorVersao is null)
                 return new ResultadoAtualizacao(false, VersaoDoApp, null, null, null);
 
-            if (!EhMaisNova(melhorVersao, VersaoDoApp))
+            if (!PrecisaAtualizar(melhorVersao, VersaoDoApp, InstalacaoAntigaPresente()))
                 return new ResultadoAtualizacao(false, VersaoDoApp, melhorVersao, melhor, null);
 
             return new ResultadoAtualizacao(true, VersaoDoApp, melhorVersao, melhor, null);
@@ -295,32 +341,21 @@ public static class AutoUpdate
     }
 
     /// <summary>
-    /// Chama o próprio executável com a flag <see cref="ArgumentoAtualizacao"/> para concluir a
-    /// troca quando o app fechar. O processo é separado: ele espera o app atual sair e troca
-    /// o executável no lugar.
+    /// Roda o instalador baixado em modo silencioso (<see cref="ArgumentosInstalacaoSilenciosa"/>).
+    /// O app é administrador, então o instalador já nasce elevado e não pede UAC. Quem chama
+    /// fecha o app logo depois: o instalador espera o app sair, troca os arquivos e o reabre.
     /// </summary>
-    public static bool IniciarTrocaDeExecutavel(string caminhoNovoExecutavel)
+    public static bool IniciarInstalador(string caminhoInstalador)
     {
-        if (!File.Exists(caminhoNovoExecutavel)) return false;
+        if (!File.Exists(caminhoInstalador)) return false;
 
-        string exeAtual = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "";
-        if (exeAtual.Length == 0) return false;
-
-        // O atualizador roda a partir do exe NOVO (o baixado), não do exe atual:
-        // o Windows trava o arquivo de um executável em execução, e se o
-        // atualizador rodasse do exe instalado, ele não conseguiria sobrescrevê-lo.
-        var psi = new ProcessStartInfo(caminhoNovoExecutavel)
+        var psi = new ProcessStartInfo(caminhoInstalador)
         {
             UseShellExecute = false,
             CreateNoWindow = true,
-            WorkingDirectory = Path.GetDirectoryName(caminhoNovoExecutavel) ?? PastaUpdate,
+            WorkingDirectory = Path.GetDirectoryName(caminhoInstalador) ?? PastaUpdate,
+            Arguments = $"{ArgumentosInstalacaoSilenciosa} /LOG=\"{CaminhoLogInstalador}\"",
         };
-        psi.ArgumentList.Add(ArgumentoAtualizacao);
-        psi.ArgumentList.Add(caminhoNovoExecutavel);
-        psi.ArgumentList.Add("--pid");
-        psi.ArgumentList.Add(Environment.ProcessId.ToString());
-        psi.ArgumentList.Add("--destino");
-        psi.ArgumentList.Add(exeAtual);
 
         using var filho = Process.Start(psi);
         return filho is not null;

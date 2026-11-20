@@ -305,14 +305,15 @@ documentado.
 - **Ícone na bandeja**: o app passa a morar na bandeja (ao lado do relógio) e
   acompanha o PC em segundo plano. Fechar a janela **não** fecha o app — ele
   continua olhando; o menu do ícone tem *Abrir* e *Sair*.
-- **Instalador próprio**: `TranalSetup.exe` pede administrador, instala em
+- **Instalador (Inno Setup)**: `TranalSentinel-Setup.exe` é um arquivo só, com o
+  app dentro. Pede administrador, instala em
   `%ProgramFiles%\Tranal Group\Tranal Sentinel` **ou na pasta que você escolher**, cria atalho
-  no menu Iniciar (e na área de trabalho), registra a desinstalação no Painel de
+  no menu Iniciar (e, se quiser, na área de trabalho), registra a desinstalação no Painel de
   Controle e **inicia junto com o Windows** sem pedir UAC a cada boot.
-- **Atualização automática**: o app confere a API do GitHub do próprio projeto e
-  avisa quando há versão nova. O download é feito pelo app, com barra de
-  progresso e conferência de tamanho; a troca do executável acontece quando o
-  app fecha (o Windows não deixa sobrescrever um .exe em uso).
+- **Atualização automática**: o app confere as releases do GitHub ao abrir e de
+  hora em hora e avisa quando há versão nova. Ele baixa o `TranalSentinel-Setup.exe`
+  (com barra de progresso e conferência de tamanho), roda o instalador em modo
+  silencioso e fecha; o instalador troca os arquivos e abre o app de novo.
 - **Perfil de recursos**: Completo / Equilibrado / Economia. No modo economia os
   sensores são lidos a cada 5 s em vez de 1 s, o histórico passa de 3 h para 24 h
   e o overlay e a análise de saúde não rodam sozinhos.
@@ -484,38 +485,32 @@ Há dois jeitos. Nos dois, o app **pede administrador** (ele precisa ler sensore
 **1. Portátil (o mais simples)** — baixe `TranalSentinel.exe` da release e dê dois cliques.
 Roda direto de onde foi baixado. Não instala nada, não cria atalho, não abre junto com o Windows.
 
-**2. Instalado (com inicialização automática)** — baixe **os dois** arquivos da release para a *mesma* pasta:
+**2. Instalado (com inicialização automática)** — baixe só o `TranalSentinel-Setup.exe` da release
+(o app vai dentro dele) e dê dois cliques. Ele:
 
-```
-TranalSentinel.exe     <- o app
-TranalSetup.exe        <- o instalador
-```
-
-Dê dois cliques em `TranalSetup.exe`. Ele:
-
-- **mostra a pasta de instalação e deixa você mudar**: o campo é editável e o
-  botão `...` abre o seletor de pasta do Windows (o botão cria a subpasta
-  `Tranal Sentinel` dentro da pasta escolhida; digitando o caminho completo na
-  caixa, vale exatamente o que foi digitado). O padrão é
-  `%ProgramFiles%\Tranal Group\Tranal Sentinel`;
-- se o app já estiver instalado em outra pasta, instalar aqui é **uma mudança de
-  pasta**: os arquivos do lugar antigo são removidos depois que a nova
-  instalação está pronta (nada fica órfão);
+- mostra a pasta de instalação e deixa você mudar. O padrão é
+  `%ProgramFiles%\Tranal Group\Tranal Sentinel`, a pasta do grupo onde mora todo app Tranal;
 - cria atalho no menu Iniciar (e, se você quiser, na área de trabalho);
 - registra a desinstalação em *Painel de Controle → Programas*;
-- **faz o app abrir junto com o Windows**, já em segundo plano, na bandeja, **sem pedir UAC a cada login**;
-- deixa um log em `%ProgramData%\Tranal Sentinel\instalador.log`.
+- **faz o app abrir junto com o Windows**, já em segundo plano, na bandeja, **sem pedir UAC a cada login**
+  (é uma tarefa agendada com privilégio máximo; dá para desmarcar na instalação);
+- abre o app no fim.
 
-Para desinstalar: *Painel de Controle → Programas → TRANAL SENTINEL → Desinstalar* (ou rode o
-`TranalSetup.exe --desinstalar`). A desinstalação descobre sozinha onde o app foi
-instalado, mesmo que não seja na pasta padrão. Os seus arquivos de configuração e
-histórico ficam em `%AppData%\TranalSentinel` — a desinstalação **não** apaga o que
-é seu.
+**Quem tinha o instalador antigo** (`TranalSetup.exe`, até a v0.36) é migrado na primeira atualização:
+a pasta velha (em qualquer lugar que ela estivesse), os atalhos e a entrada de desinstalação antigos
+saem depois que a instalação nova está no lugar, e a tarefa de iniciar com o Windows passa a apontar
+para o executável novo. Quem tinha o app em outro disco continua nele
+(`E:\Program Files\Tranal Sentinel` vira `E:\Program Files\Tranal Group\Tranal Sentinel`).
 
-**Atualização automática:** o app confere sozinho a API do GitHub deste projeto e avisa quando há versão
-nova (banner na lateral). O download é feito pelo app, com barra de progresso e conferência do tamanho
-do arquivo; a troca do executável acontece quando o app fecha, porque o Windows não deixa sobrescrever
-um `.exe` em uso.
+Para desinstalar: *Painel de Controle → Programas → TRANAL SENTINEL → Desinstalar*. A tarefa agendada
+sai junto. Os seus arquivos de configuração e histórico ficam em `%AppData%\TranalSentinel` e
+`%LOCALAPPDATA%\TranalSentinel` — a desinstalação **não** apaga o que é seu.
+
+**Atualização automática:** o app confere as releases do GitHub deste projeto ao abrir e de hora em hora,
+e avisa quando há versão nova (banner na lateral). Ao clicar em ATUALIZAR, ele baixa o
+`TranalSentinel-Setup.exe` (com barra de progresso e conferência do tamanho), roda o instalador em modo
+silencioso e fecha; o instalador troca os arquivos e abre o app de novo. As configurações e o histórico
+não são tocados.
 
 ## Observações
 - Se algum sensor não aparecer, depende do suporte da biblioteca à sua placa-mãe.
@@ -536,7 +531,7 @@ um `.exe` em uso.
 - ✔ Instalar apps essenciais pós-formatação pelo winget (v0.16)
 - ✔ TRANAL MAKER: portas COM e drivers seriais CH340/CP210x/FTDI/Prolific/Arduino (v0.16)
 - ✔ TRANAL ASSISTENTE: linha do tempo do PC, diário, ícone de bandeja e perfil de recursos (v0.17)
-- ✔ Instalador próprio com administrador, atalho, desinstalação e inicialização automática (v0.17)
+- ✔ Instalador próprio com administrador, atalho, desinstalação e inicialização automática (v0.17; trocado pelo Inno Setup na v0.37)
 - ✔ Atualização automática a partir das releases do GitHub (v0.17)
 - ✔ Diagnóstico pela linha de comando: `--saude coletar|comparar|relatar` (v0.17)
 - ✔ Instalador com pasta de instalação à escolha do usuário (v0.18)

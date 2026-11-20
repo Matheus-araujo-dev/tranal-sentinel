@@ -10,8 +10,9 @@ namespace TranalSentinel;
 /// A checagem acontece em segundo plano e só mostra o banner quando existe versão nova.
 /// O download é feito pelo núcleo (<see cref="AutoUpdate"/>); aqui é só a interface.
 ///
-/// O app não troca o próprio executável: ele baixa o novo, confere o tamanho, chama o próprio
-/// executável com a flag <c>--atualizar</c> e avisa que a troca acontece quando o app fechar.
+/// O app não troca o próprio executável: ele baixa o instalador (<c>TranalSentinel-Setup.exe</c>),
+/// confere o tamanho, roda o instalador em modo silencioso e fecha. O instalador troca os arquivos
+/// e reabre o app (DEC-APPS-DISTRIBUICAO-001).
 /// </summary>
 public partial class MainWindow
 {
@@ -73,7 +74,7 @@ public partial class MainWindow
 
         string tamanho = release.Tamanho > 0 ? DriveCard.Fmt(release.Tamanho) : "tamanho desconhecido";
         UpdateWarnText.Text = $"Versão {versao.Completa} disponível ({tamanho}). "
-                            + "O executável novo é baixado agora e entra no lugar quando o app fechar.";
+                            + "O instalador é baixado agora; o app fecha, atualiza sozinho e abre de novo.";
 
         if (UpdateProgress is not null) UpdateProgress.Visibility = Visibility.Collapsed;
         if (UpdateProgressText is not null) UpdateProgressText.Text = "";
@@ -87,7 +88,7 @@ public partial class MainWindow
         UpdateWarn.Visibility = Visibility.Visible;
     }
 
-    /// <summary>Baixa a versão nova, confere o tamanho e prepara a troca do executável.</summary>
+    /// <summary>Baixa o instalador da versão nova, confere o tamanho, roda o instalador e fecha o app.</summary>
     private async void BtnAtualizar_Click(object sender, RoutedEventArgs e)
     {
         if (_atualizacaoBaixando) return;
@@ -107,33 +108,31 @@ public partial class MainWindow
 
         try
         {
-            string destino = AutoUpdate.CaminhoArquivoNovo;
+            string destino = AutoUpdate.CaminhoInstaladorBaixado;
             DownloadConcluido download = await AutoUpdate.BaixarAsync(release, destino, progresso);
 
-            // O arquivo tem que ter o tamanho exato da release: download cortado não vira executável.
+            // O arquivo tem que ter o tamanho exato da release: instalador cortado não é rodado.
             if (release.Tamanho > 0 && download.TamanhoBaixado != release.Tamanho)
                 throw new IOException($"O arquivo baixado tem {DriveCard.Fmt(download.TamanhoBaixado)} e o esperado é {DriveCard.Fmt(release.Tamanho)}.");
 
-            // O log vem antes do processo filho: é ele que informa qual processo está esperando a troca.
             string versao = _versaoNova?.Completa ?? release.Tag;
-            string mensagem = $"ATUALIZAÇÃO: {versao} baixada ({DriveCard.Fmt(download.TamanhoBaixado)}). "
-                            + $"A troca do executável fica pendente até o app fechar (pid {Environment.ProcessId}).";
+            string mensagem = $"ATUALIZAÇÃO: instalador da {versao} baixado ({DriveCard.Fmt(download.TamanhoBaixado)}). "
+                            + "O app fecha para o instalador trocar os arquivos e o instalador o reabre no fim.";
             Log(mensagem);
-            AutoUpdate.RegistrarNoLog($"{mensagem} Arquivo: {destino}");
+            AutoUpdate.RegistrarNoLog($"{mensagem} Arquivo: {destino}. Log do instalador: {AutoUpdate.CaminhoLogInstalador}");
 
-            if (!AutoUpdate.IniciarTrocaDeExecutavel(destino))
+            if (!AutoUpdate.IniciarInstalador(destino))
             {
-                AutoUpdate.RegistrarNoLog("Falha ao iniciar o processo que troca o executável.");
-                throw new IOException("Não foi possível iniciar a troca do executável.");
+                AutoUpdate.RegistrarNoLog("Falha ao iniciar o instalador.");
+                throw new IOException("Não foi possível iniciar o instalador.");
             }
 
             if (UpdateProgressText is not null)
-                UpdateProgressText.Text = "Reiniciando para aplicar a atualização…";
+                UpdateProgressText.Text = "Fechando para atualizar; o app abre de novo sozinho…";
 
-            // O processo filho já está rodando e espera o app fechar para trocar
-            // o executável e reabrir. Fecha o app automaticamente em vez de pedir
-            // que o usuário feche à mão.
-            await Task.Delay(1500);
+            // O instalador espera o app sair (até 30 s) antes de trocar os arquivos.
+            // Fechar pelo caminho normal grava o tráfego do dia e o resto do estado.
+            await Task.Delay(1000);
             Application.Current.Shutdown();
         }
         catch (Exception ex)

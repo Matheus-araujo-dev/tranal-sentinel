@@ -1,3 +1,26 @@
+## Novidades da v0.37 — um instalador só (Inno Setup)
+
+**Baixe só o `TranalSentinel-Setup.exe`.** O instalador próprio em C#
+(`TranalSetup.exe`) saiu: o instalador agora é o do Inno Setup, um arquivo único
+com o app dentro, o mesmo padrão de todo app Tranal. A pasta padrão continua
+`Program Files\Tranal Group\Tranal Sentinel`, e ele cria o atalho do menu
+Iniciar, o da área de trabalho (opcional) e a tarefa de abrir junto com o
+Windows sem pedir UAC — que sai junto na desinstalação.
+
+**A atualização é o instalador.** Ao clicar em ATUALIZAR, o app baixa o
+`TranalSentinel-Setup.exe` da versão nova, roda em modo silencioso e fecha; o
+instalador troca os arquivos e abre o app de novo. Configurações e histórico
+não são tocados.
+
+**Quem tinha o instalador antigo é migrado.** A instalação feita pelo
+`TranalSetup.exe` (em qualquer pasta, inclusive em outro disco) sai limpa na
+primeira atualização: a pasta velha, os atalhos e a entrada de desinstalação
+antigos são removidos depois que a instalação nova está no lugar, e a tarefa de
+iniciar com o Windows passa a apontar para o executável novo. Quem tinha o app
+em `E:\Program Files\Tranal Sentinel` passa para
+`E:\Program Files\Tranal Group\Tranal Sentinel` — o disco que você escolheu
+é mantido.
+
 ## Novidades da v0.36.2 — o instalador mora no Tranal Group
 
 **A pasta padrão agora é `Program Files\Tranal Group\Tranal Sentinel`**, a

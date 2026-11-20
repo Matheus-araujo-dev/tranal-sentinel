@@ -328,7 +328,7 @@ ausente.
 | Nota de saúde por dia | `%AppData%\TranalSentinel\log\tranal-saude-nota.log` |
 | Histórico de uso (SQLite) | `%LOCALAPPDATA%\TranalSentinel\historico\historico.db` |
 | Instantâneos do diagnóstico | `%AppData%\TranalSentinel\saude\` |
-| Log do instalador | `%ProgramData%\Tranal Sentinel\instalador.log` |
+| Log do instalador (na atualização) | `%LOCALAPPDATA%\Tranal Sentinel\update\instalador.log` |
 
 ---
 

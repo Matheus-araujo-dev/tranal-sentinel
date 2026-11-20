@@ -7,9 +7,18 @@ using System.Threading;
 namespace TranalSentinel;
 
 /// <summary>
-/// Troca do executável em uso quando entra uma versão nova.
+/// Troca do executável em uso quando entra uma versão nova — o caminho do atualizador
+/// antigo (até a v0.36), mantido só para a transição.
 /// </summary>
 /// <remarks>
+/// <para>
+/// O app novo se atualiza pelo instalador (<see cref="AutoUpdate.IniciarInstalador"/>). Mas o
+/// app v0.36 que já está instalado não sabe disso: ele baixa o <c>TranalSentinel.exe</c> da
+/// release e o chama com <see cref="AutoUpdate.ArgumentoAtualizacao"/>. Quem recebe essa
+/// chamada é o executável novo — por isso ele continua entendendo a flag. Depois da troca, o
+/// app novo vê a instalação antiga (<see cref="AutoUpdate.InstalacaoAntigaPresente"/>) e
+/// oferece o instalador, que faz a migração. Este arquivo sai quando ninguém mais tiver a v0.36.
+/// </para>
 /// <para>
 /// Não dá para sobrescrever um .exe que está rodando: o Windows trava o
 /// arquivo. A solução é o app chamar a si mesmo com a flag

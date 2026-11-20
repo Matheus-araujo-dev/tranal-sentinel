@@ -11,7 +11,7 @@ namespace TranalSentinel.Tests;
 /// </summary>
 public class AutoUpdateTestes
 {
-    // JSON sintético no formato da API do GitHub (releases/latest).
+    // JSON sintético no formato da API do GitHub (uma release).
     private const string JsonComExe = """
         {
           "tag_name": "v0.17.0",
@@ -19,7 +19,7 @@ public class AutoUpdateTestes
           "html_url": "https://github.com/Matheus-araujo-dev/tranal-sentinel/releases/tag/v0.17.0",
           "assets": [
             { "name": "TranalSentinel.zip", "browser_download_url": "https://exemplo/TranalSentinel.zip", "size": 100 },
-            { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 123456 }
+            { "name": "TranalSentinel-Setup.exe", "browser_download_url": "https://exemplo/TranalSentinel-Setup.exe", "size": 123456 }
           ]
         }
         """;
@@ -56,7 +56,7 @@ public class AutoUpdateTestes
           "html_url": "https://github.com/Matheus-araujo-dev/tranal-sentinel/releases/tag/v0.17.0",
           "assets": [
             { "name": "OutraCoisa.exe", "browser_download_url": "https://exemplo/OutraCoisa.exe", "size": 222 },
-            { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 123456 }
+            { "name": "TranalSentinel-Setup.exe", "browser_download_url": "https://exemplo/TranalSentinel-Setup.exe", "size": 123456 }
           ]
         }
         """;
@@ -82,7 +82,7 @@ public class AutoUpdateTestes
             "name": "TRANAL SENTINEL (versao mais recente)",
             "html_url": "https://github.com/exemplo/releases/tag/latest",
             "assets": [
-              { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 123456 }
+              { "name": "TranalSentinel-Setup.exe", "browser_download_url": "https://exemplo/TranalSentinel-Setup.exe", "size": 123456 }
             ]
           },
           {
@@ -90,7 +90,7 @@ public class AutoUpdateTestes
             "name": "TRANAL SENTINEL 0.17.0",
             "html_url": "https://github.com/exemplo/releases/tag/v0.17.0",
             "assets": [
-              { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 123456 }
+              { "name": "TranalSentinel-Setup.exe", "browser_download_url": "https://exemplo/TranalSentinel-Setup.exe", "size": 123456 }
             ]
           },
           {
@@ -98,7 +98,7 @@ public class AutoUpdateTestes
             "name": "TRANAL SENTINEL 0.16.0",
             "html_url": "https://github.com/exemplo/releases/tag/v0.16.0",
             "assets": [
-              { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 123456 }
+              { "name": "TranalSentinel-Setup.exe", "browser_download_url": "https://exemplo/TranalSentinel-Setup.exe", "size": 123456 }
             ]
           }
         ]
@@ -107,7 +107,7 @@ public class AutoUpdateTestes
     [Fact]
     public void ExtrairReleases_LeTodasComExecutavel()
     {
-        var releases = AutoUpdate.ExtrairReleases(JsonDaLista, "TranalSentinel.exe");
+        var releases = AutoUpdate.ExtrairReleases(JsonDaLista, "TranalSentinel-Setup.exe");
 
         Assert.Equal(3, releases.Count);
         Assert.Equal("latest", releases[0].Tag);
@@ -124,15 +124,15 @@ public class AutoUpdateTestes
             ]
             """;
 
-        Assert.Empty(AutoUpdate.ExtrairReleases(json, "TranalSentinel.exe"));
+        Assert.Empty(AutoUpdate.ExtrairReleases(json, "TranalSentinel-Setup.exe"));
     }
 
     [Fact]
     public void ExtrairReleases_JsonInvalidoDevolveListaVazia()
     {
-        Assert.Empty(AutoUpdate.ExtrairReleases("isto nao e json", "TranalSentinel.exe"));
-        Assert.Empty(AutoUpdate.ExtrairReleases("", "TranalSentinel.exe"));
-        Assert.Empty(AutoUpdate.ExtrairReleases("{}", "TranalSentinel.exe"));   // objeto, nao lista
+        Assert.Empty(AutoUpdate.ExtrairReleases("isto nao e json", "TranalSentinel-Setup.exe"));
+        Assert.Empty(AutoUpdate.ExtrairReleases("", "TranalSentinel-Setup.exe"));
+        Assert.Empty(AutoUpdate.ExtrairReleases("{}", "TranalSentinel-Setup.exe"));   // objeto, nao lista
     }
 
     [Fact]
@@ -228,75 +228,86 @@ public class AutoUpdateTestes
     [Fact]
     public void ExtrairRelease_EscolheOAssetComONomeExato()
     {
-        var release = AutoUpdate.ExtrairRelease(JsonComExe, "TranalSentinel.exe");
+        var release = AutoUpdate.ExtrairRelease(JsonComExe, "TranalSentinel-Setup.exe");
 
         Assert.NotNull(release);
         Assert.Equal("v0.17.0", release!.Tag);
         Assert.Equal("TRANAL SENTINEL 0.17.0", release.Titulo);
         Assert.Equal("https://github.com/Matheus-araujo-dev/tranal-sentinel/releases/tag/v0.17.0", release.UrlPagina);
-        Assert.Equal("TranalSentinel.exe", release.NomeAsset);
-        Assert.Equal("https://exemplo/TranalSentinel.exe", release.UrlAsset);
+        Assert.Equal("TranalSentinel-Setup.exe", release.NomeAsset);
+        Assert.Equal("https://exemplo/TranalSentinel-Setup.exe", release.UrlAsset);
         Assert.Equal(123456, release.Tamanho);
     }
 
     [Fact]
-    public void ExtrairRelease_NomeDoExeNaoBateMasTemOutroExe()
+    public void ExtrairRelease_OutroExeNaoViraInstalador()
     {
-        var release = AutoUpdate.ExtrairRelease(JsonComOutroExe, "TranalSentinel.exe");
+        // O asset é rodado em modo silencioso: um .exe qualquer da release não pode ser
+        // confundido com o instalador.
+        Assert.Null(AutoUpdate.ExtrairRelease(JsonComOutroExe, "TranalSentinel-Setup.exe"));
+    }
 
-        Assert.NotNull(release);
-        Assert.Equal("OutraCoisa.exe", release!.NomeAsset);
-        Assert.Equal("https://exemplo/OutraCoisa.exe", release.UrlAsset);
-        Assert.Equal(222, release.Tamanho);
+    [Fact]
+    public void ExtrairRelease_ReleaseAntigaSoComOExecutavelFicaDeFora()
+    {
+        // As releases até a v0.36 têm o TranalSentinel.exe portátil e não têm o instalador.
+        const string json = """
+            {
+              "tag_name": "v0.36.2",
+              "assets": [ { "name": "TranalSentinel.exe", "browser_download_url": "https://exemplo/TranalSentinel.exe", "size": 5 } ]
+            }
+            """;
+
+        Assert.Null(AutoUpdate.ExtrairRelease(json, AutoUpdate.NomeInstaladorPadrao));
     }
 
     [Fact]
     public void ExtrairRelease_NomeExatoGanhaMesmoDepoisDeOutroExe()
     {
-        var release = AutoUpdate.ExtrairRelease(JsonComExeNoFinal, "TranalSentinel.exe");
+        var release = AutoUpdate.ExtrairRelease(JsonComExeNoFinal, "TranalSentinel-Setup.exe");
 
         Assert.NotNull(release);
-        Assert.Equal("TranalSentinel.exe", release!.NomeAsset);
+        Assert.Equal("TranalSentinel-Setup.exe", release!.NomeAsset);
         Assert.Equal(123456, release.Tamanho);
     }
 
     [Fact]
     public void ExtrairRelease_NaoBateEmCaixaDiferente()
     {
-        var release = AutoUpdate.ExtrairRelease(JsonComExe, "tranalSentinel.EXE");
+        var release = AutoUpdate.ExtrairRelease(JsonComExe, "tranalsentinel-SETUP.EXE");
 
         Assert.NotNull(release);
-        Assert.Equal("TranalSentinel.exe", release!.NomeAsset);
+        Assert.Equal("TranalSentinel-Setup.exe", release!.NomeAsset);
     }
 
     [Fact]
     public void ExtrairRelease_SemNenhumExeDevolveNulo()
     {
-        Assert.Null(AutoUpdate.ExtrairRelease(JsonSemExe, "TranalSentinel.exe"));
+        Assert.Null(AutoUpdate.ExtrairRelease(JsonSemExe, "TranalSentinel-Setup.exe"));
     }
 
     [Fact]
     public void ExtrairRelease_JsonInvalidoDevolveNulo()
     {
-        Assert.Null(AutoUpdate.ExtrairRelease("{ isto não é json", "TranalSentinel.exe"));
+        Assert.Null(AutoUpdate.ExtrairRelease("{ isto não é json", "TranalSentinel-Setup.exe"));
     }
 
     [Fact]
     public void ExtrairRelease_JsonVazioDevolveNulo()
     {
-        Assert.Null(AutoUpdate.ExtrairRelease("", "TranalSentinel.exe"));
+        Assert.Null(AutoUpdate.ExtrairRelease("", "TranalSentinel-Setup.exe"));
     }
 
     [Fact]
     public void ExtrairRelease_SemTagDevolveNulo()
     {
-        Assert.Null(AutoUpdate.ExtrairRelease(JsonSemTag, "TranalSentinel.exe"));
+        Assert.Null(AutoUpdate.ExtrairRelease(JsonSemTag, "TranalSentinel-Setup.exe"));
     }
 
     [Fact]
     public void ExtrairRelease_TagComPrefixoVVirouVersao()
     {
-        var release = AutoUpdate.ExtrairRelease(JsonComExe, "TranalSentinel.exe");
+        var release = AutoUpdate.ExtrairRelease(JsonComExe, "TranalSentinel-Setup.exe");
 
         Assert.NotNull(release);
         Assert.Equal(new Versao(0, 17, 0), Versao.Tentar(release!.Tag));
@@ -307,7 +318,7 @@ public class AutoUpdateTestes
     [Fact]
     public void Resultado_ComReleaseAcimaDaAtualMarcaQueHaVersaoNova()
     {
-        var release = AutoUpdate.ExtrairRelease(JsonComExe, "TranalSentinel.exe")!;
+        var release = AutoUpdate.ExtrairRelease(JsonComExe, "TranalSentinel-Setup.exe")!;
         var versao = Versao.Tentar(release.Tag)!;
         var atual = new Versao(0, 16, 0);
 
@@ -323,7 +334,7 @@ public class AutoUpdateTestes
     [Fact]
     public void Resultado_ComReleaseIgualNaAtualNaoMarcaVersaoNova()
     {
-        var release = AutoUpdate.ExtrairRelease(JsonComExe, "TranalSentinel.exe")!;
+        var release = AutoUpdate.ExtrairRelease(JsonComExe, "TranalSentinel-Setup.exe")!;
         var atual = new Versao(0, 17, 0);
 
         var resultado = new ResultadoAtualizacao(AutoUpdate.EhMaisNova(new Versao(0, 17, 0), atual), atual, new Versao(0, 17, 0), release, null);
@@ -349,10 +360,25 @@ public class AutoUpdateTestes
     }
 
     [Fact]
-    public void ArgumentoDeAtualizacao_EEscapeDoArquivoNovo()
+    public void ContratoDoInstalador_SegueADecisaoDeDistribuicao()
     {
+        // O nome é o que o publicar.yml publica e o .iss gera (OutputBaseFilename).
+        Assert.Equal("TranalSentinel-Setup.exe", AutoUpdate.NomeInstaladorPadrao);
+        Assert.Equal("/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS", AutoUpdate.ArgumentosInstalacaoSilenciosa);
+        // A flag do atualizador antigo continua: é por ela que o app v0.36 chega a esta versão.
         Assert.Equal("--atualizar", AutoUpdate.ArgumentoAtualizacao);
-        Assert.Equal("TranalSentinel.exe.new", AutoUpdate.NomeArquivoNovo);
+    }
+
+    [Theory]
+    [InlineData(0, 37, 0, false, true)]    // versão nova
+    [InlineData(0, 36, 3, false, false)]   // mesma versão, já migrado: nada a fazer
+    [InlineData(0, 36, 3, true, true)]     // mesma versão, instalação antiga: migra agora
+    [InlineData(0, 36, 2, true, false)]    // versão menor nunca é oferecida
+    [InlineData(0, 36, 2, false, false)]
+    public void PrecisaAtualizar_MigraAInstalacaoAntigaSemEsperarAProximaRelease(
+        int maior, int menor, int correcao, bool instalacaoAntiga, bool esperado)
+    {
+        Assert.Equal(esperado, AutoUpdate.PrecisaAtualizar(new Versao(maior, menor, correcao), new Versao(0, 36, 3), instalacaoAntiga));
     }
 
     [Fact]
@@ -361,7 +387,7 @@ public class AutoUpdateTestes
         string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
         Assert.StartsWith(local, AutoUpdate.PastaUpdate, StringComparison.OrdinalIgnoreCase);
-        Assert.EndsWith(Path.Combine("Tranal Sentinel", "update", "TranalSentinel.exe.new"),
-                         AutoUpdate.CaminhoArquivoNovo, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(Path.Combine("Tranal Sentinel", "update", "TranalSentinel-Setup.exe"),
+                         AutoUpdate.CaminhoInstaladorBaixado, StringComparison.OrdinalIgnoreCase);
     }
 }

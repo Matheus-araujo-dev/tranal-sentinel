@@ -2,11 +2,13 @@ name: Publicar
 
 # Todo push na main vira uma versão nova, sem passo manual:
 #   1. decide o número da versão (ver o passo "Decidir a versão");
-#   2. roda os testes do app e do instalador;
-#   3. gera o TranalSentinel.exe e o TranalSetup.exe com esse número gravado;
-#   4. cria a tag vX.Y.Z e a release dela, com os executáveis para baixar.
-# O auto-update (AutoUpdate.cs) procura a maior tag de versão entre as
-# releases: sem a tag versionada, o app instalado nunca veria a atualização.
+#   2. roda os testes do app;
+#   3. gera o TranalSentinel.exe com esse número gravado e compila o
+#      instalador Inno Setup (installer/tranal-sentinel.iss) com o mesmo número;
+#   4. cria a tag vX.Y.Z e a release dela, com o TranalSentinel-Setup.exe.
+# Segue a DEC-APPS-DISTRIBUICAO-001. O auto-update (AutoUpdate.cs) procura a
+# maior tag de versão entre as releases e baixa o TranalSentinel-Setup.exe dela:
+# sem a tag versionada, o app instalado nunca veria a atualização.
 #
 # O botão "Run workflow" (aba Actions) publica na hora, escolhendo o salto:
 # patch (0.36.1 -> 0.36.2), minor (-> 0.37.0) ou major (-> 1.0.0).
@@ -85,9 +87,6 @@ jobs:
       - name: Testes do app
         run: dotnet test TranalSentinel.Tests/TranalSentinel.Tests.csproj -c Release -nologo
 
-      - name: Testes do instalador
-        run: dotnet test Tranal.Setup.Tests/Tranal.Setup.Tests.csproj -c Release -nologo
-
       # A versão decidida entra pela linha de comando: ela vale por cima do
       # Directory.Build.props, e o executável sai com o número da release
       # (é com ele que o auto-update compara).
@@ -98,13 +97,6 @@ jobs:
           dotnet publish TranalSentinel.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist -nologo `
             "-p:Version=$v" "-p:AssemblyVersion=$v.0" "-p:FileVersion=$v.0" "-p:InformationalVersion=$v"
 
-      - name: Publicar o instalador
-        shell: pwsh
-        run: |
-          $v = "${{ steps.versao.outputs.numero }}"
-          dotnet publish Tranal.Setup/Tranal.Setup.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist-instalador -nologo `
-            "-p:Version=$v" "-p:AssemblyVersion=$v.0" "-p:FileVersion=$v.0" "-p:InformationalVersion=$v"
-
       - name: Conferir a versão gravada no executável
         shell: pwsh
         run: |
@@ -113,21 +105,54 @@ jobs:
           if ($gravada -ne $esperada) { throw "O executável saiu com a versão $gravada, e a release é $esperada." }
           "TranalSentinel.exe $gravada"
 
-      # O .zip é o pacote de instalação completo: o TranalSetup.exe procura o
-      # TranalSentinel.exe e o LEIA-ME.txt na pasta dele, e sem os dois juntos
-      # ele recusa instalar ("payload incompleto"). Até a v0.36.0 o instalador
-      # não ia no .zip, e baixado sozinho ele não tinha o que instalar.
-      - name: Montar pacote
+      # O que vai dentro do instalador (e do .zip portátil): o app, o LEIA-ME,
+      # a licença do projeto e a do PawnIO.
+      - name: Montar a carga
         shell: pwsh
         run: |
           Copy-Item LEIA-ME.txt dist/LEIA-ME.txt
+          Copy-Item LICENSE dist/LICENSE
           Copy-Item Assets/PawnIO/COPYING dist/COPYING
           Copy-Item Assets/PawnIO/NOTICE.txt dist/NOTICE.txt
-          Copy-Item dist-instalador/TranalSetup.exe dist/TranalSetup.exe
-          Compress-Archive -Path dist/TranalSetup.exe, dist/TranalSentinel.exe, dist/LEIA-ME.txt, dist/COPYING, dist/NOTICE.txt -DestinationPath TranalSentinel.zip
+
+      # O Inno Setup costuma vir na imagem do runner; se não vier, é instalado
+      # aqui (o runner é descartável, não a máquina de ninguém).
+      - name: Compilar o instalador (Inno Setup)
+        shell: pwsh
+        run: |
+          $candidatos = { @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
+            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1 }
+          $iscc = & $candidatos
+          if (-not $iscc) {
+            Write-Host "Inno Setup não encontrado; instalando pelo chocolatey"
+            choco install innosetup --no-progress --yes
+            $iscc = & $candidatos
+          }
+          if (-not $iscc) { throw "Inno Setup não encontrado no runner" }
+          Write-Host "ISCC: $iscc"
+
+          $v = "${{ steps.versao.outputs.numero }}"
+          & $iscc "/DMyAppVersion=$v" "/DPayloadDir=$PWD\dist" "/DOutputDir=$PWD\dist-setup" installer/tranal-sentinel.iss
+          if ($LASTEXITCODE -ne 0) { throw "O iscc falhou (código $LASTEXITCODE)." }
+
+          $gravada = (Get-Item dist-setup/TranalSentinel-Setup.exe).VersionInfo.ProductVersion.Trim()
+          if ($gravada -ne $v) { throw "O instalador saiu com a versão $gravada, e a release é $v." }
+          "TranalSentinel-Setup.exe $gravada"
+
+      # O .zip é a versão portátil (sem instalar): o app e os textos que vão
+      # junto. Quem quer instalar baixa só o TranalSentinel-Setup.exe.
+      - name: Montar o .zip portátil
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/TranalSentinel.exe, dist/LEIA-ME.txt, dist/LICENSE, dist/COPYING, dist/NOTICE.txt -DestinationPath TranalSentinel.zip
 
       # A release da versão é a "Latest" do GitHub: é a que aparece para
-      # baixar na página do repositório. A tag é criada pelo próprio gh, no
+      # baixar na página do repositório. O TranalSentinel.exe portátil continua
+      # na release: é o asset que o atualizador antigo (até a v0.36) procura, e
+      # é por ele que quem tem a v0.36 chega à versão que roda o instalador. A tag é criada pelo próprio gh, no
       # commit deste push (a tag criada com o GITHUB_TOKEN não dispara outra
       # execução deste workflow).
       - name: Release da versão
@@ -136,7 +161,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "v${{ steps.versao.outputs.numero }}"
-          gh release create $tag TranalSentinel.zip dist/TranalSentinel.exe dist-instalador/TranalSetup.exe `
+          gh release create $tag dist-setup/TranalSentinel-Setup.exe TranalSentinel.zip dist/TranalSentinel.exe `
             --target $env:GITHUB_SHA --latest --title "TRANAL SENTINEL $tag" --notes-file NOVIDADES.md
 
       # A release rolante "latest" continua existindo para quem guardou o link
@@ -147,5 +172,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest --cleanup-tag --yes 2>$null
-          gh release create latest TranalSentinel.zip dist/TranalSentinel.exe dist-instalador/TranalSetup.exe `
+          gh release create latest dist-setup/TranalSentinel-Setup.exe TranalSentinel.zip dist/TranalSentinel.exe `
             --target $env:GITHUB_SHA --latest=false --title "TRANAL SENTINEL (versão mais recente)" --notes-file NOVIDADES.md
