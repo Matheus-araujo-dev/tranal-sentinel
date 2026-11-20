@@ -314,6 +314,8 @@ public static class AutoUpdate
         };
         psi.ArgumentList.Add(ArgumentoAtualizacao);
         psi.ArgumentList.Add(caminhoNovoExecutavel);
+        psi.ArgumentList.Add("--pid");
+        psi.ArgumentList.Add(Environment.ProcessId.ToString());
 
         using var filho = Process.Start(psi);
         return filho is not null;
