@@ -14,10 +14,10 @@ A atribuição e o aviso de fork ficam no README e no LICENSE — **não removê
 | Executável / assembly | `TranalSentinel.exe` / `TranalSentinel` |
 | Namespace CLR | `TranalSentinel` |
 | Projeto do app | `TranalSentinel.csproj` |
-| Projetos de teste | `TranalSentinel.Tests` (namespace `TranalSentinel.Tests`), `Tranal.Setup.Tests` |
-| Instalador | `Tranal.Setup\Tranal.Setup.csproj` → `TranalSetup.exe` |
+| Projeto de teste | `TranalSentinel.Tests` (namespace `TranalSentinel.Tests`) |
+| Instalador | `installer\tranal-sentinel.iss` (Inno Setup) → `TranalSentinel-Setup.exe`, AppId `{6E2B9C41-7D3A-4F18-B05E-93A1C47D2F86}` (nunca muda) |
 | Configurações e histórico | `%AppData%\TranalSentinel` |
-| Log do instalador | `%ProgramData%\Tranal Sentinel\instalador.log` |
+| Log do instalador | o do Inno (`%TEMP%\Setup Log *.txt`); na atualização, `%LOCALAPPDATA%\Tranal Sentinel\update\instalador.log` |
 | Diário do app | `%AppData%\TranalSentinel\log\tranal-AAAA-MM-DD.log` |
 | Mutex (instância única) | `Local\TranalSentinel.SingleInstance` (a regra mora em `InstanciaUnica`) |
 | Repositório | `https://github.com/Matheus-araujo-dev/tranal-sentinel` |
@@ -31,15 +31,18 @@ disso: se mudar um, mude o outro.
 # build e testes
 dotnet build "E:\projetos\tranal-sentinel\TranalSentinel.csproj" -c Release -t:Rebuild
 dotnet test  "E:\projetos\tranal-sentinel\TranalSentinel.Tests\TranalSentinel.Tests.csproj" -c Release
-dotnet test  "E:\projetos\tranal-sentinel\Tranal.Setup.Tests\Tranal.Setup.Tests.csproj" -c Release
 
 # publicação (o .NET vai embutido; não precisa instalar runtime no PC do usuário)
 dotnet publish "E:\projetos\tranal-sentinel\TranalSentinel.csproj" -c Release -r win-x64 `
   --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
   -p:DebugType=None -o dist
+
+# instalador (Inno Setup: winget install JRSoftware.InnoSetup). Sem /DMyAppVersion,
+# a versão é a gravada no TranalSentinel.exe da pasta da carga.
+iscc /DMyAppVersion=0.37.0 /DPayloadDir=E:\projetos\tranal-sentinel\dist installer\tranal-sentinel.iss
 ```
 
-Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
+Baseline de avisos: **16 no app**. Acima disso, é regressão.
 
 ## Regras do projeto
 
@@ -89,21 +92,41 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   não pode ser pego em C# — por isso o isolamento em processo é obrigatório,
   não opcional. `SensorGuard` desliga a GPU depois de 1 crash nativo e tudo
   depois de 3.
-- **A troca do executável** (`Atualizador` + `AutoUpdate`) só acontece com o app
-  fechado: o Windows não deixa sobrescrever um `.exe` em uso.
+- **Quem troca os arquivos é o instalador** (DEC-APPS-DISTRIBUICAO-001). O
+  `AutoUpdate` confere as releases ao abrir e de hora em hora, baixa o
+  `TranalSentinel-Setup.exe` da maior tag (só o nome exato: outro `.exe` da
+  release nunca é rodado), roda com `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+  /CLOSEAPPLICATIONS` e fecha o app; o instalador espera o app sair (até 30 s),
+  troca os arquivos e o reabre (o `[Run]` sem `skipifsilent`).
+- **O `--atualizar` (`Atualizador`) é só a ponte da v0.36.** O app v0.36 instalado
+  baixa o `TranalSentinel.exe` portátil e chama o exe novo com essa flag: por isso
+  a release continua publicando o `TranalSentinel.exe` e o app continua entendendo
+  a flag. Depois da troca, o app novo vê a entrada antiga no registro
+  (`AutoUpdate.InstalacaoAntigaPresente`) e oferece o instalador mesmo na mesma
+  versão (`AutoUpdate.PrecisaAtualizar`), que faz a migração.
 - **A inicialização automática é tarefa agendada**, não chave `Run`: o app exige
   administrador, e `requireAdministrator` na `Run` pediria UAC a cada login.
 - **Todo app Tranal mora em `Tranal Group`** (decisão do dono, 20/11/2026,
   para todo instalador de todo projeto): o padrão é
   `%ProgramFiles%\Tranal Group\Tranal Sentinel`, e escolher outra pasta-raiz
-  instala em `<raiz>\Tranal Group\Tranal Sentinel` (`DestinoInstalacao.PastaDentroDe`).
-- **A pasta de instalação é escolha do usuário.** A regra que decide onde o app
-  fica mora só em `DestinoInstalacao.cs` (construtor privado: todo destino já
-  passou pela validação). A desinstalação descobre o local pelo `InstallLocation`
-  da entrada de desinstalação no registro — nunca assumindo a pasta padrão.
-  Trocar de pasta é uma **movimentação**: os arquivos do lugar antigo saem
-  depois que a nova instalação está pronta, e a tarefa agendada e o atalho da
-  área de trabalho não ficam órfãos apontando para o executável velho.
+  instala em `<raiz>\Tranal Group\Tranal Sentinel` (`PastaNoGrupo` no `[Code]`
+  do `.iss`, a regra única do destino).
+- **A tarefa agendada é o mesmo XML de sempre** (logon do usuário, privilégio
+  máximo, `--iniciar-como-sistema`, sem prazo e sem parar na bateria), gravado
+  pelo `Register-ScheduledTask` e não pelo `schtasks /XML`: o schtasks só aceita
+  o arquivo em UTF-16 (medido em 20/11/2026) e o Inno não grava UTF-16. Ela sai
+  no `[UninstallRun]`. Na atualização silenciosa vale o estado real da tarefa no
+  PC (quem desligou continua desligado): a caixa da tela só decide na instalação
+  com janela e na primeira instalação.
+- **O setup nunca encerra a árvore do app** (`taskkill` sem `/T`): na atualização
+  o setup é filho do app, e o `/T` mataria o próprio instalador.
+- **A instalação do instalador antigo em C# é migrada pelo `.iss`.** Ela é
+  achada pelo `InstallLocation` da chave `Uninstall\Tranal Sentinel` (qualquer
+  pasta, qualquer disco; a raiz escolhida é mantida). Depois que a instalação nova
+  está no lugar, saem os arquivos conhecidos da pasta velha (nunca a pasta
+  inteira), os atalhos do perfil do usuário e a chave antiga; a tarefa de mesmo
+  nome é regravada com o caminho novo. `%AppData%\TranalSentinel` e
+  `%LOCALAPPDATA%\TranalSentinel` não são tocados.
 - **O valor de um sensor só existe se for finito.** A regra mora em `SensorValor.Finito`
   (não-finite vira `null`) e é aplicada na origem, na coleta — o JSON padrão não aceita
   infinito, e uma leitura com infinito estourava a gravação, o processo de coleta
@@ -814,10 +837,12 @@ git push origin main      # e só: o CI decide a versão, gera os .exe e publica
 ```
 
 **Todo push na main é uma versão nova**, sem tag manual. O
-`.github/workflows/publicar.yml` decide o número, roda os testes **do app e do
-instalador**, publica os dois executáveis com esse número gravado, confere a
-versão do `TranalSentinel.exe` e cria a tag `vX.Y.Z` com a release (marcada
-como a "Latest" do GitHub). A release rolante `latest` continua sendo
+`.github/workflows/publicar.yml` decide o número, roda os testes do app,
+publica o `TranalSentinel.exe` com esse número gravado, compila o instalador
+(`iscc /DMyAppVersion=...`, instalando o Inno pelo chocolatey se o runner não
+tiver), confere a versão dos dois e cria a tag `vX.Y.Z` com a release (marcada
+como a "Latest" do GitHub): `TranalSentinel-Setup.exe`, o `TranalSentinel.exe`
+portátil e o `.zip` portátil. A release rolante `latest` continua sendo
 atualizada, para quem guardou o link dela.
 
 - **A regra do número:** a versão nova parte da maior tag publicada. O push
@@ -830,7 +855,9 @@ atualizada, para quem guardou o link dela.
   app instalado nunca ver a atualização.
 - **O `Directory.Build.props` não é reescrito pelo CI**: o número de cada
   release vive na tag. Um build local sai com o piso.
-- O asset **precisa** se chamar `TranalSentinel.exe`: é o que o auto-update procura.
+- O instalador **precisa** se chamar `TranalSentinel-Setup.exe`: é o que o
+  auto-update procura. E o `TranalSentinel.exe` portátil continua na release: é
+  o que o app v0.36 procura para chegar à versão nova.
 
 ## Onde as coisas estão
 
@@ -873,9 +900,9 @@ atualizada, para quem guardou o link dela.
 | `SensorHistorico.cs` | O histórico contínuo de sensores (uma amostra de 5 em 5 segundos): o que o PC estava fazendo antes de travar. |
 | `RetrospectivaTravamento.cs` | Correlaciona o log de sensores com os travamentos (função pura): vira a frase da tela. |
 | `HardwareColeta.cs` / `HardwareLibre.cs` | O que a coleta precisa de um hardware (interface) e o adaptador do LibreHardwareMonitor. |
-| `AutoUpdate.cs` / `Atualizador.cs` | Checagem de versão nova, download e troca do executável. |
-| `Tranal.Setup\` | O instalador (admin, atalhos, tarefa agendada, desinstalação). |
-| `Tranal.Setup\Dominio\DestinoInstalacao.cs` | Onde o app é instalado. Regra única do destino (pasta escolhida pelo usuário). |
+| `AutoUpdate.cs` / `Atualizador.cs` | Checagem de versão nova, download e execução silenciosa do instalador; o `Atualizador` é só a ponte da v0.36 (`--atualizar`). |
+| `installer\tranal-sentinel.iss` | O instalador Inno Setup: pasta no Tranal Group, atalhos, tarefa agendada, migração da instalação antiga, reabrir o app no fim. |
+| `publicar.bat` | O build local: testes, o `.exe` portátil e o instalador em `..\TranalSentinel-dist`. |
 | `WindowsTweakRegras.cs` / `WindowsTweaks.cs` | Os ajustes do TRANAL OTIMIZA: a regra pura (núcleo testável) e o executor no Windows (SPI da rolagem e o Alt+Tab do Windows 11), com o valor original guardado para desfazer. |
 | `Programa.cs` / `LinhaDeComando.cs` | A entrada do executável (desvia o coletor de sensores antes do WPF) e a leitura dos argumentos, em um lugar só. |
 | `TUTORIAL.md` | O tutorial do app: o que cada aba faz, por que existe e o que o dono ganha com ela. |

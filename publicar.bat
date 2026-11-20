@@ -1,7 +1,9 @@
 @echo off
 rem Gera o TRANAL SENTINEL pronto para levar a outro PC (nao precisa instalar o .NET la).
-rem Saida: ..\TranalSentinel-dist\TranalSentinel.exe + LEIA-ME.txt + TranalSetup.exe
+rem Saida: ..\TranalSentinel-dist\TranalSentinel.exe (portatil) + TranalSentinel-Setup.exe (instalador)
 rem Sempre recompila do zero a partir do codigo atual desta pasta.
+rem O instalador e o do Inno Setup (installer\tranal-sentinel.iss): instale o Inno com
+rem   winget install JRSoftware.InnoSetup
 cd /d "%~dp0"
 
 echo Rodando os testes do app ...
@@ -9,15 +11,6 @@ dotnet test TranalSentinel.Tests\TranalSentinel.Tests.csproj -c Release -nologo 
 if errorlevel 1 (
     echo.
     echo FALHOU nos testes do app. Nada foi gerado.
-    pause
-    exit /b 1
-)
-
-echo Rodando os testes do instalador ...
-dotnet test Tranal.Setup.Tests\Tranal.Setup.Tests.csproj -c Release -nologo -v q
-if errorlevel 1 (
-    echo.
-    echo FALHOU nos testes do instalador. Nada foi gerado.
     pause
     exit /b 1
 )
@@ -34,9 +27,23 @@ if errorlevel 1 (
     exit /b 1
 )
 copy /y "LEIA-ME.txt" "..\TranalSentinel-dist\LEIA-ME.txt" >nul
+copy /y "LICENSE" "..\TranalSentinel-dist\LICENSE" >nul
+copy /y "Assets\PawnIO\COPYING" "..\TranalSentinel-dist\COPYING" >nul
+copy /y "Assets\PawnIO\NOTICE.txt" "..\TranalSentinel-dist\NOTICE.txt" >nul
 
-echo Gerando o instalador (TranalSetup.exe) ...
-dotnet publish Tranal.Setup\Tranal.Setup.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o "..\TranalSentinel-dist" -nologo -v q
+set "ISCC="
+if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+if not defined ISCC (
+    echo.
+    echo O app foi gerado, mas o Inno Setup nao foi encontrado: instale com winget install JRSoftware.InnoSetup
+    pause
+    exit /b 1
+)
+
+echo Gerando o instalador (TranalSentinel-Setup.exe) ...
+"%ISCC%" /Q "/DPayloadDir=%~dp0..\TranalSentinel-dist" "/DOutputDir=%~dp0..\TranalSentinel-dist" installer\tranal-sentinel.iss
 if errorlevel 1 (
     echo.
     echo O app foi gerado, mas o instalador FALHOU. Veja os erros acima.
@@ -47,7 +54,7 @@ if errorlevel 1 (
 echo.
 echo Pronto: %~dp0..\TranalSentinel-dist
 for %%F in ("..\TranalSentinel-dist\TranalSentinel.exe") do echo App gerado em %%~tF (confira se e de agora^)
-for %%F in ("..\TranalSentinel-dist\TranalSetup.exe") do echo Instalador gerado em %%~tF
+for %%F in ("..\TranalSentinel-dist\TranalSentinel-Setup.exe") do echo Instalador gerado em %%~tF
 echo.
-echo Para instalar: abra o TranalSetup.exe (ele precisa do TranalSentinel.exe na mesma pasta).
+echo Para instalar: abra o TranalSentinel-Setup.exe (o app vai dentro dele).
 pause
