@@ -55,6 +55,9 @@ public static class Banco
     /// </summary>
     public const int DiasRetidosVentoinha = 30;
 
+    /// <summary>Quantos dias de agregados diários de sensor ficam no banco.</summary>
+    public const int DiasRetidosAgregado = 365;
+
     /// <summary>
     /// A marca de "o histórico antigo em CSV já entrou no banco" (1 = já
     /// entrou).
@@ -115,6 +118,18 @@ public static class Banco
         "INSERT OR REPLACE INTO ventoinha_dia " +
         "(dia, id, rpm_maximo, amostras, temp_no_maximo, temp_maxima, rpm_ultimo, temp_ultimo) " +
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+    /// <summary>
+    /// O INSERT do agregado diário de sensores. O mesmo em toda gravação.
+    /// </summary>
+    private const string InsertAgregado = @"
+            INSERT OR REPLACE INTO agregado_diario
+              (dia, cpu_temp_min, cpu_temp_max, cpu_temp_media,
+               cpu_carga_min, cpu_carga_max, cpu_carga_media,
+               gpu_temp_min, gpu_temp_max, gpu_temp_media,
+               gpu_carga_min, gpu_carga_max, gpu_carga_media,
+               ram_uso_min, ram_uso_max, ram_uso_media, amostras)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     private static readonly object Tranca = new();
 
@@ -527,6 +542,31 @@ public static class Banco
             )");
 
         ok &= banco.Executar("CREATE INDEX IF NOT EXISTS ix_ventoinha_dia_dia ON ventoinha_dia (dia)");
+
+        // O agregado diário de sensores: uma linha por dia com mínima,
+        // máxima e média de cada sensor — é o que permite guardar
+        // tendências de 365 dias sem manter todas as amostras brutas
+        // (que ficam só 15 dias).
+        ok &= banco.Executar(@"
+            CREATE TABLE IF NOT EXISTS agregado_diario (
+                dia             INTEGER PRIMARY KEY,
+                cpu_temp_min    REAL,
+                cpu_temp_max    REAL,
+                cpu_temp_media  REAL,
+                cpu_carga_min   REAL,
+                cpu_carga_max   REAL,
+                cpu_carga_media REAL,
+                gpu_temp_min    REAL,
+                gpu_temp_max    REAL,
+                gpu_temp_media  REAL,
+                gpu_carga_min   REAL,
+                gpu_carga_max   REAL,
+                gpu_carga_media REAL,
+                ram_uso_min     REAL,
+                ram_uso_max     REAL,
+                ram_uso_media   REAL,
+                amostras        INTEGER NOT NULL DEFAULT 0
+            )");
 
         return ok;
     }
@@ -1292,6 +1332,75 @@ public static class Banco
             ? b.Alteracoes : 0, 0);
     }
 
+    // ------------------------------------------------------------------ agregados diários
+
+    /// <summary>
+    /// Grava o agregado de um dia. Se já existia, substitui (o agregado é
+    /// recalculado no fim do dia ou na poda).
+    /// </summary>
+    public static bool GravarAgregado(AgregadoDiario a)
+    {
+        long dia = new DateTimeOffset(a.Dia.Date).ToUnixTimeMilliseconds();
+        return EmBanco(b => b.Executar(InsertAgregado,
+            dia,
+            (object?)a.CpuTempMin, (object?)a.CpuTempMax, (object?)a.CpuTempMedia,
+            (object?)a.CpuCargaMin, (object?)a.CpuCargaMax, (object?)a.CpuCargaMedia,
+            (object?)a.GpuTempMin, (object?)a.GpuTempMax, (object?)a.GpuTempMedia,
+            (object?)a.GpuCargaMin, (object?)a.GpuCargaMax, (object?)a.GpuCargaMedia,
+            (object?)a.RamUsoMin, (object?)a.RamUsoMax, (object?)a.RamUsoMedia,
+            a.Amostras), false);
+    }
+
+    /// <summary>
+    /// Lê os agregados diários no período indicado.
+    /// </summary>
+    public static Leitura<AgregadoDiario> LerAgregados(DateTime desde, DateTime ate)
+    {
+        long desdeMs = new DateTimeOffset(desde.Date).ToUnixTimeMilliseconds();
+        long ateMs = new DateTimeOffset(ate.Date.AddDays(1)).ToUnixTimeMilliseconds();
+
+        return EmBanco(b =>
+        {
+            var linhas = b.Consultar(
+                "SELECT dia, cpu_temp_min, cpu_temp_max, cpu_temp_media, " +
+                "cpu_carga_min, cpu_carga_max, cpu_carga_media, " +
+                "gpu_temp_min, gpu_temp_max, gpu_temp_media, " +
+                "gpu_carga_min, gpu_carga_max, gpu_carga_media, " +
+                "ram_uso_min, ram_uso_max, ram_uso_media, amostras " +
+                "FROM agregado_diario WHERE dia >= ? AND dia < ? ORDER BY dia",
+                desdeMs, ateMs);
+
+            var resultado = new List<AgregadoDiario>(linhas.Count);
+            foreach (var l in linhas)
+            {
+                var dia = Sqlite.UnixParaMomento(l.Inteiro("dia")).Date;
+                resultado.Add(new AgregadoDiario(dia,
+                    (float?)l.RealNulo("cpu_temp_min"), (float?)l.RealNulo("cpu_temp_max"), (float?)l.RealNulo("cpu_temp_media"),
+                    (float?)l.RealNulo("cpu_carga_min"), (float?)l.RealNulo("cpu_carga_max"), (float?)l.RealNulo("cpu_carga_media"),
+                    (float?)l.RealNulo("gpu_temp_min"), (float?)l.RealNulo("gpu_temp_max"), (float?)l.RealNulo("gpu_temp_media"),
+                    (float?)l.RealNulo("gpu_carga_min"), (float?)l.RealNulo("gpu_carga_max"), (float?)l.RealNulo("gpu_carga_media"),
+                    (float?)l.RealNulo("ram_uso_min"), (float?)l.RealNulo("ram_uso_max"), (float?)l.RealNulo("ram_uso_media"),
+                    (int)l.Inteiro("amostras")));
+            }
+
+            return new Leitura<AgregadoDiario>(resultado, true);
+
+        }, new Leitura<AgregadoDiario>(new List<AgregadoDiario>(), false));
+    }
+
+    /// <summary>
+    /// Apaga os agregados diários mais antigos que o limite.
+    /// </summary>
+    public static int ApagarAgregadosAntigos(DateTime antesDe)
+    {
+        long ms = new DateTimeOffset(antesDe).ToUnixTimeMilliseconds();
+        return EmBanco(b =>
+        {
+            b.Executar("DELETE FROM agregado_diario WHERE dia < ?", ms);
+            return b.Alteracoes;
+        }, 0);
+    }
+
     /// <summary>
     /// Corta o histórico velho, no máximo uma vez por hora. A poda é uma
     /// escrita no banco, e a coleta acontece a cada 5 segundos: fazer isso a
@@ -1315,6 +1424,7 @@ public static class Banco
         ApagarUsosAntigos(DateTime.Now.AddDays(-DiasRetidosUso));
         ApagarTrafegoAntigos(DateTime.Now.AddDays(-DiasRetidosTrafego));
         ApagarVentoinhasAntigas(DateTime.Now.AddDays(-DiasRetidosVentoinha));
+        ApagarAgregadosAntigos(DateTime.Now.AddDays(-DiasRetidosAgregado));
     }
 
     // ------------------------------------------------------------------ contagem e tamanho
@@ -1637,6 +1747,9 @@ public static class Banco
             // <see cref="VentoinhasDoReparo"/>).
             var ventoinhas = new VentoinhasDoReparo(new List<object?[]>(), new List<object?[]>(), -1, -1, false, false, false, false);
 
+            // Os agregados diários lidos do banco estragado.
+            var agregados = new AgregadosDoReparo(new List<object?[]>(), -1, false, false);
+
             // A marca do histórico importado do banco velho é lida ANTES de
             // descartar a instância: o banco novo precisa da mesma
             // versão. Sem ela, a próxima abertura importaria o CSV de
@@ -1666,6 +1779,10 @@ public static class Banco
                 // antes da v0.30). Isso não é falha de leitura — é "não
                 // tinha histórico de ventoinha guardado".
                 ventoinhas = LerVentoinhasDoReparo(b);
+
+                // Os agregados diários: a tabela pode não existir (um banco
+                // de antes da v0.35). Isso não é falha de leitura.
+                agregados = LerAgregadosDoReparo(b);
             });
 
             // A leitura falhou (ou a transação): o reparo não pode trocar
@@ -1673,7 +1790,8 @@ public static class Banco
             // aparecer no relato.
             bool leituraFalhou = !leu || falhouAmostras || falhouUsos
                 || trafego.FalhouTrafegos || trafego.FalhouPerdidos
-                || ventoinhas.FalhouVentoinhas || ventoinhas.FalhouDias;
+                || ventoinhas.FalhouVentoinhas || ventoinhas.FalhouDias
+                || agregados.FalhouAgregados;
 
             // O arquivo que nem é um banco não tem nada a ler: reconstruí-lo
             // é o único caminho. Qualquer outro problema (banco trancado,
@@ -1696,7 +1814,7 @@ public static class Banco
             _instancia = null;
             _ultimaTentativa = DateTime.MinValue;
 
-            return Reconstruir(amostras, usos, trafego, ventoinhas, integridade, totalAmostras, totalUso, versaoEsquema);
+            return Reconstruir(amostras, usos, trafego, ventoinhas, agregados, integridade, totalAmostras, totalUso, versaoEsquema);
         }
     }
 
@@ -1958,6 +2076,44 @@ public static class Banco
     }
 
     /// <summary>
+    /// O que o reparo leu da tabela de agregados diários: as linhas, a
+    /// contagem e se a leitura deu para ser feita.
+    /// </summary>
+    private sealed record AgregadosDoReparo(
+        List<object?[]> Agregados,
+        long TotalAgregados,
+        bool FalhouAgregados,
+        bool TinhaTabelaAgregados);
+
+    /// <summary>
+    /// Lê a tabela de agregados diários do banco estragado.
+    /// </summary>
+    private static AgregadosDoReparo LerAgregadosDoReparo(Sqlite banco)
+    {
+        var agregados = new List<object?[]>();
+        long totalAgregados = 0;
+        bool falhouAgregados = false;
+
+        bool tinhaTabelaAgregados = TabelaExiste(banco, "agregado_diario", out bool falhouEsquema);
+        if (falhouEsquema) falhouAgregados = true;
+
+        if (tinhaTabelaAgregados && !falhouAgregados)
+        {
+            totalAgregados = ContarParaReparo(banco, "SELECT COUNT(*) AS total FROM agregado_diario");
+            agregados = LerLinhas(banco,
+                "SELECT dia, cpu_temp_min, cpu_temp_max, cpu_temp_media, " +
+                "cpu_carga_min, cpu_carga_max, cpu_carga_media, " +
+                "gpu_temp_min, gpu_temp_max, gpu_temp_media, " +
+                "gpu_carga_min, gpu_carga_max, gpu_carga_media, " +
+                "ram_uso_min, ram_uso_max, ram_uso_media, amostras " +
+                "FROM agregado_diario",
+                out falhouAgregados);
+        }
+
+        return new AgregadosDoReparo(agregados, totalAgregados, falhouAgregados, tinhaTabelaAgregados);
+    }
+
+    /// <summary>
     /// True quando a tabela existe no banco. A pergunta vai ao esquema: o
     /// erro do SQLite ("no such table") diria o mesmo que uma leitura que
     /// quebrou no meio, e as duas coisas precisam ser diferentes.
@@ -1985,7 +2141,7 @@ public static class Banco
     /// Cria um banco novo e copia o que foi lido do velho. Devolve o
     /// relato do que se salvou.
     /// </summary>
-    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, TrafegoDoReparo trafego, VentoinhasDoReparo ventoinhas, string integridade, long totalAmostras, long totalUso, int versaoEsquema)
+    private static ResultadoReparo Reconstruir(List<object?[]> amostras, List<object?[]> usos, TrafegoDoReparo trafego, VentoinhasDoReparo ventoinhas, AgregadosDoReparo agregados, string integridade, long totalAmostras, long totalUso, int versaoEsquema)
     {
         string novoCaminho = Caminho + ".reparo";
 
@@ -2011,6 +2167,7 @@ public static class Banco
         long salvosPerdidos = 0;
         long salvasVentoinhas = 0;
         long salvosDiasVentoinhas = 0;
+        long salvosAgregados = 0;
         string? motivo = null;
 
         // As amostras têm colunas que podem ser nulas (o sensor que não
@@ -2030,6 +2187,10 @@ public static class Banco
         // a contagem de amostras).
         var ventoinhasGravaveis = LinhasGravaveis(ventoinhas.Ventoinhas, 8, 6);
         var diasVentoinhasGravaveis = LinhasGravaveis(ventoinhas.Dias, 8, 4);
+
+        // Os agregados diários: o dia e a contagem de amostras são
+        // obrigatórios (colunas 0 e 16); os 15 valores de sensor são anuláveis.
+        var agregadosGravaveis = LinhasGravaveis(agregados.Agregados, 17, 1);
 
         // O cancelamento é anotado e o reparo sai aqui: a limpeza do banco
         // novo acontece DEPOIS do `using`, com o handle do SQLite já
@@ -2114,6 +2275,16 @@ public static class Banco
                             throw new InvalidOperationException(motivo);
                         }
 
+                        // Os agregados diários vão junto: sem eles, o reparo
+                        // trocaria a baseline e as tendências por um banco sem
+                        // histórico de longo prazo.
+                        int salvosAgreg = b.ExecutarEmLote(InsertAgregado, agregadosGravaveis);
+                        if (salvosAgreg != agregadosGravaveis.Count)
+                        {
+                            motivo = "só " + salvosAgreg + " de " + agregadosGravaveis.Count + " agregados diários de sensor entraram no banco novo";
+                            throw new InvalidOperationException(motivo);
+                        }
+
                         // A marca do histórico importado vai junto com as linhas: sem
                         // ela, a próxima abertura acharia que o CSV nunca
                         // entrou e o importaria de novo — por cima do
@@ -2127,7 +2298,8 @@ public static class Banco
                         // de ficar para sempre fora do app.
                         bool recuperouAlgo = amostrasGravaveis.Count > 0 || usosGravaveis.Count > 0
                             || trafegosGravaveis.Count > 0 || perdidosGravaveis.Count > 0
-                            || ventoinhasGravaveis.Count > 0 || diasVentoinhasGravaveis.Count > 0;
+                            || ventoinhasGravaveis.Count > 0 || diasVentoinhasGravaveis.Count > 0
+                            || agregadosGravaveis.Count > 0;
                         int versaoFinal = recuperouAlgo ? versaoEsquema : 0;
 
                         if (!b.Executar($"PRAGMA user_version = {versaoFinal}"))
@@ -2152,6 +2324,7 @@ public static class Banco
                         salvosPerdidos = Contar(novo, "SELECT COUNT(*) AS total FROM trafego_perdidos");
                         salvasVentoinhas = Contar(novo, "SELECT COUNT(*) AS total FROM ventoinha");
                         salvosDiasVentoinhas = Contar(novo, "SELECT COUNT(*) AS total FROM ventoinha_dia");
+                        salvosAgregados = Contar(novo, "SELECT COUNT(*) AS total FROM agregado_diario");
                     }
                 }
             }
@@ -2177,9 +2350,9 @@ public static class Banco
         // (disco cheio, arquivo trancado). Trocar o banco agora trocaria
         // histórico por um banco vazio — o cancelamento é mais honesto.
         int lidas = amostras.Count + usos.Count + trafegosGravaveis.Count + perdidosGravaveis.Count
-            + ventoinhasGravaveis.Count + diasVentoinhasGravaveis.Count;
+            + ventoinhasGravaveis.Count + diasVentoinhasGravaveis.Count + agregadosGravaveis.Count;
         if (lidas > 0 && salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0
-            && salvasVentoinhas == 0 && salvosDiasVentoinhas == 0)
+            && salvasVentoinhas == 0 && salvosDiasVentoinhas == 0 && salvosAgregados == 0)
         {
             string resto = AvisoDoArquivoQueFicou(ApagarBancoNovo(novoCaminho), novoCaminho);
             return new ResultadoReparo(false,
@@ -2299,7 +2472,8 @@ public static class Banco
                 trafego.TinhaTabelaTrafegos ? salvosTrafegos : (long?)null,
                 trafego.TinhaTabelaPerdidos ? salvosPerdidos : (long?)null,
                 ventoinhas.TinhaTabelaVentoinhas ? salvasVentoinhas : (long?)null,
-                ventoinhas.TinhaTabelaDias ? salvosDiasVentoinhas : (long?)null);
+                ventoinhas.TinhaTabelaDias ? salvosDiasVentoinhas : (long?)null,
+                agregados.TinhaTabelaAgregados ? salvosAgregados : (long?)null);
 
         relato += RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos,
             trafego.TinhaTabelaTrafegos ? trafego.TotalTrafegos : (long?)null,
@@ -2309,7 +2483,9 @@ public static class Banco
             ventoinhas.TinhaTabelaVentoinhas ? ventoinhas.TotalVentoinhas : (long?)null,
             ventoinhas.TinhaTabelaVentoinhas ? salvasVentoinhas : (long?)null,
             ventoinhas.TinhaTabelaDias ? ventoinhas.TotalDias : (long?)null,
-            ventoinhas.TinhaTabelaDias ? salvosDiasVentoinhas : (long?)null);
+            ventoinhas.TinhaTabelaDias ? salvosDiasVentoinhas : (long?)null,
+            agregados.TinhaTabelaAgregados ? agregados.TotalAgregados : (long?)null,
+            agregados.TinhaTabelaAgregados ? salvosAgregados : (long?)null);
 
         // Quando a LEITURA do tráfego falhou (o esquema não pôde ser
         // perguntado), o relato não pode passar por cima em silêncio: o
@@ -2345,8 +2521,14 @@ public static class Banco
                 "para o banco novo, e o histórico de ventoinha pode ter se perdido.";
         }
 
+        if (agregados.FalhouAgregados)
+        {
+            relato += " Não deu para ler os agregados diários de sensor do banco estragado: eles não foram copiados " +
+                "para o banco novo, e o histórico de tendências pode ter se perdido.";
+        }
+
         if (salvasAmostras == 0 && salvosUsos == 0 && salvosTrafegos == 0 && salvosPerdidos == 0
-            && salvasVentoinhas == 0 && salvosDiasVentoinhas == 0)
+            && salvasVentoinhas == 0 && salvosDiasVentoinhas == 0 && salvosAgregados == 0)
         {
             relato += " Nada pôde ser lido do banco estragado: o banco novo começa vazio.";
             relato += " Se o histórico antigo em CSV ainda estiver no disco, apagar o arquivo do banco faz o app importá-lo de novo.";
@@ -2375,7 +2557,7 @@ public static class Banco
     /// <param name="salvasAmostras">Quantas amostras entraram no banco novo (-1 = a contagem não deu).</param>
     /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
     internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos) =>
-        RelatoDoSalvo(salvasAmostras, salvosUsos, null, null, null, null);
+        RelatoDoSalvo(salvasAmostras, salvosUsos, null, null, null, null, null);
 
     /// <summary>
     /// O relato do reparo com o tráfego incluído.
@@ -2392,7 +2574,7 @@ public static class Banco
     /// <param name="salvosTrafegos">Quantos registros de tráfego entraram no banco novo (null = a tabela não existia).</param>
     /// <param name="salvosPerdidos">Quantas contagens de pacotes descartados entraram (null = a tabela não existia).</param>
     internal static string RelatoDoSalvo(long salvasAmostras, long salvosUsos, long? salvosTrafegos, long? salvosPerdidos) =>
-        RelatoDoSalvo(salvasAmostras, salvosUsos, salvosTrafegos, salvosPerdidos, null, null);
+        RelatoDoSalvo(salvasAmostras, salvosUsos, salvosTrafegos, salvosPerdidos, null, null, null);
 
     /// <summary>
     /// O relato do reparo com o tráfego e as ventoinhas incluídos.
@@ -2412,7 +2594,7 @@ public static class Banco
     /// <param name="salvosDiasVentoinhas">Quantos agregados diários de ventoinha entraram (null = a tabela não existia).</param>
     internal static string RelatoDoSalvo(
         long salvasAmostras, long salvosUsos, long? salvosTrafegos, long? salvosPerdidos,
-        long? salvosVentoinhas, long? salvosDiasVentoinhas)
+        long? salvosVentoinhas, long? salvosDiasVentoinhas, long? salvosAgregados)
     {
         // Nenhuma das duas contagens deu: não dá para dizer o que foi
         // salvo, e a frase não pode dizer que algo foi salvo.
@@ -2457,6 +2639,13 @@ public static class Banco
                 : "não deu para contar os agregados diários de ventoinha que entraram no banco novo");
         }
 
+        if (salvosAgregados is not null)
+        {
+            partes.Add(salvosAgregados.Value >= 0
+                ? $"{salvosAgregados.Value} agregados diários de sensor foram salvos"
+                : "não deu para contar os agregados diários de sensor que entraram no banco novo");
+        }
+
         return "Foi reconstruído: " + string.Join(" e ", partes) + ".";
     }
 
@@ -2487,7 +2676,7 @@ public static class Banco
     /// <param name="totalUso">Quantos registros de uso o banco velho tinha (-1 = a contagem não deu).</param>
     /// <param name="salvosUsos">Quantos registros de uso entraram no banco novo (-1 = a contagem não deu).</param>
     internal static string RelatoDaPerda(long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos) =>
-        RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos, null, null, null, null, null, null, null, null);
+        RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos, null, null, null, null, null, null, null, null, null, null);
 
     /// <summary>
     /// O relato da perda com o tráfego incluído.
@@ -2507,7 +2696,7 @@ public static class Banco
         long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos,
         long? totalTrafegos, long? salvosTrafegos, long? totalPerdidos, long? salvosPerdidos) =>
         RelatoDaPerda(totalAmostras, salvasAmostras, totalUso, salvosUsos,
-            totalTrafegos, salvosTrafegos, totalPerdidos, salvosPerdidos, null, null, null, null);
+            totalTrafegos, salvosTrafegos, totalPerdidos, salvosPerdidos, null, null, null, null, null, null);
 
     /// <summary>
     /// O relato da perda com o tráfego e as ventoinhas incluídos.
@@ -2524,7 +2713,8 @@ public static class Banco
     internal static string RelatoDaPerda(
         long totalAmostras, long salvasAmostras, long totalUso, long salvosUsos,
         long? totalTrafegos, long? salvosTrafegos, long? totalPerdidos, long? salvosPerdidos,
-        long? totalVentoinhas, long? salvosVentoinhas, long? totalDiasVentoinhas, long? salvosDiasVentoinhas)
+        long? totalVentoinhas, long? salvosVentoinhas, long? totalDiasVentoinhas, long? salvosDiasVentoinhas,
+        long? totalAgregados, long? salvosAgregados)
     {
         bool contaAmostras = totalAmostras >= 0 && salvasAmostras >= 0;
         bool contaUsos = totalUso >= 0 && salvosUsos >= 0;
@@ -2633,9 +2823,27 @@ public static class Banco
             }
         }
 
+        // Os agregados diários de sensor: a mesma regra das outras tabelas.
+        if (totalAgregados is not null && salvosAgregados is not null)
+        {
+            if (totalAgregados.Value < 0)
+            {
+                texto.Append(" Não deu para contar os agregados diários de sensor do banco antigo, então não é possível dizer quantos se perderam.");
+            }
+            else if (salvosAgregados.Value < 0)
+            {
+                texto.Append(" Não deu para contar os agregados diários de sensor que entraram no banco novo, então não é possível dizer quantos se perderam.");
+            }
+            else if (totalAgregados.Value - salvosAgregados.Value > 0)
+            {
+                texto.Append($" Se perderam {totalAgregados.Value - salvosAgregados.Value} agregados diários de sensor.");
+            }
+        }
+
         if (perdidasAmostras > 0 || perdidosUsos > 0 || contaTrafegos && totalTrafegos!.Value - salvosTrafegos!.Value > 0 || contaPerdidos && totalPerdidos!.Value - salvosPerdidos!.Value > 0
             || totalVentoinhas is not null && salvosVentoinhas is not null && totalVentoinhas.Value >= 0 && salvosVentoinhas.Value >= 0 && totalVentoinhas.Value - salvosVentoinhas.Value > 0
-            || totalDiasVentoinhas is not null && salvosDiasVentoinhas is not null && totalDiasVentoinhas.Value >= 0 && salvosDiasVentoinhas.Value >= 0 && totalDiasVentoinhas.Value - salvosDiasVentoinhas.Value > 0)
+            || totalDiasVentoinhas is not null && salvosDiasVentoinhas is not null && totalDiasVentoinhas.Value >= 0 && salvosDiasVentoinhas.Value >= 0 && totalDiasVentoinhas.Value - salvosDiasVentoinhas.Value > 0
+            || totalAgregados is not null && salvosAgregados is not null && totalAgregados.Value >= 0 && salvosAgregados.Value >= 0 && totalAgregados.Value - salvosAgregados.Value > 0)
             texto.Append(" O banco antigo, com o que ficou nele, está guardado na cópia.");
 
         return texto.ToString();
