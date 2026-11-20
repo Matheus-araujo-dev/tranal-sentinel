@@ -68,8 +68,11 @@ public partial class JanelaInstalador : Window
             return;
         }
 
+        // O caso comum é o instalador aberto sozinho (baixado avulso, ou
+        // aberto de dentro do .zip sem extrair): o texto diz o que fazer.
         TxtAviso.Text = "Payload incompleto: falta " + string.Join(", ", plano.ArquivosAusentes)
-            + $" em {_pastaPayload}. O instalador precisa dos dois arquivos juntos do TRANAL SENTINEL.exe.";
+            + $" em {_pastaPayload}. O instalador precisa estar na mesma pasta desses arquivos: "
+            + "baixe o TranalSentinel.zip da release, extraia o .zip inteiro numa pasta e abra o TranalSetup.exe de lá.";
         TxtAviso.Visibility = Visibility.Visible;
         AtualizarEstado();
     }

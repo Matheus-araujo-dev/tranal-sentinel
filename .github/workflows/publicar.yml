@@ -113,13 +113,18 @@ jobs:
           if ($gravada -ne $esperada) { throw "O executável saiu com a versão $gravada, e a release é $esperada." }
           "TranalSentinel.exe $gravada"
 
+      # O .zip é o pacote de instalação completo: o TranalSetup.exe procura o
+      # TranalSentinel.exe e o LEIA-ME.txt na pasta dele, e sem os dois juntos
+      # ele recusa instalar ("payload incompleto"). Até a v0.36.0 o instalador
+      # não ia no .zip, e baixado sozinho ele não tinha o que instalar.
       - name: Montar pacote
         shell: pwsh
         run: |
           Copy-Item LEIA-ME.txt dist/LEIA-ME.txt
           Copy-Item Assets/PawnIO/COPYING dist/COPYING
           Copy-Item Assets/PawnIO/NOTICE.txt dist/NOTICE.txt
-          Compress-Archive -Path dist/TranalSentinel.exe, dist/LEIA-ME.txt, dist/COPYING, dist/NOTICE.txt -DestinationPath TranalSentinel.zip
+          Copy-Item dist-instalador/TranalSetup.exe dist/TranalSetup.exe
+          Compress-Archive -Path dist/TranalSetup.exe, dist/TranalSentinel.exe, dist/LEIA-ME.txt, dist/COPYING, dist/NOTICE.txt -DestinationPath TranalSentinel.zip
 
       # A release da versão é a "Latest" do GitHub: é a que aparece para
       # baixar na página do repositório. A tag é criada pelo próprio gh, no
