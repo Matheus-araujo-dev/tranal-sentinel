@@ -740,8 +740,6 @@ public partial class MainWindow : Window
 
     private void InitBottleneckAndOverlay()
     {
-        _frames.Start();
-
         var (ratio, text) = BottleneckAnalyzer.Balance(_gpuIdx, _cpuIdx);
         _balanceRatio = ratio;
         BnCpuName.Text = $"CPU · {GameCatalog.ShortCpuName(_cpuName)}";
@@ -769,8 +767,17 @@ public partial class MainWindow : Window
     private static MeterItem Meter(string label, double? pct, string? suffix = null)
         => new(label, pct == null ? "—" : $"{pct:0} %{suffix}", Math.Clamp((pct ?? 0) / 100, 0, 1));
 
+    private bool FramesNecessario => _monitor2?.ModoAtual == MonitorWindow.Modo.Jogo || PageBottleneck.IsVisible || _bnSession != null;
+
+    private void AtualizarEstadoFrames()
+    {
+        if (FramesNecessario) _frames.Start();
+        else if (_frames.Running) _frames.Stop();
+    }
+
     private void UpdateBottleneck()
     {
+        AtualizarEstadoFrames();
         var frames = _frames.GetForegroundStats();
         var s = BottleneckAnalyzer.Sample(_monitor, _gpus.FirstOrDefault(), frames);
         var lim = s.Classify();

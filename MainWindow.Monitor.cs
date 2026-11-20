@@ -381,6 +381,7 @@ public partial class MainWindow
     private void UpdateOverlayStatus(FrameStats? f)
     {
         if (_frames.Error != null) OvStatus.Text = $"Detecção de FPS indisponível: {_frames.Error}";
+        else if (!_frames.Running) OvStatus.Text = "Detecção de FPS parada (liga com o overlay ou a página de gargalo)";
         else if (f != null) OvStatus.Text = $"Ativa · {f.ProcessName}: {f.Fps:0} FPS ({SensorTexto.Milissegundos(f.FrameTimeMs)}) · 1% low {f.Low1Fps:0}";
         else OvStatus.Text = "Ativa · aguardando um jogo em primeiro plano";
     }
