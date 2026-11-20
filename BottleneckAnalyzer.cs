@@ -30,31 +30,51 @@ public static class BottleneckAnalyzer
     public static LoadSample Sample(SensorMonitor m, GpuInfo? gpu, FrameStats? frames)
     {
         var rows = m.Rows;
-        float? gpuLoad = null, gpuTemp = null;
+        float? gpuLoad = null, gpuTemp = null, gpuTempFallback = null;
+        float? memUsed = null, memTotal = null;
         double? vramPct = null;
         bool thermal = false;
-        if (gpu != null)
-        {
-            gpuLoad = rows.FirstOrDefault(r => r.Hardware == gpu.Name && r.Type == SensorType.Load && r.Name == "GPU Core")?.RawValue;
-            var temps = rows.Where(r => r.Hardware == gpu.Name && r.Type == SensorType.Temperature).ToList();
-            gpuTemp = (temps.FirstOrDefault(r => r.Name == "GPU Core") ?? temps.FirstOrDefault())?.RawValue;
 
-            if (gpu.NvmlHandle != IntPtr.Zero && Nvml.MemoryInfo(gpu.NvmlHandle) is Nvml.Memory mem && mem.Total > 0)
-                vramPct = 100.0 * mem.Used / mem.Total;
-            else
+        // Núcleos da CPU e RAM: uma varredura só, sem alocação de lista.
+        SensorRow? busiest = null;
+        float? ram = null;
+
+        foreach (var r in rows)
+        {
+            if (gpu != null && r.Hardware == gpu.Name)
             {
-                var used = rows.FirstOrDefault(r => r.Hardware == gpu.Name && r.Name == "GPU Memory Used")?.RawValue;
-                var total = rows.FirstOrDefault(r => r.Hardware == gpu.Name && r.Name == "GPU Memory Total")?.RawValue;
-                if (used != null && total > 0) vramPct = 100.0 * used.Value / total.Value;
+                if (r.Type == SensorType.Load && r.Name == "GPU Core") gpuLoad = r.RawValue;
+                if (r.Type == SensorType.Temperature)
+                {
+                    if (r.Name == "GPU Core") gpuTemp = r.RawValue;
+                    else gpuTempFallback ??= r.RawValue;
+                }
+                if (r.Name == "GPU Memory Used") memUsed = r.RawValue;
+                if (r.Name == "GPU Memory Total") memTotal = r.RawValue;
             }
-            if (gpu.NvmlHandle != IntPtr.Zero && Nvml.ThrottleReasons(gpu.NvmlHandle) is ulong r)
-                thermal = (r & 0x60) != 0; // SW/HW thermal slowdown
+
+            if (r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Load &&
+                r.Name.StartsWith("CPU Core #") && !r.Name.Contains("Thread") && r.RawValue != null)
+            {
+                if (busiest == null || r.RawValue > busiest.RawValue) busiest = r;
+            }
+
+            if (r.HardwareType == HardwareType.Memory && r.Type == SensorType.Load && r.Name == "Memory")
+                ram = r.RawValue;
         }
 
-        var cores = rows.Where(r => r.HardwareType == HardwareType.Cpu && r.Type == SensorType.Load &&
-                                    r.Name.StartsWith("CPU Core #") && !r.Name.Contains("Thread") && r.RawValue != null).ToList();
-        var busiest = cores.OrderByDescending(r => r.RawValue).FirstOrDefault();
-        float? ram = rows.FirstOrDefault(r => r.HardwareType == HardwareType.Memory && r.Type == SensorType.Load && r.Name == "Memory")?.RawValue;
+        gpuTemp ??= gpuTempFallback;
+
+        if (gpu != null)
+        {
+            if (gpu.NvmlHandle != IntPtr.Zero && Nvml.MemoryInfo(gpu.NvmlHandle) is Nvml.Memory mem && mem.Total > 0)
+                vramPct = 100.0 * mem.Used / mem.Total;
+            else if (memUsed != null && memTotal > 0)
+                vramPct = 100.0 * memUsed.Value / memTotal.Value;
+
+            if (gpu.NvmlHandle != IntPtr.Zero && Nvml.ThrottleReasons(gpu.NvmlHandle) is ulong tr)
+                thermal = (tr & 0x60) != 0; // SW/HW thermal slowdown
+        }
 
         return new LoadSample(gpuLoad, m.CpuLoad, busiest?.RawValue, busiest?.Name.Replace("CPU Core #", "núcleo "),
                               vramPct, ram, gpuTemp, m.CpuTemperature, thermal, frames?.Fps);
@@ -113,10 +133,18 @@ public sealed class BottleneckSession
 
     public void Add(LoadSample s) => _samples.Add((s, s.Classify()));
 
-    public IReadOnlyList<(Limiter Limiter, double Pct)> Distribution() =>
-        _samples.GroupBy(x => x.Limiter)
-                .Select(g => (g.Key, 100.0 * g.Count() / Math.Max(1, _samples.Count)))
-                .OrderByDescending(x => x.Item2).ToList();
+    public IReadOnlyList<(Limiter Limiter, double Pct)> Distribution()
+    {
+        if (_samples.Count == 0) return Array.Empty<(Limiter, double)>();
+        Span<int> counts = stackalloc int[6]; // Gpu, Cpu, Vram, Ram, Thermal, Capped
+        foreach (var s in _samples) counts[(int)s.Limiter]++;
+        var result = new List<(Limiter, double)>(6);
+        double total = Math.Max(1, _samples.Count);
+        for (int i = 0; i < counts.Length; i++)
+            if (counts[i] > 0) result.Add(((Limiter)i, 100.0 * counts[i] / total));
+        result.Sort((a, b) => b.Item2.CompareTo(a.Item2));
+        return result;
+    }
 
     public Limiter? Main => _samples.Count == 0 ? null : Distribution()[0].Limiter;
 
@@ -124,20 +152,32 @@ public sealed class BottleneckSession
     {
         get
         {
-            var f = _samples.Where(x => x.Sample.Fps > 0).Select(x => x.Sample.Fps!.Value).ToList();
-            return f.Count > 0 ? f.Average() : null;
+            double sum = 0; int count = 0;
+            foreach (var s in _samples)
+                if (s.Sample.Fps > 0) { sum += s.Sample.Fps!.Value; count++; }
+            return count > 0 ? sum / count : null;
         }
     }
 
     public double? Avg(Func<LoadSample, float?> sel)
     {
-        var v = _samples.Select(x => sel(x.Sample)).Where(x => x != null).Select(x => (double)x!.Value).ToList();
-        return v.Count > 0 ? v.Average() : null;
+        double sum = 0; int count = 0;
+        foreach (var s in _samples)
+        {
+            var v = sel(s.Sample);
+            if (v != null) { sum += v.Value; count++; }
+        }
+        return count > 0 ? sum / count : null;
     }
 
     public double? Max(Func<LoadSample, double?> sel)
     {
-        var v = _samples.Select(x => sel(x.Sample)).Where(x => x != null).Select(x => x!.Value).ToList();
-        return v.Count > 0 ? v.Max() : null;
+        double max = double.MinValue; bool found = false;
+        foreach (var s in _samples)
+        {
+            var v = sel(s.Sample);
+            if (v != null) { if (v.Value > max) max = v.Value; found = true; }
+        }
+        return found ? max : null;
     }
 }
