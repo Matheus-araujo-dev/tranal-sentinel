@@ -128,8 +128,13 @@ public partial class MainWindow
             }
 
             if (UpdateProgressText is not null)
-                UpdateProgressText.Text = "Pronto. Feche o TRANAL SENTINEL para concluir a atualização.";
-            if (BtnAtualizar is not null) BtnAtualizar.Content = "ATUALIZAR";
+                UpdateProgressText.Text = "Reiniciando para aplicar a atualização…";
+
+            // O processo filho já está rodando e espera o app fechar para trocar
+            // o executável e reabrir. Fecha o app automaticamente em vez de pedir
+            // que o usuário feche à mão.
+            await Task.Delay(1500);
+            Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
