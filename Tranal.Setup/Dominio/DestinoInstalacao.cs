@@ -21,7 +21,7 @@ public sealed record DestinoInstalacao
     /// <summary>Pasta final (absoluta) da instalação.</summary>
     public string Pasta { get; }
 
-    /// <summary>Destino padrão: %ProgramFiles%\Tranal Sentinel.</summary>
+    /// <summary>Destino padrão: %ProgramFiles%\Tranal Group\Tranal Sentinel.</summary>
     public static DestinoInstalacao Padrao(ContextoSistema contexto)
         => new(CaminhosInstalacao.PastaPadrao(contexto));
 
@@ -112,9 +112,11 @@ public sealed record DestinoInstalacao
 
     /// <summary>
     /// Regra do botão "escolher pasta": o TRANAL SENTINEL é instalado dentro da
-    /// pasta escolhida, numa subpasta com o nome do produto. Se a pasta escolhida
-    /// já for a pasta do produto, ela é usada como está (reinstalar no mesmo
-    /// lugar não cria "Tranal Sentinel\Tranal Sentinel").
+    /// pasta escolhida, em "Tranal Group\Tranal Sentinel" — todo app Tranal
+    /// fica na pasta do grupo. Se a pasta escolhida já for a do produto, ela é
+    /// usada como está (reinstalar no mesmo lugar não cria
+    /// "Tranal Sentinel\Tranal Sentinel"); se for a do grupo, só a do produto
+    /// é acrescentada (não cria "Tranal Group\Tranal Group").
     /// </summary>
     public static string PastaDentroDe(string pastaEscolhida)
     {
@@ -123,7 +125,10 @@ public sealed record DestinoInstalacao
         if (string.Equals(nome, CaminhosInstalacao.NomePasta, StringComparison.OrdinalIgnoreCase))
             return pasta;
 
-        return Path.Combine(pasta, CaminhosInstalacao.NomePasta);
+        if (string.Equals(nome, CaminhosInstalacao.NomeGrupo, StringComparison.OrdinalIgnoreCase))
+            return Path.Combine(pasta, CaminhosInstalacao.NomePasta);
+
+        return Path.Combine(pasta, CaminhosInstalacao.NomeGrupo, CaminhosInstalacao.NomePasta);
     }
 
     /// <summary>Normaliza o caminho: completo, sem barra no fim, sem aspas em volta.</summary>

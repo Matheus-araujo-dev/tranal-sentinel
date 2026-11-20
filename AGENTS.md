@@ -93,6 +93,10 @@ Baseline de avisos: **16 no app, 0 no instalador**. Acima disso, é regressão.
   fechado: o Windows não deixa sobrescrever um `.exe` em uso.
 - **A inicialização automática é tarefa agendada**, não chave `Run`: o app exige
   administrador, e `requireAdministrator` na `Run` pediria UAC a cada login.
+- **Todo app Tranal mora em `Tranal Group`** (decisão do dono, 20/11/2026,
+  para todo instalador de todo projeto): o padrão é
+  `%ProgramFiles%\Tranal Group\Tranal Sentinel`, e escolher outra pasta-raiz
+  instala em `<raiz>\Tranal Group\Tranal Sentinel` (`DestinoInstalacao.PastaDentroDe`).
 - **A pasta de instalação é escolha do usuário.** A regra que decide onde o app
   fica mora só em `DestinoInstalacao.cs` (construtor privado: todo destino já
   passou pela validação). A desinstalação descobre o local pelo `InstallLocation`

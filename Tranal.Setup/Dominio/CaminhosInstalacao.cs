@@ -16,7 +16,14 @@ namespace TranalSetup.Dominio;
 /// </summary>
 public static class CaminhosInstalacao
 {
-    /// <summary>Nome da pasta de instalação dentro de %ProgramFiles%.</summary>
+    /// <summary>
+    /// Pasta do grupo, onde moram todos os apps Tranal (decisão do dono, de
+    /// 20/11/2026, que vale para todo instalador: o Tranal Uninstaller Pro já
+    /// fica em <c>Program Files\Tranal Group</c>).
+    /// </summary>
+    public const string NomeGrupo = "Tranal Group";
+
+    /// <summary>Nome da pasta do app, dentro da pasta do grupo.</summary>
     public const string NomePasta = "Tranal Sentinel";
 
     /// <summary>Nome do executável do app instalado.</summary>
@@ -58,9 +65,9 @@ public static class CaminhosInstalacao
     /// <summary>Extensão do backup do executável instalado.</summary>
     public const string ExtensaoBackup = ".bak";
 
-    /// <summary>Pasta de destino padrão da instalação (%ProgramFiles%\Tranal Sentinel).</summary>
+    /// <summary>Pasta de destino padrão da instalação (%ProgramFiles%\Tranal Group\Tranal Sentinel).</summary>
     public static string PastaPadrao(ContextoSistema contexto)
-        => Path.Combine(contexto.PastaProgramFiles, NomePasta);
+        => Path.Combine(contexto.PastaProgramFiles, NomeGrupo, NomePasta);
 
     /// <summary>Caminho do executável do app dentro da pasta de instalação.</summary>
     public static string ExecutavelInstalado(string pastaDestino)

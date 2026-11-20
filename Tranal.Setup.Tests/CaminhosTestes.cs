@@ -19,9 +19,9 @@ public class CaminhosTestes
     };
 
     [Fact]
-    public void PastaPadrao_UsarProgramFilesEONomeDaPasta()
+    public void PastaPadrao_UsarProgramFilesAPastaDoGrupoEONomeDaPasta()
     {
-        Assert.Equal(@"C:\Program Files\Tranal Sentinel",
+        Assert.Equal(@"C:\Program Files\Tranal Group\Tranal Sentinel",
             CaminhosInstalacao.PastaPadrao(ContextoDeTeste()));
     }
 

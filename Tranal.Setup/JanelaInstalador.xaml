@@ -53,7 +53,7 @@
                             ToolTip="Escolher outra pasta"
                             Click="BtnEscolherPasta_Click" />
                 </Grid>
-                <TextBlock Text="O botão ... cria a subpasta “Tranal Sentinel” dentro da pasta escolhida. A caixa aceita o caminho completo."
+                <TextBlock Text="O botão ... instala em “Tranal Group\Tranal Sentinel” dentro da pasta escolhida. A caixa aceita o caminho completo."
                            Foreground="#6B7484" FontSize="11" Margin="0,5,0,0" TextWrapping="Wrap" />
                 <TextBlock x:Name="TxtDestinoErro" Margin="0,6,0,0" Foreground="#A82E2E" FontSize="11"
                            TextWrapping="Wrap" Visibility="Collapsed" />
