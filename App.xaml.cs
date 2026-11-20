@@ -74,21 +74,8 @@ public partial class App : Application
             return;
         }
 
-        // Processo filho da coleta de sensores: não abre janela e não trava
-        // a instância única (é quem grava as leituras para o app pai ler).
-        int indiceWorker = Array.FindIndex(e.Args, a => string.Equals(a, SensorWorker.Argumento, StringComparison.OrdinalIgnoreCase));
-        if (indiceWorker >= 0)
-        {
-            string caminhoLeituras = indiceWorker + 1 < e.Args.Length ? e.Args[indiceWorker + 1] : "";
-            string caminhoPausa = indiceWorker + 2 < e.Args.Length ? e.Args[indiceWorker + 2] : "";
-            int idPai = indiceWorker + 3 < e.Args.Length && int.TryParse(e.Args[indiceWorker + 3], out int pid) ? pid : 0;
-            bool semGpu = Array.Exists(e.Args, a => string.Equals(a, "--sem-gpu", StringComparison.OrdinalIgnoreCase));
-            int intervalo = Argumento(e.Args, "--intervalo", 1000);
-            if (caminhoLeituras.Length > 0)
-                SensorWorker.Rodar(caminhoLeituras, caminhoPausa, idPai, !semGpu, intervalo);
-            Shutdown();
-            return;
-        }
+        // O processo filho da coleta de sensores não passa por aqui: ele sobe
+        // antes do WPF, no Programa (SensorWorker.TentarRodar).
 
         // Teste de linha de comando do visor Kalkan: não abre janela e não trava
         // a instância única (dá para rodar com o app já aberto).
@@ -128,22 +115,20 @@ public partial class App : Application
 
         IniciarComoSistema = Array.Exists(e.Args, a => string.Equals(a, "--iniciar-como-sistema", StringComparison.OrdinalIgnoreCase));
 
+        // A interface é desenhada por software, a não ser que o dono peça o
+        // contrário: a renderização por hardware carrega o driver de vídeo
+        // no processo e custava ~80 MB (o motivo está em AppSettings.AceleracaoGrafica).
+        // Precisa vir antes da primeira janela: depois dela, não vale mais.
+        if (!AppSettings.Load().AceleracaoGrafica)
+            System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
+
         base.OnStartup(e);
         new MainWindow().Show();
     }
 
     /// <summary>Lê o valor de um argumento do tipo "--nome valor".</summary>
-    private static int Argumento(string[] args, string nome, int padrao)
-    {
-        int i = Array.FindIndex(args, a => string.Equals(a, nome, StringComparison.OrdinalIgnoreCase));
-        if (i < 0 || i + 1 >= args.Length) return padrao;
-        return int.TryParse(args[i + 1], out int n) ? n : padrao;
-    }
+    private static int Argumento(string[] args, string nome, int padrao) => LinhaDeComando.Inteiro(args, nome, padrao);
 
     /// <summary>Lê o valor textual de um argumento do tipo "--nome valor".</summary>
-    private static string ArgumentoTexto(string[] args, string nome)
-    {
-        int i = Array.FindIndex(args, a => string.Equals(a, nome, StringComparison.OrdinalIgnoreCase));
-        return i >= 0 && i + 1 < args.Length ? args[i + 1] : "";
-    }
+    private static string ArgumentoTexto(string[] args, string nome) => LinhaDeComando.Texto(args, nome);
 }

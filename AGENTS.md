@@ -768,16 +768,65 @@ Medido no PC do dono em 17/11/2026: a rolagem da roda **não funcionava** no Ope
 - **O gancho de teclado do app nunca engole evento**: o callback chama `CallNextHookEx` sempre. O app não tem gancho de mouse — as duas queixas não tinham o app como causa.
 
 
+### v0.36 — memória
+
+Medido em 20/11/2026 numa cópia do app sem administrador (dump do heap com
+`dotnet-dump`, memória privada lida pelo contador do Windows): o heap
+gerenciado tinha só ~11 MB vivos; o que pesava era nativo.
+
+- **A interface é desenhada por software** (`RenderOptions.ProcessRenderMode`,
+  ligado no `App.OnStartup`, antes da primeira janela). Com a renderização por
+  hardware, o WPF carrega o driver de vídeo no processo (no PC do dono,
+  `AMDXN64.DLL`) e o processo principal ia de ~94 MB para ~175 MB de memória
+  privada. A interface não tem efeito nem animação, e os benchmarks de GPU
+  desenham na própria janela Direct3D: não dependem disto. A saída de
+  emergência é `AppSettings.AceleracaoGrafica` (só no `settings.json`).
+  Trocar o modo de uma janela já desenhada **não** devolve tudo (medido:
+  sobram ~35 MB do driver) — por isso a decisão é na subida.
+- **JSON grande nunca vira `string`.** O retrato dos sensores tem ~120 KB:
+  como string, cada leitura caía no heap de objetos grandes e só saía na
+  coleta completa (~95 cópias mortas, ~11 MB). O coletor grava e o app lê
+  direto do `FileStream`. E o coletor só grava a volta **nova**
+  (`ReferenceEquals` com a última gravada).
+- **O coletor de sensores não carrega o WPF.** A entrada do executável é o
+  `Programa` (`<StartupObject>`): ele desvia o `--sensores-worker` antes do
+  `App` existir. A parte WPF fica num método `NoInlining` — com o `App` dentro
+  do `Main`, o JIT carregava o `PresentationFramework` mesmo no coletor.
+- **O runtime ajustado vale só para o coletor** (`SensorWorker.AmbienteDoRuntime`,
+  passado pelo ambiente no lançamento): `gcConcurrent=0`, `GCgen0size` de 2 MB
+  e sem PGO dinâmico — de ~24 MB para ~19 MB. O processo principal **não**
+  recebe ajuste de JIT nem de GC: o TRANAL BENCH e os stress tests medem a CPU
+  com o runtime padrão, e mudar isso mudaria as notas.
+- **Reescrever em Rust não resolveria**: o custo era o driver de vídeo e o
+  WPF, não o código C#. O heap gerenciado é a menor parte.
+- O `FrameMonitor` esquece os processos que pararam de apresentar quadros
+  (antes, cada programa que já desenhou um quadro ficava com até 10 s de
+  quadros guardados para sempre).
+
 ## Publicar
 
 ```powershell
-git push origin main                      # CI monta a release "latest"
-git tag -a v0.17 -m "..." && git push origin v0.17   # CI monta a release da versão
+git push origin main      # e só: o CI decide a versão, gera os .exe e publica a release vX.Y.Z
 ```
 
-O `.github/workflows/publicar.yml` roda os testes **do app e do instalador**,
-publica o app e o instalador e sobe as releases. O asset **precisa** se chamar `TranalSentinel.exe`: é o que o
-auto-update procura.
+**Todo push na main é uma versão nova**, sem tag manual. O
+`.github/workflows/publicar.yml` decide o número, roda os testes **do app e do
+instalador**, publica os dois executáveis com esse número gravado, confere a
+versão do `TranalSentinel.exe` e cria a tag `vX.Y.Z` com a release (marcada
+como a "Latest" do GitHub). A release rolante `latest` continua sendo
+atualizada, para quem guardou o link dela.
+
+- **A regra do número:** a versão nova parte da maior tag publicada. O push
+  sobe o **patch** (v0.36.0 → v0.36.1). O botão **Run workflow** da aba
+  Actions (só na main) deixa escolher `patch`, `minor` (→ v0.37.0) ou `major`
+  (→ v1.0.0) — é assim que se marca um marco, sem editar arquivo. A versão do
+  `Directory.Build.props` é um **piso**: se ela é maior que o resultado, vale
+  ela. Nenhuma release sai com número repetido ou menor — o auto-update
+  compara a `AssemblyVersion` com a maior tag, e uma tag repetida faria o
+  app instalado nunca ver a atualização.
+- **O `Directory.Build.props` não é reescrito pelo CI**: o número de cada
+  release vive na tag. Um build local sai com o piso.
+- O asset **precisa** se chamar `TranalSentinel.exe`: é o que o auto-update procura.
 
 ## Onde as coisas estão
 
@@ -824,5 +873,6 @@ auto-update procura.
 | `Tranal.Setup\` | O instalador (admin, atalhos, tarefa agendada, desinstalação). |
 | `Tranal.Setup\Dominio\DestinoInstalacao.cs` | Onde o app é instalado. Regra única do destino (pasta escolhida pelo usuário). |
 | `WindowsTweakRegras.cs` / `WindowsTweaks.cs` | Os ajustes do TRANAL OTIMIZA: a regra pura (núcleo testável) e o executor no Windows (SPI da rolagem e o Alt+Tab do Windows 11), com o valor original guardado para desfazer. |
+| `Programa.cs` / `LinhaDeComando.cs` | A entrada do executável (desvia o coletor de sensores antes do WPF) e a leitura dos argumentos, em um lugar só. |
 | `TUTORIAL.md` | O tutorial do app: o que cada aba faz, por que existe e o que o dono ganha com ela. |
 | `MERCADO.md` | Pesquisa de concorrentes e o que foi adotado aqui. |

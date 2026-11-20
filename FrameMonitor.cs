@@ -69,7 +69,36 @@ public sealed class FrameMonitor : IDisposable
             if (!_presents.TryGetValue(e.ProcessID, out var q)) _presents[e.ProcessID] = q = new Queue<double>();
             q.Enqueue(t);
             while (q.Count > 0 && q.Peek() < t - HistoryMs) q.Dequeue();
-            _lastSeen[e.ProcessID] = Stopwatch.GetTimestamp();
+            long agora = Stopwatch.GetTimestamp();
+            _lastSeen[e.ProcessID] = agora;
+            EsquecerParados(agora);
+        }
+    }
+
+    private long _ultimaFaxina = Stopwatch.GetTimestamp();
+
+    /// <summary>
+    /// Esquece os processos que pararam de apresentar quadros. Quase todo
+    /// programa com janela (navegador, chat, o próprio Explorer) passa pelo
+    /// DXGI: sem a faxina, cada um que já apresentou um quadro ficava com até
+    /// 10 s de quadros guardados para sempre, mesmo depois de fechado.
+    /// Chamado com a trava segurada.
+    /// </summary>
+    private void EsquecerParados(long agora)
+    {
+        if (Stopwatch.GetElapsedTime(_ultimaFaxina, agora).TotalMilliseconds < HistoryMs) return;
+        _ultimaFaxina = agora;
+
+        List<int>? parados = null;
+        foreach (var (pid, visto) in _lastSeen)
+            if (Stopwatch.GetElapsedTime(visto, agora).TotalMilliseconds > HistoryMs)
+                (parados ??= new()).Add(pid);
+
+        if (parados is null) return;
+        foreach (int pid in parados)
+        {
+            _lastSeen.Remove(pid);
+            _presents.Remove(pid);
         }
     }
 
@@ -114,7 +143,7 @@ public sealed class FrameMonitor : IDisposable
 
     private static string ProcessName(int pid)
     {
-        try { return Process.GetProcessById(pid).ProcessName; }
+        try { using var p = Process.GetProcessById(pid); return p.ProcessName; }
         catch { return $"PID {pid}"; }
     }
 

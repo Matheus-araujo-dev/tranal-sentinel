@@ -15,6 +15,9 @@
     <!-- Sempre otimizado: o TRANAL BENCH e os stress tests precisam do JIT otimizado tambem em Debug -->
     <Optimize>true</Optimize>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- A entrada é o Programa, e não o Main gerado do App.xaml: o processo de
+         coleta de sensores sobe sem carregar o WPF (ver Programa.cs). -->
+    <StartupObject>TranalSentinel.Programa</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>

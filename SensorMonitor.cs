@@ -592,6 +592,8 @@ public sealed class SensorMonitor : IDisposable
         if (!usarGpu) psi.ArgumentList.Add("--sem-gpu");
         psi.ArgumentList.Add("--intervalo");
         psi.ArgumentList.Add(IntervaloColetaMs.ToString());
+        foreach (var (nome, valor) in SensorWorker.AmbienteDoRuntime)
+            psi.Environment[nome] = valor;
 
         var filho = Process.Start(psi);
         if (filho is null) return;
@@ -654,8 +656,13 @@ public sealed class SensorMonitor : IDisposable
             if (info.LastWriteTimeUtc == _ultimaLeituraArquivo) return;
             _ultimaLeituraArquivo = info.LastWriteTimeUtc;
 
-            string json = File.ReadAllText(_arquivoLeituras);
-            var snap = JsonSerializer.Deserialize<SensorSnapshot>(json, SensorValor.OpcoesJson);
+            // Lido direto do arquivo, sem passar por uma string: o JSON de
+            // uma volta vira uma string de ~120 KB, que cai no heap de objetos
+            // grandes e só sai na coleta completa (medido em 20/11/2026:
+            // ~95 delas mortas e paradas, ~11 MB).
+            SensorSnapshot? snap;
+            using (var arquivo = new FileStream(_arquivoLeituras, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 16 * 1024))
+                snap = JsonSerializer.Deserialize<SensorSnapshot>(arquivo, SensorValor.OpcoesJson);
             if (snap is null) return;
 
             Volatile.Write(ref _snapshot, snap);

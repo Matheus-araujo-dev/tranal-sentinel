@@ -1,12 +1,25 @@
 name: Publicar
 
-# A cada push na main, gera o TranalSentinel.exe e atualiza a release "latest" (sempre a versão mais nova).
-# Ao criar uma tag (ex.: v0.12), gera também uma release fixa dessa versão.
+# Todo push na main vira uma versão nova, sem passo manual:
+#   1. decide o número da versão (ver o passo "Decidir a versão");
+#   2. roda os testes do app e do instalador;
+#   3. gera o TranalSentinel.exe e o TranalSetup.exe com esse número gravado;
+#   4. cria a tag vX.Y.Z e a release dela, com os executáveis para baixar.
+# O auto-update (AutoUpdate.cs) procura a maior tag de versão entre as
+# releases: sem a tag versionada, o app instalado nunca veria a atualização.
+#
+# O botão "Run workflow" (aba Actions) publica na hora, escolhendo o salto:
+# patch (0.36.1 -> 0.36.2), minor (-> 0.37.0) ou major (-> 1.0.0).
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tipo:
+        description: 'Que parte da versão sobe'
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
 permissions:
   contents: write
@@ -25,17 +38,80 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Só a main publica: o botão rodado em outra branch soltaria uma
+      # release com código que não foi mesclado.
+      - name: Conferir a branch
+        if: github.ref != 'refs/heads/main'
+        shell: pwsh
+        run: throw "Publicar só roda na main (esta execução é de $env:GITHUB_REF)."
+
+      # A versão nova parte da maior tag já publicada e sobe a parte pedida
+      # (no push, sempre o patch). A versão do Directory.Build.props é um
+      # PISO: se ela é maior que o resultado (alguém subiu à mão: 0.36.0),
+      # vale ela. Assim nenhuma release sai com número repetido ou menor, e o
+      # auto-update sempre enxerga a nova.
+      - name: Decidir a versão
+        id: versao
+        shell: pwsh
+        env:
+          TIPO: ${{ inputs.tipo || 'patch' }}
+        run: |
+          [xml]$props = Get-Content Directory.Build.props
+          $piso = [version]($props.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+
+          function Normalizar([version]$v) {
+            [version]::new($v.Major, $v.Minor, [Math]::Max($v.Build, 0))
+          }
+
+          $tags = git ls-remote --tags origin |
+            ForEach-Object { ($_ -split 'refs/tags/')[1] } |
+            Where-Object { $_ -match '^v\d+\.\d+(\.\d+)?$' } |
+            ForEach-Object { Normalizar ([version]$_.Substring(1)) }
+          $maior = $tags | Sort-Object -Descending | Select-Object -First 1
+          if (-not $maior) { $maior = [version]::new(0, 0, 0) }
+
+          $candidata = switch ($env:TIPO) {
+            'major' { [version]::new($maior.Major + 1, 0, 0) }
+            'minor' { [version]::new($maior.Major, $maior.Minor + 1, 0) }
+            default { [version]::new($maior.Major, $maior.Minor, $maior.Build + 1) }
+          }
+
+          $piso = Normalizar $piso
+          $nova = if ($piso -gt $candidata) { $piso } else { $candidata }
+
+          "Tipo: $env:TIPO | maior tag: $maior | piso (Directory.Build.props): $piso | versão nova: $nova"
+          "numero=$nova" >> $env:GITHUB_OUTPUT
+
       - name: Testes do app
         run: dotnet test TranalSentinel.Tests/TranalSentinel.Tests.csproj -c Release -nologo
 
       - name: Testes do instalador
         run: dotnet test Tranal.Setup.Tests/Tranal.Setup.Tests.csproj -c Release -nologo
 
+      # A versão decidida entra pela linha de comando: ela vale por cima do
+      # Directory.Build.props, e o executável sai com o número da release
+      # (é com ele que o auto-update compara).
       - name: Publicar (arquivo único, com o .NET embutido)
-        run: dotnet publish TranalSentinel.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist -nologo
+        shell: pwsh
+        run: |
+          $v = "${{ steps.versao.outputs.numero }}"
+          dotnet publish TranalSentinel.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist -nologo `
+            "-p:Version=$v" "-p:AssemblyVersion=$v.0" "-p:FileVersion=$v.0" "-p:InformationalVersion=$v"
 
       - name: Publicar o instalador
-        run: dotnet publish Tranal.Setup/Tranal.Setup.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist-instalador -nologo
+        shell: pwsh
+        run: |
+          $v = "${{ steps.versao.outputs.numero }}"
+          dotnet publish Tranal.Setup/Tranal.Setup.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist-instalador -nologo `
+            "-p:Version=$v" "-p:AssemblyVersion=$v.0" "-p:FileVersion=$v.0" "-p:InformationalVersion=$v"
+
+      - name: Conferir a versão gravada no executável
+        shell: pwsh
+        run: |
+          $esperada = "${{ steps.versao.outputs.numero }}.0"
+          $gravada = (Get-Item dist/TranalSentinel.exe).VersionInfo.FileVersion
+          if ($gravada -ne $esperada) { throw "O executável saiu com a versão $gravada, e a release é $esperada." }
+          "TranalSentinel.exe $gravada"
 
       - name: Montar pacote
         shell: pwsh
@@ -45,20 +121,26 @@ jobs:
           Copy-Item Assets/PawnIO/NOTICE.txt dist/NOTICE.txt
           Compress-Archive -Path dist/TranalSentinel.exe, dist/LEIA-ME.txt, dist/COPYING, dist/NOTICE.txt -DestinationPath TranalSentinel.zip
 
-      - name: Atualizar release "latest"
-        if: startsWith(github.ref, 'refs/heads/')
+      # A release da versão é a "Latest" do GitHub: é a que aparece para
+      # baixar na página do repositório. A tag é criada pelo próprio gh, no
+      # commit deste push (a tag criada com o GITHUB_TOKEN não dispara outra
+      # execução deste workflow).
+      - name: Release da versão
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $sha = "$env:GITHUB_SHA".Substring(0, 7)
-          gh release delete latest --cleanup-tag --yes
-          gh release create latest TranalSentinel.zip dist/TranalSentinel.exe dist-instalador/TranalSetup.exe --target $env:GITHUB_SHA --latest --title "TRANAL SENTINEL (versão mais recente)" --notes-file NOVIDADES.md
+          $tag = "v${{ steps.versao.outputs.numero }}"
+          gh release create $tag TranalSentinel.zip dist/TranalSentinel.exe dist-instalador/TranalSetup.exe `
+            --target $env:GITHUB_SHA --latest --title "TRANAL SENTINEL $tag" --notes-file NOVIDADES.md
 
-      - name: Release da versão (tag)
-        if: startsWith(github.ref, 'refs/tags/')
+      # A release rolante "latest" continua existindo para quem guardou o link
+      # dela; ela só não é mais a marcada como "Latest" no GitHub.
+      - name: Atualizar release "latest"
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create $env:GITHUB_REF_NAME TranalSentinel.zip dist/TranalSentinel.exe dist-instalador/TranalSetup.exe --title "TRANAL SENTINEL $env:GITHUB_REF_NAME" --generate-notes --latest=false
+          gh release delete latest --cleanup-tag --yes 2>$null
+          gh release create latest TranalSentinel.zip dist/TranalSentinel.exe dist-instalador/TranalSetup.exe `
+            --target $env:GITHUB_SHA --latest=false --title "TRANAL SENTINEL (versão mais recente)" --notes-file NOVIDADES.md
