@@ -1,24 +1,29 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using LibreHardwareMonitor.Hardware;
 
 namespace TranalSentinel;
 
-/// <summary>Overlay: o que mostrar (escolhido na aba Overlay) e a montagem das linhas de sensores.</summary>
+/// <summary>
+/// Integração da <see cref="MonitorWindow"/> com a janela principal: liga e
+/// desliga a janela unificada (modos desktop e jogo), o relógio que a
+/// atualiza, a posição guardada e o seletor de métricas do overlay.
+/// </summary>
 public partial class MainWindow
 {
+    /// <summary>A janela unificada de monitoramento (null enquanto ela não foi ligada).</summary>
+    private MonitorWindow? _monitor2;
+
+    /// <summary>O relógio que atualiza o monitor unificado.</summary>
+    private DispatcherTimer? _monitorTimer;
+
+    // ------------------------------------------------------------------ overlay: itens configuráveis
+
     private HashSet<string>? _ovShow;
     private HashSet<string> OvShow => _ovShow ??= _settings.OverlayItems is { } l ? l.ToHashSet() : OverlayMetrics.Defaults();
 
-    /// <summary>
-    /// O que cada item do seletor "O que mostrar" coloca no overlay.
-    ///
-    /// <para>
-    /// A chave é a mesma de <see cref="OverlayMetric.Key"/>: o catálogo do
-    /// overlay e a dica moram lado a lado, para não existirem duas listas
-    /// de itens que podem sair de sincronia.
-    /// </para>
-    /// </summary>
+    /// <summary>Dicas das métricas do overlay.</summary>
     private static readonly Dictionary<string, string> DicasOverlay = new()
     {
         ["fps"] = "Quadros por segundo que o jogo está desenhando. É o número que diz se a jogada está fluida.",
@@ -49,7 +54,9 @@ public partial class MainWindow
         ["clock"] = "Hora do relógio no rodapé do overlay. Ajuda a marcar o começo da sessão.",
     };
 
-    /// <summary>Cria as caixas de seleção da aba Overlay, agrupadas por componente.</summary>
+    // ------------------------------------------------------------------ overlay: seletor de métricas
+
+    /// <summary>Cria as caixas de seleção da aba Monitor, agrupadas por componente.</summary>
     private void BuildOverlayPicker()
     {
         OvItemsPanel.Children.Clear();
@@ -63,9 +70,6 @@ public partial class MainWindow
             foreach (var m in group)
             {
                 var cb = new CheckBox { Content = m.Label, Tag = m.Key, IsChecked = OvShow.Contains(m.Key), Margin = new Thickness(0, 0, 18, 6) };
-                // A dica entra junto com a caixa: o seletor é reconstruído a
-                // cada preset, então o ToolTip vai na criação da caixa para
-                // não sumir na primeira reconstrução.
                 ToolTipService.SetToolTip(cb, DicasOverlay.TryGetValue(m.Key, out var dica)
                     ? dica
                     : $"Coloca a linha {m.Label} no overlay, junto das outras escolhidas.");
@@ -84,7 +88,7 @@ public partial class MainWindow
     {
         _settings.OverlayItems = OverlayMetrics.All.Select(m => m.Key).Where(OvShow.Contains).ToList();
         _settings.Save();
-        UpdateOverlay();
+        UpdateMonitor();
     }
 
     private void OvPreset_Click(object sender, RoutedEventArgs e)
@@ -100,7 +104,7 @@ public partial class MainWindow
         BuildOverlayPicker();
     }
 
-    // ------------------------------------------------------------------ leitura dos sensores
+    // ------------------------------------------------------------------ leitura dos sensores (overlay)
 
     private SensorRow? GpuRow(SensorType type, string name, bool startsWith = false) =>
         _gpus.Count == 0 ? null : _monitor.Rows.FirstOrDefault(r => r.Hardware == _gpus[0].Name && r.Type == type &&
@@ -163,7 +167,7 @@ public partial class MainWindow
         if (show.Contains("cpu_temp")) cpu.Add(T(s.CpuTemp));
         if (show.Contains("cpu_clock")) cpu.Add(avg is float ca ? SensorTexto.Gigahertz(ca / 1000) : SensorTexto.Ausente);
         if (show.Contains("cpu_clockmax")) cpu.Add(max is float cm ? $"pico {SensorTexto.Gigahertz(cm / 1000)}" : "pico —");
-        if (show.Contains("cpu_power")) cpu.Add(_monitor.CpuPower is float cw && cw > 0 ? SensorTexto.Watts(cw) : SensorTexto.Ausente); // 0 = sem leitura (precisa de administrador)
+        if (show.Contains("cpu_power")) cpu.Add(_monitor.CpuPower is float cw && cw > 0 ? SensorTexto.Watts(cw) : SensorTexto.Ausente);
         Line("CPU", cpu);
 
         var ram = new List<string>();
@@ -172,5 +176,236 @@ public partial class MainWindow
         if (show.Contains("ram_pct")) ram.Add(P(s.RamPct));
         Line("RAM", ram);
         return lines;
+    }
+
+    // ------------------------------------------------------------------ painel (modo desktop)
+
+    /// <summary>
+    /// Liga ou desliga o modo painel (janela arrastável com CPU/GPU/RAM/ventoinha).
+    /// </summary>
+    private void ChkPainel_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ChkPainel.IsChecked == true)
+        {
+            CriarMonitor();
+
+            _monitor2!.Topmost = _settings.PainelSempreNoTopo;
+            _monitor2.TrocarModo(MonitorWindow.Modo.Desktop);
+
+            if (!_monitor2.IsVisible) _monitor2.Show();
+
+            if (UpdatePainel())
+            {
+                _monitor2.UpdateLayout();
+                RestaurarPosicaoDoPainel();
+
+                IniciarTimerMonitor();
+            }
+        }
+        else
+        {
+            _monitorTimer?.Stop();
+            SalvarPosicaoDoPainel();
+            if (_monitor2?.ModoAtual == MonitorWindow.Modo.Desktop)
+                _monitor2?.Hide();
+        }
+
+        _settings.PainelVisivel = ChkPainel.IsChecked == true;
+        _settings.Save();
+    }
+
+    /// <summary>Liga ou desliga o "sempre no topo" do painel.</summary>
+    private void ChkPainelOpcao_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_monitor2 is not null) _monitor2.Topmost = ChkPainelTopo.IsChecked == true;
+        _settings.PainelSempreNoTopo = ChkPainelTopo.IsChecked == true;
+        _settings.Save();
+    }
+
+    /// <summary>Devolve o painel para o canto superior direito do monitor principal.</summary>
+    private void PainelCanto_Click(object sender, RoutedEventArgs e)
+    {
+        if (_monitor2 is null) return;
+
+        var area = SystemParameters.WorkArea;
+        var (largura, altura) = TamanhoDoMonitor();
+        _monitor2.Left = area.Right - largura - 12;
+        _monitor2.Top = area.Top + 12;
+
+        SalvarPosicaoDoPainel();
+    }
+
+    private (double largura, double altura) TamanhoDoMonitor()
+    {
+        double largura = _monitor2 is { ActualWidth: > 0 } ? _monitor2.ActualWidth : 260;
+        double altura = _monitor2 is { ActualHeight: > 0 } ? _monitor2.ActualHeight : 120;
+        return (largura, altura);
+    }
+
+    private bool UpdatePainel()
+    {
+        if (_monitor2 is null || !_monitor2.IsVisible) return false;
+
+        try
+        {
+            if (_gpuBenchActive)
+            {
+                _monitor2.UpdatePainel(PainelRegras.LinhasSemLeitura());
+                return true;
+            }
+
+            var s = BottleneckAnalyzer.Sample(_monitor, _gpus.FirstOrDefault(), null);
+
+            var ventoinhas = new List<PainelVentoinha>();
+            try
+            {
+                ventoinhas = _ventoinhas.Cartoes()
+                    .Select(c => new PainelVentoinha(VentoinhaRegras.NomeLegivel(c.Nome), c.RpmAtual))
+                    .ToList();
+            }
+            catch { }
+
+            var retrato = new PainelRetrato(
+                s.CpuTemp, s.CpuTotal, s.GpuTemp, s.GpuLoad, s.RamPct, ventoinhas);
+
+            _monitor2.UpdatePainel(PainelRegras.Linhas(retrato));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _monitorTimer?.Stop();
+            ChkPainel.IsChecked = false;
+            _monitor2?.Hide();
+            RegistroDiario.Registrar("Falha ao atualizar o monitor: " + ex.Message, "MONITOR");
+            return false;
+        }
+    }
+
+    private void SalvarPosicaoDoPainel()
+    {
+        if (_monitor2 is null) return;
+        if (!PainelRegras.PosicaoValida(_monitor2.Left, _monitor2.Top)) return;
+
+        _settings.PainelX = _monitor2.Left;
+        _settings.PainelY = _monitor2.Top;
+        _settings.Save();
+    }
+
+    private void RestaurarPosicaoDoPainel()
+    {
+        if (_monitor2 is null) return;
+
+        var (largura, altura) = TamanhoDoMonitor();
+
+        if (_settings.PainelX is double x && _settings.PainelY is double y
+            && MonitorWindow.DentroDaTela(x, y, largura, altura))
+        {
+            _monitor2.Left = x;
+            _monitor2.Top = y;
+            return;
+        }
+
+        var area = SystemParameters.WorkArea;
+        _monitor2.Left = area.Right - largura - 12;
+        _monitor2.Top = area.Top + 12;
+    }
+
+    /// <summary>Prepara a página de monitor (chamada quando o menu é aberto).</summary>
+    private void InitMonitor()
+    {
+        ChkPainel.IsChecked = _monitor2 is not null && _monitor2.IsVisible;
+        ChkPainelTopo.IsChecked = _settings.PainelSempreNoTopo;
+    }
+
+    // ------------------------------------------------------------------ overlay (modo jogo)
+
+    /// <summary>
+    /// Liga ou desliga o overlay (modo jogo, click-through).
+    /// </summary>
+    private void ChkOverlay_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ChkOverlay.IsChecked == true)
+        {
+            CriarMonitor();
+            ApplyOverlayOptions();
+            _monitor2!.TrocarModo(MonitorWindow.Modo.Jogo);
+            if (!_monitor2.IsVisible) _monitor2.Show();
+            IniciarTimerMonitor();
+            UpdateMonitor();
+        }
+        else
+        {
+            if (_monitor2?.ModoAtual == MonitorWindow.Modo.Jogo)
+            {
+                _monitorTimer?.Stop();
+                _monitor2?.Hide();
+            }
+        }
+    }
+
+    private void OvOption_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_overlayReady) return;
+        _settings.OverlayCorner = CheckedTag(OvCornerPanel) ?? "TL";
+        _settings.OverlayScale = double.Parse(CheckedTag(OvScalePanel) ?? "1", System.Globalization.CultureInfo.InvariantCulture);
+        _settings.Save();
+        ApplyOverlayOptions();
+    }
+
+    private void ApplyOverlayOptions()
+    {
+        if (_monitor2 == null) return;
+        _monitor2.Corner = _settings.OverlayCorner;
+        _monitor2.SetScale(_settings.OverlayScale);
+        _monitor2.Reposition();
+    }
+
+    private void UpdateMonitor()
+    {
+        var f = _frames.GetForegroundStats();
+        if (_monitor2 != null && _monitor2.IsVisible)
+        {
+            if (_monitor2.ModoAtual == MonitorWindow.Modo.Jogo)
+            {
+                _monitor2.UpdateOverlay(f, BuildOverlayLines(f), OvShow, OvShow.Contains("clock") ? DateTime.Now.ToString("HH:mm") : null);
+                _monitor2.KeepOnTop();
+            }
+            else
+            {
+                UpdatePainel();
+            }
+        }
+        UpdateOverlayStatus(f);
+    }
+
+    private void UpdateOverlayStatus(FrameStats? f)
+    {
+        if (_frames.Error != null) OvStatus.Text = $"Detecção de FPS indisponível: {_frames.Error}";
+        else if (f != null) OvStatus.Text = $"Ativa · {f.ProcessName}: {f.Fps:0} FPS ({SensorTexto.Milissegundos(f.FrameTimeMs)}) · 1% low {f.Low1Fps:0}";
+        else OvStatus.Text = "Ativa · aguardando um jogo em primeiro plano";
+    }
+
+    // ------------------------------------------------------------------ auxiliares
+
+    private void CriarMonitor()
+    {
+        if (_monitor2 is not null) return;
+        _monitor2 = new MonitorWindow();
+        _monitor2.AoFechar += () =>
+        {
+            if (_monitor2.ModoAtual == MonitorWindow.Modo.Desktop)
+                ChkPainel.IsChecked = false;
+            else
+                ChkOverlay.IsChecked = false;
+        };
+        _monitor2.AoAbrirJanela += () => Dispatcher.Invoke(MostrarJanela);
+    }
+
+    private void IniciarTimerMonitor()
+    {
+        _monitorTimer ??= new DispatcherTimer(
+            TimeSpan.FromMilliseconds(500), DispatcherPriority.Normal,
+            (_, _) => UpdateMonitor(), Dispatcher);
+        _monitorTimer.Start();
     }
 }
