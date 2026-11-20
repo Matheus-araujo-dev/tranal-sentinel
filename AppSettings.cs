@@ -90,6 +90,18 @@ public sealed class AppSettings
     // Aparência
     public bool LightTheme { get; set; }
 
+    /// <summary>
+    /// Desenha a interface pela placa de vídeo (o padrão do WPF). Vem
+    /// desligado: medido em 20/11/2026, a renderização por hardware carrega o
+    /// driver de vídeo dentro do processo e custava ~80 MB de memória privada
+    /// (175 MB contra 94 MB) — numa interface sem efeitos e sem animação, que
+    /// por software desenha igual. Os benchmarks de GPU não dependem disto:
+    /// eles desenham na própria janela Direct3D. Fica aqui como saída de
+    /// emergência, editável no settings.json, para um PC em que o desenho
+    /// por software fique lento.
+    /// </summary>
+    public bool AceleracaoGrafica { get; set; }
+
     // Perfil de recursos: quanto o app gasta de CPU e memória em segundo plano.
     public PerfilRecursos Perfil { get; set; } = PerfilRecursos.Equilibrado;
 

@@ -1,3 +1,27 @@
+## Novidades da v0.36 — metade da memória
+
+Medido em 20/11/2026, com o app aberto na tela, nas mesmas condições antes e
+depois: o TRANAL SENTINEL (os dois processos, como o Gerenciador de Tarefas
+mostra) caiu de **~175 MB para ~80–100 MB**. Nenhuma função saiu.
+
+**A interface é desenhada por software.** A renderização por placa de vídeo do
+WPF carregava o driver de vídeo dentro do processo do app, e só isso custava
+~80 MB. A interface do app não tem efeito nem animação, e por software ela
+desenha igual. Os benchmarks de GPU não mudam: eles desenham na própria
+janela Direct3D. Se em algum PC a tela ficar lenta, a opção
+`AceleracaoGrafica` no `settings.json` volta ao modo antigo.
+
+**A leitura dos sensores parou de deixar lixo.** A cada leitura, o JSON dos
+sensores (~120 KB) virava uma string gigante que só era limpa na coleta
+completa: chegavam a ficar ~95 delas paradas (~11 MB). Agora ele é lido e
+gravado direto do arquivo — e o coletor só grava a leitura quando ela é nova
+(antes, regravava a mesma duas ou três vezes).
+
+**O coletor de sensores ficou mais leve.** Ele sobe sem carregar o WPF (não
+abre janela nenhuma) e com o runtime ajustado para um processo pequeno:
+de ~32 MB para ~19 MB. O processo principal fica com o runtime padrão, para
+as notas do TRANAL BENCH não mudarem.
+
 ## Novidades da v0.34 — a rolagem do navegador e o Alt+Tab voltaram
 
 Duas queixas do dono, diagnosticadas **por medição** no PC dele em 17/11/2026: a
