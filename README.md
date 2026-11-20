@@ -306,7 +306,7 @@ documentado.
   acompanha o PC em segundo plano. Fechar a janela **não** fecha o app — ele
   continua olhando; o menu do ícone tem *Abrir* e *Sair*.
 - **Instalador próprio**: `TranalSetup.exe` pede administrador, instala em
-  `%ProgramFiles%\Tranal Sentinel` **ou na pasta que você escolher**, cria atalho
+  `%ProgramFiles%\Tranal Group\Tranal Sentinel` **ou na pasta que você escolher**, cria atalho
   no menu Iniciar (e na área de trabalho), registra a desinstalação no Painel de
   Controle e **inicia junto com o Windows** sem pedir UAC a cada boot.
 - **Atualização automática**: o app confere a API do GitHub do próprio projeto e
@@ -497,7 +497,7 @@ Dê dois cliques em `TranalSetup.exe`. Ele:
   botão `...` abre o seletor de pasta do Windows (o botão cria a subpasta
   `Tranal Sentinel` dentro da pasta escolhida; digitando o caminho completo na
   caixa, vale exatamente o que foi digitado). O padrão é
-  `%ProgramFiles%\Tranal Sentinel`;
+  `%ProgramFiles%\Tranal Group\Tranal Sentinel`;
 - se o app já estiver instalado em outra pasta, instalar aqui é **uma mudança de
   pasta**: os arquivos do lugar antigo são removidos depois que a nova
   instalação está pronta (nada fica órfão);

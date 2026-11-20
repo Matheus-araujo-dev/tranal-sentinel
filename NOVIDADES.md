@@ -1,3 +1,16 @@
+## Novidades da v0.36.2 — o instalador mora no Tranal Group
+
+**A pasta padrão agora é `Program Files\Tranal Group\Tranal Sentinel`**, a
+mesma pasta do grupo onde fica o Tranal Uninstaller Pro: todo app Tranal mora
+junto. Quem já tem o app em `Program Files\Tranal Sentinel` recebe a
+instalação movida para o lugar novo ao atualizar — a pasta velha sai depois que
+a nova está pronta, e o atalho e a tarefa de iniciar com o Windows passam a
+apontar para o executável novo.
+
+**O `.zip` da release é o pacote completo.** O instalador baixado sozinho não
+tinha o que instalar ("payload incompleto"); agora o `TranalSentinel.zip` traz o
+`TranalSetup.exe` junto do app. Extraia o `.zip` inteiro e abra o instalador.
+
 ## Novidades da v0.36 — metade da memória
 
 Medido em 20/11/2026, com o app aberto na tela, nas mesmas condições antes e

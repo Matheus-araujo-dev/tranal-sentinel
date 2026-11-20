@@ -24,9 +24,9 @@ public class DestinoInstalacaoTestes
     };
 
     [Fact]
-    public void Padrao_EPastaDeProgramFilesComONomeDoProduto()
+    public void Padrao_EPastaDoGrupoEmProgramFilesComONomeDoProduto()
     {
-        Assert.Equal(@"C:\Program Files\Tranal Sentinel",
+        Assert.Equal(@"C:\Program Files\Tranal Group\Tranal Sentinel",
             DestinoInstalacao.Padrao(ContextoDeTeste()).Pasta);
     }
 
@@ -146,16 +146,16 @@ public class DestinoInstalacaoTestes
     }
 
     [Fact]
-    public void PastaDentroDe_CriaASubpastaDoProduto()
+    public void PastaDentroDe_CriaAPastaDoGrupoEADoProduto()
     {
-        Assert.Equal(@"D:\Meus Programas\Tranal Sentinel",
+        Assert.Equal(@"D:\Meus Programas\Tranal Group\Tranal Sentinel",
             DestinoInstalacao.PastaDentroDe(@"D:\Meus Programas"));
     }
 
     [Fact]
     public void PastaDentroDe_DeixandoAColherBarraNoFinal()
     {
-        Assert.Equal(@"D:\Meus Programas\Tranal Sentinel",
+        Assert.Equal(@"D:\Meus Programas\Tranal Group\Tranal Sentinel",
             DestinoInstalacao.PastaDentroDe(@"D:\Meus Programas\"));
     }
 
@@ -169,9 +169,17 @@ public class DestinoInstalacaoTestes
     }
 
     [Fact]
+    public void PastaDentroDe_NaPastaDoGrupo_SoAcrescentaADoProduto()
+    {
+        // Escolher a pasta do grupo não vira "Tranal Group\Tranal Group".
+        Assert.Equal(@"E:\Program Files\Tranal Group\Tranal Sentinel",
+            DestinoInstalacao.PastaDentroDe(@"E:\Program Files\Tranal Group"));
+    }
+
+    [Fact]
     public void PastaDentroDe_NaRaizDaUnidade_CriaASubpastaDoProduto()
     {
-        Assert.Equal(@"C:\Tranal Sentinel", DestinoInstalacao.PastaDentroDe(@"C:\"));
+        Assert.Equal(@"C:\Tranal Group\Tranal Sentinel", DestinoInstalacao.PastaDentroDe(@"C:\"));
     }
 
     [Fact]
