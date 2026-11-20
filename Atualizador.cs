@@ -33,7 +33,7 @@ public static class Atualizador
     /// executável e reabre o app.
     /// </summary>
     /// <returns>0 se deu tudo certo, 1 se falhou.</returns>
-    public static int Aplicar(string caminhoNovo, int pidPai, bool reabrir)
+    public static int Aplicar(string caminhoNovo, int pidPai, bool reabrir, string caminhoDestino = "")
     {
         try
         {
@@ -53,7 +53,11 @@ public static class Atualizador
                 return 1;
             }
 
-            string alvo = Environment.ProcessPath ?? "";
+            // O destino é o caminho do exe instalado, passado pelo --destino.
+            // Sem ele (versões antigas que não passavam), usa o próprio ProcessPath
+            // como fallback — que só funciona se o atualizador não estiver rodando
+            // do exe que precisa sobrescrever.
+            string alvo = caminhoDestino.Length > 0 ? caminhoDestino : (Environment.ProcessPath ?? "");
             if (alvo.Length == 0) return 1;
 
             if (!TrocarComTentativas(caminhoNovo, alvo))
