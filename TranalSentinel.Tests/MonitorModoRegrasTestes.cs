@@ -72,6 +72,20 @@ public class MonitorModoRegrasTestes
     }
 
     [Fact]
+    public void LigarComOJogoNaFrenteComecaComoOverlay()
+    {
+        // Ctrl + Shift + O dentro da partida: sem passar pelo painel.
+        var regra = new MonitorModoRegras();
+        regra.ComecarEm(true);
+        Assert.True(regra.EmJogo);
+        Assert.True(regra.Observar(true, T0));
+
+        // Se não era jogo (tela cheia parada), a histerese devolve o painel.
+        regra.Observar(false, T0.AddSeconds(1));
+        Assert.False(regra.Observar(false, T0.AddSeconds(1) + MonitorModoRegras.SairDoJogo));
+    }
+
+    [Fact]
     public void SoEJogoQuandoEntregaQuadrosEOcupaOMonitor()
     {
         Assert.True(MonitorModoRegras.PareceJogo(true, true));
@@ -86,8 +100,11 @@ public class MonitorModoRegrasTestes
         Assert.True(MonitorModoRegras.OcupaOMonitor(0, 0, 1920, 1080, 0, 0, 1920, 1080));
         // Sem bordas com 1 px de sobra ainda conta.
         Assert.True(MonitorModoRegras.OcupaOMonitor(-1, -1, 1921, 1081, 0, 0, 1920, 1080));
-        // Maximizada comum: a barra de tarefas fica de fora.
-        Assert.False(MonitorModoRegras.OcupaOMonitor(0, 0, 1920, 1040, 0, 0, 1920, 1080));
+        // Maximizada comum: retângulo REAL, 8 px maior que a área de trabalho
+        // em cada lado (a borda invisível do Windows), com a barra de tarefas.
+        Assert.False(MonitorModoRegras.OcupaOMonitor(-8, -8, 1928, 1048, 0, 0, 1920, 1080));
+        // Maximizada sem barra de tarefas (barra oculta ou 2º monitor): ainda não é tela cheia.
+        Assert.False(MonitorModoRegras.OcupaOMonitor(-8, -8, 1928, 1088, 0, 0, 1920, 1080));
         // Segundo monitor à direita.
         Assert.True(MonitorModoRegras.OcupaOMonitor(1920, 0, 4480, 1440, 1920, 0, 4480, 1440));
         Assert.False(MonitorModoRegras.OcupaOMonitor(0, 0, 1920, 1080, 1920, 0, 4480, 1440));

@@ -839,7 +839,12 @@ gerenciado tinha só ~11 MB vivos; o que pesava era nativo.
   `MonitorModoRegras`.
 - **Jogo é quadro na frente + tela cheia.** `PareceJogo` exige o programa em
   primeiro plano entregando quadros (ETW) **e** a janela dele cobrindo o
-  monitor inteiro (`OcupaOMonitor`, tela cheia ou sem bordas). Jogo em
+  monitor inteiro (`OcupaOMonitor`, tela cheia ou sem bordas). A comparação
+  é de **igualdade** com folga de 2 px, não "cobre": MEDIDO na revisão, a
+  janela maximizada comum tem o retângulo 8 px maior que a área de trabalho
+  em cada lado, e com a barra de tarefas oculta passava por "cobre o
+  monitor". Janela maximizada com barra de título também é descartada
+  (`IsZoomed` + `WS_CAPTION`). Jogo em
   janela não vira overlay: navegador, player e Electron também entregam
   quadros, e o painel virando overlay sobre um vídeo em janela seria o
   defeito oposto.
@@ -851,6 +856,14 @@ gerenciado tinha só ~11 MB vivos; o que pesava era nativo.
   A posição do canto do overlay nunca é gravada como posição do painel.
 - **Com o monitor ligado, a detecção de FPS fica ligada** (`FramesNecessario`):
   é o FPS do primeiro plano que diz que há jogo na frente.
+- **Ligar com o jogo na frente começa como overlay** (`ComecarEm`): o
+  Ctrl + Shift + O dentro da partida não mostra o painel arrastável por cima
+  do jogo nem por um instante.
+- **O painel abre sempre no tamanho normal**: o tamanho escolhido
+  ("NO JOGO: TAMANHO") é só do overlay.
+- **O benchmark pausa o monitor sem gravar a preferência**
+  (`PausarMonitor`/`RetomarMonitor`): se o app cair no meio do bench, o
+  monitor volta no próximo arranque.
 
 ## Publicar
 

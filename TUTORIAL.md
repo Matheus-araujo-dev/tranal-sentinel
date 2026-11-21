@@ -122,11 +122,8 @@ sistema **pede confirmação**, explica o custo, fica registrada no diário e
 **tem como desfazer**. Serviço de antivírus, Defender e serviço do Windows
 nunca são tocados.
 
-Nesta mesma página mora a **vigia de tecla presa**: quando o Windows continua
-achando que Shift, Ctrl, Alt ou Win está pressionado depois que você solta, o
-app solta a tecla, avisa e registra no diário. Só age com as três condições ao
-mesmo tempo (tecla caída há 30 s, teclado quieto há 30 s e repetição
-automática do Windows ligada) — e a correção automática pode ser desligada aqui.
+A **vigia de tecla presa**, que morava nesta página, saiu do app: o cartão e o
+gancho de teclado foram retirados.
 
 ### Alertas
 
@@ -354,8 +351,6 @@ TranalSentinel.exe --kalkan-teste       # teste do visor Kalkan
   saber**.
 - Não mexe em serviço de segurança — nem pela lista, nem se for chamado
   direto.
-- Não altera nada por conta própria: suspender serviço é sempre escolha sua. A
-  **vigia da tecla presa** é a exceção explícita, e pode ser desligada na
-  página do TRANAL SAÚDE.
+- Não altera nada por conta própria: suspender serviço é sempre escolha sua.
 - Não envia nada para a internet: o histórico de uso e o diagnóstico ficam
   neste computador.

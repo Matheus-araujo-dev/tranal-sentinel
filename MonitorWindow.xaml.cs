@@ -244,17 +244,31 @@ public partial class MonitorWindow : Window
     /// <see cref="MonitorModoRegras.PareceJogo"/> usa para decidir o modo.
     /// A área de trabalho (Progman/WorkerW) nunca conta.
     /// </summary>
-    public static bool PrimeiroPlanoOcupaOMonitor(int pid)
+    public static bool PrimeiroPlanoOcupaOMonitor(int pid) => PrimeiroPlanoOcupaOMonitor((int?)pid);
+
+    /// <summary>
+    /// A janela em primeiro plano (de qualquer programa que não seja o
+    /// TRANAL SENTINEL) cobre o monitor inteiro? Usada ao ligar o monitor,
+    /// antes de o FPS ter sido medido.
+    /// </summary>
+    public static bool PrimeiroPlanoOcupaOMonitor() => PrimeiroPlanoOcupaOMonitor((int?)null);
+
+    private static bool PrimeiroPlanoOcupaOMonitor(int? pid)
     {
         var fg = GetForegroundWindow();
         if (fg == IntPtr.Zero) return false;
         GetWindowThreadProcessId(fg, out uint dono);
-        if (dono != (uint)pid || dono == (uint)Environment.ProcessId) return false;
+        if (dono == (uint)Environment.ProcessId) return false;
+        if (pid is int esperado && dono != (uint)esperado) return false;
 
         var classe = new System.Text.StringBuilder(64);
         GetClassName(fg, classe, classe.Capacity);
         var nome = classe.ToString();
         if (nome is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;
+
+        // Janela maximizada com barra de título é um programa comum (o
+        // navegador, o player), não um jogo em tela cheia.
+        if (IsZoomed(fg) && (GetWindowLong(fg, GWL_STYLE) & WS_CAPTION) == WS_CAPTION) return false;
 
         if (!GetWindowRect(fg, out var wr)) return false;
         var mon = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
@@ -356,5 +370,7 @@ public partial class MonitorWindow : Window
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr mon, ref MONITORINFO mi);
     [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr module, WinEventProc proc, uint pid, uint thread, uint flags);
     [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
+    private const int GWL_STYLE = -16, WS_CAPTION = 0x00C00000;
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsZoomed(IntPtr h);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr h, System.Text.StringBuilder nome, int max);
 }

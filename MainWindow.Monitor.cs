@@ -201,19 +201,41 @@ public partial class MainWindow
         if (ChkPainel.IsChecked == true)
         {
             CriarMonitor();
-            _modoMonitor.Reiniciar();
 
-            _monitor2!.Topmost = _settings.PainelSempreNoTopo;
-            _monitor2.TrocarModo(MonitorWindow.Modo.Desktop);
+            // Ligado com o jogo já em tela cheia na frente (o Ctrl + Shift + O
+            // dentro da partida): começa direto como overlay. O FPS ainda não
+            // foi medido nesse instante, então vale só a tela cheia; se não for
+            // jogo, a histerese devolve o painel em seguida.
+            bool jogoNaFrente = !_gpuBenchActive && MonitorWindow.PrimeiroPlanoOcupaOMonitor();
+            _modoMonitor.ComecarEm(jogoNaFrente);
 
-            if (!_monitor2.IsVisible) _monitor2.Show();
-
-            if (UpdatePainel())
+            if (jogoNaFrente)
             {
-                _monitor2.UpdateLayout();
-                RestaurarPosicaoDoPainel();
-
+                _monitor2!.TrocarModo(MonitorWindow.Modo.Jogo);
+                ApplyOverlayOptions();
+                _monitor2.Topmost = true;
+                if (!_monitor2.IsVisible) _monitor2.Show();
+                _monitor2.KeepOnTop();
                 IniciarTimerMonitor();
+            }
+            else
+            {
+                _monitor2!.Topmost = _settings.PainelSempreNoTopo;
+                _monitor2.TrocarModo(MonitorWindow.Modo.Desktop);
+
+                // O tamanho escolhido é do overlay: o painel abre sempre no
+                // tamanho normal, mesmo que a janela tenha sido desligada no jogo.
+                _monitor2.SetScale(1);
+
+                if (!_monitor2.IsVisible) _monitor2.Show();
+
+                if (UpdatePainel())
+                {
+                    _monitor2.UpdateLayout();
+                    RestaurarPosicaoDoPainel();
+
+                    IniciarTimerMonitor();
+                }
             }
         }
         else
@@ -226,9 +248,43 @@ public partial class MainWindow
             _monitor2?.Hide();
         }
 
-        _settings.PainelVisivel = ChkPainel.IsChecked == true;
-        _settings.Save();
+        // O benchmark desliga e religa o monitor só para pausar: isso não é
+        // escolha do dono e não vai para o disco (se o app cair no meio do
+        // bench, o monitor tem que voltar no próximo arranque).
+        if (!_pausandoMonitor)
+        {
+            _settings.PainelVisivel = ChkPainel.IsChecked == true;
+            _settings.Save();
+        }
         AtualizarEstadoFrames();
+    }
+
+    /// <summary>
+    /// True enquanto um benchmark pausa o monitor (consultas ao driver geram
+    /// engasgos no frametime). A pausa não grava a preferência.
+    /// </summary>
+    private bool _pausandoMonitor;
+
+    /// <summary>Pausa o monitor durante um benchmark. Devolve se ele estava ligado.</summary>
+    private bool PausarMonitor()
+    {
+        bool estava = ChkPainel.IsChecked == true;
+        if (!estava) return false;
+
+        _pausandoMonitor = true;
+        try { ChkPainel.IsChecked = false; }
+        finally { _pausandoMonitor = false; }
+        return true;
+    }
+
+    /// <summary>Religa o monitor depois do benchmark, se ele estava ligado.</summary>
+    private void RetomarMonitor(bool estava)
+    {
+        if (!estava) return;
+
+        _pausandoMonitor = true;
+        try { ChkPainel.IsChecked = true; }
+        finally { _pausandoMonitor = false; }
     }
 
     /// <summary>
@@ -379,7 +435,7 @@ public partial class MainWindow
         _monitor2.Corner = _settings.OverlayCorner;
 
         // O tamanho escolhido é do overlay; o painel fica sempre no tamanho normal.
-        if (_monitor2.ModoAtual == MonitorWindow.Modo.Jogo || !_monitor2.IsVisible)
+        if (_monitor2.ModoAtual == MonitorWindow.Modo.Jogo)
             _monitor2.SetScale(_settings.OverlayScale);
         _monitor2.Reposition();
     }

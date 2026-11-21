@@ -59,17 +59,25 @@ public sealed class MonitorModoRegras
         entregandoQuadros && ocupaOMonitor;
 
     /// <summary>
-    /// A janela cobre o monitor inteiro (com <see cref="FolgaDaTelaCheia"/>
-    /// de folga)? Uma janela maximizada comum não cobre: a barra de tarefas
-    /// fica de fora.
+    /// A janela tem exatamente o tamanho do monitor (com
+    /// <see cref="FolgaDaTelaCheia"/> de folga, nos dois sentidos)?
     /// </summary>
+    /// <remarks>
+    /// MEDIDO na revisão: uma janela maximizada comum tem o retângulo 8 px
+    /// MAIOR que a área de trabalho em cada lado (a borda invisível do
+    /// Windows). Com a barra de tarefas escondida ou num segundo monitor sem
+    /// barra, "cobrir o monitor" (só &gt;=) aceitava o navegador maximizado
+    /// como jogo. Tela cheia e "sem bordas" têm o retângulo igual ao do
+    /// monitor; por isso a comparação é de igualdade, e quem chama ainda
+    /// descarta a janela maximizada com barra de título.
+    /// </remarks>
     public static bool OcupaOMonitor(
         int janelaEsq, int janelaTopo, int janelaDir, int janelaBase,
         int monitorEsq, int monitorTopo, int monitorDir, int monitorBase) =>
-        janelaEsq <= monitorEsq + FolgaDaTelaCheia
-        && janelaTopo <= monitorTopo + FolgaDaTelaCheia
-        && janelaDir >= monitorDir - FolgaDaTelaCheia
-        && janelaBase >= monitorBase - FolgaDaTelaCheia;
+        Math.Abs(janelaEsq - monitorEsq) <= FolgaDaTelaCheia
+        && Math.Abs(janelaTopo - monitorTopo) <= FolgaDaTelaCheia
+        && Math.Abs(janelaDir - monitorDir) <= FolgaDaTelaCheia
+        && Math.Abs(janelaBase - monitorBase) <= FolgaDaTelaCheia;
 
     /// <summary>
     /// Recebe o que foi visto agora e devolve o modo: true = jogo (overlay),
@@ -101,9 +109,17 @@ public sealed class MonitorModoRegras
     /// Volta ao começo (modo desktop). Chamado quando o monitor é ligado: o
     /// que foi visto antes de ele ser desligado não vale mais.
     /// </summary>
-    public void Reiniciar()
+    public void Reiniciar() => ComecarEm(false);
+
+    /// <summary>
+    /// Começa direto num modo, sem esperar a histerese. Ligar o monitor (ou o
+    /// Ctrl + Shift + O) com o jogo já na frente começa como overlay: o painel
+    /// arrastável não pode aparecer por cima da partida nem por um instante.
+    /// </summary>
+    /// <param name="emJogo">True para começar como overlay.</param>
+    public void ComecarEm(bool emJogo)
     {
-        _emJogo = false;
+        _emJogo = emJogo;
         _divergeDesde = null;
     }
 }

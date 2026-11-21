@@ -1,3 +1,22 @@
+## Novidades — um monitor só, alertas legíveis
+
+**Painel flutuante e overlay viraram uma coisa só.** Antes eram dois
+interruptores mandando na mesma janela, e ligar um desligava o outro. Agora a
+página MONITOR tem só **Mostrar o monitor** (e o atalho **Ctrl + Shift + O**
+continua ligando e desligando). No desktop ele é o painel pequeno com CPU, GPU,
+RAM e ventoinha, que você arrasta e fecha no ×. Quando um jogo em tela cheia
+ou sem bordas fica na frente, o painel vira sozinho o overlay de FPS no canto
+escolhido, e aí não dá para arrastar nem fechar, para não atrapalhar a
+partida. Saiu do jogo, ele volta a ser o painel, no lugar onde estava. Jogo em
+janela não vira overlay: navegador e player de vídeo também desenham quadros.
+
+**Os alertas voltaram a ser legíveis.** Nas regras de alerta, o sensor, a
+operação e a severidade apareciam em preto no fundo preto, com um quadradinho
+no lugar da seta. A lista suspensa agora usa a cor do tema.
+
+**A vigia de tecla presa saiu.** O cartão da página Diagnóstico e o gancho de
+teclado foram retirados: o app não olha mais o teclado.
+
 ## Novidades da v0.37 — um instalador só (Inno Setup)
 
 **Baixe só o `TranalSentinel-Setup.exe`.** O instalador próprio em C#

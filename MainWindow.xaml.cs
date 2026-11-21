@@ -213,7 +213,9 @@ public partial class MainWindow : Window
             // corresse agora acharia a bandeja já fechada.
             PararVigia();
 
-            SalvarPosicaoDoPainel();
+            // No modo jogo a janela está no canto do jogo: essa não é a posição
+            // que o dono deu ao painel, e não pode ser gravada como se fosse.
+            if (_monitor2?.ModoAtual == MonitorWindow.Modo.Desktop) SalvarPosicaoDoPainel();
 
             _bandeja?.Dispose();
             _timerInstantaneo?.Stop();
@@ -1313,14 +1315,13 @@ public partial class MainWindow : Window
         timer.Start();
         _gpuBenchActive = true;
         GbGpuNow.Text = "sensores pausados";
-        bool overlayWasOn = ChkPainel.IsChecked == true;
-        if (overlayWasOn) ChkPainel.IsChecked = false; // o monitor também consulta a GPU
+        bool overlayWasOn = PausarMonitor(); // o monitor também consulta a GPU
 
         // Thread dedicada: a cena roda num loop próprio com prioridade alta.
         var r = await Task.Factory.StartNew(bench.Run, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         timer.Stop();
         _gpuBenchActive = false;
-        if (overlayWasOn) ChkPainel.IsChecked = true;
+        RetomarMonitor(overlayWasOn);
         GbGpuNow.Text = "—";
         SetGameBenchRunning(BtnGpuBench, false);
         GbProgress.ScaleX = 0;

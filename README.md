@@ -306,7 +306,7 @@ documentado.
   silencioso e fecha; o instalador troca os arquivos e abre o app de novo.
 - **Perfil de recursos**: Completo / Equilibrado / Economia. No modo economia os
   sensores são lidos a cada 5 s em vez de 1 s, o histórico passa de 3 h para 24 h
-  e o overlay e a análise de saúde não rodam sozinhos.
+  e a análise de saúde não roda sozinha.
 - **Diagnóstico pela linha de comando**: `--saude coletar|comparar|relatar`,
   reaproveitando exatamente as mesmas regras da aba TRANAL SAÚDE.
 
