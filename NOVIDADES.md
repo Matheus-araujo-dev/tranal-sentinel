@@ -3,8 +3,12 @@
 **O monitor juntou de verdade o painel e o overlay.** O painel do desktop
 mostrava sempre as mesmas quatro linhas (CPU, GPU, RAM e ventoinha) e ignorava
 o "O que mostrar". Agora ele mostra o que você marcou, igual ao overlay do
-jogo. A ventoinha do sistema virou uma opção da lista. No desktop o FPS só
-aparece quando um programa está desenhando quadros na frente.
+jogo. A ventoinha do sistema virou uma opção da lista, e quem já tinha
+escolhas gravadas ganha a ventoinha marcada uma vez, para ela não sumir do
+painel na atualização (dá para desmarcar, e ela não volta). No desktop o FPS só
+aparece quando um programa está desenhando quadros na frente; sem ele e sem
+nada mais marcado, o painel diz que está aguardando um jogo. Durante um
+benchmark, o monitor mostra "—" em vez de números parados.
 
 **Tamanho e posição valem no desktop também.** O tamanho (pequeno, médio,
 grande) muda o painel na hora. Clicar num canto leva o painel para lá; você

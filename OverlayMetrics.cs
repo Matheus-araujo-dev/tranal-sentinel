@@ -46,5 +46,47 @@ public static class OverlayMetrics
         new("clock", "Outros", "Hora", false),
     };
 
+    /// <summary>As métricas que vêm marcadas para quem nunca escolheu nada.</summary>
     public static HashSet<string> Defaults() => All.Where(m => m.Default).Select(m => m.Key).ToHashSet();
+
+    /// <summary>O rótulo da linha de cada grupo de sensores, na ordem do monitor.</summary>
+    private static readonly (string Grupo, string Rotulo)[] Linhas =
+    {
+        ("GPU", "GPU"), ("VRAM", "VRAM"), ("CPU", "CPU"), ("RAM", "RAM"), ("Ventoinha", "VENT"),
+    };
+
+    /// <summary>
+    /// As linhas escolhidas, todas com "—": é o que o monitor mostra enquanto
+    /// um benchmark roda.
+    ///
+    /// <para>
+    /// Durante o bench as leituras ficam pausadas (cada consulta ao driver
+    /// aparece como engasgo na medição): o número que estava na tela seria um
+    /// número parado mostrado como se fosse de agora. Número velho é pior que
+    /// número ausente.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<OverlayLine> LinhasSemLeitura(IReadOnlySet<string> mostrar) =>
+        Linhas
+            .Where(l => All.Any(m => m.Group == l.Grupo && mostrar.Contains(m.Key)))
+            .Select(l => new OverlayLine(l.Rotulo, SensorTexto.Ausente))
+            .ToList();
+
+    /// <summary>
+    /// Acrescenta a ventoinha às escolhas gravadas antes de ela existir.
+    ///
+    /// <para>
+    /// Até a v0.37.1 o painel do desktop mostrava a ventoinha sempre; agora
+    /// ela é uma métrica de "O que mostrar". Quem já tinha escolhas gravadas
+    /// (sem "fan") perderia a linha na atualização, sem aviso. A migração vale
+    /// uma vez só: a marca <paramref name="jaMigrado"/> impede que a
+    /// ventoinha volte depois que o dono a desmarcar.
+    /// </para>
+    /// </summary>
+    /// <returns>As escolhas (a mesma lista quando não há o que mudar) e se a migração mudou algo.</returns>
+    public static (List<string>? Itens, bool Mudou) MigrarVentoinha(List<string>? itens, bool jaMigrado)
+    {
+        if (jaMigrado || itens is null || itens.Contains("fan")) return (itens, false);
+        return (new List<string>(itens) { "fan" }, true);
+    }
 }

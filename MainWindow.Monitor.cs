@@ -21,7 +21,25 @@ public partial class MainWindow
     // ------------------------------------------------------------------ overlay: itens configuráveis
 
     private HashSet<string>? _ovShow;
-    private HashSet<string> OvShow => _ovShow ??= _settings.OverlayItems is { } l ? l.ToHashSet() : OverlayMetrics.Defaults();
+    private HashSet<string> OvShow => _ovShow ??= CarregarEscolhasDoMonitor();
+
+    /// <summary>
+    /// As escolhas de "O que mostrar", com a ventoinha acrescentada uma vez a
+    /// quem gravou as escolhas antes de ela existir (o painel antigo a mostrava
+    /// sempre, e ela não pode sumir na atualização).
+    /// </summary>
+    private HashSet<string> CarregarEscolhasDoMonitor()
+    {
+        var (itens, mudou) = OverlayMetrics.MigrarVentoinha(_settings.OverlayItems, _settings.OverlayVentoinhaMigrada);
+        if (!_settings.OverlayVentoinhaMigrada)
+        {
+            _settings.OverlayItems = itens;
+            _settings.OverlayVentoinhaMigrada = true;
+            _settings.Save();
+            if (mudou) RegistroDiario.Registrar("A ventoinha entrou nas escolhas do monitor (o painel antigo a mostrava sempre).", "MONITOR");
+        }
+        return itens is { } l ? l.ToHashSet() : OverlayMetrics.Defaults();
+    }
 
     /// <summary>Dicas das métricas do overlay.</summary>
     private static readonly Dictionary<string, string> DicasOverlay = new()
@@ -398,6 +416,15 @@ public partial class MainWindow
 
         try
         {
+            // Durante um benchmark as leituras ficam pausadas: nada de consultar
+            // o driver nem de mostrar o número parado como se fosse de agora.
+            // Vale para todo bench, inclusive os que não pausam o monitor.
+            if (_gpuBenchActive)
+            {
+                _monitor2.UpdateOverlay(null, OverlayMetrics.LinhasSemLeitura(OvShow), OvShow, null);
+                return true;
+            }
+
             _monitor2.UpdateOverlay(f, BuildOverlayLines(f), OvShow, OvShow.Contains("clock") ? DateTime.Now.ToString("HH:mm") : null);
             return true;
         }

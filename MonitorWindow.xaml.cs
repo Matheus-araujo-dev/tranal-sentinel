@@ -164,6 +164,11 @@ public partial class MonitorWindow : Window
         var foot = new List<string>();
         if (show.Contains("game") && f != null) foot.Add(f.ProcessName);
         if (extra != null) foot.Add(extra);
+
+        // No desktop, com só o FPS marcado e nenhum jogo na frente, o painel
+        // ficaria com o cabeçalho e mais nada: ele diz o que está esperando.
+        if (_modo == Modo.Desktop && SecaoFps.Visibility != Visibility.Visible && lines.Count == 0 && foot.Count == 0)
+            foot.Add(querFps ? "aguardando um jogo" : "nada marcado em \"O que mostrar\"");
         OGame.Text = string.Join("  ·  ", foot);
         OGame.Visibility = V(foot.Count > 0);
 
