@@ -13,13 +13,14 @@ namespace TranalSentinel;
 /// janela só, com dois modos.
 ///
 /// <list type="bullet">
-///   <item><b>Desktop</b> — arrastável, interativo, mostra CPU/GPU/RAM/ventoinha
-///   (linhas do <see cref="PainelRegras"/>). Duplo clique abre a janela
-///   principal. Botão "×" esconde.</item>
+///   <item><b>Desktop</b> — arrastável, interativo. Duplo clique abre a
+///   janela principal. Botão "×" esconde.</item>
 ///   <item><b>Jogo</b> — click-through (<c>WS_EX_TRANSPARENT</c>), segue o
-///   monitor do jogo, mostra FPS/frametime/gráfico e sensores configuráveis
-///   (linhas do <see cref="OverlayMetrics"/>).</item>
+///   monitor do jogo, fica no canto escolhido.</item>
 /// </list>
+///
+/// O conteúdo é o mesmo nos dois modos: as métricas que o dono marcou em "O
+/// que mostrar" (<see cref="OverlayMetrics"/>), no tamanho escolhido.
 ///
 /// A troca de modo esconde e reabre a janela com os estilos certos — é o
 /// jeito seguro no WPF (trocar <c>WS_EX_TRANSPARENT</c> sem esconder não
@@ -123,12 +124,23 @@ public partial class MonitorWindow : Window
 
     public void SetScale(double s) { Scale.ScaleX = Scale.ScaleY = s; }
 
-    /// <summary>Atualiza a seção de FPS e as linhas de sensores do overlay.</summary>
+    /// <summary>
+    /// Atualiza a seção de FPS e as linhas de sensores com o que o dono
+    /// escolheu em "O que mostrar". Vale nos dois modos: o painel do desktop e
+    /// o overlay do jogo mostram as mesmas escolhas.
+    ///
+    /// <para>
+    /// No desktop, a seção de FPS só aparece quando há um programa desenhando
+    /// quadros na frente (um jogo em janela, por exemplo): sem ele, o "—" de
+    /// FPS seria só ruído no painel.
+    /// </para>
+    /// </summary>
     public void UpdateOverlay(FrameStats? f, IReadOnlyList<OverlayLine> lines, IReadOnlySet<string> show, string? extra)
     {
         static Visibility V(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
         bool fps = show.Contains("fps"), ft = show.Contains("frametime");
-        SecaoFps.Visibility = V(fps || ft || show.Contains("low1") || show.Contains("graph"));
+        bool querFps = fps || ft || show.Contains("low1") || show.Contains("graph");
+        SecaoFps.Visibility = V(querFps && (_modo == Modo.Jogo || f != null));
         OFpsRow.Visibility = V(fps || ft);
         OFps.Visibility = OFpsUnit.Visibility = V(fps);
         OFrameTime.Visibility = V(ft);
@@ -158,14 +170,6 @@ public partial class MonitorWindow : Window
         ORows.ItemsSource = lines;
         ORows.Visibility = V(lines.Count > 0);
         if (OGraph.Visibility == Visibility.Visible) DrawGraph(f?.RecentFrameTimes);
-    }
-
-    // ---- seção do painel (modo desktop) ----
-
-    /// <summary>Atualiza as linhas do painel (CPU, GPU, RAM, ventoinha).</summary>
-    public void UpdatePainel(IReadOnlyList<PainelLinha> linhas)
-    {
-        PLinhas.ItemsSource = linhas;
     }
 
     // ---- posição ----
@@ -203,19 +207,12 @@ public partial class MonitorWindow : Window
         if (_modo == Modo.Jogo)
         {
             Cabecalho.Visibility = Visibility.Collapsed;
-            PLinhas.Visibility = Visibility.Collapsed;
-            SecaoFps.Visibility = Visibility.Visible;
-            ORows.Visibility = Visibility.Visible;
             Box.Background = new SolidColorBrush(Color.FromArgb(0xC8, 0, 0, 0));
             Box.Padding = new Thickness(12, 9, 12, 9);
         }
         else
         {
             Cabecalho.Visibility = Visibility.Visible;
-            PLinhas.Visibility = Visibility.Visible;
-            SecaoFps.Visibility = Visibility.Collapsed;
-            ORows.Visibility = Visibility.Collapsed;
-            OGame.Visibility = Visibility.Collapsed;
             Box.Background = new SolidColorBrush(Color.FromArgb(0xD9, 0x0A, 0x0A, 0x0A));
             Box.Padding = new Thickness(12, 9, 12, 9);
         }

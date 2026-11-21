@@ -9,33 +9,10 @@ namespace TranalSentinel;
 public sealed record PainelVentoinha(string Nome, double? Rpm);
 
 /// <summary>
-/// O retrato do PC que o painel mostra agora.
-/// </summary>
-/// <param name="TemperaturaCpu">A temperatura da CPU em °C (null se não deu para ler).</param>
-/// <param name="CargaCpu">A carga total da CPU em % (null se não deu para ler).</param>
-/// <param name="TemperaturaGpu">A temperatura da GPU em °C (null se não deu para ler).</param>
-/// <param name="CargaGpu">A carga da GPU em % (null se não deu para ler).</param>
-/// <param name="RamPct">A memória RAM em uso em % (null se não deu para ler).</param>
-/// <param name="Ventoinhas">As ventoinhas que o app conhece agora.</param>
-public sealed record PainelRetrato(
-    double? TemperaturaCpu,
-    double? CargaCpu,
-    double? TemperaturaGpu,
-    double? CargaGpu,
-    double? RamPct,
-    IReadOnlyList<PainelVentoinha> Ventoinhas);
-
-/// <summary>Uma linha do painel: o rótulo e o valor (prontos para a tela).</summary>
-public sealed record PainelLinha(string Rotulo, string Valor);
-
-/// <summary>
-/// As regras do painel flutuante — toda ela mora aqui.
-///
-/// <para>
-/// O painel mostra quatro blocos, sempre na mesma ordem: CPU, GPU, RAM e
-/// ventoinha. O que não deu para ler <b>some da linha</b> (nunca zero e nunca
-/// um valor velho); quando não sobra nada, a linha inteira vira "—". Os
-/// números saem do <see cref="SensorTexto"/>.
+/// As regras puras do monitor no desktop: a ventoinha que ele mostra, o canto
+/// escolhido e a posição guardada. O que o monitor mostra (as linhas) é o que
+/// o dono marcou em "O que mostrar" (<see cref="OverlayMetrics"/>), igual no
+/// desktop e no jogo.
 ///
 /// <para>
 /// A ventoinha mostrada é a de <b>maior RPM entre as que estão dando
@@ -47,18 +24,6 @@ public static class PainelRegras
 {
     /// <summary>O separador entre as partes de uma linha (" · ").</summary>
     private const string Separador = " · ";
-
-    /// <summary>As quatro linhas do painel.</summary>
-    public static IReadOnlyList<PainelLinha> Linhas(PainelRetrato retrato)
-    {
-        return new[]
-        {
-            new PainelLinha("CPU", Juntar(SensorTexto.Temperatura(retrato.TemperaturaCpu), SensorTexto.Porcentual(retrato.CargaCpu))),
-            new PainelLinha("GPU", Juntar(SensorTexto.Temperatura(retrato.TemperaturaGpu), SensorTexto.Porcentual(retrato.CargaGpu))),
-            new PainelLinha("RAM", SensorTexto.Porcentual(retrato.RamPct)),
-            new PainelLinha("VENT", ValorDaVentoinha(EscolherVentoinha(retrato.Ventoinhas))),
-        };
-    }
 
     /// <summary>
     /// A ventoinha que o painel mostra: a de maior RPM entre as que estão
@@ -84,8 +49,11 @@ public static class PainelRegras
         return ventoinhas.OrderBy(v => v.Nome, StringComparer.Ordinal).First();
     }
 
-    /// <summary>O valor da linha da ventoinha ("Fan #1 · 3.409 RPM").</summary>
-    private static string ValorDaVentoinha(PainelVentoinha? ventoinha)
+    /// <summary>
+    /// O valor da linha da ventoinha ("Fan #1 · 3.409 RPM"). O monitor usa o
+    /// mesmo texto na linha VENT, quando o dono escolhe mostrá-la.
+    /// </summary>
+    public static string ValorDaVentoinha(PainelVentoinha? ventoinha)
     {
         if (ventoinha is null) return SensorTexto.Ausente;
 
@@ -93,17 +61,6 @@ public static class PainelRegras
         if (string.IsNullOrWhiteSpace(ventoinha.Nome)) return rpm;
 
         return ventoinha.Nome + Separador + rpm;
-    }
-
-    /// <summary>
-    /// Junta as partes de uma linha: o que não deu para ler some (e não
-    /// vira "— · —").
-    /// </summary>
-    private static string Juntar(params string[] partes)
-    {
-        var uteis = partes.Where(p => p != SensorTexto.Ausente).ToList();
-        if (uteis.Count == 0) return SensorTexto.Ausente;
-        return string.Join(Separador, uteis);
     }
 
     /// <summary>
@@ -118,17 +75,27 @@ public static class PainelRegras
     /// </summary>
     public static bool PosicaoValida(double x, double y) => !double.IsNaN(x) && !double.IsNaN(y);
 
+    /// <summary>A distância (em DIPs) entre o monitor e a borda da tela.</summary>
+    public const double MargemDoCanto = 12;
+
     /// <summary>
-    /// As quatro linhas sem nenhuma leitura (todas "—").
-    /// </summary>
+    /// Onde o monitor fica no desktop para o canto escolhido ("TL", "TR", "BL"
+    /// ou "BR"), dentro da área de trabalho (sem a barra de tarefas).
     ///
     /// <para>
-    /// É o que o painel mostra durante a cena de GPU, quando as leituras do
-    /// driver ficam pausadas: número velho é pior que número ausente.
+    /// É a mesma escolha de canto do jogo: o dono escolhe na página MONITOR e
+    /// ela vale nos dois modos. Canto desconhecido vale como superior esquerdo.
     /// </para>
     /// </summary>
-    public static IReadOnlyList<PainelLinha> LinhasSemLeitura() =>
-        Linhas(new PainelRetrato(null, null, null, null, null, Array.Empty<PainelVentoinha>()));
+    public static (double X, double Y) PosicaoNoCanto(string? canto, double largura, double altura,
+                                                       double areaEsquerda, double areaTopo,
+                                                       double areaDireita, double areaBase)
+    {
+        string c = canto ?? "TL";
+        double x = c.EndsWith('R') ? areaDireita - largura - MargemDoCanto : areaEsquerda + MargemDoCanto;
+        double y = c.StartsWith('B') ? areaBase - altura - MargemDoCanto : areaTopo + MargemDoCanto;
+        return (x, y);
+    }
 
     /// <summary>
     /// A posição do painel está em algum monitor?

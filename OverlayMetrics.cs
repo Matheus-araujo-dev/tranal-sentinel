@@ -40,6 +40,8 @@ public static class OverlayMetrics
         new("ram_used", "RAM", "Usada (GB)", true),
         new("ram_pct", "RAM", "Uso (%)", false),
 
+        new("fan", "Ventoinha", "Ventoinha do sistema", true),
+
         new("game", "Outros", "Nome do jogo", true),
         new("clock", "Outros", "Hora", false),
     };
