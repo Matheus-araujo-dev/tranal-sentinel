@@ -111,6 +111,13 @@ public sealed class AppSettings
     /// <summary>Itens escolhidos para o overlay (chaves de OverlayMetrics); null = padrão.</summary>
     public List<string>? OverlayItems { get; set; }
 
+    /// <summary>
+    /// A ventoinha já foi acrescentada às escolhas antigas do monitor? Vale uma
+    /// vez só (veja <see cref="OverlayMetrics.MigrarVentoinha"/>): sem a marca,
+    /// a ventoinha voltaria toda vez que o dono a desmarcasse.
+    /// </summary>
+    public bool OverlayVentoinhaMigrada { get; set; }
+
     // Painel flutuante: os números do PC sempre à vista.
     public bool PainelVisivel { get; set; }
     public bool PainelSempreNoTopo { get; set; } = true;

@@ -12,7 +12,9 @@ Download do TRANAL SENTINEL: https://github.com/Matheus-araujo-dev/tranal-sentin
 
 REQUISITOS
 - Windows 10 ou 11, 64 bits. Não precisa instalar o .NET (já vem dentro do .exe).
-- Para temperatura e consumo da CPU, instale o driver PawnIO (uma vez só):
+- O instalador (TranalSentinel-Setup.exe) já instala o driver PawnIO, que dá a
+  temperatura e o consumo da CPU, quando ele ainda não está no PC. Quem usa o .exe
+  portátil, sem instalar, instala o driver uma vez só:
       winget install namazso.PawnIO
 - Aceite o pedido de administrador ao abrir (necessário para ler os sensores).
 - Se a temperatura/consumo da CPU não aparecerem, o menu lateral mostra o motivo e um

@@ -3,83 +3,12 @@ using Xunit;
 namespace TranalSentinel.Tests;
 
 /// <summary>
-/// Testes das linhas do painel flutuante.
-///
-/// <para>
-/// Quatro blocos, sempre, na mesma ordem: CPU, GPU, RAM e ventoinha. O que
-/// não deu para ler vira "—" — nunca zero, nunca o valor de antes.
-/// </para>
+/// Testes das regras do monitor no desktop: a ventoinha que ele mostra, o
+/// canto escolhido e a posição guardada. O que não deu para ler vira "—" —
+/// nunca zero, nunca o valor de antes.
 /// </summary>
 public class PainelRegrasTestes
 {
-    private static PainelRetrato Retrato(
-        double? tempCpu = 50.35, double? cargaCpu = 47,
-        double? tempGpu = 44, double? cargaGpu = 12,
-        double? ram = 68,
-        IReadOnlyList<PainelVentoinha>? ventoinhas = null) =>
-        new(tempCpu, cargaCpu, tempGpu, cargaGpu, ram,
-            ventoinhas ?? new[] { new PainelVentoinha("Fan #1", 3409) });
-
-    [Fact]
-    public void Linhas_SempreComOsQuatroBlocosNaOrdem()
-    {
-        var linhas = PainelRegras.Linhas(Retrato());
-
-        Assert.Equal(4, linhas.Count);
-        Assert.Equal("CPU", linhas[0].Rotulo);
-        Assert.Equal("GPU", linhas[1].Rotulo);
-        Assert.Equal("RAM", linhas[2].Rotulo);
-        Assert.Equal("VENT", linhas[3].Rotulo);
-    }
-
-    [Fact]
-    public void LinhaDaCpu_ComTemperaturaECarga_MostraOsDois()
-    {
-        var cpu = PainelRegras.Linhas(Retrato())[0];
-
-        Assert.Equal("50,4 °C · 47%", cpu.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaCpu_ComSoTemperatura_MostraSoEla()
-    {
-        var cpu = PainelRegras.Linhas(Retrato(cargaCpu: null))[0];
-
-        Assert.Equal("50,4 °C", cpu.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaCpu_SemValor_NaoMostraZero()
-    {
-        var cpu = PainelRegras.Linhas(Retrato(tempCpu: null, cargaCpu: null))[0];
-
-        Assert.Equal("—", cpu.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaGpu_ComTemperaturaECarga_MostraOsDois()
-    {
-        var gpu = PainelRegras.Linhas(Retrato())[1];
-
-        Assert.Equal("44 °C · 12%", gpu.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaRam_ComValor_MostraOPorcentual()
-    {
-        var ram = PainelRegras.Linhas(Retrato())[2];
-
-        Assert.Equal("68%", ram.Valor);
-    }
-
-    [Fact]
-    public void LinhaDaRam_SemValor_ViraEmDash()
-    {
-        var ram = PainelRegras.Linhas(Retrato(ram: null))[2];
-
-        Assert.Equal("—", ram.Valor);
-    }
-
     [Fact]
     public void EscolherVentoinha_ComVariasAMaiorRpmVence()
     {
@@ -132,56 +61,57 @@ public class PainelRegrasTestes
     [Fact]
     public void LinhaDaVentoinha_SemLeitura_NaoMostraORpmVelho()
     {
-        var vent = PainelRegras.Linhas(Retrato(ventoinhas: new[]
-        {
-            new PainelVentoinha("Fan #1", null),
-        }))[3];
-
         // A ventoinha que parou de dar leitura mostra o nome e um travessão:
         // o RPM velho não pode aparecer como se fosse o de agora.
-        Assert.Equal("Fan #1 · —", vent.Valor);
+        Assert.Equal("Fan #1 · —", PainelRegras.ValorDaVentoinha(new PainelVentoinha("Fan #1", null)));
     }
 
     [Fact]
     public void LinhaDaVentoinha_ComLeitura_MostraONomeEORpm()
     {
-        var vent = PainelRegras.Linhas(Retrato())[3];
-
-        Assert.Equal("Fan #1 · 3.409 RPM", vent.Valor);
+        Assert.Equal("Fan #1 · 3.409 RPM", PainelRegras.ValorDaVentoinha(new PainelVentoinha("Fan #1", 3409)));
     }
 
     [Fact]
     public void LinhaDaVentoinha_SemNomeMostraSoORpm()
     {
-        var vent = PainelRegras.Linhas(Retrato(ventoinhas: new[]
-        {
-            new PainelVentoinha("", 3409),
-        }))[3];
-
-        Assert.Equal("3.409 RPM", vent.Valor);
+        Assert.Equal("3.409 RPM", PainelRegras.ValorDaVentoinha(new PainelVentoinha("", 3409)));
     }
 
     [Fact]
     public void LinhaDaVentoinha_SemVentoinhaNoApp_ViraEmDash()
     {
-        var vent = PainelRegras.Linhas(Retrato(ventoinhas: Array.Empty<PainelVentoinha>()))[3];
+        Assert.Equal("—", PainelRegras.ValorDaVentoinha(null));
+    }
 
-        Assert.Equal("—", vent.Valor);
+    [Theory]
+    [InlineData("TL", 12, 12)]
+    [InlineData("TR", 1920 - 260 - 12, 12)]
+    [InlineData("BL", 12, 1040 - 120 - 12)]
+    [InlineData("BR", 1920 - 260 - 12, 1040 - 120 - 12)]
+    public void PosicaoNoCanto_ColaNoCantoEscolhidoDaAreaDeTrabalho(string canto, double x, double y)
+    {
+        // A área de trabalho termina em 1040: a barra de tarefas (40 px) não
+        // pode cobrir o monitor colado embaixo.
+        var (px, py) = PainelRegras.PosicaoNoCanto(canto, 260, 120, 0, 0, 1920, 1040);
+        Assert.Equal(x, px);
+        Assert.Equal(y, py);
     }
 
     [Fact]
-    public void LinhasSemLeitura_MostraTravessaoNasQuatroLinhas()
+    public void PosicaoNoCanto_CantoDesconhecido_ValeComoSuperiorEsquerdo()
     {
-        // Durante a cena de GPU o painel para de ler: o que ele mostra é o
-        // travessão, nunca o número de antes (número velho é pior que número
-        // ausente).
-        var linhas = PainelRegras.LinhasSemLeitura();
+        Assert.Equal((12d, 12d), PainelRegras.PosicaoNoCanto(null, 260, 120, 0, 0, 1920, 1040));
+        Assert.Equal((12d, 12d), PainelRegras.PosicaoNoCanto("xx", 260, 120, 0, 0, 1920, 1040));
+    }
 
-        Assert.Equal(4, linhas.Count);
-        foreach (var linha in linhas)
-        {
-            Assert.Equal("—", linha.Valor);
-        }
+    [Fact]
+    public void PosicaoNoCanto_SegueOTamanhoDoMonitor()
+    {
+        // Maior (o tamanho "Grande"), ele continua colado no canto direito, e
+        // não sai da tela.
+        var (x, _) = PainelRegras.PosicaoNoCanto("TR", 338, 156, 0, 0, 1920, 1040);
+        Assert.Equal(1920 - 338 - 12, x);
     }
 
     [Fact]

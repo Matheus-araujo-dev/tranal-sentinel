@@ -115,6 +115,25 @@ jobs:
           Copy-Item Assets/PawnIO/COPYING dist/COPYING
           Copy-Item Assets/PawnIO/NOTICE.txt dist/NOTICE.txt
 
+      # O instalador do driver PawnIO vai dentro do TranalSentinel-Setup.exe:
+      # sem ele, um PC novo fica sem temperatura e consumo da CPU. A versão é
+      # fixada e o arquivo só entra se o hash bater e a assinatura for válida e
+      # do autor (namazso). Para subir a versão: troque a tag e o hash juntos.
+      - name: Baixar e conferir o instalador do PawnIO
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAWNIO_TAG: "2.2.0"
+          PAWNIO_SHA256: "1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032"
+        run: |
+          gh release download $env:PAWNIO_TAG -R namazso/PawnIO.Setup -p PawnIO_setup.exe -D dist --clobber
+          $hash = (Get-FileHash dist/PawnIO_setup.exe -Algorithm SHA256).Hash
+          if ($hash -ne $env:PAWNIO_SHA256) { throw "O PawnIO_setup.exe $env:PAWNIO_TAG não bate com o hash fixado ($hash)." }
+          $assinatura = Get-AuthenticodeSignature dist/PawnIO_setup.exe
+          if ($assinatura.Status -ne 'Valid') { throw "A assinatura do PawnIO_setup.exe não é válida: $($assinatura.Status)" }
+          if ($assinatura.SignerCertificate.Subject -notmatch 'O=namazso') { throw "O PawnIO_setup.exe não foi assinado pelo autor: $($assinatura.SignerCertificate.Subject)" }
+          "PawnIO_setup.exe $env:PAWNIO_TAG conferido"
+
       # O Inno Setup costuma vir na imagem do runner; se não vier, é instalado
       # aqui (o runner é descartável, não a máquina de ninguém).
       - name: Compilar o instalador (Inno Setup)

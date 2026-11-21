@@ -29,33 +29,17 @@
                 <Canvas x:Name="OGraph" Width="190" Height="30" Margin="0,6,0,4" ClipToBounds="True"/>
             </StackPanel>
 
-            <!-- Linhas de sensores do overlay (GPU, VRAM, CPU, RAM com itens configuráveis) -->
+            <!-- Linhas de sensores (GPU, VRAM, CPU, RAM, ventoinha), com os itens que o dono escolheu: as mesmas nos dois modos -->
             <ItemsControl x:Name="ORows" Margin="0,2,0,0">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="46"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="{Binding Label}" Foreground="#8C8C8C"/>
                             <TextBlock Grid.Column="1" Text="{Binding Value}"/>
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            <!-- Linhas do painel (CPU, GPU, RAM, ventoinha — fixas, do PainelRegras) -->
-            <ItemsControl x:Name="PLinhas" Margin="0,2,0,0">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="42"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Rotulo}" Foreground="#8C8C8C"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Valor}"/>
                         </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>

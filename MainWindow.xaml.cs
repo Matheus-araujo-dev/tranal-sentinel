@@ -14,7 +14,6 @@ namespace TranalSentinel;
 public partial class MainWindow : Window
 {
     private readonly SensorMonitor _monitor;
-    private DateTime _monitorAbriuEm;
 
     // Ventoinhas: cada uma é comparada com o seu próprio recorde, para
     // dizer se ela está gasta.
@@ -267,7 +266,6 @@ public partial class MainWindow : Window
 
             try { await _monitor.OpenAsync(); }
             catch (Exception ex) { StatusText.Text = $"Sensores indisponíveis: {ex.Message}"; return; }
-            _monitorAbriuEm = DateTime.UtcNow;
             _monitor.Refresh();
             AddChip("Todos", null, isChecked: true);
             foreach (var c in _monitor.Rows.Select(r => r.Category).Distinct().OrderBy(x => x))
@@ -310,11 +308,9 @@ public partial class MainWindow : Window
     {
         if (!_monitor.IsOpen) return;
 
-        // Período de graça: o LibreHardwareMonitor pode demorar algumas coletas para
-        // estabilizar a leitura da CPU (o driver abre, mas o primeiro valor não vem
-        // imediatamente). Sem esse prazo, o aviso pisca toda vez que o app abre.
-        if (_monitorAbriuEm != default && (DateTime.UtcNow - _monitorAbriuEm).TotalSeconds < 15
-            && _monitor.CpuTemperature is null)
+        // Período de graça: enquanto a coleta sobe, não ter temperatura é o
+        // normal. A regra (e o porquê) mora em SensorMonitor.AvisoCpuEmEspera.
+        if (_monitor.CpuEmEspera(DateTime.UtcNow))
         {
             CpuSensorWarn.Visibility = Visibility.Collapsed;
             return;
@@ -1471,8 +1467,16 @@ public partial class MainWindow : Window
         base.OnSourceInitialized(e);
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
         System.Windows.Interop.HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
-        // Ctrl + Shift + O, sem repetição ao segurar
-        RegisterHotKey(hwnd, HotkeyId, 0x0002 | 0x0004 | 0x4000, 0x4F);
+        // Ctrl + Shift + O (a letra), sem repetição ao segurar. Se outro
+        // programa já tiver o atalho, o Windows recusa: isso vai para o diário,
+        // em vez de o atalho simplesmente não funcionar sem explicação.
+        if (!RegisterHotKey(hwnd, HotkeyId, 0x0002 | 0x0004 | 0x4000, 0x4F))
+        {
+            int erro = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            RegistroDiario.Registrar(
+                $"O atalho Ctrl + Shift + O não pôde ser registrado (erro {erro}): outro programa já usa esse atalho.",
+                "MONITOR");
+        }
     }
 
     private IntPtr HotkeyHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -1488,7 +1492,7 @@ public partial class MainWindow : Window
     }
 
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint vk);
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);

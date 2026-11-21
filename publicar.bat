@@ -31,6 +31,18 @@ copy /y "LICENSE" "..\TranalSentinel-dist\LICENSE" >nul
 copy /y "Assets\PawnIO\COPYING" "..\TranalSentinel-dist\COPYING" >nul
 copy /y "Assets\PawnIO\NOTICE.txt" "..\TranalSentinel-dist\NOTICE.txt" >nul
 
+rem O instalador do driver PawnIO vai dentro do Setup (a mesma versao e o mesmo
+rem hash do publicar.yml). Precisa do gh (GitHub CLI) logado.
+echo Baixando e conferindo o instalador do PawnIO ...
+gh release download 2.2.0 -R namazso/PawnIO.Setup -p PawnIO_setup.exe -D "..\TranalSentinel-dist" --clobber
+powershell -NoProfile -Command "$h=(Get-FileHash '..\TranalSentinel-dist\PawnIO_setup.exe' -Algorithm SHA256).Hash; $s=Get-AuthenticodeSignature '..\TranalSentinel-dist\PawnIO_setup.exe'; if ($h -ne '1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032' -or $s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=namazso') { exit 1 }"
+if errorlevel 1 (
+    echo.
+    echo O PawnIO_setup.exe nao foi baixado ou nao confere ^(hash ou assinatura^). O instalador NAO foi gerado.
+    pause
+    exit /b 1
+)
+
 set "ISCC="
 if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"

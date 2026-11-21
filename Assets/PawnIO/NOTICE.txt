@@ -48,6 +48,25 @@ módulos SmbusPIIX4.bin, SmbusI801.bin e AMDFamily17.bin. O TRANAL SENTINEL
 não modifica os módulos: ele apenas os carrega no driver PawnIO e chama as
 funções públicas deles.
 
+O driver PawnIO
+---------------
+O instalador do TRANAL SENTINEL leva junto o instalador oficial do driver
+PawnIO (PawnIO_setup.exe, versão 2.2.0, assinado pelo autor, sem nenhuma
+modificação) e o roda só quando o driver ainda não está instalado. É o
+driver que deixa o app ler a temperatura e o consumo da CPU.
+
+O PawnIO é de namazso e é distribuído sob a GNU General Public License,
+versão 2. O código-fonte que corresponde à versão 2.2.0 está na tag 2.2.0
+do projeto (commit 5cdf470831fdfff3f7f1d06363ca6b230f3bf35a):
+https://github.com/namazso/PawnIO/tree/2.2.0
+e o instalador oficial em https://github.com/namazso/PawnIO.Setup/releases.
+Quem quiser uma cópia desse código-fonte pode pedi-la pelo repositório do
+TRANAL SENTINEL (https://github.com/Matheus-araujo-dev/tranal-sentinel/issues).
+
+O driver tem a sua própria entrada em "Apps e recursos" e não é removido
+quando o TRANAL SENTINEL é desinstalado: outros programas (o
+LibreHardwareMonitor e o FanControl, por exemplo) usam o mesmo driver.
+
 Sobre o AMDFamily17.bin
 -----------------------
 Este módulo é usado SOMENTE para leitura (a função ioctl_read_smn). Nenhum

@@ -375,7 +375,13 @@ public partial class MainWindow
         DashCheck Item(bool ok, string title, string okText, string badText) => new(title, ok ? okText : badText, ok);
 
         var list = new List<DashCheck>();
-        if (_monitor.IsOpen) // enquanto detecta o hardware, ainda não dá para saber
+        if (_monitor.IsOpen && _monitor.CpuEmEspera(DateTime.UtcNow))
+        {
+            // A coleta ainda está subindo: sem temperatura é o normal, e não
+            // uma falha. O item espera, e a saúde é refeita em 5 s em vez de 60.
+            _healthAt = DateTime.Now.AddSeconds(-55);
+        }
+        else if (_monitor.IsOpen) // enquanto detecta o hardware, ainda não dá para saber
         {
             var sensors = _monitor.DiagnoseCpuSensors();
             list.Add(Item(sensors == SensorMonitor.CpuSensorProblem.None, "Sensores da CPU",

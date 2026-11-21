@@ -1,3 +1,41 @@
+## Novidades — o monitor mostra o que você escolhe, e o instalador traz o PawnIO
+
+**O monitor juntou de verdade o painel e o overlay.** O painel do desktop
+mostrava sempre as mesmas quatro linhas (CPU, GPU, RAM e ventoinha) e ignorava
+o "O que mostrar". Agora ele mostra o que você marcou, igual ao overlay do
+jogo. A ventoinha do sistema virou uma opção da lista, e quem já tinha
+escolhas gravadas ganha a ventoinha marcada uma vez, para ela não sumir do
+painel na atualização (dá para desmarcar, e ela não volta). No desktop o FPS só
+aparece quando um programa está desenhando quadros na frente; sem ele e sem
+nada mais marcado, o painel diz que está aguardando um jogo. Durante um
+benchmark, o monitor mostra "—" em vez de números parados.
+
+**Tamanho e posição valem no desktop também.** O tamanho (pequeno, médio,
+grande) muda o painel na hora. Clicar num canto leva o painel para lá; você
+ainda pode arrastar, e clicar de novo no canto traz ele de volta. No jogo, o
+overlay fica no mesmo canto.
+
+**O atalho é Ctrl + Shift + O, com a letra O.** O zero não liga o monitor. A
+página agora diz isso, e se outro programa já usar o atalho, o motivo fica no
+diário.
+
+**O instalador já instala o driver PawnIO.** Num PC sem o driver, o
+`TranalSentinel-Setup.exe` instala o PawnIO junto (o instalador oficial do
+autor, conferido pela assinatura), e a temperatura e o consumo da CPU já
+aparecem na primeira abertura. Se o driver já estiver instalado, nada muda. Ao
+desinstalar o TRANAL SENTINEL, o PawnIO fica, porque outros programas usam o
+mesmo driver.
+
+## Correção — o aviso da CPU não aparece mais na abertura
+
+Ao abrir o app, o menu mostrava **"Sem temperatura e consumo da CPU — O driver
+não respondeu"**, com a tela inteira em "—", e o aviso só sumia quando a
+primeira leitura chegava. O driver não tinha falhado: a primeira leitura ainda
+não tinha chegado. A espera do aviso agora começa quando a coleta é aberta, e
+não quando ela termina de abrir. O app só acusa o driver se nenhuma leitura
+chegar em 45 s, ou se a temperatura da CPU não vier 15 s depois da primeira
+leitura.
+
 ## Novidades — um monitor só, alertas legíveis
 
 **Painel flutuante e overlay viraram uma coisa só.** Antes eram dois

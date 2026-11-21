@@ -21,7 +21,25 @@ public partial class MainWindow
     // ------------------------------------------------------------------ overlay: itens configuráveis
 
     private HashSet<string>? _ovShow;
-    private HashSet<string> OvShow => _ovShow ??= _settings.OverlayItems is { } l ? l.ToHashSet() : OverlayMetrics.Defaults();
+    private HashSet<string> OvShow => _ovShow ??= CarregarEscolhasDoMonitor();
+
+    /// <summary>
+    /// As escolhas de "O que mostrar", com a ventoinha acrescentada uma vez a
+    /// quem gravou as escolhas antes de ela existir (o painel antigo a mostrava
+    /// sempre, e ela não pode sumir na atualização).
+    /// </summary>
+    private HashSet<string> CarregarEscolhasDoMonitor()
+    {
+        var (itens, mudou) = OverlayMetrics.MigrarVentoinha(_settings.OverlayItems, _settings.OverlayVentoinhaMigrada);
+        if (!_settings.OverlayVentoinhaMigrada)
+        {
+            _settings.OverlayItems = itens;
+            _settings.OverlayVentoinhaMigrada = true;
+            _settings.Save();
+            if (mudou) RegistroDiario.Registrar("A ventoinha entrou nas escolhas do monitor (o painel antigo a mostrava sempre).", "MONITOR");
+        }
+        return itens is { } l ? l.ToHashSet() : OverlayMetrics.Defaults();
+    }
 
     /// <summary>Dicas das métricas do overlay.</summary>
     private static readonly Dictionary<string, string> DicasOverlay = new()
@@ -50,6 +68,7 @@ public partial class MainWindow
         ["cpu_power"] = "Watts que o processador está gastando. Só aparece quando o app roda como administrador.",
         ["ram_used"] = "Memória do sistema ocupada, em GB. Perto do total, o Windows passa a trocar por disco.",
         ["ram_pct"] = "Porcentagem da memória em uso. É o número que diz se falta memória para o que você está fazendo.",
+        ["fan"] = "A ventoinha do sistema que está girando mais rápido agora, com o nome e o RPM. É a mesma da página TRANAL VENTOINHAS.",
         ["game"] = "Nome do jogo que está em primeiro plano. Serve para saber qual janela o app está medindo.",
         ["clock"] = "Hora do relógio no rodapé do overlay. Ajuda a marcar o começo da sessão.",
     };
@@ -175,7 +194,29 @@ public partial class MainWindow
         if (show.Contains("ram_used")) ram.Add(total > 0 ? SensorTexto.Gigabytes((total - availB) / 1073741824.0) : SensorTexto.Ausente);
         if (show.Contains("ram_pct")) ram.Add(P(s.RamPct));
         Line("RAM", ram);
+
+        // A ventoinha: a mesma escolha do antigo painel (a de maior RPM entre
+        // as que dão leitura), com a regra em PainelRegras.
+        if (show.Contains("fan"))
+            lines.Add(new OverlayLine("VENT", PainelRegras.ValorDaVentoinha(PainelRegras.EscolherVentoinha(VentoinhasDoMonitor()))));
         return lines;
+    }
+
+    /// <summary>As ventoinhas que a página TRANAL VENTOINHAS acompanha, no formato do monitor.</summary>
+    private List<PainelVentoinha> VentoinhasDoMonitor()
+    {
+        try
+        {
+            return _ventoinhas.Cartoes()
+                .Select(c => new PainelVentoinha(VentoinhaRegras.NomeLegivel(c.Nome), c.RpmAtual))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            // Sem a lista das ventoinhas, a linha mostra "—": número ausente, nunca inventado.
+            System.Diagnostics.Debug.WriteLine("Ventoinhas do monitor: " + ex.Message);
+            return new List<PainelVentoinha>();
+        }
     }
 
     // ------------------------------------------------------------------ painel (modo desktop)
@@ -223,13 +264,12 @@ public partial class MainWindow
                 _monitor2!.Topmost = _settings.PainelSempreNoTopo;
                 _monitor2.TrocarModo(MonitorWindow.Modo.Desktop);
 
-                // O tamanho escolhido é do overlay: o painel abre sempre no
-                // tamanho normal, mesmo que a janela tenha sido desligada no jogo.
-                _monitor2.SetScale(1);
+                // O tamanho escolhido vale nos dois modos.
+                _monitor2.SetScale(_settings.OverlayScale);
 
                 if (!_monitor2.IsVisible) _monitor2.Show();
 
-                if (UpdatePainel())
+                if (AtualizarConteudo(null))
                 {
                     _monitor2.UpdateLayout();
                     RestaurarPosicaoDoPainel();
@@ -307,9 +347,9 @@ public partial class MainWindow
         else
         {
             _monitor2.TrocarModo(MonitorWindow.Modo.Desktop);
-            _monitor2.SetScale(1);
+            _monitor2.SetScale(_settings.OverlayScale);
             _monitor2.Topmost = _settings.PainelSempreNoTopo;
-            UpdatePainel();
+            AtualizarConteudo(null);
             _monitor2.UpdateLayout();
             RestaurarPosicaoDoPainel();
         }
@@ -323,17 +363,39 @@ public partial class MainWindow
         _settings.Save();
     }
 
-    /// <summary>Devolve o painel para o canto superior direito do monitor principal.</summary>
-    private void PainelCanto_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Leva o painel do desktop para o canto escolhido na página MONITOR (a
+    /// área de trabalho do monitor principal, sem a barra de tarefas) e grava
+    /// essa posição. Depois o dono ainda pode arrastar.
+    /// </summary>
+    private void ColocarPainelNoCanto()
     {
-        if (_monitor2 is null) return;
+        if (_monitor2 is null || _monitor2.ModoAtual != MonitorWindow.Modo.Desktop) return;
 
+        _monitor2.UpdateLayout();
         var area = SystemParameters.WorkArea;
         var (largura, altura) = TamanhoDoMonitor();
-        _monitor2.Left = area.Right - largura - 12;
-        _monitor2.Top = area.Top + 12;
+        var (x, y) = PainelRegras.PosicaoNoCanto(_settings.OverlayCorner, largura, altura,
+                                                 area.Left, area.Top, area.Right, area.Bottom);
+        _monitor2.Left = x;
+        _monitor2.Top = y;
 
         SalvarPosicaoDoPainel();
+    }
+
+    /// <summary>
+    /// O painel está no canto escolhido? Serve para a troca de tamanho: um
+    /// painel colado no canto direito, ao crescer, precisa continuar colado
+    /// nele (e não sair da tela); um que o dono arrastou fica onde está.
+    /// </summary>
+    private bool PainelEstaNoCanto()
+    {
+        if (_monitor2 is null || _monitor2.ModoAtual != MonitorWindow.Modo.Desktop) return false;
+        var area = SystemParameters.WorkArea;
+        var (largura, altura) = TamanhoDoMonitor();
+        var (x, y) = PainelRegras.PosicaoNoCanto(_settings.OverlayCorner, largura, altura,
+                                                 area.Left, area.Top, area.Right, area.Bottom);
+        return Math.Abs(_monitor2.Left - x) < 2 && Math.Abs(_monitor2.Top - y) < 2;
     }
 
     private (double largura, double altura) TamanhoDoMonitor()
@@ -343,33 +405,27 @@ public partial class MainWindow
         return (largura, altura);
     }
 
-    private bool UpdatePainel()
+    /// <summary>
+    /// Preenche o monitor com o que o dono escolheu em "O que mostrar" — o
+    /// mesmo conteúdo no desktop e no jogo. Devolve false se a atualização
+    /// falhou (o monitor é desligado e a falha vai para o diário).
+    /// </summary>
+    private bool AtualizarConteudo(FrameStats? f)
     {
         if (_monitor2 is null || !_monitor2.IsVisible) return false;
 
         try
         {
+            // Durante um benchmark as leituras ficam pausadas: nada de consultar
+            // o driver nem de mostrar o número parado como se fosse de agora.
+            // Vale para todo bench, inclusive os que não pausam o monitor.
             if (_gpuBenchActive)
             {
-                _monitor2.UpdatePainel(PainelRegras.LinhasSemLeitura());
+                _monitor2.UpdateOverlay(null, OverlayMetrics.LinhasSemLeitura(OvShow), OvShow, null);
                 return true;
             }
 
-            var s = BottleneckAnalyzer.Sample(_monitor, _gpus.FirstOrDefault(), null);
-
-            var ventoinhas = new List<PainelVentoinha>();
-            try
-            {
-                ventoinhas = _ventoinhas.Cartoes()
-                    .Select(c => new PainelVentoinha(VentoinhaRegras.NomeLegivel(c.Nome), c.RpmAtual))
-                    .ToList();
-            }
-            catch { }
-
-            var retrato = new PainelRetrato(
-                s.CpuTemp, s.CpuTotal, s.GpuTemp, s.GpuLoad, s.RamPct, ventoinhas);
-
-            _monitor2.UpdatePainel(PainelRegras.Linhas(retrato));
+            _monitor2.UpdateOverlay(f, BuildOverlayLines(f), OvShow, OvShow.Contains("clock") ? DateTime.Now.ToString("HH:mm") : null);
             return true;
         }
         catch (Exception ex)
@@ -406,9 +462,8 @@ public partial class MainWindow
             return;
         }
 
-        var area = SystemParameters.WorkArea;
-        _monitor2.Left = area.Right - largura - 12;
-        _monitor2.Top = area.Top + 12;
+        // Sem posição guardada (ou fora da tela): o canto escolhido.
+        ColocarPainelNoCanto();
     }
 
     /// <summary>Prepara a página de monitor (chamada quando o menu é aberto).</summary>
@@ -420,23 +475,45 @@ public partial class MainWindow
 
     // ------------------------------------------------------------------ overlay (modo jogo)
 
-    private void OvOption_Changed(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// O dono escolheu um canto (ou clicou de novo no que já estava marcado):
+    /// vale nos dois modos. No desktop o painel vai para lá na hora; no jogo
+    /// o overlay fica nesse canto da tela do jogo.
+    /// </summary>
+    private void OvCorner_Click(object sender, RoutedEventArgs e)
     {
         if (!_overlayReady) return;
         _settings.OverlayCorner = CheckedTag(OvCornerPanel) ?? "TL";
+        _settings.Save();
+        ApplyOverlayOptions();
+        ColocarPainelNoCanto();
+    }
+
+    /// <summary>O dono escolheu o tamanho: vale nos dois modos.</summary>
+    private void OvScale_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_overlayReady) return;
+        bool noCanto = PainelEstaNoCanto();
         _settings.OverlayScale = double.Parse(CheckedTag(OvScalePanel) ?? "1", System.Globalization.CultureInfo.InvariantCulture);
         _settings.Save();
         ApplyOverlayOptions();
+
+        // Colado no canto, ele continua no canto depois de crescer ou
+        // encolher; arrastado pelo dono, fica onde está (desde que na tela).
+        if (noCanto) ColocarPainelNoCanto();
+        else if (_monitor2 is { ModoAtual: MonitorWindow.Modo.Desktop })
+        {
+            _monitor2.UpdateLayout();
+            var (largura, altura) = TamanhoDoMonitor();
+            if (!MonitorWindow.DentroDaTela(_monitor2.Left, _monitor2.Top, largura, altura)) ColocarPainelNoCanto();
+        }
     }
 
     private void ApplyOverlayOptions()
     {
         if (_monitor2 == null) return;
         _monitor2.Corner = _settings.OverlayCorner;
-
-        // O tamanho escolhido é do overlay; o painel fica sempre no tamanho normal.
-        if (_monitor2.ModoAtual == MonitorWindow.Modo.Jogo)
-            _monitor2.SetScale(_settings.OverlayScale);
+        _monitor2.SetScale(_settings.OverlayScale);
         _monitor2.Reposition();
     }
 
@@ -456,15 +533,8 @@ public partial class MainWindow
 
         if (_monitor2 != null && _monitor2.IsVisible)
         {
-            if (_monitor2.ModoAtual == MonitorWindow.Modo.Jogo)
-            {
-                _monitor2.UpdateOverlay(f, BuildOverlayLines(f), OvShow, OvShow.Contains("clock") ? DateTime.Now.ToString("HH:mm") : null);
-                _monitor2.KeepOnTop();
-            }
-            else
-            {
-                UpdatePainel();
-            }
+            AtualizarConteudo(f);
+            if (_monitor2.ModoAtual == MonitorWindow.Modo.Jogo) _monitor2.KeepOnTop();
         }
         UpdateOverlayStatus(f);
     }
