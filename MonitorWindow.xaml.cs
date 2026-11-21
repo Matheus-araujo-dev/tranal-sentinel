@@ -24,6 +24,10 @@ namespace TranalSentinel;
 /// A troca de modo esconde e reabre a janela com os estilos certos — é o
 /// jeito seguro no WPF (trocar <c>WS_EX_TRANSPARENT</c> sem esconder não
 /// atualiza o hit-test do Windows).
+///
+/// Quem escolhe o modo é <see cref="MonitorModoRegras"/>: há um interruptor
+/// só, e a janela vira overlay sozinha quando um jogo em tela cheia está na
+/// frente (sem arrastar e sem fechar, para não atrapalhar a partida).
 /// </summary>
 public partial class MonitorWindow : Window
 {
@@ -234,6 +238,47 @@ public partial class MonitorWindow : Window
         SetWindowPos(_hwnd, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
     }
 
+    /// <summary>
+    /// A janela em primeiro plano é do processo <paramref name="pid"/> e cobre
+    /// o monitor inteiro (tela cheia ou "sem bordas")? É a medida que
+    /// <see cref="MonitorModoRegras.PareceJogo"/> usa para decidir o modo.
+    /// A área de trabalho (Progman/WorkerW) nunca conta.
+    /// </summary>
+    public static bool PrimeiroPlanoOcupaOMonitor(int pid) => PrimeiroPlanoOcupaOMonitor((int?)pid);
+
+    /// <summary>
+    /// A janela em primeiro plano (de qualquer programa que não seja o
+    /// TRANAL SENTINEL) cobre o monitor inteiro? Usada ao ligar o monitor,
+    /// antes de o FPS ter sido medido.
+    /// </summary>
+    public static bool PrimeiroPlanoOcupaOMonitor() => PrimeiroPlanoOcupaOMonitor((int?)null);
+
+    private static bool PrimeiroPlanoOcupaOMonitor(int? pid)
+    {
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero) return false;
+        GetWindowThreadProcessId(fg, out uint dono);
+        if (dono == (uint)Environment.ProcessId) return false;
+        if (pid is int esperado && dono != (uint)esperado) return false;
+
+        var classe = new System.Text.StringBuilder(64);
+        GetClassName(fg, classe, classe.Capacity);
+        var nome = classe.ToString();
+        if (nome is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;
+
+        // Janela maximizada com barra de título é um programa comum (o
+        // navegador, o player), não um jogo em tela cheia.
+        if (IsZoomed(fg) && (GetWindowLong(fg, GWL_STYLE) & WS_CAPTION) == WS_CAPTION) return false;
+
+        if (!GetWindowRect(fg, out var wr)) return false;
+        var mon = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
+        var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(mon, ref mi)) return false;
+
+        var r = mi.rcMonitor;
+        return MonitorModoRegras.OcupaOMonitor(wr.Left, wr.Top, wr.Right, wr.Bottom, r.Left, r.Top, r.Right, r.Bottom);
+    }
+
     private void TrackGame(IntPtr fg)
     {
         if (fg == IntPtr.Zero) return;
@@ -325,4 +370,7 @@ public partial class MonitorWindow : Window
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr mon, ref MONITORINFO mi);
     [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr module, WinEventProc proc, uint pid, uint thread, uint flags);
     [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
+    private const int GWL_STYLE = -16, WS_CAPTION = 0x00C00000;
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsZoomed(IntPtr h);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr h, System.Text.StringBuilder nome, int max);
 }

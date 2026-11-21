@@ -78,10 +78,9 @@ Baseline de avisos: **16 no app**. Acima disso, é regressão.
   o modo original do serviço, o valor original do ASPM. Sem isso, "restaurar"
   não tem de onde voltar.
 - **O app nunca age por conta própria**: suspender serviço é sempre escolha do
-  usuário; o app só marca os que ele reconhece. A **vigia da tecla presa** é a
-  exceção explícita (v0.32): ela solta uma tecla que o Windows deixou marcada
-  como pressionada, e o dono pode desligar isso na página do TRANAL SAÚDE
-  (a preferência `CorrigirTeclaPresa`, que vem ligada).
+  usuário; o app só marca os que ele reconhece. A **vigia da tecla presa**
+  (v0.32), que era a exceção, **saiu do app** a pedido do dono (20/11/2026):
+  o cartão da página Diagnóstico e o gancho de teclado foram retirados.
 - **Nada de `catch` vazio** sem comentário dizendo por que é seguro.
 
 ## Arquitetura que não se deve quebrar
@@ -829,6 +828,42 @@ gerenciado tinha só ~11 MB vivos; o que pesava era nativo.
 - O `FrameMonitor` esquece os processos que pararam de apresentar quadros
   (antes, cada programa que já desenhou um quadro ficava com até 10 s de
   quadros guardados para sempre).
+
+### O monitor único (painel e overlay, um interruptor só)
+
+- **Um interruptor, dois modos.** Painel e overlay eram dois interruptores
+  (`ChkPainel`, `ChkOverlay`) mandando na MESMA janela (`MonitorWindow`):
+  ligar um trocava o modo e o outro perdia o controle. Agora existe só
+  "Mostrar o monitor" (`ChkPainel`, que também é o que o atalho
+  Ctrl + Shift + O liga e desliga) e o modo é decidido pela regra pura
+  `MonitorModoRegras`.
+- **Jogo é quadro na frente + tela cheia.** `PareceJogo` exige o programa em
+  primeiro plano entregando quadros (ETW) **e** a janela dele cobrindo o
+  monitor inteiro (`OcupaOMonitor`, tela cheia ou sem bordas). A comparação
+  é de **igualdade** com folga de 2 px, não "cobre": MEDIDO na revisão, a
+  janela maximizada comum tem o retângulo 8 px maior que a área de trabalho
+  em cada lado, e com a barra de tarefas oculta passava por "cobre o
+  monitor". Janela maximizada com barra de título também é descartada
+  (`IsZoomed` + `WS_CAPTION`). Jogo em
+  janela não vira overlay: navegador, player e Electron também entregam
+  quadros, e o painel virando overlay sobre um vídeo em janela seria o
+  defeito oposto.
+- **A troca tem histerese** (`EntrarNoJogo` 1,5 s, `SairDoJogo` 4 s): um
+  alt-tab rápido não troca o modo e a tela de carregamento não faz o painel
+  piscar no meio da partida.
+- **No jogo não se arrasta nem se fecha** (a janela é click-through); a
+  posição do painel é guardada antes de virar overlay e devolvida na volta.
+  A posição do canto do overlay nunca é gravada como posição do painel.
+- **Com o monitor ligado, a detecção de FPS fica ligada** (`FramesNecessario`):
+  é o FPS do primeiro plano que diz que há jogo na frente.
+- **Ligar com o jogo na frente começa como overlay** (`ComecarEm`): o
+  Ctrl + Shift + O dentro da partida não mostra o painel arrastável por cima
+  do jogo nem por um instante.
+- **O painel abre sempre no tamanho normal**: o tamanho escolhido
+  ("NO JOGO: TAMANHO") é só do overlay.
+- **O benchmark pausa o monitor sem gravar a preferência**
+  (`PausarMonitor`/`RetomarMonitor`): se o app cair no meio do bench, o
+  monitor volta no próximo arranque.
 
 ## Publicar
 

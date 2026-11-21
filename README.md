@@ -56,17 +56,7 @@ pergunta que o Windows faz quando mostra o "Não responder") e o menu do ícone
 ganha a opção de **encerrar**; avisa também de **temperatura alta** da CPU
 (85 °C), do disco (60 °C) e de **bateria acabando** (20 % fora da tomada).
 
-**Vigia de tecla presa** — quando o Windows continua achando que Shift, Ctrl, Alt ou
-Win está pressionado depois que você solta (e o clique passa a valer como
-clique com a tecla), o app **solta a tecla**, avisa e registra no diário (o aviso na tela tem teto de 3 por família — Shift, Ctrl, Alt e Win contam como uma; o diário registra toda tentativa, sem teto). O
-reconhecimento é pelo silêncio do teclado: quem segura uma tecla de verdade
-continua mandando repetição, a tecla presa não manda evento nenhum. Por
-isso a repetição automática do teclado (Configurações do Windows) precisa
-estar ligada — sem ela o app não age, porque não conseguiria distinguir
-"preso" de "segurando". Só age com as três condições ao mesmo tempo: a tecla caída há 30 s, o teclado quieto há 30 s
-e a repetição automática do Windows ligada. A correção automática pode ser desligada na página
-do TRANAL SAÚDE. Se a tecla travar de novo logo depois, o app solta de novo:
-a espera de 1 minuto vale só para as tentativas que não deram certo.
+**Vigia de tecla presa** — retirada do app em 20/11/2026: o cartão da página Diagnóstico e o gancho de teclado saíram (o motor e os testes continuam no código, sem ligação com a tela).
 
 **TRANAL USO** — o app passa a lembrar **qual programa ficou em frente na tela**
 e a responder as duas perguntas que sempre sobraram: *"quanto tempo eu passei
@@ -316,7 +306,7 @@ documentado.
   silencioso e fecha; o instalador troca os arquivos e abre o app de novo.
 - **Perfil de recursos**: Completo / Equilibrado / Economia. No modo economia os
   sensores são lidos a cada 5 s em vez de 1 s, o histórico passa de 3 h para 24 h
-  e o overlay e a análise de saúde não rodam sozinhos.
+  e a análise de saúde não roda sozinha.
 - **Diagnóstico pela linha de comando**: `--saude coletar|comparar|relatar`,
   reaproveitando exatamente as mesmas regras da aba TRANAL SAÚDE.
 

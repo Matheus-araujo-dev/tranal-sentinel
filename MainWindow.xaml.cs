@@ -213,7 +213,9 @@ public partial class MainWindow : Window
             // corresse agora acharia a bandeja já fechada.
             PararVigia();
 
-            SalvarPosicaoDoPainel();
+            // No modo jogo a janela está no canto do jogo: essa não é a posição
+            // que o dono deu ao painel, e não pode ser gravada como se fosse.
+            if (_monitor2?.ModoAtual == MonitorWindow.Modo.Desktop) SalvarPosicaoDoPainel();
 
             _bandeja?.Dispose();
             _timerInstantaneo?.Stop();
@@ -228,14 +230,6 @@ public partial class MainWindow : Window
         // O painel flutuante: o dono liga e desliga pela página "Painel".
         // Se ele o deixou ligado da outra vez, ele volta.
         if (_settings.PainelVisivel) ChkPainel.IsChecked = true;
-
-        // Vigia da tecla presa: a preferência do dono vem gravada.
-        ChkTeclaPresa.IsChecked = _settings.CorrigirTeclaPresa;
-        // O tempo do texto vem da regra (um lugar só): nada de "30
-        // segundos" escrito à mão na tela.
-        ChkTeclaPresaTexto.Text = ChkTeclaPresaTexto.Text
-            .Replace("{SEGUNDOS}", NumeroTexto.Inteiro(TeclaPresaRegras.SegundosMinimos))
-            .Replace("{MINUTOS}", NumeroTexto.Inteiro((long)TeclaPresaRegras.EsperaDepoisDaTentativa.TotalMinutes));
     }
 
     /// <summary>Coletas lentas da abertura, em paralelo e fora da thread da janela; cada parte preenche a tela quando fica pronta.</summary>
@@ -779,7 +773,11 @@ public partial class MainWindow : Window
     private static MeterItem Meter(string label, double? pct, string? suffix = null)
         => new(label, pct == null ? "—" : $"{pct:0} %{suffix}", Math.Clamp((pct ?? 0) / 100, 0, 1));
 
-    private bool FramesNecessario => _monitor2?.ModoAtual == MonitorWindow.Modo.Jogo || PageBottleneck.IsVisible || _bnSession != null;
+    /// <summary>
+    /// A detecção de FPS (ETW) precisa rodar? Com o monitor ligado sim: é o FPS
+    /// do primeiro plano que diz que um jogo está na frente.
+    /// </summary>
+    private bool FramesNecessario => ChkPainel.IsChecked == true || PageBottleneck.IsVisible || _bnSession != null;
 
     private void AtualizarEstadoFrames()
     {
@@ -1317,14 +1315,13 @@ public partial class MainWindow : Window
         timer.Start();
         _gpuBenchActive = true;
         GbGpuNow.Text = "sensores pausados";
-        bool overlayWasOn = ChkOverlay.IsChecked == true;
-        if (overlayWasOn) ChkOverlay.IsChecked = false; // o overlay também consulta a GPU
+        bool overlayWasOn = PausarMonitor(); // o monitor também consulta a GPU
 
         // Thread dedicada: a cena roda num loop próprio com prioridade alta.
         var r = await Task.Factory.StartNew(bench.Run, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         timer.Stop();
         _gpuBenchActive = false;
-        if (overlayWasOn) ChkOverlay.IsChecked = true;
+        RetomarMonitor(overlayWasOn);
         GbGpuNow.Text = "—";
         SetGameBenchRunning(BtnGpuBench, false);
         GbProgress.ScaleX = 0;
@@ -1482,7 +1479,7 @@ public partial class MainWindow : Window
     {
         if (msg == 0x0312 && wParam.ToInt32() == HotkeyId) // WM_HOTKEY
         {
-            ChkOverlay.IsChecked = ChkOverlay.IsChecked != true;
+            ChkPainel.IsChecked = ChkPainel.IsChecked != true;
             handled = true;
         }
         else if (msg == 0x0219) // WM_DEVICECHANGE

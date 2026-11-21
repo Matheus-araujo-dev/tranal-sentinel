@@ -53,12 +53,11 @@ public partial class MainWindow
 
         // Igual à cena de jogo: sensores e overlay pausados (consultas ao driver geram engasgos no frametime).
         _gpuBenchActive = true;
-        bool overlayWasOn = ChkOverlay.IsChecked == true;
-        if (overlayWasOn) ChkOverlay.IsChecked = false;
+        bool overlayWasOn = PausarMonitor();
         var r = await Task.Factory.StartNew(bench.Run, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         timer.Stop();
         _gpuBenchActive = false;
-        if (overlayWasOn) ChkOverlay.IsChecked = true;
+        RetomarMonitor(overlayWasOn);
         SetGameBenchRunning(BtnRtBench, false);
         RtProgress.ScaleX = 0;
         RtFpsNow.Text = "—";
