@@ -110,6 +110,15 @@ Baseline de avisos: **16 no app**. Acima disso, é regressão.
   `%ProgramFiles%\Tranal Group\Tranal Sentinel`, e escolher outra pasta-raiz
   instala em `<raiz>\Tranal Group\Tranal Sentinel` (`PastaNoGrupo` no `[Code]`
   do `.iss`, a regra única do destino).
+- **O instalador leva o driver PawnIO** (decisão do dono, 20/11/2026): sem
+  ele, um PC novo fica sem temperatura e consumo da CPU. É o instalador
+  oficial do autor (`PawnIO_setup.exe`, versão fixada no `publicar.yml` e no
+  `publicar.bat`), conferido por SHA-256 e pela assinatura do namazso antes
+  de entrar no Setup. Ele roda com `-install -silent` só quando a chave
+  `Uninstall\PawnIO` não existe (a mesma que `SensorMonitor.IsPawnIOInstalled`
+  confere), e a desinstalação do app **não** remove o driver: ele é
+  compartilhado com outros programas. Para subir a versão, troque a tag e o
+  hash juntos.
 - **A tarefa agendada é o mesmo XML de sempre** (logon do usuário, privilégio
   máximo, `--iniciar-como-sistema`, sem prazo e sem parar na bateria), gravado
   pelo `Register-ScheduledTask` e não pelo `schtasks /XML`: o schtasks só aceita
@@ -592,8 +601,8 @@ Baseline de avisos: **16 no app**. Acima disso, é regressão.
   posição e quem devolve o painel para o canto é `MainWindow.Painel.cs` — a
   partial class da janela principal. A página "Painel" (grupo TRANAL
   ASSISTENTE) é onde o dono liga isso.
-- **As quatro linhas do painel morem no núcleo puro** (`PainelRegras.Linhas`):
-  CPU, GPU, RAM e ventoinha, sempre nesta ordem. `PainelRegras` e
+- **As regras do painel moram no núcleo puro** (as quatro linhas fixas desta
+  versão saíram no monitor único; veja a seção dele). `PainelRegras` e
   `SensorTexto` **não conhecem WPF** — devolvem o texto pronto, e a janela só
   mostra. É o que deixa as linhas testáveis sem abrir uma janela (a janela do
   WPF exige uma thread com STA).
@@ -613,8 +622,7 @@ Baseline de avisos: **16 no app**. Acima disso, é regressão.
   nenhum deles escreve unidade nem vírgula por conta própria.
 - **A posição do painel é guardada em DIPs** (`AppSettings.PainelX` e
   `PainelY`), e a tela virtual é lida na mesma unidade. Se o dono trocou de
-  monitor, o painel volta para o canto em vez de ficar fora da tela — e o
-  botão "VOLTAR PARA O CANTO" dá a mesma posição.
+  monitor, o painel volta para o canto escolhido em vez de ficar fora da tela.
 
 ### v0.32 — a vigia de tecla presa
 
@@ -859,8 +867,25 @@ gerenciado tinha só ~11 MB vivos; o que pesava era nativo.
 - **Ligar com o jogo na frente começa como overlay** (`ComecarEm`): o
   Ctrl + Shift + O dentro da partida não mostra o painel arrastável por cima
   do jogo nem por um instante.
-- **O painel abre sempre no tamanho normal**: o tamanho escolhido
-  ("NO JOGO: TAMANHO") é só do overlay.
+- **O conteúdo é um só nos dois modos** (decisão do dono, 20/11/2026: "juntar
+  as funcionalidades dos dois painéis"). O painel do desktop e o overlay
+  mostram as métricas marcadas em "O que mostrar" (`OverlayMetrics`, gravadas
+  em `AppSettings.OverlayItems`), montadas por `BuildOverlayLines`. A
+  ventoinha do sistema é uma métrica como as outras (`fan`, a de maior RPM,
+  pela `PainelRegras.EscolherVentoinha`). As quatro linhas fixas do antigo
+  painel (`PainelRegras.Linhas`) saíram: duas regras para a mesma janela é o
+  jeito de ela mostrar uma coisa no desktop e outra no jogo. No desktop, a
+  seção de FPS só aparece quando há um programa desenhando quadros na frente.
+- **Tamanho e canto valem nos dois modos.** `OverlayScale` escala o painel
+  também. `OverlayCorner` é o canto do jogo e o canto do desktop: clicar num
+  canto leva o painel para lá na hora (`PainelRegras.PosicaoNoCanto`, pura,
+  dentro da área de trabalho) e grava a posição; o dono ainda pode arrastar,
+  e a posição arrastada é a que volta. Painel colado no canto continua colado
+  quando o tamanho muda.
+- **O atalho é a letra O.** Medido no PC do dono em 20/11/2026: o
+  Ctrl + Shift + O estava registrado e ligava o monitor. Quando o Windows
+  recusa o registro (outro programa com o mesmo atalho), o motivo vai para o
+  diário.
 - **O benchmark pausa o monitor sem gravar a preferência**
   (`PausarMonitor`/`RetomarMonitor`): se o app cair no meio do bench, o
   monitor volta no próximo arranque.
@@ -922,7 +947,7 @@ atualizada, para quem guardou o link dela.
 | `MonitorVentoinhas.cs` | A coleta das ventoinhas: a leitura de cada uma, o recorde em memória, o agregado do dia e a gravação no banco. |
 | `NumeroTexto.cs` | A formatação de todo número e data da tela (um lugar só, independente da cultura do Windows). |
 | `SensorTexto.cs` | O texto das unidades dos sensores (um lugar só): temperatura, porcentagem, MHz, GHz, W, V, RPM, GB, MB, MB/s, A, L/h, Hz, mWh e ms. |
-| `PainelRegras.cs` / `PainelWindow.xaml` / `MainWindow.Painel.cs` | O painel flutuante: as quatro linhas no núcleo puro (`PainelRegras`), a janela que as mostra (`PainelWindow`) e a integração no app — ligar, atualizar, guardar a posição (`MainWindow.Painel.cs`). |
+| `PainelRegras.cs` / `MonitorWindow.xaml` / `MainWindow.Monitor.cs` | O monitor (painel no desktop, overlay no jogo): as regras puras de ventoinha, canto e posição (`PainelRegras`), a janela (`MonitorWindow`) e a integração no app — ligar, atualizar com "O que mostrar", tamanho, canto e posição (`MainWindow.Monitor.cs`). |
 | `MainWindow.Ventoinhas.cs` | A página TRANAL VENTOINHAS: os cartões e o "RPM com o tempo". |
 | `Leitura.cs` | A leitura de um histórico: as linhas lidas e se a leitura ficou completa (a mesma regra para o CSV antigo e para o banco). |
 | `InstanciaUnica.cs` | A trava de instância única: o app não sobe duas vezes, e a linha de comando só repara o histórico com o app fechado. |

@@ -11,7 +11,8 @@
 ;   iscc /DMyAppVersion=0.37.0 /DPayloadDir=..\dist /DOutputDir=..\dist-setup installer\tranal-sentinel.iss
 ;
 ;   MyAppVersion  versão da release (a mesma gravada no TranalSentinel.exe)
-;   PayloadDir    pasta com TranalSentinel.exe, LEIA-ME.txt, COPYING e NOTICE.txt
+;   PayloadDir    pasta com TranalSentinel.exe, LEIA-ME.txt, COPYING, NOTICE.txt
+;                 e PawnIO_setup.exe (o instalador oficial do driver)
 ;   OutputDir     onde o TranalSentinel-Setup.exe é gravado
 ;
 ; Decisões:
@@ -125,6 +126,11 @@ Source: "{#PayloadDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 ; Licença do PawnIO (o driver dos sensores): vai junto do app.
 Source: "{#PayloadDir}\COPYING"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\NOTICE.txt"; DestDir: "{app}"; Flags: ignoreversion
+; O instalador oficial do driver PawnIO (namazso, assinado), sem modificação:
+; sem o driver, o app não lê temperatura nem consumo da CPU. Ele vai para a
+; pasta temporária e só roda quando o PawnIO ainda não está instalado (o
+; [Run] abaixo). O CI baixa a versão fixada e confere o hash e a assinatura.
+Source: "{#PayloadDir}\PawnIO_setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: PrecisaDoPawnIO
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
@@ -134,6 +140,14 @@ Name: "{autoprograms}\{cm:Desinstalar}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Check: QuerAtalhoAreaTrabalho
 
 [Run]
+; O driver PawnIO, antes de o app abrir: é ele que dá a temperatura e o consumo
+; da CPU. Só quando ainda não está instalado (a atualização não o reinstala),
+; e na instalação silenciosa também. O desinstalador do app NÃO remove o
+; PawnIO: o driver é compartilhado (LibreHardwareMonitor, FanControl e outros
+; usam o mesmo) e tem a sua própria entrada em "Apps e recursos".
+Filename: "{tmp}\PawnIO_setup.exe"; Parameters: "-install -silent"; \
+    StatusMsg: "Instalando o driver PawnIO (temperatura e consumo da CPU)..."; \
+    Flags: runhidden waituntilterminated; Check: PrecisaDoPawnIO
 ; Reabre o app no fim. Sem skipifsilent: na atualização silenciosa (o app
 ; fechou para ela acontecer) é este passo que traz o app de volta.
 ; runascurrentuser: o postinstall rodaria como o usuário NÃO elevado, e o app
@@ -149,6 +163,13 @@ Filename: "{sys}\taskkill.exe"; Parameters: "/F /T /IM {#AppExeName}"; Flags: ru
 Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""{#NomeTarefa}"" /F"; Flags: runhidden waituntilterminated; RunOnceId: "RemoverTarefa"
 
 [Code]
+{ O PawnIO falta? É a mesma chave que o app confere
+  (SensorMonitor.IsPawnIOInstalled), na visão de 64 bits do registro. }
+function PrecisaDoPawnIO: Boolean;
+begin
+  Result := not RegKeyExists(HKLM64, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO');
+end;
+
 const
   { A entrada que o instalador antigo em C# (TranalSetup.exe, até a v0.36)
     gravava em "Apps e recursos". O Inno usa outra ("AppId_is1"). }

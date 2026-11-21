@@ -450,7 +450,9 @@ App WPF (.NET 10) com:
 ## Requisitos
 - Windows 10/11
 - .NET 10 SDK (https://dotnet.microsoft.com/download)
-- Driver **PawnIO** (temperatura/consumo da CPU): `winget install namazso.PawnIO`
+- Driver **PawnIO** (temperatura/consumo da CPU). O `TranalSentinel-Setup.exe` já o instala
+  quando ele falta (o instalador oficial do autor, versão fixada e conferida no CI). Para
+  desenvolver ou usar o .exe portátil: `winget install namazso.PawnIO`.
   A LibreHardwareMonitorLib 0.9.6+ usa o PawnIO no lugar do antigo WinRing0, que o Windows Defender bloqueia.
 
 ## Como rodar
@@ -460,7 +462,7 @@ dotnet run
 ```
 O app pede privilégio de administrador (necessário para sensores de baixo nível).
 Para levar a outro PC: dê dois cliques em `publicar.bat`. Ele gera `..\TranalSentinel-dist\TranalSentinel.exe` (arquivo único, com o .NET embutido,
-sem caminhos do seu usuário) + `LEIA-ME.txt`. No outro PC só é preciso instalar o PawnIO. Rode de novo após cada alteração no código.
+sem caminhos do seu usuário), o `TranalSentinel-Setup.exe` (que já leva o PawnIO) e o `LEIA-ME.txt`. No outro PC basta rodar o Setup. Rode de novo após cada alteração no código.
 
 ### Baixar a versão mais recente
 
