@@ -310,8 +310,7 @@ public partial class MainWindow : Window
 
         // Período de graça: enquanto a coleta sobe, não ter temperatura é o
         // normal. A regra (e o porquê) mora em SensorMonitor.AvisoCpuEmEspera.
-        if (SensorMonitor.AvisoCpuEmEspera(DateTime.UtcNow, _monitor.AbertoEm, _monitor.PrimeiraColetaEm,
-                                           _monitor.CpuTemperature is not null))
+        if (_monitor.CpuEmEspera(DateTime.UtcNow))
         {
             CpuSensorWarn.Visibility = Visibility.Collapsed;
             return;

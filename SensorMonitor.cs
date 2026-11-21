@@ -164,11 +164,23 @@ public sealed class SensorMonitor : IDisposable
     }
 
     /// <summary>
-    /// Quanto o app espera a primeira leitura antes de dizer que a CPU não
-    /// respondeu. A abertura da coleta espera até 30 s pela primeira leva; o
-    /// prazo cobre essa espera com folga.
+    /// Quanto a abertura (e a reabertura) da coleta espera pela primeira leva
+    /// antes de devolver o controle.
     /// </summary>
-    public static readonly TimeSpan EsperaDaPrimeiraColeta = TimeSpan.FromSeconds(45);
+    public static readonly TimeSpan EsperaDaAbertura = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Quanto o app espera a primeira leitura antes de dizer que a CPU não
+    /// respondeu: a espera da abertura com 15 s de folga.
+    /// </summary>
+    public static readonly TimeSpan EsperaDaPrimeiraColeta = EsperaDaAbertura + TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// O diagnóstico da CPU ainda deve esperar? É o ponto único que o aviso do
+    /// menu e o cartão de saúde consomem (a regra é <see cref="AvisoCpuEmEspera"/>).
+    /// </summary>
+    public bool CpuEmEspera(DateTime agoraUtc) =>
+        AvisoCpuEmEspera(agoraUtc, AbertoEm, PrimeiraColetaEm, CpuTemperature is not null);
 
     /// <summary>
     /// Depois da primeira leitura, o LibreHardwareMonitor ainda pode levar
@@ -244,7 +256,7 @@ public sealed class SensorMonitor : IDisposable
         await Task.Run(() => IniciarFilho(_permitirGpuAdl)).ConfigureAwait(false);
         IniciarLeitor();
 
-        DateTime limite = DateTime.Now.AddSeconds(30);
+        DateTime limite = DateTime.Now + EsperaDaAbertura;
         while (DateTime.Now < limite && UltimaColeta is null)
         {
             // O arquivo é lido aqui também: quem espera a primeira leva não pode
@@ -392,6 +404,17 @@ public sealed class SensorMonitor : IDisposable
     public async Task ReiniciarAsync(bool permitirGpuAdl)
     {
         _permitirGpuAdl = permitirGpuAdl;
+
+        // O coletor velho para ANTES de o estado ser zerado, e a leva dele é
+        // descartada: senão a thread leitora podia trazer, depois do reinício,
+        // uma leitura do coletor anterior como se fosse a primeira do novo.
+        PararFilho();
+        try { File.Delete(_arquivoLeituras); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // O arquivo velho não saiu: a próxima leva do coletor novo o substitui.
+        }
+
         _index.Clear();
         Rows.Clear();
         Volatile.Write(ref _snapshot, null);
@@ -399,10 +422,9 @@ public sealed class SensorMonitor : IDisposable
         AbertoEm = DateTime.UtcNow;
         PrimeiraColetaEm = null;
 
-        PararFilho();
         await Task.Run(() => IniciarFilho(permitirGpuAdl)).ConfigureAwait(false);
 
-        DateTime limite = DateTime.Now.AddSeconds(30);
+        DateTime limite = DateTime.Now + EsperaDaAbertura;
         while (DateTime.Now < limite && UltimaColeta is null)
             await Task.Delay(200).ConfigureAwait(false);
     }
