@@ -1149,19 +1149,6 @@
 
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
-                                <TextBlock Text="VIGIA DE TECLA PRESA" Style="{StaticResource Label}"/>
-                                <CheckBox x:Name="ChkTeclaPresa" Content="Corrigir automaticamente uma tecla modificadora presa"
-                                          FontSize="15" Margin="0,8,0,0"
-                                          Checked="ChkTeclaPresa_Changed" Unchecked="ChkTeclaPresa_Changed" ToolTip="Quando o Windows ficar achando que Shift, Ctrl, Alt ou Win está pressionado, o app solta a tecla sozinha e avisa."/>
-                                <TextBlock x:Name="ChkTeclaPresaTexto" Foreground="{DynamicResource Muted}" Margin="26,6,0,0" TextWrapping="Wrap">
-                                    Às vezes o Windows continua achando que Shift, Ctrl, Alt ou Win está pressionado depois que você solta — e o clique passa a valer como clique com a tecla. Quando isso acontece, o TRANAL SENTINEL solta a tecla e avisa — o aviso na tela tem teto de 3 por família (Shift, Ctrl, Alt e Win contam como uma), mas o diário registra toda tentativa, sem teto. Se a primeira tentativa não soltar, o app espera {}{MINUTOS} min antes de tentar de novo. Só acontece com a tecla caída e o teclado em silêncio por {}{SEGUNDOS} segundos.
-                                </TextBlock>
-                                <TextBlock x:Name="ChkTeclaPresaEstado" Foreground="{DynamicResource Muted}" Margin="26,4,0,0" TextWrapping="Wrap"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
-                            <StackPanel>
                                 <TextBlock Text="BANCO DE DADOS DO HISTÓRICO" Style="{StaticResource Label}"/>
                                 <TextBlock x:Name="SaudeBancoEstado" Text="Verificando o banco de dados…" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                 <Border x:Name="SaudeBancoAvisoCaixa" BorderBrush="{DynamicResource LineStrong}" BorderThickness="2,0,0,0" Padding="10,2,0,2" Margin="0,10,0,0" Visibility="Collapsed">
@@ -2475,24 +2462,29 @@
                     <StackPanel Margin="36,30,36,30">
                         <StackPanel Margin="0,0,0,20">
                             <TextBlock Text="MONITOR" Style="{StaticResource H1}"/>
-                            <TextBlock Text="Painel flutuante no desktop e overlay de FPS por cima do jogo, numa janela só" Style="{StaticResource Sub}"/>
+                            <TextBlock Text="Uma janela só: painel flutuante no desktop, que vira overlay de FPS sozinho quando um jogo em tela cheia está na frente" Style="{StaticResource Sub}" TextWrapping="Wrap"/>
                         </StackPanel>
 
                         <!-- Painel (modo desktop) -->
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
-                                <CheckBox x:Name="ChkPainel" Content="Mostrar o painel flutuante" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed" ToolTip="Abre uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser."/>
+                                <CheckBox x:Name="ChkPainel" Content="Mostrar o monitor" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed" ToolTip="Liga a janela flutuante: painel no desktop e overlay de FPS quando um jogo em tela cheia está na frente. O atalho Ctrl + Shift + O liga e desliga a qualquer momento."/>
                                 <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
-                                    Uma janela pequena com CPU, GPU, RAM e ventoinha. Você arrasta para onde quiser; o botão × só esconde o painel, e o TRANAL SENTINEL continua rodando na bandeja.
+                                    No desktop é um painel pequeno com CPU, GPU, RAM e ventoinha: você arrasta para onde quiser, e o botão × desliga o monitor (o TRANAL SENTINEL continua na bandeja).
+                                    Quando um jogo em tela cheia ou sem bordas fica na frente, o painel vira o overlay de FPS no canto escolhido abaixo, e nesse modo não dá para arrastar nem fechar, para não atrapalhar a partida.
+                                    Saiu do jogo, ele volta a ser o painel, no lugar onde você deixou.
+                                </TextBlock>
+                                <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
+                                    Atalho global: <Run Text="Ctrl + Shift + O" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Fg}"/> liga e desliga, inclusive dentro do jogo.
                                 </TextBlock>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
-                                <CheckBox x:Name="ChkPainelTopo" Content="Sempre no topo" FontSize="15" Checked="ChkPainelOpcao_Changed" Unchecked="ChkPainelOpcao_Changed" ToolTip="Mantém o painel acima das outras janelas. Desligue quando ele atrapalhar o jogo."/>
+                                <CheckBox x:Name="ChkPainelTopo" Content="Sempre no topo" FontSize="15" Checked="ChkPainelOpcao_Changed" Unchecked="ChkPainelOpcao_Changed" ToolTip="Mantém o painel acima das outras janelas no desktop. No jogo o overlay fica sempre por cima."/>
                                 <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
-                                    Desligue quando o painel atrapalhar o jogo. Deixado ligado, o painel fica acima das outras janelas.
+                                    Vale para o painel no desktop. Deixado ligado, o painel fica acima das outras janelas; no jogo, o overlay fica sempre por cima.
                                 </TextBlock>
                             </StackPanel>
                         </Border>
@@ -2504,22 +2496,11 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Overlay (modo jogo) -->
-                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
-                            <Grid>
-                                <StackPanel>
-                                    <CheckBox x:Name="ChkOverlay" Content="Mostrar overlay no jogo" FontSize="15" Checked="ChkOverlay_Changed" Unchecked="ChkOverlay_Changed" ToolTip="Liga a tela de FPS, frametime e sensores por cima do jogo. O atalho Ctrl + Shift + O liga e desliga a qualquer momento."/>
-                                    <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
-                                        Atalho global: <Run Text="Ctrl + Shift + O" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Fg}"/> liga e desliga, inclusive dentro do jogo.
-                                    </TextBlock>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
+                        <!-- No jogo (overlay): posição, tamanho e o que mostrar -->
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <WrapPanel>
                                 <StackPanel Margin="0,0,36,0">
-                                    <TextBlock Text="POSIÇÃO DO OVERLAY" Style="{StaticResource Label}"/>
+                                    <TextBlock Text="NO JOGO: POSIÇÃO" Style="{StaticResource Label}"/>
                                     <StackPanel x:Name="OvCornerPanel" Orientation="Horizontal">
                                         <RadioButton Style="{StaticResource Chip}" GroupName="OvCorner" Content="Superior esquerdo" Tag="TL" Margin="0,0,6,0" Checked="OvOption_Changed"/>
                                         <RadioButton Style="{StaticResource Chip}" GroupName="OvCorner" Content="Superior direito" Tag="TR" Margin="0,0,6,0" Checked="OvOption_Changed"/>
@@ -2528,7 +2509,7 @@
                                     </StackPanel>
                                 </StackPanel>
                                 <StackPanel>
-                                    <TextBlock Text="TAMANHO" Style="{StaticResource Label}"/>
+                                    <TextBlock Text="NO JOGO: TAMANHO" Style="{StaticResource Label}"/>
                                     <StackPanel x:Name="OvScalePanel" Orientation="Horizontal">
                                         <RadioButton Style="{StaticResource Chip}" GroupName="OvScale" Content="Pequeno" Tag="0.85" Margin="0,0,6,0" Checked="OvOption_Changed"/>
                                         <RadioButton Style="{StaticResource Chip}" GroupName="OvScale" Content="Médio" Tag="1" Margin="0,0,6,0" Checked="OvOption_Changed"/>
@@ -2541,7 +2522,7 @@
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
                                 <Grid>
-                                    <TextBlock Text="O QUE MOSTRAR NO OVERLAY" Style="{StaticResource Label}"/>
+                                    <TextBlock Text="O QUE MOSTRAR NO JOGO" Style="{StaticResource Label}"/>
                                     <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Top">
                                         <Button Style="{StaticResource OutlineButton}" Content="SÓ FPS" Tag="min" Padding="10,4" FontSize="11" Margin="0,0,6,0" Click="OvPreset_Click" ToolTip="Mostra só o essencial: FPS, frametime e 1 % low, sem mais nenhuma linha."/>
                                         <Button Style="{StaticResource OutlineButton}" Content="PADRÃO" Tag="default" Padding="10,4" FontSize="11" Margin="0,0,6,0" Click="OvPreset_Click" ToolTip="Volta para o conjunto padrão de métricas que o app considera útil."/>

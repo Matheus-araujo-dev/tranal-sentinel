@@ -692,8 +692,11 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">
                     <Grid>
+                        <!-- Foreground explicito: o estilo padrao do ToggleButton (Windows) pinta o
+                             texto com a cor do sistema, preta: o item escolhido sumia no fundo escuro. -->
                         <ToggleButton x:Name="Toggle" Focusable="False" ClickMode="Press"
                                       Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                      Foreground="{TemplateBinding Foreground}"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
@@ -705,10 +708,11 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <ContentPresenter Margin="10,7"
+                                                              TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}"
                                                               Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
                                                               ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
                                                               VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1" Text="&#x70D;" FontFamily="{StaticResource Icons}"
+                                            <TextBlock Grid.Column="1" Text="&#xE70D;" FontFamily="{StaticResource Icons}"
                                                        FontSize="11" Foreground="{DynamicResource Muted}"
                                                        Margin="0,0,10,0" VerticalAlignment="Center"/>
                                         </Grid>
