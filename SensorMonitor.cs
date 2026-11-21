@@ -164,6 +164,45 @@ public sealed class SensorMonitor : IDisposable
     }
 
     /// <summary>
+    /// Quanto o app espera a primeira leitura antes de dizer que a CPU não
+    /// respondeu. A abertura da coleta espera até 30 s pela primeira leva; o
+    /// prazo cobre essa espera com folga.
+    /// </summary>
+    public static readonly TimeSpan EsperaDaPrimeiraColeta = TimeSpan.FromSeconds(45);
+
+    /// <summary>
+    /// Depois da primeira leitura, o LibreHardwareMonitor ainda pode levar
+    /// algumas voltas para trazer a temperatura da CPU (o driver abre, mas o
+    /// primeiro valor demora).
+    /// </summary>
+    public static readonly TimeSpan CarenciaDepoisDaPrimeiraColeta = TimeSpan.FromSeconds(15);
+
+    /// <summary>Quando a coleta foi aberta (UTC; null = ainda não foi).</summary>
+    public DateTime? AbertoEm { get; private set; }
+
+    /// <summary>Quando chegou a primeira leva desta abertura (UTC; null = ainda não chegou).</summary>
+    public DateTime? PrimeiraColetaEm { get; private set; }
+
+    /// <summary>
+    /// O aviso da CPU ainda deve esperar? Enquanto a coleta está subindo, não
+    /// ter temperatura é o normal, e não uma falha do driver.
+    ///
+    /// <para>
+    /// A espera conta desde a abertura da coleta, e não desde o fim dela: a
+    /// abertura pode levar até 30 s esperando a primeira leitura, e era
+    /// justamente nesse tempo que o app acusava "o driver não respondeu" com
+    /// a tela inteira em "—" (visto pelo dono em 20/11/2026, na v0.37.1).
+    /// </para>
+    /// </summary>
+    public static bool AvisoCpuEmEspera(DateTime agoraUtc, DateTime? abertoEm, DateTime? primeiraColetaEm, bool temTemperatura)
+    {
+        if (temTemperatura) return false;
+        if (abertoEm is null) return true;
+        if (primeiraColetaEm is null) return agoraUtc - abertoEm.Value < EsperaDaPrimeiraColeta;
+        return agoraUtc - primeiraColetaEm.Value < CarenciaDepoisDaPrimeiraColeta;
+    }
+
+    /// <summary>
     /// De quanto em quanto tempo o processo filho interroga o hardware.
     /// </summary>
     /// <remarks>
@@ -199,6 +238,8 @@ public sealed class SensorMonitor : IDisposable
     {
         if (IsOpen) return;
         IsOpen = true;
+        AbertoEm = DateTime.UtcNow;
+        PrimeiraColetaEm = null;
 
         await Task.Run(() => IniciarFilho(_permitirGpuAdl)).ConfigureAwait(false);
         IniciarLeitor();
@@ -355,6 +396,8 @@ public sealed class SensorMonitor : IDisposable
         Rows.Clear();
         Volatile.Write(ref _snapshot, null);
         UltimaColeta = null;
+        AbertoEm = DateTime.UtcNow;
+        PrimeiraColetaEm = null;
 
         PararFilho();
         await Task.Run(() => IniciarFilho(permitirGpuAdl)).ConfigureAwait(false);
@@ -667,6 +710,7 @@ public sealed class SensorMonitor : IDisposable
 
             Volatile.Write(ref _snapshot, snap);
             UltimaColeta = snap.Momento;
+            PrimeiraColetaEm ??= DateTime.UtcNow;
             Falhas = snap.Falhas;
             ErroColeta = snap.ErroGeral;
             FalhaCpu = snap.FalhaCpu;

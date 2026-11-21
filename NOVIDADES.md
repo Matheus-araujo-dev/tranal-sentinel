@@ -1,3 +1,13 @@
+## Correção — o aviso da CPU não aparece mais na abertura
+
+Ao abrir o app, o menu mostrava **"Sem temperatura e consumo da CPU — O driver
+não respondeu"**, com a tela inteira em "—", e o aviso só sumia quando a
+primeira leitura chegava. O driver não tinha falhado: a primeira leitura ainda
+não tinha chegado. A espera do aviso agora começa quando a coleta é aberta, e
+não quando ela termina de abrir. O app só acusa o driver se nenhuma leitura
+chegar em 45 s, ou se a temperatura da CPU não vier 15 s depois da primeira
+leitura.
+
 ## Novidades — um monitor só, alertas legíveis
 
 **Painel flutuante e overlay viraram uma coisa só.** Antes eram dois
