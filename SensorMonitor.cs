@@ -558,7 +558,26 @@ public sealed class SensorMonitor : IDisposable
         new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent())
             .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
 
-    public enum CpuSensorProblem { None, NotElevated, PawnIOMissing, ReadFailed }
+    /// <summary>
+    /// Por que a temperatura e o consumo da CPU não aparecem. <c>PawnIOTravado</c>
+    /// é o driver instalado sem o dispositivo que os programas abrem (veja
+    /// <see cref="PawnIoEstado"/>): ele pede outra correção que o "não respondeu".
+    /// </summary>
+    public enum CpuSensorProblem { None, NotElevated, PawnIOMissing, ReadFailed, PawnIOTravado }
+
+    /// <summary>A última sondagem do driver (o aviso pergunta a cada segundo; o driver é sondado a cada 10 s).</summary>
+    private (DateTime Em, int Erro) _sondaPawnIo = (DateTime.MinValue, 0);
+
+    /// <summary>O código da última sondagem do driver PawnIO (0 = abriu), refeita a cada 10 s.</summary>
+    public int ErroDoPawnIo()
+    {
+        if (DateTime.UtcNow - _sondaPawnIo.Em > TimeSpan.FromSeconds(10))
+            _sondaPawnIo = (DateTime.UtcNow, PawnIoTransporte.Sondar());
+        return _sondaPawnIo.Erro;
+    }
+
+    /// <summary>Esquece a sondagem, para a próxima pergunta abrir o driver de novo (depois de um reparo).</summary>
+    public void EsquecerSondaDoPawnIo() => _sondaPawnIo = (DateTime.MinValue, 0);
 
     /// <summary>Por que a temperatura/consumo da CPU não aparecem (o motivo mais provável primeiro).</summary>
     public CpuSensorProblem DiagnoseCpuSensors()
@@ -566,6 +585,7 @@ public sealed class SensorMonitor : IDisposable
         if (CpuTemperature != null) return CpuSensorProblem.None;
         if (!IsElevated) return CpuSensorProblem.NotElevated;
         if (!IsPawnIOInstalled) return CpuSensorProblem.PawnIOMissing;
+        if (PawnIoEstado.Travado(true, ErroDoPawnIo())) return CpuSensorProblem.PawnIOTravado;
         return CpuSensorProblem.ReadFailed;
     }
 
@@ -580,6 +600,7 @@ public sealed class SensorMonitor : IDisposable
         CpuSensorProblem.ReadFailed =>
             "O PawnIO está instalado, mas a leitura falhou. Se acabou de instalar, reinicie o PC. Se continuar, " +
             "confira se o antivírus não bloqueou o driver ou se a CPU é muito antiga/recente para a biblioteca de sensores.",
+        CpuSensorProblem.PawnIOTravado => PawnIoEstado.MotivoDeNaoAbrir(true, PawnIoEstado.ErroSemDispositivo),
         _ => ""
     };
 
@@ -596,6 +617,7 @@ public sealed class SensorMonitor : IDisposable
         CpuSensorProblem.NotElevated => "Sem permissão de administrador.",
         CpuSensorProblem.PawnIOMissing => "Falta o driver PawnIO.",
         CpuSensorProblem.ReadFailed => "O driver não respondeu.",
+        CpuSensorProblem.PawnIOTravado => "O driver PawnIO travou.",
         _ => ""
     };
 

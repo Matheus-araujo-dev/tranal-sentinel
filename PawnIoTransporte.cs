@@ -71,7 +71,26 @@ public sealed class PawnIoTransporte : IPawnIoTransporte
         SafeFileHandle dispositivo, uint codigoIoctl, byte[] bufferEntrada, int tamanhoEntrada,
         byte[] bufferSaida, int tamanhoSaida, out int bytesRetornados, IntPtr sobreposto);
 
-    /// <summary>Abre o dispositivo do driver. Devolve false se o PawnIO não estiver instalado.</summary>
+    /// <summary>O código de erro do Windows da última abertura que falhou (0 = nenhuma falhou).</summary>
+    public int UltimoErro { get; private set; }
+
+    /// <summary>
+    /// O motivo, em texto para a tela, de a última abertura ter falhado. Junta
+    /// o código do Windows com o registro de instalação do driver.
+    /// </summary>
+    public string MotivoDaFalha => PawnIoEstado.MotivoDeNaoAbrir(SensorMonitor.IsPawnIOInstalled, UltimoErro);
+
+    /// <summary>
+    /// Tenta abrir e fechar o driver agora. Devolve 0 quando abriu, ou o código
+    /// de erro do Windows. É barato (uma chamada ao kernel) e não carrega módulo.
+    /// </summary>
+    public static int Sondar()
+    {
+        using var t = new PawnIoTransporte();
+        return t.Abrir() ? 0 : (t.UltimoErro == 0 ? -1 : t.UltimoErro);
+    }
+
+    /// <summary>Abre o dispositivo do driver. Devolve false se não abrir (o motivo fica em <see cref="UltimoErro"/>).</summary>
     public bool Abrir()
     {
         if (_dispositivo != null) return true;
@@ -88,6 +107,9 @@ public sealed class PawnIoTransporte : IPawnIoTransporte
 
         if (handle.IsInvalid)
         {
+            // O código do Windows é guardado: "não está instalado" e "instalado,
+            // mas sem o dispositivo" são problemas diferentes (PawnIoEstado).
+            UltimoErro = Marshal.GetLastWin32Error();
             handle.Dispose();
             return false;
         }
