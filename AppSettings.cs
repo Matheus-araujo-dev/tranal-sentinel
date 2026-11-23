@@ -118,6 +118,15 @@ public sealed class AppSettings
     /// </summary>
     public bool OverlayVentoinhaMigrada { get; set; }
 
+    /// <summary>
+    /// Os modificadores do atalho do monitor (null = nunca escolhido: vale o
+    /// padrão). A regra de qual atalho vale mora em <see cref="AtalhoRegras.Carregar"/>.
+    /// </summary>
+    public uint? AtalhoMonitorModificadores { get; set; }
+
+    /// <summary>A tecla do atalho do monitor (código virtual; null = o padrão).</summary>
+    public uint? AtalhoMonitorTecla { get; set; }
+
     // Painel flutuante: os números do PC sempre à vista.
     public bool PainelVisivel { get; set; }
     public bool PainelSempreNoTopo { get; set; } = true;

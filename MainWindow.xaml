@@ -2468,15 +2468,23 @@
                         <!-- Painel (modo desktop) -->
                         <Border Style="{StaticResource CardBorder}" Margin="0,0,0,14">
                             <StackPanel>
-                                <CheckBox x:Name="ChkPainel" Content="Mostrar o monitor" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed" ToolTip="Liga a janela flutuante: painel no desktop e overlay de FPS quando um jogo em tela cheia está na frente. O atalho Ctrl + Shift + O liga e desliga a qualquer momento."/>
+                                <CheckBox x:Name="ChkPainel" Content="Mostrar o monitor" FontSize="15" Checked="ChkPainel_Changed" Unchecked="ChkPainel_Changed" ToolTip="Liga a janela flutuante: painel no desktop e overlay de FPS quando um jogo em tela cheia está na frente. O atalho escolhido abaixo liga e desliga a qualquer momento."/>
                                 <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
                                     No desktop é um painel com o que você marcou em "O que mostrar": ele abre no canto escolhido abaixo, você arrasta para onde quiser, e o botão × desliga o monitor (o TRANAL SENTINEL continua na bandeja).
                                     Quando um jogo em tela cheia ou sem bordas fica na frente, o painel vira o overlay de FPS no mesmo canto, com as mesmas escolhas, e nesse modo não dá para arrastar nem fechar, para não atrapalhar a partida.
                                     Saiu do jogo, ele volta a ser o painel, no lugar onde você deixou.
                                 </TextBlock>
-                                <TextBlock Foreground="{DynamicResource Muted}" Margin="46,6,0,0" TextWrapping="Wrap">
-                                    Atalho global: <Run Text="Ctrl + Shift + O" FontFamily="{StaticResource Mono}" Foreground="{DynamicResource Fg}"/> liga e desliga, inclusive dentro do jogo (é a letra O, não o zero).
-                                </TextBlock>
+                                <StackPanel Margin="46,10,0,0">
+                                    <TextBlock Text="ATALHO" Style="{StaticResource Label}"/>
+                                    <WrapPanel>
+                                        <Button x:Name="BtnAtalho" Style="{StaticResource OutlineButton}" Padding="12,4" Margin="0,0,6,0" MinWidth="170"
+                                                FontFamily="{StaticResource Mono}" Click="BtnAtalho_Click" PreviewKeyDown="BtnAtalho_PreviewKeyDown" LostKeyboardFocus="BtnAtalho_LostKeyboardFocus"
+                                                ToolTip="Clique e aperte a combinação que você quer (Ctrl, Alt ou Win junto com uma letra, um número ou F1 a F24). Esc cancela."/>
+                                        <Button Style="{StaticResource OutlineButton}" Content="PADRÃO" Padding="10,4" FontSize="11" Click="BtnAtalhoPadrao_Click"
+                                                ToolTip="Volta para Ctrl + Shift + O."/>
+                                    </WrapPanel>
+                                    <TextBlock x:Name="AtalhoStatus" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 

@@ -1467,16 +1467,8 @@ public partial class MainWindow : Window
         base.OnSourceInitialized(e);
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
         System.Windows.Interop.HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
-        // Ctrl + Shift + O (a letra), sem repetição ao segurar. Se outro
-        // programa já tiver o atalho, o Windows recusa: isso vai para o diário,
-        // em vez de o atalho simplesmente não funcionar sem explicação.
-        if (!RegisterHotKey(hwnd, HotkeyId, 0x0002 | 0x0004 | 0x4000, 0x4F))
-        {
-            int erro = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            RegistroDiario.Registrar(
-                $"O atalho Ctrl + Shift + O não pôde ser registrado (erro {erro}): outro programa já usa esse atalho.",
-                "MONITOR");
-        }
+        // O atalho que o dono escolheu na página MONITOR (MainWindow.Monitor.cs).
+        RegistrarAtalhoInicial();
     }
 
     private IntPtr HotkeyHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
