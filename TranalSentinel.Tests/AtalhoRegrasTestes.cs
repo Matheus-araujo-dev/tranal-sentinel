@@ -54,13 +54,26 @@ public class AtalhoRegrasTestes
 
     [Theory]
     [InlineData(AtalhoRegras.Ctrl | AtalhoRegras.Shift, 0x4Du, "Ctrl + Shift + M")]
-    [InlineData(AtalhoRegras.Alt, 0x31u, "Alt + 1")]
+    [InlineData(AtalhoRegras.Ctrl | AtalhoRegras.Alt, 0x31u, "Ctrl + Alt + 1")]
+    [InlineData(AtalhoRegras.Ctrl, 0x7Bu, "Ctrl + F12")]
     [InlineData(AtalhoRegras.Win | AtalhoRegras.Shift, 0x87u, "Shift + Win + F24")]
     public void CombinacaoQueServe_EhEscritaNaOrdemCtrlAltShiftWin(uint mods, uint tecla, string texto)
     {
         var a = new Atalho(mods, tecla);
         Assert.Null(AtalhoRegras.Erro(a));
         Assert.Equal(texto, AtalhoRegras.Texto(a));
+    }
+
+    [Theory]
+    [InlineData(AtalhoRegras.Ctrl, 0x43u)]   // Ctrl + C
+    [InlineData(AtalhoRegras.Ctrl, 0x56u)]   // Ctrl + V
+    [InlineData(AtalhoRegras.Alt, 0x31u)]    // Alt + 1
+    [InlineData(AtalhoRegras.Alt, 0x73u)]    // Alt + F4
+    [InlineData(AtalhoRegras.Ctrl, 0x73u)]   // Ctrl + F4
+    public void AtalhoDoWindows_NaoServe(uint mods, uint tecla)
+    {
+        // O atalho global tomaria a combinação de todos os programas.
+        Assert.NotNull(AtalhoRegras.Erro(new Atalho(mods, tecla)));
     }
 
     [Fact]

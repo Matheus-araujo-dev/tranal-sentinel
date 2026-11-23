@@ -42,14 +42,27 @@ public static class PawnIoReparo
         {
             try
             {
-                var psi = new ProcessStartInfo("pnputil.exe", $"/restart-device \"{id}\"")
+                var psi = new ProcessStartInfo(System.IO.Path.Combine(Environment.SystemDirectory, "pnputil.exe"), $"/restart-device \"{id}\"")
                 {
                     UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
                 };
                 using var p = Process.Start(psi)!;
-                p.StandardOutput.ReadToEnd();
-                p.WaitForExit(30_000);
-                partes.Add($"{id}: código {p.ExitCode}");
+                // A saída é lida em paralelo: lida antes da espera, ela prenderia
+                // o prazo (o ReadToEnd só volta quando o processo acaba).
+                var saida = p.StandardOutput.ReadToEndAsync();
+                if (!p.WaitForExit(30_000))
+                {
+                    try { p.Kill(); } catch (InvalidOperationException) { /* Já tinha terminado entre a espera e o Kill. */ }
+                    partes.Add($"{id}: o pnputil não respondeu em 30 s");
+                    continue;
+                }
+                saida.Wait(2000);
+                partes.Add(p.ExitCode switch
+                {
+                    0 => $"{id}: reiniciado",
+                    3010 => $"{id}: reiniciado, mas o Windows pede reiniciar o PC",
+                    _ => $"{id}: o pnputil devolveu o código {p.ExitCode}",
+                });
             }
             catch (Exception ex)
             {

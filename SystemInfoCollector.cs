@@ -45,7 +45,8 @@ public static class SystemInfoCollector
         try
         {
             var r = MemoriaColeta.Coletar();
-            return MemoriaAtivosTexto.LinhaDasInformacoes(r.TimingsAtivos, r.ErroTimingsAtivos ?? r.Erro);
+            // Só o motivo dos tempos ativos: o erro do SPD é de outra leitura.
+            return MemoriaAtivosTexto.LinhaDasInformacoes(r.TimingsAtivos, r.ErroTimingsAtivos);
         }
         catch (Exception ex)
         {

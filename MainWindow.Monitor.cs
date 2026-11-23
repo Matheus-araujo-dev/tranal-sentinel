@@ -592,7 +592,9 @@ public partial class MainWindow
         BtnAtalho.Content = _capturandoAtalho ? "aperte o atalho…" : AtalhoRegras.Texto(_atalho);
         AtalhoStatus.Text = aviso ?? (_atalhoAtivo
             ? "Ativo: liga e desliga o monitor, inclusive dentro do jogo."
-            : $"O Windows recusou o {AtalhoRegras.Texto(_atalho)}: outro programa já usa essa combinação (o AMD Software usa Ctrl + Shift + O no painel de métricas dele). Clique no botão e escolha outra.");
+            : $"O Windows recusou o {AtalhoRegras.Texto(_atalho)}: outro programa já usa essa combinação" +
+              (_atalho == AtalhoRegras.Padrao ? " (o AMD Software usa Ctrl + Shift + O no painel de métricas dele)" : "") +
+              ". Clique no botão e escolha outra.");
     }
 
     private void BtnAtalho_Click(object sender, RoutedEventArgs e)
@@ -650,6 +652,7 @@ public partial class MainWindow
         }
 
         TentarRegistrarAtalho(_atalho, out _);
+        RegistroDiario.Registrar($"O atalho {AtalhoRegras.Texto(novo)} foi recusado pelo Windows (erro {erro}); continua o {AtalhoRegras.Texto(_atalho)}.", "MONITOR");
         AtualizarTelaDoAtalho(
             $"O Windows recusou o {AtalhoRegras.Texto(novo)} (erro {erro}): outro programa já usa essa combinação. " +
             $"Continua valendo o {AtalhoRegras.Texto(_atalho)}{(_atalhoAtivo ? "" : ", que também está recusado")}. Clique de novo para escolher outra.");

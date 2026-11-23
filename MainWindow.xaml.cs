@@ -367,7 +367,8 @@ public partial class MainWindow : Window
     /// </summary>
     private async Task RepararPawnIoAsync(string why)
     {
-        var r = MessageBox.Show(why + "\n\nReiniciar o driver PawnIO agora? Leva alguns segundos e não precisa reiniciar o PC.",
+        var r = MessageBox.Show(why + "\n\nReiniciar o driver PawnIO agora? Leva alguns segundos e não precisa reiniciar o PC. " +
+                                "Outros programas que usam o mesmo driver (OpenRGB, FanControl) ficam sem ele durante esses segundos.",
                                 "TRANAL SENTINEL", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (r != MessageBoxResult.Yes) return;
 
@@ -380,6 +381,9 @@ public partial class MainWindow : Window
             _monitor.EsquecerSondaDoPawnIo();
             if (abriu)
             {
+                // O reparo já reabre a coleta: a reabertura automática não precisa repetir.
+                _coletaAbertaComPawnIoTravado = false;
+                _coletaReabertaEm = DateTime.UtcNow;
                 await _monitor.ReiniciarAsync(_monitor.PermitirGpuAdl);
                 _ = Task.Run(() => MemoriaColeta.Coletar(forcar: true));
             }
@@ -408,11 +412,15 @@ public partial class MainWindow : Window
     /// </summary>
     private void ReabrirColetaSeOPawnIoVoltou(SensorMonitor.CpuSensorProblem p)
     {
-        if (p == SensorMonitor.CpuSensorProblem.PawnIOTravado) { _coletaAbertaComPawnIoTravado = true; return; }
-        if (!_coletaAbertaComPawnIoTravado || p != SensorMonitor.CpuSensorProblem.ReadFailed) return;
-        if (DateTime.UtcNow - _coletaReabertaEm < TimeSpan.FromMinutes(5)) return;
+        var (reabrir, pendente) = PawnIoEstado.DecidirReabertura(
+            _coletaAbertaComPawnIoTravado,
+            travadoAgora: p == SensorMonitor.CpuSensorProblem.PawnIOTravado,
+            respondendoAgora: p == SensorMonitor.CpuSensorProblem.ReadFailed,
+            reparando: _reparandoPawnIo,
+            DateTime.UtcNow, _coletaReabertaEm);
+        _coletaAbertaComPawnIoTravado = pendente;
+        if (!reabrir) return;
 
-        _coletaAbertaComPawnIoTravado = false;
         _coletaReabertaEm = DateTime.UtcNow;
         RegistroDiario.Registrar("O driver PawnIO voltou a responder: a coleta dos sensores foi reaberta.", "PAWNIO");
         _ = _monitor.ReiniciarAsync(_monitor.PermitirGpuAdl);

@@ -42,6 +42,43 @@ public class PawnIoEstadoTestes
         Assert.Contains("erro 31", PawnIoEstado.MotivoDeNaoAbrir(true, 31));
     }
 
+    private static readonly DateTime Agora = new(2026, 11, 22, 23, 50, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public void Reabertura_DriverVoltou_Reabre()
+    {
+        var (reabrir, pendente) = PawnIoEstado.DecidirReabertura(true, false, true, false, Agora, DateTime.MinValue);
+        Assert.True(reabrir);
+        Assert.False(pendente);
+    }
+
+    [Fact]
+    public void Reabertura_DriverTravado_MarcaPendenteENaoReabre()
+    {
+        Assert.Equal((false, true), PawnIoEstado.DecidirReabertura(false, true, false, false, Agora, DateTime.MinValue));
+    }
+
+    [Fact]
+    public void Reabertura_DuranteOReparo_Espera()
+    {
+        // O próprio reparo reabre: duas reaberturas seguidas podiam deixar um coletor órfão.
+        Assert.Equal((false, true), PawnIoEstado.DecidirReabertura(true, false, true, true, Agora, DateTime.MinValue));
+    }
+
+    [Fact]
+    public void Reabertura_ReabriuHaPouco_EsperaOIntervalo()
+    {
+        var (reabrir, pendente) = PawnIoEstado.DecidirReabertura(true, false, true, false, Agora, Agora.AddMinutes(-1));
+        Assert.False(reabrir);
+        Assert.True(pendente);
+    }
+
+    [Fact]
+    public void Reabertura_SemTerVistoODriverTravado_NaoReabre()
+    {
+        Assert.Equal((false, false), PawnIoEstado.DecidirReabertura(false, false, true, false, Agora, DateTime.MinValue));
+    }
+
     [Fact]
     public void LinhaDosTimings_ComTemposAtivos_MostraOCl()
     {

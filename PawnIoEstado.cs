@@ -29,6 +29,32 @@ public static class PawnIoEstado
     /// </summary>
     public static bool Travado(bool instalado, int erro) => instalado && erro == ErroSemDispositivo;
 
+    /// <summary>Intervalo mínimo entre duas reaberturas automáticas da coleta.</summary>
+    public static readonly TimeSpan IntervaloDeReabertura = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// A coleta deve reabrir agora? O coletor que abriu o driver travado lê 0
+    /// para sempre (medido em 22/11/2026): quando o driver volta, só reabrir a
+    /// coleta traz a CPU de volta.
+    ///
+    /// <para>
+    /// <paramref name="pendente"/> diz que o driver foi visto travado desde a
+    /// última reabertura. Durante um reparo pelo CORRIGIR a decisão espera: o
+    /// próprio reparo reabre a coleta, e duas reaberturas seguidas podiam
+    /// deixar um coletor órfão.
+    /// </para>
+    /// </summary>
+    /// <returns>Se reabre agora, e o novo valor de <paramref name="pendente"/>.</returns>
+    public static (bool Reabrir, bool Pendente) DecidirReabertura(
+        bool pendente, bool travadoAgora, bool respondendoAgora, bool reparando, DateTime agora, DateTime ultimaReabertura)
+    {
+        if (reparando) return (false, pendente);
+        if (travadoAgora) return (false, true);
+        if (!pendente || !respondendoAgora) return (false, pendente);
+        if (agora - ultimaReabertura < IntervaloDeReabertura) return (false, true);
+        return (true, false);
+    }
+
     /// <summary>O motivo de o driver não ter aberto, para a tela.</summary>
     public static string MotivoDeNaoAbrir(bool instalado, int erro)
     {

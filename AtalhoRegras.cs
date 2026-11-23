@@ -13,7 +13,7 @@ public sealed record Atalho(uint Modificadores, uint Tecla);
 /// ela é escrita na tela. Não conhece WPF nem o Windows (é testável).
 ///
 /// <para>
-/// O atalho é escolha do dono (20/11/2026): o Ctrl + Shift + O, o padrão,
+/// O atalho é escolha do dono (21/11/2026): o Ctrl + Shift + O, o padrão,
 /// é o mesmo que o AMD Software usa para o painel de métricas dele (medido no
 /// PC do dono: o Windows recusou o registro com o erro 1409 porque o
 /// RadeonSoftware já tinha o atalho). Quem abre primeiro fica com ele.
@@ -64,6 +64,16 @@ public static class AtalhoRegras
             return "Use Ctrl, Alt ou Win junto com a tecla: um atalho só de Shift (ou de uma tecla só) dispararia enquanto você digita.";
         if (NomeDaTecla(a.Tecla) is null)
             return "Use uma letra, um número ou uma tecla de F1 a F24.";
+
+        // O atalho global vale no Windows inteiro: Ctrl + C, Ctrl + V, Alt + F4 e
+        // afins parariam de funcionar em todos os programas. Letra e número
+        // pedem dois modificadores; nas teclas F, ficam de fora o Alt + F4 e o
+        // Ctrl + F4 (fechar janela e aba).
+        bool letraOuNumero = a.Tecla is (>= 0x30 and <= 0x39) or (>= 0x41 and <= 0x5A);
+        if (letraOuNumero && System.Numerics.BitOperations.PopCount(a.Modificadores) < 2)
+            return "Com letra ou número, use dois modificadores (por exemplo Ctrl + Shift ou Ctrl + Alt): um só tomaria atalhos do Windows como Ctrl + C.";
+        if (a.Tecla == 0x73 && a.Modificadores is Alt or Ctrl)
+            return "Alt + F4 e Ctrl + F4 fecham janelas e abas: escolha outra combinação.";
         return null;
     }
 
