@@ -63,8 +63,8 @@ public sealed class SmnPawnIo : IDisposable
         var transporte = new PawnIoTransporte();
         if (!transporte.Abrir())
         {
+            erro = transporte.MotivoDaFalha;
             transporte.Dispose();
-            erro = "O driver PawnIO não está instalado neste computador.";
             return null;
         }
 

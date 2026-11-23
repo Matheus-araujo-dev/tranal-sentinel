@@ -1,3 +1,23 @@
+## Novidades — atalho à sua escolha, timings na tela e o PawnIO travado
+
+**Você escolhe o atalho do monitor.** O Ctrl + Shift + O é o mesmo atalho do
+painel de métricas do AMD Software, e quem abre primeiro fica com ele. Na
+página MONITOR, clique no botão do atalho e aperte a combinação que quiser
+(Ctrl, Alt ou Win junto com uma letra, um número ou F1 a F24). Se outro
+programa já usar a combinação, a página avisa e o atalho anterior continua.
+
+**Os timings da memória aparecem nas informações do sistema.** A linha
+"Timings" dizia "o Windows não expõe, veja no CPU-Z". O app já lia esses
+números na página TRANAL MEMÓRIA, direto do controlador de memória: agora a
+linha mostra o CL e os tempos principais que estão valendo.
+
+**O PawnIO travado é reconhecido e consertado.** Quando o driver fica
+instalado mas sem responder (acontece quando a desinstalação dele é
+interrompida por outro programa que o usava, como o OpenRGB), o app dizia "o
+driver não respondeu" ou "não está instalado". Agora ele diz que o driver
+travou, e o CORRIGIR reinicia o driver sem reiniciar o PC. Se o driver voltar
+sozinho, a temperatura da CPU volta sem fechar o app.
+
 ## Novidades — o monitor mostra o que você escolhe, e o instalador traz o PawnIO
 
 **O monitor juntou de verdade o painel e o overlay.** O painel do desktop

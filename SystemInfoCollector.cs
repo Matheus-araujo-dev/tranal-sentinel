@@ -35,6 +35,25 @@ public static class SystemInfoCollector
     private static string S(ManagementObject mo, string prop)
         => mo[prop]?.ToString()?.Trim() ?? "—";
 
+    /// <summary>
+    /// Os tempos de memória que estão valendo, pela mesma leitura da página
+    /// TRANAL MEMÓRIA (o controlador de memória pelo PawnIO). A coleta roda
+    /// fora da thread da janela, então ler aqui não trava a tela.
+    /// </summary>
+    private static string LinhaDosTimings()
+    {
+        try
+        {
+            var r = MemoriaColeta.Coletar();
+            // Só o motivo dos tempos ativos: o erro do SPD é de outra leitura.
+            return MemoriaAtivosTexto.LinhaDasInformacoes(r.TimingsAtivos, r.ErroTimingsAtivos);
+        }
+        catch (Exception ex)
+        {
+            return MemoriaAtivosTexto.LinhaDasInformacoes(null, ex.Message);
+        }
+    }
+
     private static string Bytes(object? v)
     {
         if (v == null) return "—";
@@ -220,7 +239,7 @@ public static class SystemInfoCollector
             var volts = mods.Select(m => m.VoltCfg).Where(v => v != "—").Distinct().ToList();
             if (volts.Count > 0) sum.Add("Tensão em uso", string.Join(" / ", volts));
         }
-        sum.Add("Timings (CL, tRCD, tRP...)", "O Windows não expõe. Veja na BIOS ou com o CPU-Z (aba Memory/SPD).");
+        sum.Add("Timings (CL, tRCD, tRP...)", LinhaDosTimings());
 
         try
         {

@@ -316,6 +316,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        ReabrirColetaSeOPawnIoVoltou(_monitor.DiagnoseCpuSensors());
         string aviso = _monitor.AvisoCpuSensor();
         CpuSensorWarn.Visibility = aviso.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         if (aviso.Length > 0) CpuSensorWarnText.Text = aviso;
@@ -327,6 +328,11 @@ public partial class MainWindow : Window
         // mesmo estado, senão a mensagem pode não bater com o caminho escolhido.
         var p = _monitor.DiagnoseCpuSensors();
         string why = SensorMonitor.TextoExplicacaoCpuSensor(p, _monitor.MotivoCpuSensor);
+        if (p == SensorMonitor.CpuSensorProblem.PawnIOTravado)
+        {
+            _ = RepararPawnIoAsync(why);
+            return;
+        }
         if (p != SensorMonitor.CpuSensorProblem.PawnIOMissing)
         {
             MessageBox.Show(why, "TRANAL SENTINEL", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -353,6 +359,71 @@ public partial class MainWindow : Window
             "/k winget install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements" +
             " && echo. && echo Pronto! Feche esta janela e reabra o TRANAL SENTINEL.")
         { UseShellExecute = true });
+    }
+
+    /// <summary>
+    /// Reinicia o driver PawnIO travado, com a confirmação do dono, e reabre a
+    /// coleta: o coletor que abriu o driver travado não tenta de novo sozinho.
+    /// </summary>
+    private async Task RepararPawnIoAsync(string why)
+    {
+        var r = MessageBox.Show(why + "\n\nReiniciar o driver PawnIO agora? Leva alguns segundos e não precisa reiniciar o PC. " +
+                                "Outros programas que usam o mesmo driver (OpenRGB, FanControl) ficam sem ele durante esses segundos.",
+                                "TRANAL SENTINEL", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (r != MessageBoxResult.Yes) return;
+
+        if (_reparandoPawnIo) return;
+        _reparandoPawnIo = true;
+        try
+        {
+            var (abriu, relato) = await Task.Run(PawnIoReparo.Reiniciar);
+            RegistroDiario.Registrar(relato, "PAWNIO");
+            _monitor.EsquecerSondaDoPawnIo();
+            if (abriu)
+            {
+                // O reparo já reabre a coleta: a reabertura automática não precisa repetir.
+                _coletaAbertaComPawnIoTravado = false;
+                _coletaReabertaEm = DateTime.UtcNow;
+                await _monitor.ReiniciarAsync(_monitor.PermitirGpuAdl);
+                _ = Task.Run(() => MemoriaColeta.Coletar(forcar: true));
+            }
+            MessageBox.Show(relato, "TRANAL SENTINEL", MessageBoxButton.OK,
+                            abriu ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _reparandoPawnIo = false;
+        }
+    }
+
+    /// <summary>Um reparo do PawnIO está em andamento (o botão não dispara dois).</summary>
+    private bool _reparandoPawnIo;
+
+    /// <summary>A coleta foi aberta com o driver travado (e precisa reabrir quando ele voltar).</summary>
+    private bool _coletaAbertaComPawnIoTravado;
+
+    /// <summary>Quando a coleta foi reaberta sozinha pela última vez (no máximo uma vez a cada 5 min).</summary>
+    private DateTime _coletaReabertaEm = DateTime.MinValue;
+
+    /// <summary>
+    /// O driver estava travado e voltou (reparo fora do app, ou o programa que o
+    /// segurava fechou): a coleta reabre sozinha. O coletor não reabre o driver
+    /// por conta própria, e sem isso a CPU ficaria em "—" até fechar o app.
+    /// </summary>
+    private void ReabrirColetaSeOPawnIoVoltou(SensorMonitor.CpuSensorProblem p)
+    {
+        var (reabrir, pendente) = PawnIoEstado.DecidirReabertura(
+            _coletaAbertaComPawnIoTravado,
+            travadoAgora: p == SensorMonitor.CpuSensorProblem.PawnIOTravado,
+            respondendoAgora: p == SensorMonitor.CpuSensorProblem.ReadFailed,
+            reparando: _reparandoPawnIo,
+            DateTime.UtcNow, _coletaReabertaEm);
+        _coletaAbertaComPawnIoTravado = pendente;
+        if (!reabrir) return;
+
+        _coletaReabertaEm = DateTime.UtcNow;
+        RegistroDiario.Registrar("O driver PawnIO voltou a responder: a coleta dos sensores foi reaberta.", "PAWNIO");
+        _ = _monitor.ReiniciarAsync(_monitor.PermitirGpuAdl);
     }
 
     // ---------------- Janela / navegação ----------------
@@ -1467,16 +1538,8 @@ public partial class MainWindow : Window
         base.OnSourceInitialized(e);
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
         System.Windows.Interop.HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
-        // Ctrl + Shift + O (a letra), sem repetição ao segurar. Se outro
-        // programa já tiver o atalho, o Windows recusa: isso vai para o diário,
-        // em vez de o atalho simplesmente não funcionar sem explicação.
-        if (!RegisterHotKey(hwnd, HotkeyId, 0x0002 | 0x0004 | 0x4000, 0x4F))
-        {
-            int erro = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            RegistroDiario.Registrar(
-                $"O atalho Ctrl + Shift + O não pôde ser registrado (erro {erro}): outro programa já usa esse atalho.",
-                "MONITOR");
-        }
+        // O atalho que o dono escolheu na página MONITOR (MainWindow.Monitor.cs).
+        RegistrarAtalhoInicial();
     }
 
     private IntPtr HotkeyHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

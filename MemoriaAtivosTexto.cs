@@ -18,6 +18,26 @@ public static class MemoriaAtivosTexto
         return $"{ativos.VelocidadeMts} MT/s ({ativos.ClockMhz} MHz) · {ativos.ResumoCiclos} · {extras}";
     }
 
+    /// <summary>
+    /// A linha "Timings" das informações do sistema: os tempos ativos (os que
+    /// o controlador está usando agora) ou, sem eles, o motivo de não ter.
+    ///
+    /// <para>
+    /// Até a v0.37.2 essa linha dizia "o Windows não expõe, veja no CPU-Z",
+    /// enquanto a página TRANAL MEMÓRIA já lia os mesmos números: agora as
+    /// duas mostram a mesma leitura (<see cref="MemoriaColeta"/>).
+    /// </para>
+    /// </summary>
+    public static string LinhaDasInformacoes(TimingsAtivos? ativos, string? motivo)
+    {
+        if (ativos is not null)
+            return $"CL {ativos.TCl} · {ativos.ResumoCiclos} · {ativos.CommandRate}T a {ativos.VelocidadeMts} MT/s " +
+                   "(tempos ativos, lidos do controlador de memória). O detalhe está em TRANAL MEMÓRIA.";
+
+        string porque = string.IsNullOrWhiteSpace(motivo) ? "a leitura não trouxe os tempos" : motivo.Trim().TrimEnd('.');
+        return $"Não deu para ler: {porque}. Veja a página TRANAL MEMÓRIA.";
+    }
+
     /// <summary>Como descrever a situação de um tempo em relação à referência.</summary>
     public static string Situacao(SituacaoTiming situacao) => situacao switch
     {

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using LibreHardwareMonitor.Hardware;
 
@@ -546,6 +547,128 @@ public partial class MainWindow
         else if (f != null) OvStatus.Text = $"Ativa · {f.ProcessName}: {f.Fps:0} FPS ({SensorTexto.Milissegundos(f.FrameTimeMs)}) · 1% low {f.Low1Fps:0}";
         else OvStatus.Text = "Ativa · aguardando um jogo em primeiro plano";
     }
+
+    // ------------------------------------------------------------------ atalho
+
+    /// <summary>O atalho em vigor (o escolhido, ou o padrão).</summary>
+    private Atalho _atalho = AtalhoRegras.Padrao;
+
+    /// <summary>O Windows aceitou o registro do atalho em vigor?</summary>
+    private bool _atalhoAtivo;
+
+    /// <summary>O botão está esperando a combinação nova.</summary>
+    private bool _capturandoAtalho;
+
+    /// <summary>
+    /// Registra no Windows o atalho gravado (ou o padrão). Se outro programa
+    /// já usa a combinação, o Windows recusa: o motivo vai para o diário e
+    /// para a página, onde o dono escolhe outra.
+    /// </summary>
+    private void RegistrarAtalhoInicial()
+    {
+        _atalho = AtalhoRegras.Carregar(_settings.AtalhoMonitorModificadores, _settings.AtalhoMonitorTecla);
+        if (!TentarRegistrarAtalho(_atalho, out int erro))
+            RegistroDiario.Registrar(
+                $"O atalho {AtalhoRegras.Texto(_atalho)} não pôde ser registrado (erro {erro}): outro programa já usa esse atalho. Escolha outro na página MONITOR.",
+                "MONITOR");
+        AtualizarTelaDoAtalho(null);
+    }
+
+    /// <summary>Troca o registro do Windows para <paramref name="a"/> (o anterior sai antes).</summary>
+    private bool TentarRegistrarAtalho(Atalho a, out int erro)
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        UnregisterHotKey(hwnd, HotkeyId);
+        bool ok = RegisterHotKey(hwnd, HotkeyId, a.Modificadores | AtalhoRegras.SemRepeticao, a.Tecla);
+        erro = ok ? 0 : System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+        _atalhoAtivo = ok;
+        return ok;
+    }
+
+    /// <summary>Escreve o atalho no botão e o estado dele (ativo, recusado ou o aviso dado).</summary>
+    private void AtualizarTelaDoAtalho(string? aviso)
+    {
+        if (BtnAtalho is null) return;
+        BtnAtalho.Content = _capturandoAtalho ? "aperte o atalho…" : AtalhoRegras.Texto(_atalho);
+        AtalhoStatus.Text = aviso ?? (_atalhoAtivo
+            ? "Ativo: liga e desliga o monitor, inclusive dentro do jogo."
+            : $"O Windows recusou o {AtalhoRegras.Texto(_atalho)}: outro programa já usa essa combinação" +
+              (_atalho == AtalhoRegras.Padrao ? " (o AMD Software usa Ctrl + Shift + O no painel de métricas dele)" : "") +
+              ". Clique no botão e escolha outra.");
+    }
+
+    private void BtnAtalho_Click(object sender, RoutedEventArgs e)
+    {
+        // Enquanto captura, o atalho atual sai do Windows: senão apertar a
+        // mesma combinação ligaria o monitor em vez de chegar ao botão.
+        _capturandoAtalho = true;
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        UnregisterHotKey(hwnd, HotkeyId);
+        Keyboard.Focus(BtnAtalho);
+        AtualizarTelaDoAtalho("Aperte a combinação: Ctrl, Alt ou Win junto com uma letra, um número ou F1 a F24. Esc cancela.");
+    }
+
+    private void BtnAtalho_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (!_capturandoAtalho) return;
+        e.Handled = true;
+
+        Key tecla = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (tecla == Key.Escape) { CancelarCapturaDoAtalho(); return; }
+
+        // Só o modificador ainda: espera a tecla de verdade.
+        if (tecla is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
+                  or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin) return;
+
+        var m = Keyboard.Modifiers;
+        uint mods = 0;
+        if (m.HasFlag(ModifierKeys.Control)) mods |= AtalhoRegras.Ctrl;
+        if (m.HasFlag(ModifierKeys.Alt)) mods |= AtalhoRegras.Alt;
+        if (m.HasFlag(ModifierKeys.Shift)) mods |= AtalhoRegras.Shift;
+        if (m.HasFlag(ModifierKeys.Windows)) mods |= AtalhoRegras.Win;
+        var novo = new Atalho(mods, (uint)KeyInterop.VirtualKeyFromKey(tecla));
+
+        if (AtalhoRegras.Erro(novo) is { } erroDaRegra)
+        {
+            AtualizarTelaDoAtalho(erroDaRegra + " Tente outra combinação, ou Esc para cancelar.");
+            return;
+        }
+        AplicarAtalho(novo);
+    }
+
+    /// <summary>Tenta o atalho novo; se o Windows recusar, o anterior volta.</summary>
+    private void AplicarAtalho(Atalho novo)
+    {
+        _capturandoAtalho = false;
+        if (TentarRegistrarAtalho(novo, out int erro))
+        {
+            _atalho = novo;
+            _settings.AtalhoMonitorModificadores = novo.Modificadores;
+            _settings.AtalhoMonitorTecla = novo.Tecla;
+            _settings.Save();
+            RegistroDiario.Registrar($"Atalho do monitor trocado para {AtalhoRegras.Texto(novo)}.", "MONITOR");
+            AtualizarTelaDoAtalho(null);
+            return;
+        }
+
+        TentarRegistrarAtalho(_atalho, out _);
+        RegistroDiario.Registrar($"O atalho {AtalhoRegras.Texto(novo)} foi recusado pelo Windows (erro {erro}); continua o {AtalhoRegras.Texto(_atalho)}.", "MONITOR");
+        AtualizarTelaDoAtalho(
+            $"O Windows recusou o {AtalhoRegras.Texto(novo)} (erro {erro}): outro programa já usa essa combinação. " +
+            $"Continua valendo o {AtalhoRegras.Texto(_atalho)}{(_atalhoAtivo ? "" : ", que também está recusado")}. Clique de novo para escolher outra.");
+    }
+
+    private void CancelarCapturaDoAtalho()
+    {
+        if (!_capturandoAtalho) return;
+        _capturandoAtalho = false;
+        TentarRegistrarAtalho(_atalho, out _);
+        AtualizarTelaDoAtalho(null);
+    }
+
+    private void BtnAtalho_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) => CancelarCapturaDoAtalho();
+
+    private void BtnAtalhoPadrao_Click(object sender, RoutedEventArgs e) => AplicarAtalho(AtalhoRegras.Padrao);
 
     // ------------------------------------------------------------------ auxiliares
 

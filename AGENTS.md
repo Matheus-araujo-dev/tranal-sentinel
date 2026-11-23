@@ -119,6 +119,20 @@ Baseline de avisos: **16 no app**. Acima disso, é regressão.
   confere), e a desinstalação do app **não** remove o driver: ele é
   compartilhado com outros programas. Para subir a versão, troque a tag e o
   hash juntos.
+- **"Não instalado" e "instalado, mas travado" são coisas diferentes**
+  (`PawnIoEstado`, pura). O erro do Windows na abertura do driver é guardado
+  (`PawnIoTransporte.UltimoErro`), e nunca vira "não está instalado" sozinho.
+  Medido no PC do dono em 22/11/2026: driver instalado, serviço rodando, e o
+  dispositivo `\Device\PawnIO` sumido (erro 2), depois de uma desinstalação que
+  o OpenRGB travou no meio. A CPU lia 0 em tudo e a memória dizia "não está
+  instalado". O CORRIGIR, nesse estado, reinicia o dispositivo
+  (`PawnIoReparo`, `pnputil /restart-device` de cada `ROOT\PAWNIO\*`), com a
+  confirmação do dono e o resultado no diário, e reabre a coleta. Se o driver
+  volta sozinho, a coleta reabre sozinha (no máximo a cada 5 min): o coletor
+  não reabre o driver por conta própria.
+- **A linha "Timings" das informações do sistema é a mesma leitura da TRANAL
+  MEMÓRIA** (`MemoriaColeta`, texto em `MemoriaAtivosTexto.LinhaDasInformacoes`).
+  Ela dizia "o Windows não expõe, veja no CPU-Z" enquanto o app já lia o CL.
 - **A tarefa agendada é o mesmo XML de sempre** (logon do usuário, privilégio
   máximo, `--iniciar-como-sistema`, sem prazo e sem parar na bateria), gravado
   pelo `Register-ScheduledTask` e não pelo `schtasks /XML`: o schtasks só aceita
@@ -882,10 +896,14 @@ gerenciado tinha só ~11 MB vivos; o que pesava era nativo.
   dentro da área de trabalho) e grava a posição; o dono ainda pode arrastar,
   e a posição arrastada é a que volta. Painel colado no canto continua colado
   quando o tamanho muda.
-- **O atalho é a letra O.** Medido no PC do dono em 20/11/2026: o
-  Ctrl + Shift + O estava registrado e ligava o monitor. Quando o Windows
-  recusa o registro (outro programa com o mesmo atalho), o motivo vai para o
-  diário.
+- **O atalho é escolha do dono** (decisão dele, 21/11/2026). O padrão é
+  Ctrl + Shift + O, que é o mesmo do painel de métricas do AMD Software
+  (medido no PC do dono: o `RegisterHotKey` recusou com o erro 1409 porque o
+  RadeonSoftware já tinha a combinação; quem abre primeiro fica com ela). A
+  página MONITOR captura a combinação nova; a regra do que serve (Ctrl, Alt ou
+  Win com letra, número ou F1–F24) e do texto mora em `AtalhoRegras` (pura).
+  Se o Windows recusar a nova, a anterior volta e a página diz por quê; a
+  recusa na abertura vai para o diário.
 - **O benchmark pausa o monitor sem gravar a preferência**
   (`PausarMonitor`/`RetomarMonitor`): se o app cair no meio do bench, o
   monitor volta no próximo arranque.
